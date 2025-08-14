@@ -1,0 +1,821 @@
+<!-- index.html -->
+<!--------------- Start #16 - Contracts ---------------->
+<!------------------------------------------------------>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Table Row */
+#roster tbody tr{
+ overflow:auto !important;
+}
+
+/* Table Data */
+#homepagecolumns tbody tr .homepagecolumn div .mobile-wrap .contracts .contracts #roster tbody .eventablerow td{
+ transform:translatex(0px) translatey(0px) !important;
+}
+
+/* Oddtablerow */
+#roster tbody > .oddtablerow{
+ background-color:#121010;
+}
+
+
+/* Player */
+#roster tbody .newposition .player{
+ border-top-color:transparent;
+ border-left-color:transparent;
+}
+
+/* Salary */
+#roster tbody .newposition .salary{
+ transform:translatex(0px) translatey(0px);
+ border-style:none;
+}
+
+/* Table Data */
+#roster tbody .newposition td{
+ border-top-style:none;
+}
+
+
+/* Contracts */
+.mobile-wrap > .contracts{
+ display:grid;
+ overflow:auto;
+}
+
+/* Mobile wrap */
+#home #container-wrap .homepagetabcontent #homepagecolumns tbody tr .homepagecolumn > div > .mobile-wrap{
+ transform:translatex(0px) translatey(0px) !important;
+}
+
+/* Body Of Table */
+#roster tbody{
+ float:left;
+ transform:translatex(0px) translatey(0px);
+ overflow:scroll;
+ max-height:500px;
+}
+
+
+/* Mobile wrap */
+.homepagetabcontent:nth-child(6) #homepagecolumns tbody:nth-child(1) tr:nth-child(1) .homepagecolumn div:nth-child(1) > .mobile-wrap:nth-child(2){
+ display:grid;
+}
+
+/* Roster */
+#roster{
+ display:flex !important;
+}
+/* Body Of Table */
+#home #container-wrap .homepagetabcontent #homepagecolumns tbody tr .homepagecolumn div .mobile-wrap .contracts #roster tbody{
+ width:100% !important;
+ height:100% !important;
+}
+
+/* Oddtablerow */
+#roster tbody .oddtablerow{
+ flex-direction:column;
+ flex-wrap:nowrap;
+ display:block;
+ float:none;
+}
+
+/* Eventablerow */
+#roster tbody .eventablerow{
+ display:block;
+}
+
+
+/* Table Row */
+#roster tbody > tr{
+ display:flex;
+ flex-direction:column;
+ flex-wrap:nowrap;
+ float:none;
+ max-height:304px;
+ overflow:scroll;
+}
+
+/* Table Row */
+#roster tbody tr:nth-child(1){
+ display:none;
+}
+
+
+
+/* Mobile wrap */
+.homepagecolumn > div > .mobile-wrap{
+ text-align:center;
+}
+
+
+/* Export */
+#export-btn{
+ background-color: var(--accent-light);
+ color:#e5e5e5;
+ width:135px;
+ height:33px;
+ border-top-left-radius:50px;
+ border-top-right-radius:50px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:50px;
+ background-color:#000000;
+ color:#e5e5e5;
+ width:135px;
+ height:33px;
+ border-top-left-radius:50px;
+ border-top-right-radius:50px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:50px;
+}
+
+/* Percentage bar */
+#percentage-bar{
+ border-top-left-radius:50px;
+ border-top-right-radius:50px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:50px;
+ border-top-left-radius:50px;
+ border-top-right-radius:50px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:50px;
+}
+
+/* Filled percentage */
+#filled-percentage{
+ border-top-left-radius:50px;
+ border-top-right-radius:50px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:0px;
+ border-top-left-radius:50px;
+ border-top-right-radius:0px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:0px;
+ filter:blur(3.51px);
+ box-shadow:0px 0px 6px 0px #ffffff inset;
+}
+
+
+
+
+
+/* Button row */
+#home #container-wrap .homepagetabcontent #homepagecolumns tbody tr .homepagecolumn div .mobile-wrap .contracts #modal .button-row{
+ grid-template-columns:1fr 1fr 1fr 1fr 1fr !important;
+}
+
+
+
+
+
+
+
+  /* Withfranchiseicon */
+  #roster .withfranchiseicon {
+    display: none;
+  }
+
+ 
+
+
+  #roster {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 452px;
+  display: inline-block;
+}
+  /* Styles specific to the contracts container */
+  .contracts #roster tr .week,
+  .contracts #roster tr .contractstatus,
+  .contracts #roster tr .contractyear,
+  .contracts #roster tr .contractinfo,
+  .contracts #roster tr .points {
+    display: none;
+  }
+
+  .contracts #roster tr .player,
+  .contracts #homepagecolumns tbody tr th,
+  .contracts .swipeContent .mobile-wrap,
+  .contracts #roster tbody tr th,
+  .contracts .eventablerow td,
+  .contracts .oddtablerow td {
+    text-align: center;
+  }
+
+  .contracts h1 {
+    display: flex;
+    flex-direction: column;
+    background-color: black;
+  }
+
+  .contracts button.selected {
+    background-color: var(--accent);
+  }
+
+  .contracts #percentage-bar {
+    width: 100%;
+    background-color: #ddd;
+    height: 24px;
+  }
+
+  .contracts #filled-percentage {
+    height: 100%;
+    width: 0%;
+    background-color: var(--accent);
+  }
+
+  .contracts .eventablerow td button,
+  .contracts .oddtablerow td button {
+    padding: 8px 12px;
+    border-radius: 4px;
+    background-color: black;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+
+  .contracts .eventablerow td button.selected,
+  .contracts .oddtablerow td button.selected {
+    background-color: var(--accent);
+    border: 2px solid #ccc;
+    transform: scale(1.05);
+    font-weight: bold;
+  }
+
+
+
+
+  .adjust-button {
+    padding: 8px 16px;
+    border: none;
+    background-color: gray;
+    color: white;
+    cursor: pointer;
+    margin: 4px;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+  }
+
+  .adjust-button:hover {
+    background-color: #45a049;
+  }
+
+  .selected {
+    background-color: var(--accent) !important;
+  }
+
+  .button-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); /* Adjust min width as needed */
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .button-row div {
+    text-align: center;
+  }
+
+  .button-row div span {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .multiplier-value {
+    font-size: 0.75em;
+    color: #ddd;
+    text-align: center;
+    width: 100%;
+  }
+  .table-container {
+  max-height: 400px; /* Set the maximum height for the table container */
+  overflow-y: auto; /* Add vertical scrolling to the table container */
+  overflow-x: auto; /* Add horizontal scrolling to the table container, if needed */
+}
+body {
+ display:block !important;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+#roster{
+ width:100% !important;
+ min-width:0px;
+ max-height:72%;
+ max-width:100%;
+}
+.qb { color: #ff2a6d; }
+.rb { color: #00ceb8; }
+.wr { color: #6d7df5; }
+.te { color: #ffae58; }
+.pk { color: #bd66ff; }
+.dl, .de, .dt { color: #ff795a; }
+.lb { color: #d4f542; }
+.s, .cb, .db { color: #806516; }
+
+#positionTable, 
+#positionTable th, 
+#positionTable td {
+  border-collapse: collapse;
+  text-align: center;
+  margin: 0 auto;
+  padding: 10px 0; /* Adds space only between rows (vertically) */
+}
+#modal, #modal-overlay{
+ display:none;
+}
+
+/* Button row */
+#modal .button-row{
+ display:flex;
+ flex-wrap:wrap;
+}
+/* Filled percentage */
+#filled-percentage{
+ border-top-left-radius:50px;
+ border-top-right-radius:50px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:0px;
+ border-top-left-radius:50px;
+ border-top-right-radius:0px;
+ border-bottom-left-radius:50px;
+ border-bottom-right-radius:0px;
+ filter:blur(3.51px);
+ box-shadow:0px 0px 6px 0px #ffffff inset;
+}
+</style>
+
+<script>
+  function formatToMillions(value) {
+    return `$${(value / 1_000_000).toFixed(2)}M`;
+  }
+
+  function formatSalaryCell(row, salaryValue, contractYear, contractInfo, contractStatus) {
+    row.querySelector(".salary").innerHTML = `
+      <span style="font-size: 1.2em; font-weight: bold;">${formatToMillions(salaryValue)}</span><br>
+      ${contractYear} YRs<br>
+      ${contractInfo} GUAR<br>
+      <span style="color: red;">${formatToMillions(contractStatus)} CapHit</span>
+    `;
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const totalSalaryCell = document.querySelector('.total_salary_row th[colspan="3"] + th');
+    let totalSalary = parseInt(totalSalaryCell.textContent.replace(/[^0-9]/g, ""), 10);
+    let totalSalaryChange = 0;
+
+    const salaryCapCell = document.querySelector('.salary_cap_row th[colspan="3"] + th');
+    const capRoomAvailableCell = document.querySelector('.cap_room_available_row th[colspan="3"] + th');
+    const salaryCap = parseInt(salaryCapCell.textContent.replace(/[^0-9]/g, ""), 10);
+
+    function updateCapRoomAvailable() {
+      const capRoomAvailable = salaryCap - totalSalary;
+      capRoomAvailableCell.textContent = `$${capRoomAvailable.toLocaleString()}`;
+    }
+
+    function updateSalaryPercentage() {
+      const salaryPercentageUsed = ((totalSalary / salaryCap) * 100).toFixed(2);
+      document.getElementById("salary-percentage").innerHTML = `
+        ${salaryPercentageUsed}% 
+        <small><br>Total Salary: $${totalSalary.toLocaleString()}<br>Salary Cap: $${salaryCap.toLocaleString()}</small>
+      `;
+      document.getElementById("filled-percentage").style.width = `${salaryPercentageUsed}%`;
+      document.getElementById("salary-change").textContent = `$${totalSalaryChange.toLocaleString()}`;
+
+      console.log(`Total Salary Change: ${totalSalaryChange}, Total Salary: ${totalSalary}, Salary Cap: ${salaryCap}, Percentage Used: ${salaryPercentageUsed}%`);
+    }
+
+    updateCapRoomAvailable();
+    updateSalaryPercentage();
+
+    const table = document.getElementById("roster");
+    const headerRow = table.querySelector("tr");
+    const newHeaderCell = document.createElement("th");
+    newHeaderCell.textContent = "Action";
+    headerRow.appendChild(newHeaderCell);
+
+    let salaryData;
+    try {
+      const response = await fetch(
+        "https://script.google.com/macros/s/AKfycbxt13qvy2NRHUV7yoxYAKK3pEO7ZgBNF18ssupQRQGZAt7dLNF-261hCy8GZFntTYSU/exec"
+      );
+      salaryData = await response.json();
+    } catch (error) {
+      console.error("Error fetching salary data:", error);
+      return;
+    }
+
+    const rows = table.querySelectorAll("tr");
+
+    rows.forEach((row, index) => {
+      if (
+        index !== 0 &&
+        !row.classList.contains("total_salary_row") &&
+        !row.classList.contains("salary_cap_row") &&
+        !row.classList.contains("cap_room_available_row")
+      ) {
+        const newCell = row.insertCell(-1);
+        const playerCell = row.querySelector(".player a");
+        let originalPlayerText;
+
+        if (playerCell) {
+          originalPlayerText = playerCell.textContent.trim();
+          const href = playerCell.getAttribute('href');
+          const playerIdMatch = href.match(/P=(\d+)/);
+          const playerId = playerIdMatch ? playerIdMatch[1] : null;
+
+          let match = /(.*), (.*) (.*) (.*)/.exec(originalPlayerText);
+          if (match) {
+            const firstName = match[2].trim();
+            const lastName = match[1].trim();
+            const team = match[3].trim();
+            const position = match[4].trim();
+
+            playerCell.innerHTML = `<br>${firstName} ${lastName}<br>${team} ${position}`;
+          }
+        }
+
+        const originalValues = {
+          salary: row.querySelector(".salary").textContent,
+          contractYear: row.querySelector(".contractyear").textContent,
+          contractInfo: row.querySelector(".contractinfo").textContent,
+          contractStatus: row.querySelector(".contractstatus").textContent,
+          salaryValue: parseInt(row.querySelector(".salary").textContent.replace(/[^0-9]/g, ""), 10),
+        };
+
+        formatSalaryCell(row, originalValues.salaryValue, originalValues.contractYear, originalValues.contractInfo, parseInt(originalValues.contractStatus.replace(/[^0-9]/g, ""), 10));
+
+        const contractYearValue = parseInt(row.querySelector(".contractyear").textContent.trim(), 10);
+
+        ["R", "T", "C"].forEach((action) => {
+          const button = document.createElement("button");
+          const icons = {
+            R: '<i class="fa-solid fa-pen-nib"></i>',
+            T: '<i class="fa-solid fa-repeat"></i>',
+            C: '<i class="fa-solid fa-minus"></i>'
+          };
+
+          button.innerHTML = `${icons[action]} ${action}`;
+
+          if ((action === "R" && contractYearValue >= 2) || (action === "T" && contractYearValue === 0)) {
+            button.style.backgroundColor = "grey"; // Change button color
+            button.disabled = true;               // Make button unclickable
+          } else {
+            button.addEventListener("click", function () {
+              let newSalaryValue = null;
+
+              if (action === "R" && originalPlayerText) {
+                const playerData = salaryData.find(item => item[0] === originalPlayerText);
+                if (playerData) {
+                  newSalaryValue = playerData[1];
+                }
+              }
+
+              if (this.classList.contains("selected")) {
+                this.classList.remove("selected");
+                resetToOriginalValues(row, originalValues);
+                document.getElementById('modal-overlay').style.display = 'block';
+                document.getElementById('modal').style.display = 'block';
+
+                if (action === "R" && newSalaryValue !== null) {
+                  totalSalary += originalValues.salaryValue;
+                  totalSalary -= newSalaryValue;
+                  totalSalaryChange -= (newSalaryValue - originalValues.salaryValue);
+                } else if (action === "T") {
+                  totalSalary += originalValues.salaryValue;
+                  totalSalaryChange += originalValues.salaryValue;
+                } else if (action === "C") {
+                  const contractStatusValue = parseInt(row.querySelector(".contractstatus").textContent.replace(/[^0-9]/g, ""), 10) || 0;
+                  totalSalary += originalValues.salaryValue - contractStatusValue;
+                  totalSalaryChange += originalValues.salaryValue - contractStatusValue;
+                }
+              } else if (!newCell.querySelector(".selected")) {
+                this.classList.add("selected");
+
+                if (action === "R" && newSalaryValue !== null) {
+                  totalSalary -= originalValues.salaryValue;
+                  totalSalary += newSalaryValue;
+                  totalSalaryChange += (newSalaryValue - originalValues.salaryValue);
+
+                  const contractYear = 3;
+                  const contractInfo = 50;
+                  const newContractStatus = Math.round(newSalaryValue * contractYear * (contractInfo / 100));
+                  formatSalaryCell(row, newSalaryValue, contractYear, `${contractInfo}%`, newContractStatus);
+                  showModal(row, newSalaryValue, contractYear, contractInfo);
+                } else if (action === "T") {
+                  totalSalary -= originalValues.salaryValue;
+                  totalSalaryChange -= originalValues.salaryValue;
+                } else if (action === "C") {
+                  const contractStatusValue = parseInt(row.querySelector(".contractstatus").textContent.replace(/[^0-9]/g, ""), 10) || 0;
+                  totalSalary -= originalValues.salaryValue;
+                  totalSalaryChange -= originalValues.salaryValue;
+
+                  totalSalary += contractStatusValue;
+                  totalSalaryChange += contractStatusValue;
+                }
+              }
+
+              totalSalaryCell.textContent = `$${totalSalary.toLocaleString()}`;
+              updateCapRoomAvailable();
+              updateSalaryPercentage();
+            });
+          }
+
+          newCell.appendChild(button);
+        });
+      }
+    });
+
+    function showModal(row, salaryValue, contractYear, contractInfo) {
+      const modal = document.getElementById('modal');
+      const overlay = document.getElementById('modal-overlay');
+      overlay.style.display = 'block';
+      modal.style.display = 'block';
+
+      const playerCell = row.querySelector(".player a");
+      const playerInfo = playerCell ? playerCell.innerText : '';
+
+      const guaranteeMultipliers = [1, 0.9375, 0.8125, 0.6875, 0.5625, 0.5, 0.47875, 0.43625, 0.39375, 0.35125, 0.33];
+      const lengthMultipliers = [1, 0.75, 0.5, 0.415, 0.33];
+
+      modal.innerHTML = `
+        <h2 style="text-align: center;">Adjust Contract</h2>
+        <p>Player: ${playerInfo}</p>
+        <p>Initial Salary: <span id="modal-salary">${formatToMillions(salaryValue)}</span></p>
+        <p>Multiplier: <span id="multiplier-value">0</span></p>
+                          <h2>Adjust Guarantee Percentage</h2>
+        <div class="button-row">
+          ${guaranteeMultipliers.map((multiplier, i) => `
+
+            <div>
+              <button class="adjust-button guarantee-button" data-multiplier="${multiplier}">${i * 10}%</button>
+              <span class="multiplier-value">${multiplier}</span>
+            </div>
+          `).join('')}
+        </div>
+        <h2>Adjust Contract Length</h2>
+        <div class="button-row">
+          ${lengthMultipliers.map((multiplier, i) => `
+            <div>
+              <button class="adjust-button length-button" data-multiplier="${multiplier}">${i + 1}</button>
+              <span class="multiplier-value">${multiplier}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div style="text-align: center; margin-top: 10px;">
+          <button id="close-modal" class="adjust-button">Close</button>
+        </div>
+      `;
+
+      modal.querySelector('button#close-modal').onclick = function () {
+        formatSalaryCell(row, tempSalaryValue, tempContractYear, `${tempContractInfo}%`, Math.round(tempSalaryValue * tempContractYear * (tempContractInfo / 100)));
+        totalSalary += tempSalaryValue - salaryValue;
+        totalSalaryChange += tempSalaryValue - salaryValue;
+        updateCapRoomAvailable();
+        updateSalaryPercentage();
+
+        overlay.style.display = 'none';
+        modal.style.display = 'none';
+      };
+
+      let selectedGuaranteeMultiplier = 1;
+      let selectedLengthMultiplier = 1;
+      let tempSalaryValue = salaryValue;
+      let tempContractYear = contractYear;
+      let tempContractInfo = parseInt(contractInfo, 10);
+
+      function updateMultiplier() {
+        const newContractYear = document.querySelector('.length-button.selected')?.textContent.trim();
+        const newContractInfoText = document.querySelector('.guarantee-button.selected')?.textContent.trim();
+
+        const newContractInfo = newContractInfoText ? parseInt(newContractInfoText, 10) : tempContractInfo;
+        const totalMultiplier = selectedGuaranteeMultiplier + selectedLengthMultiplier;
+        document.getElementById('multiplier-value').textContent = totalMultiplier.toFixed(2);
+
+        tempSalaryValue = salaryValue * totalMultiplier;
+        document.getElementById('modal-salary').textContent = formatToMillions(tempSalaryValue);
+
+        tempContractYear = parseInt(newContractYear, 10) || tempContractYear;
+        tempContractInfo = newContractInfo;
+      }
+
+      modal.querySelectorAll('button.guarantee-button').forEach((btn) => {
+        btn.onclick = () => {
+          modal.querySelectorAll('button.guarantee-button').forEach(button => button.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedGuaranteeMultiplier = parseFloat(btn.dataset.multiplier);
+          updateMultiplier();
+        };
+      });
+
+      modal.querySelectorAll('button.length-button').forEach((btn) => {
+        btn.onclick = () => {
+          modal.querySelectorAll('button.length-button').forEach(button => button.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedLengthMultiplier = parseFloat(btn.dataset.multiplier);
+          updateMultiplier();
+        };
+      });
+    }
+
+    function resetToOriginalValues(row, originalValues) {
+      formatSalaryCell(row, originalValues.salaryValue, originalValues.contractYear, `${originalValues.contractInfo}`, parseInt(originalValues.contractStatus.replace(/[^0-9]/g, ""), 10));
+    }
+  });
+</script>
+
+<div class="contracts">
+
+  <div id="salary-bar">
+    <div id="percentage-bar">
+      <div id="filled-percentage"></div>
+    </div>
+    <p>Salary Percentage Used: <span id="salary-percentage">0%</span></p>
+    <p>Total Salary Change: <span id="salary-change">0</span></p>
+  </div>
+<script>
+    function updatePositionCount() {
+      const positionMappings = {
+        qb: "position_qb",
+        rb: "position_rb",
+        wr: "position_wr",
+        te: "position_te",
+      };
+
+      Object.keys(positionMappings).forEach(position => {
+        let count = 0;
+        const rows = document.querySelectorAll("#roster tr");
+
+        rows.forEach(row => {
+          const playerCell = row.querySelector(`.${positionMappings[position]}`);
+          const contractYearCell = row.querySelector(".contractyear");
+
+          if (playerCell && contractYearCell) {
+            const contractYear = parseInt(contractYearCell.textContent, 10);
+            if (contractYear > 0) {
+              count += 1;
+            }
+          }
+        });
+
+        const positionRow = document.querySelector(`tr:has(td.${position})`);
+        if (positionRow) {
+          positionRow.querySelector("td:nth-child(3)").textContent = count;
+        }
+      });
+    }
+
+    updatePositionCount(); // initial count update
+  });
+</script>
+
+<div class="contracts">
+
+
+    <table id="positionTable">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="qb">QB</th>
+          <th class="rb">RB</th>
+          <th class="wr">WR</th>
+          <th class="te">TE</th>
+          <th class="sflx">SFLX</th>
+          <th class="flx">FLX</th>
+          <th class="pk">PK</th>
+          <th class="dl">DL</th>
+          <th class="lb">LB</th>
+          <th class="db">DB</th>
+          <th class="idp">IDP</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Starters</td>
+          <td>2</td>
+          <td>2</td>
+          <td>2</td>
+          <td>1</td>
+          <td>1</td>
+          <td>3</td>
+          <td>1</td>
+          <td>1</td>
+          <td>1</td>
+          <td>1</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td>Under<br>Contract</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+<div id="modal-overlay"></div>
+<div id="modal"></div>        
+
+<module name="ROSTER"/>  <table id="roster">
+    <!-- Your table structure here -->
+  </table>
+</div>
+
+<button id="export-btn">Submit Changes</button>
+
+<div id="csv-preview-modal" style="display:none; position:fixed; top:10%; left:10%; width:80%; height:80%; background:black; overflow:auto; padding:20px; border-radius:8px; box-shadow:0 0 10px #000;">
+
+  <button id="close-csv-preview" style="float:right;">Close</button>
+  <button id="copy-table" style="float:right; margin-right:10px;">Copy Table</button>
+  <button id="confirm-submit" style="float:right; margin-right:10px;">Confirm and Submit</button>
+  <table id="csv-table" border="1" style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>Player</th>
+        <th>Team</th>
+        <th>Position</th>
+        <th>Salary</th>
+        <th>Length</th>
+        <th>Guar</th>
+        <th>Cap Hit</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="csv-content">
+      <!-- Rows will be added dynamically -->
+    </tbody>
+  </table>
+</div>
+
+<script>
+function prepareCSV() {
+  const table = document.getElementById("roster");
+  const rows = Array.from(table.querySelectorAll('tr'));
+  let emailBody = '';
+
+  rows.forEach(row => {
+    const playerCell = row.querySelector('.player a');
+    const salaryCell = row.querySelector('.salary');
+    const selectedActions = Array.from(row.querySelectorAll('button.selected'));
+
+    if (playerCell && salaryCell && selectedActions.length > 0) {
+      const playerText = playerCell.textContent.trim();
+
+      const match = /(.*?)([A-Z]{2,3})\s([A-Z]{1,2})$/.exec(playerText);
+      if (match) {
+        const fullName = match[1]?.trim();
+        const team = match[2];
+        const position = match[3];
+
+        const salaryDetails = salaryCell.innerHTML.split('<br>');
+        const salary = salaryDetails[0];
+        const length = salaryDetails[1];
+        const guar = salaryDetails[2];
+        const capHit = salaryDetails[3];
+
+        const actions = selectedActions.map(button => button.textContent.trim()).join(' | ');
+
+        // Create table row and cells
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${fullName}</td><td>${team}</td><td>${position}</td><td>${salary}</td><td>${length}</td><td>${guar}</td><td>${capHit}</td><td>${actions}</td>`;
+        document.getElementById('csv-content').appendChild(tr);
+
+        // Accumulate email body
+        emailBody += `${fullName}, ${team}, ${position}, ${salary}, ${length}, ${guar}, ${capHit}, ${actions}\n`;
+      }
+    }
+  });
+
+  document.getElementById('csv-preview-modal').style.display = 'block';
+
+  // Copy Table to Clipboard
+  document.getElementById('copy-table').onclick = function() {
+    const tableText = document.getElementById('csv-table').innerText;
+    navigator.clipboard.writeText(tableText).then(() => {
+      alert('Table copied to clipboard');
+    }, err => {
+      console.error('Failed to copy table to clipboard:', err);
+    });
+  };
+
+  document.getElementById('confirm-submit').onclick = function() {
+    const mailtoLink = `mailto:zewolff1@gmail.com?subject=Roster%20Update&body=${encodeURIComponent(emailBody)}`;
+    window.location.href = mailtoLink;
+  };
+
+  document.getElementById('close-csv-preview').onclick = function() {
+    document.getElementById('csv-content').innerHTML = '';  // Clear table for future use
+    document.getElementById('csv-preview-modal').style.display = 'none';
+  };
+}
+
+document.getElementById('export-btn').addEventListener('click', prepareCSV);
+</script>
