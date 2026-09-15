@@ -26,6 +26,15 @@ const myAppIconUrl = `https://www45.myfantasyleague.com/fflnetdynamic${yearFromU
     document.addEventListener('DOMContentLoaded', injectIcons);
 })();
 
+const DASHBOARD_VERSION = 'v9';
+(function showVersionBadge() {
+    const badge = document.createElement('div');
+    badge.id = 'dashboard-version-badge';
+    badge.textContent = DASHBOARD_VERSION;
+    badge.style.cssText = 'position:fixed; bottom:2px; right:4px; font-size:8px; font-family:monospace; color:rgba(255,255,255,0.35); background:rgba(0,0,0,0.3); padding:1px 4px; border-radius:3px; z-index:999999; pointer-events:none; user-select:none;';
+    document.body.appendChild(badge);
+})();
+
 $(document).ready(function() {
 
 const TEAM_JOIN_YEARS = {
