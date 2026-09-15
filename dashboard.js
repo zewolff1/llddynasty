@@ -9359,8 +9359,23 @@ async function fetchLiveScoringDetails(fid2) {
     return details;
 }
 
-async function renderLiveScoreCard() {    const container = $('#scores-content-container');
-    const matchups = window._liveScoreMatchups || [];
+function buildLiveScoreTabsHtml(matchups, activeIdx) {
+    return `
+      <div id="live-score-tabs" class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; scroll-snap-type:x proximity;">
+        ${matchups.map((m, i) => {
+            const isActive = i === activeIdx;
+            return `
+            <div class="live-score-tab" data-idx="${i}" style="flex-shrink:0; scroll-snap-align:center; display:flex; align-items:center; gap:5px; padding:6px 10px; border-radius:8px; cursor:pointer; background:${isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'};">
+                <img src="${m.t1.logo}" onerror="this.style.display='none'" style="width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
+                <span style="font-size:9px; font-weight:900; color:${isActive ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${m.t1.score.toFixed(0)}–${m.t2.score.toFixed(0)}</span>
+                <img src="${m.t2.logo}" onerror="this.style.display='none'" style="width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
+                ${m.isMe ? `<span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blue);flex-shrink:0;"></span>` : ''}
+            </div>`;
+        }).join('')}
+      </div>`;
+}
+
+async function renderLiveScoreCard() {    const container = $('#scores-content-container');    const matchups = window._liveScoreMatchups || [];
     if (matchups.length === 0) {
         container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
         return;
@@ -9376,9 +9391,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const yts1 = t1.yetToPlay > 0 ? `${t1.yetToPlay} yet to play` : 'Done';
     const yts2 = t2.yetToPlay > 0 ? `${t2.yetToPlay} yet to play` : 'Done';
 
-    const dots = matchups.map((m, i) => `
-        <span class="live-score-dot" data-idx="${i}" style="width:${i===idx?'16px':'6px'}; height:6px; border-radius:3px; background:${i===idx?'var(--accent-blue)':(m.isMe ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.15)')}; cursor:pointer; transition:width 0.2s, background 0.2s; flex-shrink:0;"></span>
-    `).join('');
+       const tabsHtml = buildLiveScoreTabsHtml(matchups, idx);
 
       // Fetch projections for both teams, plus real game score/status/stat lines
     const [projMap1, projMap2, liveDetails] = await Promise.all([
@@ -9428,22 +9441,39 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const t1Rows = buildTeamRosterHtml(t1.roster, projMap1);
     const t2Rows = buildTeamRosterHtml(t2.roster, projMap2);
 
+    const trophySvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b"/><path d="M4 2h2v5C6 7 5 8 4 8 2.9 8 2 7.1 2 6V4c0-1.1.9-2 2-2z" fill="#f59e0b" opacity="0.6"/><path d="M18 2h2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2-1 0-2-1-2-1V2z" fill="#f59e0b" opacity="0.6"/><path d="M10 14h4l1 3H9l1-3z" fill="#f59e0b"/><path d="M7 17h10v2H7v-2z" fill="#f59e0b"/></svg>`;
+    const medianBadge = `<span title="Above league median" style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; background:rgba(0,206,184,0.15); border:1px solid rgba(0,206,184,0.5); font-size:8px; font-weight:900; color:var(--accent-teal); flex-shrink:0;">M</span>`;
+
+    const leagueMedian = typeof window._liveScoreMedian === 'number' ? window._liveScoreMedian : null;
+    const t1Wins = t1.score > t2.score;
+    const t2Wins = t2.score > t1.score;
+    const t1BeatsMedian = leagueMedian !== null && t1.score > leagueMedian;
+    const t2BeatsMedian = leagueMedian !== null && t2.score > leagueMedian;
+
+    const t1NameHtml = `<span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>`;
+    const t2NameHtml = `<span data-team-style="${t2.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>`;
+
     const html = `
-        <div style="padding:10px;">
-            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
+               <div style="padding:10px;">
+            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
                 <div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px;">${window._liveScoreCaption}</div>
                 <span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
             </div>
 
-            <div style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
+            ${tabsHtml}
 
+            <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:12px;">
                     <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
 
                     <div style="flex:1; display:flex; align-items:center; justify-content:space-around; gap:6px;">
                                                <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <img src="${t1.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                            <span style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
+                            <div style="display:flex; align-items:center; gap:3px; max-width:100%;">
+                                ${t1Wins ? trophySvg : ''}
+                                ${t1NameHtml}
+                                ${t1BeatsMedian ? medianBadge : ''}
+                            </div>
                             <span style="font-size:22px; font-weight:900; color:${c1}; font-variant-numeric:tabular-nums;">${t1.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts1}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t1Proj.toFixed(1)}</span>
@@ -9451,7 +9481,11 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                         <div style="font-size:11px; font-weight:900; color:var(--text-dim); flex-shrink:0;">vs</div>
                         <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                            <span style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>
+                            <div style="display:flex; align-items:center; gap:3px; max-width:100%;">
+                                ${t2Wins ? trophySvg : ''}
+                                ${t2NameHtml}
+                                ${t2BeatsMedian ? medianBadge : ''}
+                            </div>
                             <span style="font-size:22px; font-weight:900; color:${c2}; font-variant-numeric:tabular-nums;">${t2.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts2}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t2Proj.toFixed(1)}</span>
@@ -9467,11 +9501,10 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                 </div>
             </div>
 
-            <div style="display:flex; justify-content:center; align-items:center; gap:5px; margin-top:14px; flex-wrap:wrap;">${dots}</div>
-            <div style="text-align:center; margin-top:8px; font-size:9px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Matchup ${idx + 1} of ${matchups.length}</div>
         </div>`;
 
     $('#scores-content-container').html(html);
+    document.querySelector(`.live-score-tab[data-idx="${idx}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 }
 async function loadLiveScores() {
     const container = $('#scores-content-container');
@@ -9583,6 +9616,15 @@ async function loadLiveScores() {
         });
 
         window._liveScoreMatchups = matchups;
+
+        const allTeamScoresForMedian = [];
+        matchups.forEach(m => { allTeamScoresForMedian.push(m.t1.score, m.t2.score); });
+        allTeamScoresForMedian.sort((a, b) => a - b);
+        const midIdx = Math.floor(allTeamScoresForMedian.length / 2);
+        window._liveScoreMedian = allTeamScoresForMedian.length === 0 ? null
+            : (allTeamScoresForMedian.length % 2 !== 0
+                ? allTeamScoresForMedian[midIdx]
+                : (allTeamScoresForMedian[midIdx - 1] + allTeamScoresForMedian[midIdx]) / 2);
 
         if (window._liveScoreFirstLoad !== false) {
             const myIdx = matchups.findIndex(m => m.isMe);
@@ -10359,7 +10401,7 @@ async function checkNotifBadge() {
     } catch(e) {}
 }
 
-// --- LIVE SCORES PAGER ---
+    // --- LIVE SCORES PAGER ---
     $(document).off('click touchend', '.live-score-prev').on('click touchend', '.live-score-prev', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
@@ -10372,10 +10414,22 @@ async function checkNotifBadge() {
         window._liveScoreIndex++;
         await renderLiveScoreCard();
     });
-    $(document).off('click touchend', '.live-score-dot').on('click touchend', '.live-score-dot', async function(e) {
+    $(document).off('click touchend', '.live-score-tab').on('click touchend', '.live-score-tab', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
         window._liveScoreIndex = parseInt($(this).data('idx'));
+        await renderLiveScoreCard();
+    });
+    $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
+        window._lsTouchStartX = e.originalEvent.touches[0].clientX;
+    });
+    $(document).off('touchend.liveswipe').on('touchend.liveswipe', '#live-score-card-inner', async function(e) {
+        if (window._lsTouchStartX == null) return;
+        const dx = e.originalEvent.changedTouches[0].clientX - window._lsTouchStartX;
+        window._lsTouchStartX = null;
+        if (Math.abs(dx) < 40) return;
+        window._liveScoreIndex += (dx < 0 ? 1 : -1);
         await renderLiveScoreCard();
     });
 
