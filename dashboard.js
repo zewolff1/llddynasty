@@ -1,5 +1,4 @@
-
-    // --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
+// --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
 (function forceCustomAppIcon() {
 const lidFromUrl = window.location.href.match(/\/home\/(\d+)/)?.[1] || window.location.href.match(/[?&]L=(\d+)/)?.[1] || "63085";
 const yearFromUrl = new Date().getFullYear().toString();
@@ -12556,4 +12555,3 @@ fetchFranchises()
         applyTeamTheme(myFid, true);
         return loadTeamData();
     });
-});
