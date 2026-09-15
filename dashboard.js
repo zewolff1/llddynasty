@@ -1,5 +1,4 @@
-
-    // --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
+// --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
 (function forceCustomAppIcon() {
 const lidFromUrl = window.location.href.match(/\/home\/(\d+)/)?.[1] || window.location.href.match(/[?&]L=(\d+)/)?.[1] || "63085";
 const yearFromUrl = new Date().getFullYear().toString();
@@ -9359,23 +9358,260 @@ async function fetchLiveScoringDetails(fid2) {
     return details;
 }
 
-function buildLiveScoreTabsHtml(matchups, activeIdx) {
-    return `
-      <div id="live-score-tabs" class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; scroll-snap-type:x proximity;">
-        ${matchups.map((m, i) => {
-            const isActive = i === activeIdx;
-            return `
-            <div class="live-score-tab" data-idx="${i}" style="flex-shrink:0; scroll-snap-align:center; display:flex; align-items:center; gap:5px; padding:6px 10px; border-radius:8px; cursor:pointer; background:${isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'};">
-                <img src="${m.t1.logo}" onerror="this.style.display='none'" style="width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
-                <span style="font-size:9px; font-weight:900; color:${isActive ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${m.t1.score.toFixed(0)}–${m.t2.score.toFixed(0)}</span>
-                <img src="${m.t2.logo}" onerror="this.style.display='none'" style="width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
-                ${m.isMe ? `<span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blue);flex-shrink:0;"></span>` : ''}
-            </div>`;
-        }).join('')}
-      </div>`;
+function computeProjectedTotal(roster, projMap) {
+    let total = 0;
+    (roster || []).forEach(p => {
+        if (!p.isStarter) return;
+        const status = deriveLiveStatus(p);
+        if (status.done) {
+            total += p.score;
+        } else {
+            const proj = (projMap && projMap[p.pid] != null) ? projMap[p.pid] : p.score;
+            total += proj;
+        }
+    });
+    return total;
 }
 
-async function renderLiveScoreCard() {    const container = $('#scores-content-container');    const matchups = window._liveScoreMatchups || [];
+function buildLiveScoreTabsHtml(view, activeIdx) {
+    const matchups = window._liveScoreMatchups || [];
+    const medianActive = view === 'median';
+    const recapActive = view === 'recap';
+    const tabChips = matchups.map((m, i) => {
+        const active = (view === 'matchup' && i === activeIdx);
+        const bg = active ? 'var(--accent-blue)' : (m.isMe ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)');
+        const border = active ? 'var(--accent-blue)' : (m.isMe ? 'rgba(59,130,246,0.3)' : 'var(--card-border)');
+        return `
+            <div class="live-score-tab" data-idx="${i}" style="flex-shrink:0; display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; cursor:pointer; background:${bg}; border:1px solid ${border}; transition:background 0.2s, border-color 0.2s;">
+                <img src="${m.t1.logo}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
+                <span style="font-size:9px; font-weight:900; color:${active?'#fff':'var(--text-dim)'};">vs</span>
+                <img src="${m.t2.logo}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
+            </div>`;
+    }).join('');
+
+    return `
+        <div id="live-score-tabs" class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; padding-bottom:10px; margin-bottom:6px; touch-action:pan-x;">
+            <div class="live-score-tab-median" style="flex-shrink:0; display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:8px; cursor:pointer; background:${medianActive?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; border:1px solid ${medianActive?'var(--accent-blue)':'var(--card-border)'};">
+                <span style="font-size:13px;">📊</span>
+                <span style="font-size:9px; font-weight:900; color:${medianActive?'#fff':'var(--text-dim)'}; text-transform:uppercase; white-space:nowrap;">Median</span>
+            </div>
+            <div class="live-score-tab-recap" style="flex-shrink:0; display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:8px; cursor:pointer; background:${recapActive?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; border:1px solid ${recapActive?'var(--accent-blue)':'var(--card-border)'};">
+                <span style="font-size:13px;">📋</span>
+                <span style="font-size:9px; font-weight:900; color:${recapActive?'#fff':'var(--text-dim)'}; text-transform:uppercase; white-space:nowrap;">Recap</span>
+            </div>
+            ${tabChips}
+        </div>`;
+}
+
+async function renderMedianOverview() {
+    const matchups = window._liveScoreMatchups || [];
+    const container = $('#scores-content-container');
+    if (matchups.length === 0) {
+        container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
+        return;
+    }
+
+    const allTeams = [];
+    matchups.forEach(m => { allTeams.push(m.t1); allTeams.push(m.t2); });
+
+    const projMaps = await Promise.all(allTeams.map(t => fetchTeamProjectionsMap(t.fid)));
+
+    if (window._liveScoreView !== 'median') return;
+
+    const teamData = allTeams.map((t, i) => ({
+        fid: t.fid, name: t.name, logo: t.logo, score: t.score,
+        proj: computeProjectedTotal(t.roster, projMaps[i]),
+        isMe: t.fid === fid
+    }));
+
+    const median = (arr) => {
+        const sorted = [...arr].sort((a, b) => a - b);
+        const n = sorted.length;
+        if (n === 0) return 0;
+        const mid = Math.floor(n / 2);
+        return n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    };
+    const currentMedian = median(teamData.map(t => t.score));
+    const projMedian = median(teamData.map(t => t.proj));
+
+    const sorted = [...teamData].sort((a, b) => b.score - a.score);
+
+    const rowsHtml = sorted.map(t => {
+        const aboveMedian = t.score > currentMedian;
+        const belowMedian = t.score < currentMedian;
+        const scoreColor = aboveMedian ? '#22c55e' : belowMedian ? '#ef4444' : '#fff';
+        const projAbove = t.proj > projMedian;
+        const projColor = projAbove ? '#22c55e' : (t.proj < projMedian ? '#ef4444' : 'var(--text-dim)');
+        return `
+            <div class="team-popup-trigger" data-fid="${t.fid}" style="display:flex; align-items:center; gap:10px; padding:10px; background:${t.isMe ? 'rgba(59,130,246,0.06)' : 'rgba(0,0,0,0.2)'}; border:1px solid ${t.isMe ? 'rgba(59,130,246,0.3)' : 'var(--card-border)'}; border-radius:8px; margin-bottom:6px; cursor:pointer;">
+                <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}${t.isMe ? ' <span style="font-size:8px; color:var(--accent-blue);">(you)</span>' : ''}</div>
+                    <div style="font-size:8px; font-weight:800; color:${scoreColor}; margin-top:2px;">${aboveMedian ? '▲' : belowMedian ? '▼' : '—'} ${Math.abs(t.score - currentMedian).toFixed(1)} vs median</div>
+                </div>
+                <div style="text-align:right; flex-shrink:0;">
+                    <div style="font-size:15px; font-weight:900; color:${scoreColor}; font-variant-numeric:tabular-nums;">${t.score.toFixed(2)}</div>
+                    <div style="font-size:9px; font-weight:800; color:${projColor}; margin-top:2px;">Proj: ${t.proj.toFixed(1)}</div>
+                </div>
+            </div>`;
+    }).join('');
+
+    const html = `
+        <div style="padding:10px;">
+            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px;">${window._liveScoreCaption}</div>
+                <span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
+            </div>
+            ${buildLiveScoreTabsHtml('median', -1)}
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <div style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:10px; text-align:center;">
+                    <div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:4px;">Current Median</div>
+                    <div style="font-size:16px; font-weight:900; color:#fff;">${currentMedian.toFixed(2)}</div>
+                </div>
+                <div style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:10px; text-align:center;">
+                    <div style="font-size:8px; font-weight:900; color:#f59e0b; text-transform:uppercase; margin-bottom:4px;">Projected Median</div>
+                    <div style="font-size:16px; font-weight:900; color:#f59e0b;">${projMedian.toFixed(1)}</div>
+                </div>
+            </div>
+            <div>${rowsHtml}</div>
+        </div>`;
+
+    container.html(html);
+}
+
+async function renderWeeklyRecap() {
+    const matchups = window._liveScoreMatchups || [];
+    const container = $('#scores-content-container');
+    if (matchups.length === 0) {
+        container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
+        return;
+    }
+
+    const allTeams = [];
+    matchups.forEach(m => {
+        allTeams.push(m.t1);
+        allTeams.push(m.t2);
+    });
+
+    const projMaps = await Promise.all(allTeams.map(t => fetchTeamProjectionsMap(t.fid)));
+    if (window._liveScoreView !== 'recap') return;
+
+    allTeams.forEach((t, i) => { t.__proj = computeProjectedTotal(t.roster, projMaps[i]); });
+
+    const highTeam = [...allTeams].sort((a, b) => b.score - a.score)[0];
+    const lowTeam = [...allTeams].sort((a, b) => a.score - b.score)[0];
+
+    const matchupDiffs = matchups.map(m => ({ ...m, diff: Math.abs(m.t1.score - m.t2.score) }));
+    const blowout = [...matchupDiffs].sort((a, b) => b.diff - a.diff)[0];
+    const closest = [...matchupDiffs].sort((a, b) => a.diff - b.diff)[0];
+
+    const posOrder = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
+    const bestByPos = {};
+    allTeams.forEach(t => {
+        (t.roster || []).forEach(p => {
+            if (!p.isStarter) return;
+            const pos = (p.pos || 'UNK').toUpperCase();
+            if (!bestByPos[pos] || p.score > bestByPos[pos].score) {
+                bestByPos[pos] = { ...p, ownerName: t.name, ownerLogo: t.logo };
+            }
+        });
+    });
+
+    function teamCard(t, label, labelColor) {
+        return `
+            <div class="team-popup-trigger" data-fid="${t.fid}" style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; cursor:pointer;">
+                <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:8px; font-weight:900; color:${labelColor}; text-transform:uppercase; letter-spacing:0.5px;">${label}</div>
+                    <div style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;">${t.name}</div>
+                </div>
+                <div style="font-size:16px; font-weight:900; color:#fff; flex-shrink:0; font-variant-numeric:tabular-nums;">${t.score.toFixed(2)}</div>
+            </div>`;
+    }
+
+    function matchupCard(m, label, labelColor) {
+        const c1 = m.t1.score >= m.t2.score ? '#22c55e' : 'var(--text-dim)';
+        const c2 = m.t2.score >= m.t1.score ? '#22c55e' : 'var(--text-dim)';
+        return `
+            <div style="padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px;">
+                <div style="font-size:8px; font-weight:900; color:${labelColor}; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">${label} · ${m.diff.toFixed(1)} pt margin</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
+                        <img src="${m.t1.logo}" onerror="this.style.display='none'" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
+                        <span style="font-size:10px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.t1.name}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        <span style="font-size:13px; font-weight:900; color:${c1};">${m.t1.score.toFixed(1)}</span>
+                        <span style="font-size:9px; color:var(--text-dim);">-</span>
+                        <span style="font-size:13px; font-weight:900; color:${c2};">${m.t2.score.toFixed(1)}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0; justify-content:flex-end;">
+                        <span style="font-size:10px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right;">${m.t2.name}</span>
+                        <img src="${m.t2.logo}" onerror="this.style.display='none'" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    const bestByPosHtml = posOrder.filter(pos => bestByPos[pos]).map(pos => {
+        const p = bestByPos[pos];
+        const team = (p.team || 'NFL').toUpperCase();
+        return `
+            <div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}" style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; margin-bottom:6px; cursor:pointer;">
+                <span class="pos-text-${pos.toLowerCase()}" style="font-size:9px; font-weight:900; min-width:26px; flex-shrink:0;">${pos}</span>
+                <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(255,255,255,0.08);">
+                    <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                    <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                        <img src="${p.ownerLogo}" onerror="this.style.display='none'" style="width:12px; height:12px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
+                        <span style="font-size:8px; font-weight:800; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.ownerName}</span>
+                    </div>
+                </div>
+                <div style="font-size:14px; font-weight:900; color:#22c55e; flex-shrink:0; font-variant-numeric:tabular-nums;">${p.score.toFixed(1)}</div>
+            </div>`;
+    }).join('');
+
+    const html = `
+        <div style="padding:10px;">
+            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px;">${window._liveScoreCaption}</div>
+                <span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
+            </div>
+            ${buildLiveScoreTabsHtml('recap', -1)}
+
+            <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:4px 0 8px;">Team Highlights</div>
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                ${teamCard(highTeam, 'Highest Score', '#22c55e')}
+                ${teamCard(lowTeam, 'Lowest Score', '#ef4444')}
+            </div>
+
+            <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:4px 0 8px;">Matchup Highlights</div>
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                ${matchupCard(blowout, 'Biggest Blowout', '#ef4444')}
+                ${matchupCard(closest, 'Closest Game', '#f59e0b')}
+            </div>
+
+            <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:4px 0 8px;">Best Starter by Position</div>
+            <div>${bestByPosHtml || '<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No starter data yet.</div>'}</div>
+        </div>`;
+
+    container.html(html);
+}
+
+async function renderLiveScoreCard() {
+    if (window._liveScoreView === 'median') {
+        await renderMedianOverview();
+        return;
+    }
+    if (window._liveScoreView === 'recap') {
+        await renderWeeklyRecap();
+        return;
+    }
+
+    const container = $('#scores-content-container');
+    const matchups = window._liveScoreMatchups || [];
     if (matchups.length === 0) {
         container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
         return;
@@ -9386,14 +9622,14 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const idx = window._liveScoreIndex;
     const { t1, t2, isMe } = matchups[idx];
 
-      const c1 = t1.score > t2.score ? '#22c55e' : t1.score < t2.score ? '#ef4444' : '#fff';
+    const c1 = t1.score > t2.score ? '#22c55e' : t1.score < t2.score ? '#ef4444' : '#fff';
     const c2 = t2.score > t1.score ? '#22c55e' : t2.score < t1.score ? '#ef4444' : '#fff';
     const yts1 = t1.yetToPlay > 0 ? `${t1.yetToPlay} yet to play` : 'Done';
     const yts2 = t2.yetToPlay > 0 ? `${t2.yetToPlay} yet to play` : 'Done';
 
-       const tabsHtml = buildLiveScoreTabsHtml(matchups, idx);
+    const tabsHtml = buildLiveScoreTabsHtml('matchup', idx);
 
-      // Fetch projections for both teams, plus real game score/status/stat lines
+    // Fetch projections for both teams, plus real game score/status/stat lines
     const [projMap1, projMap2, liveDetails] = await Promise.all([
         fetchTeamProjectionsMap(t1.fid),
         fetchTeamProjectionsMap(t2.fid),
@@ -9401,22 +9637,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     ]);
 
     // Re-check index/matchup in case the user navigated away while awaiting
-    if (window._liveScoreIndex !== idx) return;
-
-    function computeProjectedTotal(roster, projMap) {
-        let total = 0;
-        (roster || []).forEach(p => {
-            if (!p.isStarter) return;
-            const status = deriveLiveStatus(p);
-            if (status.done) {
-                total += p.score;
-            } else {
-                const proj = (projMap && projMap[p.pid] != null) ? projMap[p.pid] : p.score;
-                total += proj;
-            }
-        });
-        return total;
-    }
+    if (window._liveScoreIndex !== idx || window._liveScoreView === 'median') return;
 
     const t1Proj = computeProjectedTotal(t1.roster, projMap1);
     const t2Proj = computeProjectedTotal(t2.roster, projMap2);
@@ -9441,39 +9662,24 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const t1Rows = buildTeamRosterHtml(t1.roster, projMap1);
     const t2Rows = buildTeamRosterHtml(t2.roster, projMap2);
 
-    const trophySvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b"/><path d="M4 2h2v5C6 7 5 8 4 8 2.9 8 2 7.1 2 6V4c0-1.1.9-2 2-2z" fill="#f59e0b" opacity="0.6"/><path d="M18 2h2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2-1 0-2-1-2-1V2z" fill="#f59e0b" opacity="0.6"/><path d="M10 14h4l1 3H9l1-3z" fill="#f59e0b"/><path d="M7 17h10v2H7v-2z" fill="#f59e0b"/></svg>`;
-    const medianBadge = `<span title="Above league median" style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; background:rgba(0,206,184,0.15); border:1px solid rgba(0,206,184,0.5); font-size:8px; font-weight:900; color:var(--accent-teal); flex-shrink:0;">M</span>`;
-
-    const leagueMedian = typeof window._liveScoreMedian === 'number' ? window._liveScoreMedian : null;
-    const t1Wins = t1.score > t2.score;
-    const t2Wins = t2.score > t1.score;
-    const t1BeatsMedian = leagueMedian !== null && t1.score > leagueMedian;
-    const t2BeatsMedian = leagueMedian !== null && t2.score > leagueMedian;
-
-    const t1NameHtml = `<span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>`;
-    const t2NameHtml = `<span data-team-style="${t2.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>`;
-
     const html = `
-               <div style="padding:10px;">
-            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
+        <div style="padding:10px;">
+            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
                 <div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px;">${window._liveScoreCaption}</div>
                 <span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
             </div>
 
             ${tabsHtml}
 
-            <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
+            <div style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}"> ''}">
+
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:12px;">
                     <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
 
                     <div style="flex:1; display:flex; align-items:center; justify-content:space-around; gap:6px;">
                                                <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <img src="${t1.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                            <div style="display:flex; align-items:center; gap:3px; max-width:100%;">
-                                ${t1Wins ? trophySvg : ''}
-                                ${t1NameHtml}
-                                ${t1BeatsMedian ? medianBadge : ''}
-                            </div>
+                            <span style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
                             <span style="font-size:22px; font-weight:900; color:${c1}; font-variant-numeric:tabular-nums;">${t1.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts1}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t1Proj.toFixed(1)}</span>
@@ -9481,11 +9687,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                         <div style="font-size:11px; font-weight:900; color:var(--text-dim); flex-shrink:0;">vs</div>
                         <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                            <div style="display:flex; align-items:center; gap:3px; max-width:100%;">
-                                ${t2Wins ? trophySvg : ''}
-                                ${t2NameHtml}
-                                ${t2BeatsMedian ? medianBadge : ''}
-                            </div>
+                            <span style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>
                             <span style="font-size:22px; font-weight:900; color:${c2}; font-variant-numeric:tabular-nums;">${t2.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts2}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t2Proj.toFixed(1)}</span>
@@ -9501,14 +9703,15 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                 </div>
             </div>
 
+                      <div style="text-align:center; margin-top:12px; font-size:9px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Matchup ${idx + 1} of ${matchups.length}</div>
         </div>`;
 
     $('#scores-content-container').html(html);
-    document.querySelector(`.live-score-tab[data-idx="${idx}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 }
 async function loadLiveScores() {
     const container = $('#scores-content-container');
     window._liveScoringDetailsCache = {};
+    if (window._liveScoreView === undefined) window._liveScoreView = 'matchup';
     if (!window._liveScoreMatchups) {
         container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Live Scores...</div>');
     }
@@ -9616,15 +9819,6 @@ async function loadLiveScores() {
         });
 
         window._liveScoreMatchups = matchups;
-
-        const allTeamScoresForMedian = [];
-        matchups.forEach(m => { allTeamScoresForMedian.push(m.t1.score, m.t2.score); });
-        allTeamScoresForMedian.sort((a, b) => a - b);
-        const midIdx = Math.floor(allTeamScoresForMedian.length / 2);
-        window._liveScoreMedian = allTeamScoresForMedian.length === 0 ? null
-            : (allTeamScoresForMedian.length % 2 !== 0
-                ? allTeamScoresForMedian[midIdx]
-                : (allTeamScoresForMedian[midIdx - 1] + allTeamScoresForMedian[midIdx]) / 2);
 
         if (window._liveScoreFirstLoad !== false) {
             const myIdx = matchups.findIndex(m => m.isMe);
@@ -10401,7 +10595,7 @@ async function checkNotifBadge() {
     } catch(e) {}
 }
 
-    // --- LIVE SCORES PAGER ---
+// --- LIVE SCORES PAGER ---
     $(document).off('click touchend', '.live-score-prev').on('click touchend', '.live-score-prev', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
@@ -10414,23 +10608,32 @@ async function checkNotifBadge() {
         window._liveScoreIndex++;
         await renderLiveScoreCard();
     });
+     $(document).off('click touchend', '.live-score-dot').on('click touchend', '.live-score-dot', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._liveScoreIndex = parseInt($(this).data('idx'));
+        window._liveScoreView = 'matchup';
+        await renderLiveScoreCard();
+    });
     $(document).off('click touchend', '.live-score-tab').on('click touchend', '.live-score-tab', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
-        e.stopPropagation();
         window._liveScoreIndex = parseInt($(this).data('idx'));
+        window._liveScoreView = 'matchup';
         await renderLiveScoreCard();
     });
-    $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
-        window._lsTouchStartX = e.originalEvent.touches[0].clientX;
-    });
-    $(document).off('touchend.liveswipe').on('touchend.liveswipe', '#live-score-card-inner', async function(e) {
-        if (window._lsTouchStartX == null) return;
-        const dx = e.originalEvent.changedTouches[0].clientX - window._lsTouchStartX;
-        window._lsTouchStartX = null;
-        if (Math.abs(dx) < 40) return;
-        window._liveScoreIndex += (dx < 0 ? 1 : -1);
+    $(document).off('click touchend', '.live-score-tab-median').on('click touchend', '.live-score-tab-median', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._liveScoreView = 'median';
         await renderLiveScoreCard();
+    });
+    $(document).off('click touchend', '.live-score-tab-recap').on('click touchend', '.live-score-tab-recap', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._liveScoreView = 'recap';
+        await renderLiveScoreCard();
+    });
     });
 
 // --- LEAGUE MATCHUP WEEK SWITCHER ---
@@ -11990,7 +12193,24 @@ $(document).on('input', '#player-search-input', function() {
             isDown = false; el = null;
         });
 })('tx-filter-scroll');
-
+(function enableDragScroll(id) {
+    let el = null, isDown = false, startX = 0, startScroll = 0, moved = false;
+    $(document).off('pointerdown.dragscroll-' + id).on('pointerdown.dragscroll-' + id, '#' + id, function(e) {
+        el = this; isDown = true; moved = false;
+        startX = e.originalEvent.clientX;
+        startScroll = el.scrollLeft;
+    });
+    $(document).off('pointermove.dragscroll-' + id).on('pointermove.dragscroll-' + id, function(e) {
+        if (!isDown || !el) return;
+        const dx = e.originalEvent.clientX - startX;
+        if (Math.abs(dx) > 5) moved = true;
+        el.scrollLeft = startScroll - dx;
+    });
+    $(document).off('pointerup.dragscroll-' + id + ' pointercancel.dragscroll-' + id)
+        .on('pointerup.dragscroll-' + id + ' pointercancel.dragscroll-' + id, function() {
+            isDown = false; el = null;
+        });
+})('live-score-tabs');
 $(document).off('click touchend', '.tx-filter-btn').on('click', '.tx-filter-btn', function(e) {        e.preventDefault();
         
         // 1. Reset all buttons to the unselected state
@@ -12335,4 +12555,3 @@ fetchFranchises()
         applyTeamTheme(myFid, true);
         return loadTeamData();
     });
-});
