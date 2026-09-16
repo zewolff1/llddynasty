@@ -10469,7 +10469,7 @@ async function fetchLeagueSalaryData() {
 }
 async function fetchFranchises() {
         try {
-            const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=league&L=${lid}&JSON=1`);
+const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=league&L=${lid}&JSON=1`, { credentials: 'include' });
             const data = await res.json();
 data.league.franchises.franchise.forEach(f => {
     leagueFranchises[f.id] = f.name;
