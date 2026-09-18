@@ -1,4 +1,5 @@
 
+
     // --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
 (function forceCustomAppIcon() {
 const lidFromUrl = window.location.href.match(/\/home\/(\d+)/)?.[1] || window.location.href.match(/[?&]L=(\d+)/)?.[1] || "63085";
@@ -244,6 +245,19 @@ function getNFLLogoUrl(teamAbbr) {
     }
     return `https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/${abbr}.svg`;
 }
+const NFL_TEAM_COLORS = {
+    'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
+    'BUF': ['#00338D', '#C60C30'], 'CAR': ['#0085CA', '#101820'], 'CHI': ['#0B162A', '#C83803'],
+    'CIN': ['#FB4F14', '#000000'], 'CLE': ['#311D00', '#FF3C00'], 'DAL': ['#003594', '#041E42'],
+    'DEN': ['#FB4F14', '#002244'], 'DET': ['#0076B6', '#B0B7BC'], 'GBP': ['#203731', '#FFB612'],
+    'HOU': ['#03202F', '#A71930'], 'IND': ['#002C5F', '#A2AAAD'], 'JAC': ['#006778', '#D7A22A'],
+    'KCC': ['#E31837', '#FFB81C'], 'LVR': ['#000000', '#A5ACAF'], 'LAC': ['#0080C6', '#FFC20E'],
+    'LAR': ['#003594', '#FFA300'], 'MIA': ['#008E97', '#FC4C02'], 'MIN': ['#4F2683', '#FFC62F'],
+    'NEP': ['#002244', '#C60C30'], 'NOS': ['#D3BC8D', '#101820'], 'NYG': ['#0B2265', '#A71930'],
+    'NYJ': ['#125740', '#000000'], 'PHI': ['#004C54', '#A5ACAF'], 'PIT': ['#FFB612', '#101820'],
+    'SFO': ['#AA0000', '#B3995D'], 'SEA': ['#002244', '#69BE28'], 'TBB': ['#D50A0A', '#34302B'],
+    'TEN': ['#0C2340', '#4B92DB'], 'WAS': ['#5A1414', '#FFB612']
+};
     // --- DYNAMIC CONTROL BAR ---
 function getFranchiseLogoUrl(franchiseId) {
     return window._franchiseLogos?.[franchiseId] || 
@@ -517,7 +531,6 @@ async function commishWrite(type, data, options = {}) {
         body: JSON.stringify(payload)
     });
     const json = await res.json();
-    console.log('commishWrite full response:', json);
     if (json.error) {
         throw new Error(json.error + (json.detail ? ': ' + json.detail : ''));
     }
@@ -1103,8 +1116,6 @@ if (pageMatch) {
     const isOpen = pageMatch[1] === 'true';
     window._resignOpen = isOpen;
     localStorage.setItem(`resign_open_${lid}`, isOpen);
-    console.log('Resign state from page HTML:', isOpen ? 'Open' : 'Locked');
-
     const faModeMatch = pageText.match(/<!--FAMODE:(true|false)-->/);
     if (faModeMatch) {
         window.offseasonMode = faModeMatch[1] === 'true';
@@ -1124,7 +1135,6 @@ if (pageMatch) {
                 const isOpen = match[1] === 'true';
                 window._resignOpen = isOpen;
                 localStorage.setItem(`resign_open_${lid}`, isOpen);
-                console.log('Resign state from csetup:', isOpen ? 'Open' : 'Locked');
                 return;
             }
         }
@@ -1133,12 +1143,10 @@ if (pageMatch) {
         const cached = localStorage.getItem(`resign_open_${lid}`);
         if (cached !== null) {
             window._resignOpen = cached === 'true';
-            console.log('Resign state from cache:', window._resignOpen ? 'Open' : 'Locked');
             return;
         }
 
         window._resignOpen = true;
-        console.log('No resign state found, defaulting to open');
     } catch(e) {
         console.warn('Could not load resign state', e);
         window._resignOpen = true;
@@ -1146,7 +1154,6 @@ if (pageMatch) {
 }
 function applyResignState(isOpen) {
     window._resignOpen = isOpen === true || isOpen === 'true';
-    console.log('_resignOpen set to:', window._resignOpen);
 }
 function buildDraftPicksHtml(picks) {
     if (!picks || picks.length === 0) return '';
@@ -1411,7 +1418,6 @@ $(document).off('click', '#logo-url-save').on('click', '#logo-url-save', async f
 $(document).off('click', '.proposal-action-btn').on('click', '.proposal-action-btn', async function() {
     const tradeId = $(this).data('tradeid');
     const action = $(this).data('action');
-    console.log('proposal action:', action, 'tradeId:', tradeId);
     if (!tradeId || !confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} this trade?`)) return;
     const btn = $(this);
     btn.text('Processing...').css({'opacity': '0.5', 'pointer-events': 'none'});
@@ -1580,21 +1586,11 @@ async function loadTeamStyleFromMFL(fidToLoad) {
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/csetup?L=${lid}&FRANCHISES=${fidToLoad}&C=FCUSTOM`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         
-        // Debug — log ALL textarea values found
-        doc.querySelectorAll('textarea').forEach(ta => {
-            console.log('TEXTAREA:', ta.name, ta.id, '|', ta.value.substring(0, 100));
-        });
-
         const notes = doc.querySelector(`#NOTES${fidToLoad}`)?.value || 
                       doc.querySelector(`[name="NOTES${fidToLoad}"]`)?.value || '';
-        console.log('Notes for', fidToLoad, ':', notes.substring(0, 200));
-        
         const match = notes.match(/\[\[STYLE:(.*?)\]\]/s);
         if (match) {
-            console.log('Found style for', fidToLoad);
             return JSON.parse(match[1]);
-        } else {
-            console.log('No style block found for', fidToLoad);
         }
     } catch(e) { console.warn('Could not load team style', e); }
     return null;
@@ -1707,7 +1703,6 @@ async function saveAllTeamStylesToHomepage() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params.toString()
         });
-        console.log('Saved styles, status:', res.status);
     } catch(e) {
         console.warn('Could not save team styles', e);
     }
@@ -1720,12 +1715,10 @@ async function loadAllTeamStylesFromHomepage() {
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/csetup?L=${lid}&C=HMPGMSG&SEQNO=9`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         const content = doc.querySelector('textarea[name="MSG"]')?.value || '';
-        console.log('SEQNO 9 content length:', content.length);
         
         const match = content.match(/<!--TEAMSTYLES:(.*?)-->/s);
         if (match) {
             window._teamStyles = JSON.parse(match[1]);
-            console.log('Loaded styles for:', Object.keys(window._teamStyles));
             Object.keys(window._teamStyles).forEach(paddedFid => {
                 loadGoogleFont(window._teamStyles[paddedFid].fontFamily || '');
                 applyTeamStyle(window._teamStyles[paddedFid], paddedFid);
@@ -1739,7 +1732,6 @@ async function loadAllTeamStylesFromHomepage() {
         const pageMatch = pageText.match(/<!--TEAMSTYLES:(.*?)-->/s);
         if (pageMatch) {
             window._teamStyles = JSON.parse(pageMatch[1]);
-            console.log('Loaded styles from page HTML for:', Object.keys(window._teamStyles));
             Object.keys(window._teamStyles).forEach(paddedFid => {
                 loadGoogleFont(window._teamStyles[paddedFid].fontFamily || '');
                 applyTeamStyle(window._teamStyles[paddedFid], paddedFid);
@@ -1747,7 +1739,6 @@ async function loadAllTeamStylesFromHomepage() {
             return;
         }
 
-        console.log('No TEAMSTYLES found in either source');
     } catch(e) {
         console.warn('Could not load team styles', e);
     }
@@ -1757,7 +1748,6 @@ function reapplyAllTeamStyles() {
     if (!window._teamStyles) return;
     Object.keys(window._teamStyles).forEach(paddedFid => {
         applyTeamStyle(window._teamStyles[paddedFid], paddedFid);
-console.log('CSS injected for', paddedFid, '| elements with that attr:', document.querySelectorAll(`[data-team-style="${paddedFid}"]`).length);
 
     });
 }
@@ -2300,7 +2290,6 @@ async function fetchPendingWaivers() {
             });
         });
 
-        console.log('Pending waivers loaded:', Object.keys(window._pendingWaivers).length);
     } catch (err) {
         console.error("Failed to fetch pending waiver claims", err);
     }
@@ -2433,7 +2422,6 @@ const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCa
 if (window._teamDataCache && window._teamDataCacheKey === cacheKey && !window._teamDataDirty) {
     currentDoc = window._teamDataCache;
     window.currentTeamPicks = window._teamPicksCache || [];
-    console.log('Using cache, picks:', window.currentTeamPicks?.length);
     renderActiveTab();
     return;
 }
@@ -2583,7 +2571,6 @@ window._teamDataCache = currentDoc;
 window._teamDataCacheKey = cacheKey;
 window._teamPicksCache = draftPicks;
 window.currentTeamPicks = draftPicks;
-console.log('currentTeamPicks set:', draftPicks.length);
         // --- COMMISH LINEUP HANDLING ---
         window.commishDoc = null;
         if (commishURL && responses[3]) {
@@ -2637,11 +2624,14 @@ if (activeSub === 'contracts') {
                 const contractRows = Array.from(contractsDoc.querySelectorAll('tr.oddtablerow, tr.eventablerow'));
 const lookupFid = fid === '0000' ? myFid : fid;
                 const myRow = summaryDoc.querySelector(`a.franchise_${lookupFid}`)?.closest('tr');                const salaryCells = myRow?.querySelectorAll('td.salary');
-                console.log('myRow found:', !!myRow, 'myFid:', myFid, 'salaryCells:', salaryCells?.length, 'val:', salaryCells?.[1]?.textContent);
                 const mflTotal = parseFloat(salaryCells?.[1]?.textContent.replace(/[^0-9.]/g, '')) || 0;
                 buildContractsUI(contractRows, container, mflTotal);
             });
-        }      else { renderLegacyLineupOrRoster(activeSub, rows, container); updateSectionCounts(activeSub); }
+               }      else {
+            renderLegacyLineupOrRoster(activeSub, rows, container);
+            updateSectionCounts(activeSub);
+            if (activeSub === 'lineup') injectLiveStatusIntoLineupRows(fid);
+        }
         updateLineupNotifications(); updateSubmitButton();
         setTimeout(applyTeamStyle, 50);
     }
@@ -2671,8 +2661,12 @@ let sBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
             const secondaryText = isL ? (cells[1]?.textContent.split('(')[0].trim() || '') : (cells[2]?.textContent || '');
             let matchupHtml = `<div class="player-secondary-slot">${secondaryText}</div>`;
             
-            let projNum = parseFloat(cells[4]?.textContent) || 0;
-            let oppPtsNum = 0;
+            const headerRow = row.closest('table')?.rows[0];
+const headerThs = headerRow ? [...headerRow.querySelectorAll('th')] : [];
+const projThIdx = headerThs.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts');
+const projTdIdx = projThIdx - 1; // header ths include the leading row-label th that data rows also have, so td index is one less
+let projNum = (projTdIdx >= 0 && cells[projTdIdx]) ? (parseFloat(cells[projTdIdx].textContent) || 0) : 0;
+let oppPtsNum = 0;
 
             if (isL) {
                 let teamMatch = secondaryText.match(/(?:vs|@)\s*([A-Z]{2,3})/i);
@@ -2690,34 +2684,8 @@ let sBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
                 }
                 matchupHtml = `<div class="matchup-stack"><div class="matchup-opp-text">${secondaryText}</div>${badge}</div>`;            
             }
-// 1. MFL NFL Team Color Dictionary (Primary & Secondary Colors)
-            const nflColors = {
-                'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
-                'BUF': ['#00338D', '#C60C30'], 'CAR': ['#0085CA', '#101820'], 'CHI': ['#0B162A', '#C83803'],
-                'CIN': ['#FB4F14', '#000000'], 'CLE': ['#311D00', '#FF3C00'], 'DAL': ['#003594', '#041E42'],
-                'DEN': ['#FB4F14', '#002244'], 'DET': ['#0076B6', '#B0B7BC'], 'GBP': ['#203731', '#FFB612'],
-                'HOU': ['#03202F', '#A71930'], 'IND': ['#002C5F', '#A2AAAD'], 'JAC': ['#006778', '#D7A22A'],
-                'KCC': ['#E31837', '#FFB81C'], 'LVR': ['#000000', '#A5ACAF'], 'LAC': ['#0080C6', '#FFC20E'],
-                'LAR': ['#003594', '#FFA300'], 'MIA': ['#008E97', '#FC4C02'], 'MIN': ['#4F2683', '#FFC62F'],
-                'NEP': ['#002244', '#C60C30'], 'NOS': ['#D3BC8D', '#101820'], 'NYG': ['#0B2265', '#A71930'],
-                'NYJ': ['#125740', '#000000'], 'PHI': ['#004C54', '#A5ACAF'], 'PIT': ['#FFB612', '#101820'],
-                'SFO': ['#AA0000', '#B3995D'], 'SEA': ['#002244', '#69BE28'], 'TBB': ['#D50A0A', '#34302B'],
-                'TEN': ['#0C2340', '#4B92DB'], 'WAS': ['#5A1414', '#FFB612']
-            };
-const NFL_THROWBACK_LOGOS = {};
-['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GBP',
- 'HOU','IND','JAC','KCC','LVR','LAC','LAR','MIA','MIN','NEP','NOS','NYG',
- 'NYJ','PHI','PIT','SFO','SEA','TBB','TEN','WAS'].forEach(t => {
-    NFL_THROWBACK_LOGOS[t] = `https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/team/throwback/${t}.png`;
-});
-function getNFLLogoUrl(teamAbbr) {
-    const style = localStorage.getItem('nfl_logo_style') || 'modern';
-    const abbr = (teamAbbr || 'NFL').toUpperCase();
-    if (style === 'throwback' && NFL_THROWBACK_LOGOS[abbr]) {
-        return NFL_THROWBACK_LOGOS[abbr];
-    }
-    return `https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/${abbr}.svg`;
-}
+const nflColors = NFL_TEAM_COLORS;
+
             const buildRow = (label = "") => {
                 const btnHtml = isL ? `<div class="move-btn-wrapper"><button class="move-handle-btn">${label}</button></div>` : '';
                 const isChanged = originalStarterIds.has(pid) !== isStarter;
@@ -2925,10 +2893,8 @@ let picksBuffer = buildDraftPicksHtml(window.currentTeamPicks || []);           
         }
     }
 
-    // --- 4. CONTRACTS BUILDER ---
 // --- 4. CONTRACTS BUILDER ---
 function buildContractsUI(rows, container, mflTotalOverride) {
-        console.log('mflTotalOverride received:', mflTotalOverride);
       let contractPlayers = []; 
 let draftPicks = window.currentTeamPicks || [];
         let capByYear = {}; 
@@ -3073,9 +3039,7 @@ window._capYears = Object.keys(capByYear).sort();
 
         
         contractsStatsData = { totalPlayers, totalIR, totalTaxi, posCounts: {...posCounts} };
-console.log('Sample contract player:', contractPlayers[0]);
-console.log('Active filters:', JSON.stringify(playerFilters));
-        console.log('Sample player values - sal:', contractPlayers[0]?.salary, 'yrs:', contractPlayers[0]?.years, 'guar:', contractPlayers[0]?.guar, 'capHit:', contractPlayers[0]?.capHit);        if (playerFiltersActive) {
+        if (playerFiltersActive) {
             contractPlayers = contractPlayers.filter(p => {
                 const yrs = p.years || 0;
                 const gPct = (p.guar || 0) * 100;
@@ -3377,7 +3341,10 @@ window.openOptimizeModal = function() {
 
     // Calculate optimal lineup
     let allPlayers = [];
-    Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow')).forEach(row => {
+    // Scan only the same single lineup table the Lineup tab itself reads from — using
+    // querySelectorAll('table.report tr...') instead would pull rows from any OTHER
+    // table.report on the page too, which is what was causing mismatched projections.
+    Array.from(currentDoc.querySelector('table.report')?.querySelectorAll('tr.oddtablerow, tr.eventablerow') || []).forEach(row => {
         const checkbox = row.querySelector('input[type="checkbox"]');
         const playerLink = row.querySelector('td a[class*="position_"]');
         if (!checkbox || !playerLink) return;
@@ -3498,19 +3465,22 @@ function calculateTotalProjections() {
     return t.toFixed(1); 
 }
 
-
-
 function calculateSuggestedProjections() {
     if (!currentDoc) return calculateTotalProjections();
     
     let all = [];
-    Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow')).forEach(row => {
+    Array.from(currentDoc.querySelector('table.report')?.querySelectorAll('tr.oddtablerow, tr.eventablerow') || []).forEach(row => {
         const pL = row.querySelector('td a[class*="position_"]');
         if (!pL) return;
         const pid = pL.getAttribute('href').match(/\d+/g).pop();
         if (irPids.has(pid) || taxiPids.has(pid)) return;
-        const { pos, realPos } = parseMFLName(pL.textContent);
-        const proj = parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0;
+                const { pos, realPos } = parseMFLName(pL.textContent);
+        const headerRow = row.closest('table')?.rows[0];
+        const headerThs = headerRow ? [...headerRow.querySelectorAll('th')] : [];
+        const projThIdx = headerThs.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts');
+        const projTdIdx = projThIdx - 1;
+        const cells = row.querySelectorAll('td');
+        const proj = (projTdIdx >= 0 && cells[projTdIdx]) ? (parseFloat(cells[projTdIdx].textContent) || 0) : 0;
         all.push({ pos, realPos, proj });
     });
 
@@ -3817,7 +3787,6 @@ $(document).on('click', '#edit-team-name-save', async function() {
         params.set(`FRANCHISE_OWNER_NAME${myFid}`, $('#ts-owner-name').val().trim());
         params.set(`FRANCHISE_EMAIL${myFid}`, $('#ts-email').val().trim());
         params.set('SUBMIT', 'Save Franchise Information');
-        console.log('Posting params:', params.toString());
 
         const saveRes = await fetch(`https://www45.myfantasyleague.com/${year}/csetup`, {
             method: 'POST',
@@ -4206,9 +4175,7 @@ window._teamDataDirty = true;
 $(document).off('click', '#year-selector-pill').on('click', '#year-selector-pill', function(e) {
     e.stopPropagation();
     e.preventDefault();
-    console.log('year pill clicked, _yearSelectorOpen before:', window._yearSelectorOpen);
     window._yearSelectorOpen = !window._yearSelectorOpen;
-    console.log('year pill clicked, _yearSelectorOpen after:', window._yearSelectorOpen);
     window._teamDataDirty = true;
     loadTeamData();
 });
@@ -4965,7 +4932,6 @@ window._modalCurrentPid = pid;
         $('#header-btn-block').off('click').on('click', function(e) { txAction('block', pid, e); });
         $('#header-btn-resign').off('click').on('click', function(e) { txAction('resign', pid, e); });
         $('#header-btn-cut').off('click').on('click', function(e) { txAction('cut', pid, e); });
-        console.log('bindings set, pid:', pid);
         $('.modal-tab-btn').removeClass('active').show();
         $('.modal-tab-content').removeClass('active');
         $('#modal-trade-offer-btn').hide();
@@ -4976,7 +4942,6 @@ $('#modal-tabs-row').show();
 $('#modal-trade-offer-btn').hide();
 if (isMyTeam) {
     $('#modal-trade-offer-btn').hide();
-console.log('isMyTeam:', isMyTeam, 'owner actions el:', $('#modal-owner-actions').length);
 $('#modal-owner-actions').show();    $('#tab-btn-lineup').show();
     $('#tab-btn-tx').show();
     $('#tab-btn-gamelog').show();
@@ -5040,19 +5005,7 @@ $('#modal-owner-actions').show();    $('#tab-btn-lineup').show();
     loadModalContract(pid);
 }
 // Header Data & Dynamic Background
-        const nflColors = {
-            'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
-            'BUF': ['#00338D', '#C60C30'], 'CAR': ['#0085CA', '#101820'], 'CHI': ['#0B162A', '#C83803'],
-            'CIN': ['#FB4F14', '#000000'], 'CLE': ['#311D00', '#FF3C00'], 'DAL': ['#003594', '#041E42'],
-            'DEN': ['#FB4F14', '#002244'], 'DET': ['#0076B6', '#B0B7BC'], 'GBP': ['#203731', '#FFB612'],
-            'HOU': ['#03202F', '#A71930'], 'IND': ['#002C5F', '#A2AAAD'], 'JAC': ['#006778', '#D7A22A'],
-            'KCC': ['#E31837', '#FFB81C'], 'LVR': ['#000000', '#A5ACAF'], 'LAC': ['#0080C6', '#FFC20E'],
-            'LAR': ['#003594', '#FFA300'], 'MIA': ['#008E97', '#FC4C02'], 'MIN': ['#4F2683', '#FFC62F'],
-            'NEP': ['#002244', '#C60C30'], 'NOS': ['#D3BC8D', '#101820'], 'NYG': ['#0B2265', '#A71930'],
-            'NYJ': ['#125740', '#000000'], 'PHI': ['#004C54', '#A5ACAF'], 'PIT': ['#FFB612', '#101820'],
-            'SFO': ['#AA0000', '#B3995D'], 'SEA': ['#002244', '#69BE28'], 'TBB': ['#D50A0A', '#34302B'],
-            'TEN': ['#0C2340', '#4B92DB'], 'WAS': ['#5A1414', '#FFB612']
-        };
+        const nflColors = NFL_TEAM_COLORS;
         let colors = nflColors[teamName.toUpperCase()] || ['#3b82f6', '#1e293b']; 
         
         $('#modal-dynamic-header').css({
@@ -5107,7 +5060,6 @@ $('#smart-player-modal').css('display', 'flex').hide().fadeIn(200);
 $('body').css('overflow', 'hidden');
     });
 $(document).off('click', '.modal-tab-btn').on('click', '.modal-tab-btn', function() {
-    console.log('tab clicked:', $(this).data('target'));
 
     $('.modal-tab-btn').removeClass('active');
     $('.modal-tab-content').removeClass('active');
@@ -5204,8 +5156,6 @@ const adjRes = await fetch(`https://www45.myfantasyleague.com/${year}/import`, {
     body: adjParams.toString()
 });
 const adjText = await adjRes.text();
-console.log(`Dead cap response:`, adjText);
-                            console.log(`Dead cap applied: ${deadCap} for ${playerName}`);
                         }
                     }
                 } catch(capErr) {
@@ -5227,7 +5177,6 @@ await loadTeamData();
             }
 
         } else if (type === 'ir' || type === 'taxi') {
-    console.log('IR/Taxi triggered:', type, pid, playerName, 'fid:', fid, 'btn:', btn?.length);
 
             const isIR = irPids.has(pid.toString());
             const isTaxi = taxiPids.has(pid.toString());
@@ -5291,7 +5240,6 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
             try {
                 const tbRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=tradeBait&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
                 const tbData = await tbRes.json();
-                console.log('tradeBait response:', tbData);
                 
                 if (tbData && tbData.tradeBaits && tbData.tradeBaits.tradeBait) {
                     let baits = tbData.tradeBaits.tradeBait;
@@ -5432,7 +5380,6 @@ $('#tab-tx').addClass('active');
                     if (match) currentPlayerSal = match.sal;
                 }
                 window.currentResignPlayerSal = currentPlayerSal;
-console.log('currentResignPlayerSal:', window.currentResignPlayerSal, 'yearsLeft:', window.currentResignYearsLeft, 'playerName:', playerName);
 
 const contractYearsLeft = (() => {
     if (!currentDoc) return 0;
@@ -5662,12 +5609,9 @@ const sal = Math.round(salMVal * 1000000).toString();                    const b
 const totalVal = Math.round(salM * yrs * 1000000);
 const totalValM = (salMVal * yrs).toFixed(0);
 const xml = `<salaries><leagueUnit unit="LEAGUE"><player id="${pid}" salary="${sal}" contractYear="${yrs}" contractInfo="${guar}%" contractStatus="$${totalValM}M" /></leagueUnit></salaries>`;
-                        console.log('Resign XML:', xml);
                         // Routed through the commissioner proxy — MFL requires commissioner access
                         // for TYPE=salaries writes, so a regular owner's own session can't do this directly.
                         const resText = await commishWrite('salaries', xml, { append: true, franchiseId: '0000' });
-                        console.log('Resign response:', resText);
-// Log resign as salary adjustment so it shows in transactions
 try {
 const yrsVal = $('#resign-years').val();
                                 const guarVal = $('#resign-guar').val();
@@ -5678,7 +5622,6 @@ const playerPosVal = $('#modal-pos').text().trim();
                                const targetFid = (fid || myFid).padStart(4, '0');
                                 const adjXml = `<salary_adjustments><salary_adjustment franchise_id="${targetFid}" amount="0" explanation="${playerNameVal} re-signed: $${salVal}m/yr - ${yrsVal}yrs - ${guarVal}%guar - pid:${pid} - team:${playerTeamVal} pos:${playerPosVal}" /></salary_adjustments>`;
                                 const adjResText = await commishWrite('salaryAdj', adjXml, { franchiseId: '0000' });
-                                console.log('Resign log response:', adjResText);
                             } catch(adjErr) { console.error('Resign log failed:', adjErr); }
 
 if (!resText.toLowerCase().includes('error')) {
@@ -5795,9 +5738,6 @@ const matchingPick = pickOptions.find(p => {
             if (lbl.includes(String(pickYear)) && lbl.includes(`round ${round}`)) return true;
             return false;
         });
-        console.log('pickOptions:', pickOptions.map(p => p.id + ' | ' + p.label));
-        console.log('looking for year:', pickYear, 'round:', round, 'pickStr:', pickStr);
-        console.log('matchingPick:', matchingPick);
 // Group picks by year like the contracts page
         const picksByYear = {};
         pickOptions.forEach(p => {
@@ -5974,7 +5914,7 @@ let customMsg = ($('#trade-block-msg').val() || '').trim();        let finalExch
             apiData.append('TYPE', 'tradeBait');
             apiData.append('L', lid);
 apiData.append('WILL_GIVE_UP', giveUpString);
-            console.log('Submitting trade block - WILL_GIVE_UP:', giveUpString);            if (finalExchange !== "") apiData.append('IN_EXCHANGE_FOR', finalExchange);
+            if (finalExchange !== "") apiData.append('IN_EXCHANGE_FOR', finalExchange);
             if (fid !== myFid) apiData.append('FRANCHISE_ID', fid);
 
             const res = await fetch(`https://www45.myfantasyleague.com/${year}/import`, { 
@@ -6763,11 +6703,6 @@ const aRes = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${
         let myWinningCount = 0;
 
 
-console.log('checkCompletedAuctions running, rows found:', rows.length);
-rows.forEach((row, i) => {
-    const pLink = row.querySelector('a[class*="position_"]');
-    console.log(`Row ${i}: pLink=${!!pLink}, html=${row.innerHTML.substring(0, 100)}`);
-});
 
         auctionRows.forEach(row => {
             const pLink = row.querySelector('td a[class*="position_"]');
@@ -7275,7 +7210,6 @@ if (pid.startsWith('FP_')) {
     pickYear = year;
     round = parts[1] || '?';
 }
-console.log('Pick pid:', pid, 'parts:', parts);
 
                     return `<div style="display:flex; flex-direction:column; align-items:center; gap:4px; width:56px;">
                         <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid rgba(245,158,11,0.4); background:rgba(245,158,11,0.1); display:flex; align-items:center; justify-content:center;">
@@ -7340,7 +7274,7 @@ const fLink = row.querySelector('td:nth-child(2) a');
         const isCommish = td2 ? td2.textContent.includes('(C)') : false;
         const txTypeNode = row.querySelector('td.transactiontype');
 const txType = txTypeNode ? txTypeNode.textContent.trim() : 'System';
-        if (txType === 'RESIGN' || txType.toLowerCase().includes('resign')) console.log('Found resign tx:', txType, row.innerHTML);        uniqueTxTypes.add(txType);
+        if (txType === 'RESIGN' || txType.toLowerCase().includes('resign'))    uniqueTxTypes.add(txType);
         const rowFranchises = td2 ? Array.from(td2.querySelectorAll('a[class*="franchise_"]')).map(a => {
             const m = (a.getAttribute('href') || '').match(/F=(\d+)/);
             const rFid = m ? m[1].padStart(4, '0') : '0000';
@@ -7620,7 +7554,6 @@ if (resignEvents.length > 0) {
 
 
 const resignMatch = r.explanation.replace(/[\u2018\u2019\u02bc]/g, "'").match(/^(.+?) re-signed: \$(.+?)\/yr - (\d+)yrs - (\d+)%guar - pid:(\d+)/);
-console.log('resignMatch:', resignMatch, 'explanation:', r.explanation);                // Format: "LastName, FirstName TEAM POS"
                 const mflNameMatch = r.explanation.match(/^(.+),\s*(.+?)\s+([A-Z]{2,3})\s+([A-Z]{1,3})$/);
                 if (resignMatch) {
                     playerName = resignMatch[1];
@@ -8823,7 +8756,6 @@ const rejectHref = allLinks.find(a => a.href.includes('reject') || a.textContent
 const tradeIdInput = row.nextElementSibling?.querySelector('input[name="TRADE_ID"]');
 const tradeIdFromLink = revokeHref.match(/TRADE_ID=(\d+)/)?.[1] || '';
 const tradeId = tradeIdInput?.value || tradeIdFromLink || '';
-console.log('tradeId parsed:', tradeId, 'revokeHref:', revokeHref);
 
 // MFL sometimes uses full URLs, sometimes relative
 const makeLink = (href) => {
@@ -8993,8 +8925,6 @@ const playerChipHtml = (p) => {
                 const theirHtml = [...theirSelected].map(pid => playerChipHtml(theirPlayers.find(p => String(p.pid) === pid))).join('');
                 const mineNames = [...mySelected].map(pid => { const p = myPlayers.find(p => String(p.pid) === pid); if (!p) return pid; return p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name); });
                 const theirNames = [...theirSelected].map(pid => { const p = theirPlayers.find(p => String(p.pid) === pid); if (!p) return pid; return p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name); });
-console.log('mineNames:', mineNames, 'theirNames:', theirNames);
-// Calculate salary totals for selected players
                 let mineSalTotal = 0, theirSalTotal = 0;
                 [...mySelected].forEach(pid => {
                     const p = myPlayers.find(p => String(p.pid) === pid);
@@ -9064,13 +8994,11 @@ try {
                     const comments = $('#trade-hub-comments').val()?.trim();
                     if (comments) params.append('COMMENTS', comments);
 
-                    console.log('Trade proposal params:', Object.fromEntries(params));
 
                     const res = await fetch(`https://www45.myfantasyleague.com/${year}/import`, {
                         method: 'POST', credentials: 'include', body: params
                     });
                     const txt = await res.text();
-                    console.log('Trade response:', txt);
                     if (txt.toLowerCase().includes('error')) {
                         const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
                         alert('MFL Error: ' + (m ? m[1] : 'Unknown error — check console'));
@@ -9149,6 +9077,7 @@ window.loadTradeHub = loadTradeHub;
 window._liveScoreIndex = window._liveScoreIndex ?? 0;
 window._liveScoreCaption = window._liveScoreCaption || 'Live Scores';
 
+
 async function fetchWeeklyPlayerInfoMap(weekParam) {
     const map = {};
     try {
@@ -9212,9 +9141,49 @@ function deriveLiveStatus(p) {
         const clock = formatGameClock(p.gsr);
         return { label: clock || 'Live', color: '#ef4444', playing: true, done: false };
     }
-    // Fallback heuristic when no status/timer field is present
+       // Fallback heuristic when no status/timer field is present
     if (p.score > 0) return { label: 'Final', color: '#94a3b8', playing: false, done: true };
     return { label: 'Upcoming', color: '#f59e0b', playing: false, done: false };
+}
+
+// Same three-state read (final / live / upcoming), but from the plain-text status MFL's live
+// scoring feed reports (e.g. "Final", "3rd 5:23", "Sun 1:00pm") — used on the Lineup tab, which
+// doesn't have gameSecondsRemaining the way the Scores tab's export payload does.
+function classifyGameStatusText(text) {
+    const s = (text || '').trim();
+    const low = s.toLowerCase();
+    if (!s) return { label: '', color: 'var(--text-dim)', playing: false, done: false };
+    if (low.includes('final')) return { label: 'Final', color: '#94a3b8', playing: false, done: true };
+    if (/\bq[1-4]\b/.test(low) || low.includes('ot') || low.includes('halftime') || /\d+:\d{2}/.test(s)) {
+        return { label: s, color: '#ef4444', playing: true, done: false };
+    }
+    return { label: s, color: '#f59e0b', playing: false, done: false };
+}
+
+// Patches already-rendered Lineup rows with a colored left highlight + status chip.
+async function injectLiveStatusIntoLineupRows(targetFid) {
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    const liveDetails = await fetchLiveScoringDetails(targetFid);
+    if (!liveDetails || !liveDetails.gameInfo) return;
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return; // tab may have changed while this was loading
+
+    $('#slots-starters .player-row[data-pid], #slots-bench .player-row[data-pid]').each(function() {
+        const pid = $(this).data('pid');
+        const info = liveDetails.gameInfo[pid];
+        if (!info || !info.statusText) return;
+        const status = classifyGameStatusText(info.statusText);
+        if (!status.label) return;
+
+        $(this).css({
+            'box-shadow': `inset 3px 0 0 ${status.color}`,
+            'background-color': status.playing ? `${status.color}15` : '',
+            'opacity': (!status.playing && !status.done) ? '0.6' : '1'
+        });
+
+        $(this).find('.live-status-chip').remove();
+        const chip = `<span class="live-status-chip" style="font-size:8px; font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; margin-left:4px; white-space:nowrap;">${status.playing ? '● ' : ''}${status.label}</span>`;
+        $(this).find('.full-name').first().after(chip);
+    });
 }
 
 
@@ -9240,10 +9209,12 @@ function buildLiveScoreSectionHeader(label) {
 }
 
 window._liveScoreProjCache = window._liveScoreProjCache || {};async function fetchTeamProjectionsMap(fid2) {
-    if (window._liveScoreProjCache[fid2]) return window._liveScoreProjCache[fid2];
+    const wk = window._liveScoreActiveWeek;
+    const cacheKey = `${fid2}_${wk}`;
+    if (window._liveScoreProjCache[cacheKey]) return window._liveScoreProjCache[cacheKey];
     const map = {};
     try {
-        const res = await fetch(`https://www45.myfantasyleague.com/${year}/lineup?L=${lid}&F=${fid2}`, { credentials: 'include', cache: 'no-store' });
+        const res = await fetch(`https://www45.myfantasyleague.com/${year}/lineup?L=${lid}&F=${fid2}${wk ? `&W=${wk}` : ''}`, { credentials: 'include', cache: 'no-store' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
             const pLink = row.querySelector('td a[class*="position_"]');
@@ -9251,11 +9222,19 @@ window._liveScoreProjCache = window._liveScoreProjCache || {};async function fet
             const pidMatch = pLink.getAttribute('href').match(/\d+/g);
             const pid = pidMatch ? pidMatch.pop() : null;
             if (!pid) return;
-            const projVal = parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0;
+            // Locate the "Proj Pts" column by its header text (same approach used everywhere
+            // else in this script) instead of trusting a fixed column index, which breaks
+            // whenever the row layout has a different number of columns.
+            const headerRow = row.closest('table')?.rows[0];
+            const headerThs = headerRow ? [...headerRow.querySelectorAll('th')] : [];
+            const projThIdx = headerThs.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts');
+            const projTdIdx = projThIdx - 1;
+            const cells = row.querySelectorAll('td');
+            const projVal = (projTdIdx >= 0 && cells[projTdIdx]) ? (parseFloat(cells[projTdIdx].textContent) || 0) : 0;
             map[pid] = projVal;
         });
     } catch(e) { console.warn('Could not fetch projections for', fid2, e); }
-    window._liveScoreProjCache[fid2] = map;
+    window._liveScoreProjCache[cacheKey] = map;
     return map;
 }
 
@@ -9293,12 +9272,17 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
         'SFO': ['#AA0000', '#B3995D'], 'SEA': ['#002244', '#69BE28'], 'TBB': ['#D50A0A', '#34302B'],
         'TEN': ['#0C2340', '#4B92DB'], 'WAS': ['#5A1414', '#FFB612']
     };
-    const colors = nflColors[team] || ['#3b82f6', '#1e293b'];
+        const colors = nflColors[team] || ['#3b82f6', '#1e293b'];
     const c1 = colors[0], c2 = colors[1];
+
+    // Live = tinted + glowing left edge, Final = neutral full-brightness, Upcoming = dimmed —
+    // so it's obvious at a glance who's done, who's playing, and who hasn't started.
+    const rowBg = status.playing ? `${status.color}14` : 'rgba(0,0,0,0.2)';
+    const rowOpacity = (!status.playing && !status.done) ? '0.55' : '1';
 
     return `
         <div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}"
-            style="display:flex; align-items:flex-start; gap:8px; padding:6px; border-radius:8px; margin-bottom:4px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); cursor:pointer;">
+            style="display:flex; align-items:flex-start; gap:8px; padding:6px; border-radius:8px; margin-bottom:4px; background:${rowBg}; border:1px solid var(--card-border); box-shadow:inset 3px 0 0 ${status.color}; opacity:${rowOpacity}; cursor:pointer;">
             <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(255,255,255,0.08); position:relative;">
                 <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                 <span style="position:absolute; bottom:-1px; right:-1px; width:8px; height:8px; border-radius:50%; background:${status.color}; border:1px solid var(--card-bg); ${dotAnim}"></span>
@@ -9315,9 +9299,9 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
                 </div>
                 ${statLine ? `<div style="font-size:8px; color:var(--text-dim); margin-top:3px; line-height:1.4;">${statLine}</div>` : ''}
             </div>
-            <div style="text-align:right; flex-shrink:0;">
+                        <div style="text-align:right; flex-shrink:0;">
                 <div style="font-size:12px; font-weight:900; color:${valueColor};">${valueText}</div>
-                <div style="font-size:6px; font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.5px; margin-top:1px;">${showProj ? 'PROJ' : statusDisplay}</div>
+                <div style="font-size:7px; font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; white-space:nowrap;">${showProj ? 'PROJ' : statusDisplay}</div>
             </div>
         </div>`;
 }
@@ -9391,23 +9375,15 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const yts1 = t1.yetToPlay > 0 ? `${t1.yetToPlay} yet to play` : 'Done';
     const yts2 = t2.yetToPlay > 0 ? `${t2.yetToPlay} yet to play` : 'Done';
 
-    const median = window._liveScoreMedian || 0;
-    const t1Winner = t1.score > t2.score;
-    const t2Winner = t2.score > t1.score;
-    const t1BeatMedian = t1.score > median;
-    const t2BeatMedian = t2.score > median;
-    const winnerIcon = `<span title="Winning" style="font-size:11px;">🏆</span>`;
-    const medianIcon = `<span title="Beat the median (${median.toFixed(1)})" style="font-size:11px;">⚡</span>`;
-    const t1Badges = `${t1Winner ? winnerIcon : ''}${t1BeatMedian ? medianIcon : ''}`;
-    const t2Badges = `${t2Winner ? winnerIcon : ''}${t2BeatMedian ? medianIcon : ''}`;
-
        const tabsHtml = buildLiveScoreTabsHtml(matchups, idx);
 
-      // Fetch projections for both teams, plus real game score/status/stat lines
+     // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
+    // past weeks don't have an in-progress game to poll.
+    const isLiveWeek = window._liveScoreActiveWeek === window._liveScoreCurrentWeek;
     const [projMap1, projMap2, liveDetails] = await Promise.all([
         fetchTeamProjectionsMap(t1.fid),
         fetchTeamProjectionsMap(t2.fid),
-        fetchLiveScoringDetails(t1.fid)
+        isLiveWeek ? fetchLiveScoringDetails(t1.fid) : Promise.resolve({ gameInfo: {}, stats: {} })
     ]);
 
     // Re-check index/matchup in case the user navigated away while awaiting
@@ -9451,12 +9427,33 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const t1Rows = buildTeamRosterHtml(t1.roster, projMap1);
     const t2Rows = buildTeamRosterHtml(t2.roster, projMap2);
 
+    const activeWk = window._liveScoreActiveWeek;
+    const isLiveWk = activeWk === window._liveScoreCurrentWeek;
+    const weekPickerOpen = !!window._liveScoreWeekPickerOpen;
+    const weekPillsRowHtml = weekPickerOpen ? `
+        <div style="display:flex; flex-wrap:wrap; gap:6px; padding:8px 2px 10px; justify-content:center;">
+            ${Array.from({length: 18}, (_, i) => i + 1).map(w => {
+                const isActive = w === activeWk;
+                return `<div class="live-score-week-option dashboard-pill stacked-pill" data-week="${w}"
+                    style="cursor:pointer; min-width:44px; border-bottom-color:${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${isActive ? '1' : '0.6'};">
+                    <span class="pill-value" style="font-size:12px; font-weight:900; color:${isActive ? 'var(--accent-blue)' : '#fff'};">W${w}</span>
+                    ${w === window._liveScoreCurrentWeek ? '<span class="pill-label" style="color:#ef4444;">LIVE</span>' : ''}
+                </div>`;
+            }).join('')}
+        </div>` : '';
+
     const html = `
                <div style="padding:10px;">
             <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
-                <div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px;">${window._liveScoreCaption}</div>
-                <span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
+                <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+                <div class="dashboard-pill stacked-pill" id="live-score-week-selector-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);">
+                    <span class="pill-label">WEEK ${weekPickerOpen ? '▲' : '▼'}</span>
+                    <span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${activeWk}</span>
+                </div>
+                <button class="live-score-week-next" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+                ${isLiveWk ? '<span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>' : '<span style="font-size:9px; font-weight:900; color:var(--text-dim); background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:3px 8px;">Final</span>'}
             </div>
+            ${weekPillsRowHtml}
 
             ${tabsHtml}
 
@@ -9465,12 +9462,9 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                     <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
 
                     <div style="flex:1; display:flex; align-items:center; justify-content:space-around; gap:6px;">
-                                                                                             <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
+                                               <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <img src="${t1.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                            <div style="display:flex; align-items:center; gap:4px; max-width:100%;">
-                                <span style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t1.name}</span>
-                                ${t1Badges}
-                            </div>
+                                                       <span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
                             <span style="font-size:22px; font-weight:900; color:${c1}; font-variant-numeric:tabular-nums;">${t1.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts1}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t1Proj.toFixed(1)}</span>
@@ -9478,10 +9472,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                         <div style="font-size:11px; font-weight:900; color:var(--text-dim); flex-shrink:0;">vs</div>
                         <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                            <div style="display:flex; align-items:center; gap:4px; max-width:100%;">
-                                <span style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t2.name}</span>
-                                ${t2Badges}
-                            </div>
+                            <span data-team-style="${t2.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>
                             <span style="font-size:22px; font-weight:900; color:${c2}; font-variant-numeric:tabular-nums;">${t2.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts2}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t2Proj.toFixed(1)}</span>
@@ -9499,27 +9490,25 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
 
         </div>`;
 
-    $('#scores-content-container').html(html);
+        $('#scores-content-container').html(html);
+    reapplyAllTeamStyles();
     document.querySelector(`.live-score-tab[data-idx="${idx}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 }
-async function loadLiveScores() {
+async function loadLiveScores(weekOverride = null) {
     const container = $('#scores-content-container');
     window._liveScoringDetailsCache = {};
+    const weekChanged = weekOverride !== null && weekOverride !== window._liveScoreActiveWeek;
     if (!window._liveScoreMatchups) {
         container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Live Scores...</div>');
     }
 
     try {
-        // Figure out the active week from the weekly summary caption
-        const pairRes = await fetch(`https://www45.myfantasyleague.com/${year}/weekly?L=${lid}`, { credentials: 'include', cache: 'no-store' });
-        const pairDoc = new DOMParser().parseFromString(await pairRes.text(), 'text/html');
-        const summaryTable = pairDoc.querySelector('table.h2hmatchups.scoresummary');
-        const caption = summaryTable?.querySelector('caption span')?.textContent || 'Live Scores';
-        window._liveScoreCaption = caption;
-        const weekMatch = caption.match(/Week\s+(\d+)/i);
-        const activeWeek = weekMatch ? parseInt(weekMatch[1], 10) : null;
-
-         const liveUrl = `https://www45.myfantasyleague.com/${year}/export?TYPE=liveScoring&L=${lid}${activeWeek ? `&W=${activeWeek}` : ''}&DETAILS=1&JSON=1`;
+        // Ask MFL for a specific week only when the user explicitly paged to one.
+        // Leaving W blank makes MFL resolve "current week" itself — no guessing on our end.
+        let activeWeek = weekOverride;
+        const liveUrl = activeWeek !== null
+            ? `https://www45.myfantasyleague.com/${year}/export?TYPE=liveScoring&L=${lid}&W=${activeWeek}&DETAILS=1&JSON=1`
+            : `https://www45.myfantasyleague.com/${year}/export?TYPE=liveScoring&L=${lid}&W=&DETAILS=1&JSON=1`;
         const liveRes = await fetch(liveUrl, { credentials: 'include', cache: 'no-store' });
         const liveRawText = await liveRes.text();
 
@@ -9531,10 +9520,17 @@ async function loadLiveScores() {
             container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">Not logged in or live scoring unavailable right now.</div>');
             return;
         }
-        console.log('liveScoring raw response:', liveData);
-        if (liveData?.liveScoring?.matchup?.[0]) {
-            console.log('First matchup sample:', JSON.stringify(liveData.liveScoring.matchup[0], null, 2));
+
+        // The response reports which week it actually served — that's ground truth for "current".
+        const reportedWeek = parseInt(liveData?.liveScoring?.week, 10);
+        if (activeWeek === null) {
+            activeWeek = !isNaN(reportedWeek) ? reportedWeek : 1;
         }
+        if (weekOverride === null && !isNaN(reportedWeek)) {
+            window._liveScoreCurrentWeek = reportedWeek;
+        }
+
+        window._liveScoreActiveWeek = activeWeek;
 
         // MFL groups live scoring by matchup, each containing exactly 2 franchises.
         // Try every shape we've seen: {liveScoring:{matchup}}, {matchup} at top level, or a flat franchise list.
@@ -9611,19 +9607,9 @@ async function loadLiveScores() {
             return { t1, t2, isMe: (t1.fid === fid || t2.fid === fid) };
         });
 
-        // Compute the median score across all teams this week
-        const allScoresThisWeek = [];
-        matchups.forEach(m => { allScoresThisWeek.push(m.t1.score, m.t2.score); });
-        allScoresThisWeek.sort((a, b) => a - b);
-        const midIdx = Math.floor(allScoresThisWeek.length / 2);
-        const medianScore = allScoresThisWeek.length % 2 !== 0
-            ? allScoresThisWeek[midIdx]
-            : (allScoresThisWeek[midIdx - 1] + allScoresThisWeek[midIdx]) / 2;
-        window._liveScoreMedian = medianScore;
-
         window._liveScoreMatchups = matchups;
 
-        if (window._liveScoreFirstLoad !== false) {
+        if (window._liveScoreFirstLoad !== false || weekChanged) {
             const myIdx = matchups.findIndex(m => m.isMe);
             window._liveScoreIndex = myIdx !== -1 ? myIdx : 0;
             window._liveScoreFirstLoad = false;
@@ -9632,11 +9618,14 @@ async function loadLiveScores() {
         await renderLiveScoreCard();
 
         if (window._liveScoreInterval) clearInterval(window._liveScoreInterval);
-        window._liveScoreInterval = setInterval(() => {
-            const tab = document.getElementById('tab-scores') || document.getElementById('tab-scoreboard');
-            if (tab && tab.offsetParent !== null) loadLiveScores();
-            else { clearInterval(window._liveScoreInterval); window._liveScoreInterval = null; }
-        }, 30000);
+        // Only auto-refresh while looking at the live/current week — a past week's box score is final.
+        if (activeWeek === window._liveScoreCurrentWeek) {
+            window._liveScoreInterval = setInterval(() => {
+                const tab = document.getElementById('tab-scores') || document.getElementById('tab-scoreboard');
+                if (tab && tab.offsetParent !== null) loadLiveScores(window._liveScoreActiveWeek);
+                else { clearInterval(window._liveScoreInterval); window._liveScoreInterval = null; }
+            }, 30000);
+        }
 
     } catch(e) {
         console.error('Live scores error:', e);
@@ -9894,7 +9883,6 @@ const url = `https://www45.myfantasyleague.com/${year}/live_draft?${params.toStr
             credentials: 'include'
         });
 const txt = await res.text();
-        console.log('Draft response:', txt);
         
         let parsed = {};
         try { parsed = JSON.parse(txt); } catch(e) {}
@@ -9949,7 +9937,6 @@ $(document).on('click', '.target-btn', async function() {
                     const url = `https://www45.myfantasyleague.com/${year}/live_draft?L=${lid}&CMD=MYLIST&PLAYERS=${allPids.join(',')}&JSON=1`;
                     const res = await fetch(url, { credentials: 'include' });
                     const txt = await res.text();
-                    console.log('Draft list sync:', txt);
                 } catch(e) {
                     console.warn('Draft list sync failed:', e);
                 }
@@ -10127,7 +10114,6 @@ let clockHtml = '';
                 const statusDoc = new DOMParser().parseFromString(await statusRes.text(), 'text/html');
                 const bodyText = statusDoc.body?.textContent || '';
 
-console.log('O=52 bodyText:', bodyText.substring(0, 600));
 
                 // Parse "on the clock" franchise
                 const clockMatch = bodyText.match(/Draft Pick [\d.]+:\s*(.+?)\s+is on the clock/i);
@@ -10137,8 +10123,6 @@ let onClockName = clockMatch ? clockMatch[1].trim() : (isMyTurn ? (leagueFranchi
                 // Parse time remaining — try multiple formats
                 const timeMatch = bodyText.match(/Timer expires in about\s+([^<\n]+)/i);
                 const timeText = timeMatch ? timeMatch[1].trim() : null;
-                console.log('timeMatch:', timeMatch);
-                console.log('timeText:', timeText);
 
                 // Convert "X hours, Y minutes" to seconds
                 let secondsLeft = 0;
@@ -10149,7 +10133,6 @@ let onClockName = clockMatch ? clockMatch[1].trim() : (isMyTurn ? (leagueFranchi
                 }
                 // Force show if it's my turn even with no time parsed
                 if (isMyTurn && secondsLeft === 0) secondsLeft = 1;
-                console.log('onClockName:', onClockName, 'secondsLeft:', secondsLeft, 'isMyTurn:', isMyTurn);
 const anyPicksMade = Object.values(picks).some(p => p.draftedPlayer);
 if (secondsLeft > 0 && anyPicksMade) {
                     let onClockFid = Object.keys(leagueFranchises).find(id =>
@@ -10418,6 +10401,36 @@ async function checkNotifBadge() {
         window._liveScoreIndex = parseInt($(this).data('idx'));
         await renderLiveScoreCard();
     });
+
+    // --- LIVE SCORES WEEK NAVIGATION ---
+    $(document).off('click touchend', '.live-score-week-prev').on('click touchend', '.live-score-week-prev', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._liveScoreWeekPickerOpen = false;
+        const wk = Math.max(1, (window._liveScoreActiveWeek || 1) - 1);
+        await loadLiveScores(wk);
+    });
+    $(document).off('click touchend', '.live-score-week-next').on('click touchend', '.live-score-week-next', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._liveScoreWeekPickerOpen = false;
+        const wk = Math.min(18, (window._liveScoreActiveWeek || 1) + 1);
+        await loadLiveScores(wk);
+    });
+    $(document).off('click touchend', '#live-score-week-selector-pill').on('click touchend', '#live-score-week-selector-pill', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        window._liveScoreWeekPickerOpen = !window._liveScoreWeekPickerOpen;
+        await renderLiveScoreCard();
+    });
+    $(document).off('click touchend', '.live-score-week-option').on('click touchend', '.live-score-week-option', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        window._liveScoreWeekPickerOpen = false;
+        await loadLiveScores(parseInt($(this).data('week')));
+    });
     $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
         window._lsTouchStartX = e.originalEvent.touches[0].clientX;
     });
@@ -10469,7 +10482,7 @@ async function fetchLeagueSalaryData() {
 }
 async function fetchFranchises() {
         try {
-const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=league&L=${lid}&JSON=1`, { credentials: 'include' });
+            const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=league&L=${lid}&JSON=1`);
             const data = await res.json();
 data.league.franchises.franchise.forEach(f => {
     leagueFranchises[f.id] = f.name;
@@ -10629,7 +10642,6 @@ fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=123&MONTH=${
                     });
                 });
                 window._calendarEvents = events;
-                console.log('Calendar prefetched:', events.length, 'events');
             });
     })
 .catch(e => console.warn('Calendar prefetch failed', e));
@@ -10642,7 +10654,6 @@ async function loadModalGameLog(pid) {
     let activeLogTab = 'stats';
 
     async function fetchAndRender() {
-    console.log('fetchAndRender called, pid:', pid, 'activeYear:', activeYear);
 
         container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
         try {
@@ -10676,7 +10687,6 @@ async function loadModalGameLog(pid) {
 
             const statsMap = parseRows(statsDoc);
             const projMap = parseRows(projDoc);
-console.log('statsMap keys:', Object.keys(statsMap), 'projMap keys:', Object.keys(projMap));
             const hasStats = Object.keys(statsMap).length > 0;
             const hasProj = Object.keys(projDoc.querySelectorAll('#player_stats_table tr.oddtablerow, #player_stats_table tr.eventablerow')).length > 0 && Object.keys(projMap).length > 0;
 
@@ -10890,15 +10900,12 @@ $(document).off('click', '.gl-tab').on('click', '.gl-tab', function(e) {
 }
 
 async function loadModalContract(pid) {
-    console.log('loadModalContract called, pid:', pid, 'fid:', fid);
     const container = $('#modal-actions-container');
-    console.log('container found:', container.length);
     container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${fid}`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         const rows = Array.from(doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
-        console.log('rows found:', rows.length);
         const startYear = parseInt(year) || 2026;
 
         let found = null;
@@ -11673,10 +11680,8 @@ $(document).on('click', '.fa-bid-btn, .fa-nominate-btn', async function(e) {
 
     // Fetch dynasty rank for this player
 try {
-    console.log('Fetching player info for pid:', pid);
     const posRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${pid}&JSON=1`, { credentials: 'include' });
     const posData = await posRes.json();
-    console.log('Player data:', posData);
         const playerInfo = posData?.players?.player;
         const playerPos = playerInfo?.position || '';
         let posGroup = playerPos;
@@ -11799,13 +11804,10 @@ $(document).off('input', '#fa-years, #fa-guar, #fa-bid-amount').on('input', '#fa
 
         // Submit
         $(document).off('click', '#fa-confirm-offer').on('click', '#fa-confirm-offer', async function() {
-    console.log('CONFIRM OFFER CLICKED');
 
             const yrs = parseInt($('#fa-years').val());
             const guar = parseInt($('#fa-guar').val());
-            console.log('fa-bid-amount value:', $('#fa-bid-amount').val());
             const bidRaw = parseInt($('#fa-bid-amount').val()) * 1000000;
-            console.log('bidRaw:', bidRaw);
 
 // Store contract terms locally for reference
 const contractKey = `contract_offer_${lid}_${pid}`;
@@ -11836,9 +11838,7 @@ const res = await fetch(`https://www45.myfantasyleague.com/${year}/auction_bid`,
     body: params.toString(),
     credentials: 'include'
 });
-console.log('POST status:', res.status);
 const auctionResText = await res.text();
-console.log('POST response full:', auctionResText.substring(0, 1000));
 const bidName = $('#fa-modal-name').text().trim() || name;
 const bidAmt = parseInt(bidRaw) / 1000000;
 const contractComment = $('#fa-contract-comment').val().trim();
@@ -12087,8 +12087,7 @@ const panel = $(`
         const tradeData = await tradeRes.json();
         let trades = tradeData?.pendingTrades?.pendingTrade || [];
         if (!Array.isArray(trades)) trades = [trades];
-console.log('notif bell myFid:', myFid, 'all trades:', trades.map(t => ({offeredTo: t.offeredto, from: t.offeringteam})));
-if (trades.length > 0) console.log('First trade object:', JSON.stringify(trades[0]));
+if (trades.length > 0)
 trades.filter(t => t.offeredto === myFid).forEach(t => {
     const fromName = leagueFranchises[t.offeringteam] || t.offeringteam;
     items.push({ icon: '⇄', color: '#22c55e', title: 'Trade Offer Received', desc: `From ${fromName}`, action: () => { $('#notif-panel').remove(); document.querySelector('.tab-btn[onclick*="tab-league"]').click(); setTimeout(() => { $('#subtabs-league .sub-tab-btn').filter(function(){ return $(this).text().trim() === 'Trades'; }).trigger('click'); }, 200); } });
@@ -12275,30 +12274,25 @@ const totalValM = (salM * yrs).toFixed(0);
         body: params.toString()
     });
     const txt = await res.text();
-console.log(`Auction contract applied for pid ${pid}:`, txt);
 
     return txt;
 }
 
 async function checkCompletedAuctions() {
-    console.log('checkCompletedAuctions started, myFid:', myFid);
 
     try {
         const appliedKey = `applied_contracts_${lid}_${year}`;
         const alreadyApplied = new Set(JSON.parse(localStorage.getItem(appliedKey) || '[]'));
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=102`, { credentials: 'include' });
         const txt = await res.text();
-        console.log('O=44 response title:', new DOMParser().parseFromString(txt, 'text/html').title);
         const doc = new DOMParser().parseFromString(txt, 'text/html');
 const rows = Array.from(doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
-console.log('Completed auction rows:', rows.length);
 rows.forEach((row, i) => {
     if (i < 4) console.log(`Row ${i}:`, row.innerHTML.substring(0, 400));
 });
 rows.forEach((row, i) => {
     if (i < 6) console.log(`Row ${i}:`, row.innerHTML.substring(0, 200));
 });
-console.log('checkCompletedAuctions running, rows found:', rows.length);
 rows.forEach((row, i) => {
     if (i < 6) console.log(`Row ${i}:`, row.innerHTML.substring(0, 300));
 });
@@ -12310,7 +12304,6 @@ for (const row of rows) {
 if (!pid || alreadyApplied.has(pid)) continue;
 const cells = row.querySelectorAll('td');
 const commentText = cells[cells.length - 1]?.textContent.trim() || '';
-console.log('pid:', pid, 'comment:', commentText);
 const result = await applyAuctionContract(pid, commentText);
             if (result && !result.match(/<error[^>]*>/i)) {
                 alreadyApplied.add(pid);
