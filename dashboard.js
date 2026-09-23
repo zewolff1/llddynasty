@@ -2283,53 +2283,66 @@ async function fetchPendingWaivers() {
         console.log('[waiver-debug] raw pendingWaivers response:', JSON.stringify(data, null, 2));
 
         // Real shape confirmed from MFL's own API docs: <waiverRequest timestamp round addsDrops comments/>
+        // Real shape confirmed from MFL's own API docs: <waiverRequest timestamp round addsDrops comments/>
+        // addsDrops can itself be a COMMA-separated list of "ADD_DROP" pairs — MFL treats these as a
+        // ranked fallback chain within one round ("try player A, if that fails try player B"), not as
+        // separate independent claims. So one <waiverRequest> element can represent multiple picks.
         let claims = data?.pendingWaivers?.waiverRequest || [];
         if (!Array.isArray(claims)) claims = claims ? [claims] : [];
-        console.log('[waiver-debug] claims found:', claims.length);
+        console.log('[waiver-debug] claims found (rounds):', claims.length);
+
+        window._pendingWaiversRaw = [];
 
         for (const claim of claims) {
-            // addsDrops is "ADDPID_DROPPID" — dropPid is "0000" when nothing is being dropped
-            const [addPid, dropPidRaw] = (claim.addsDrops || '').split('_');
-            if (!addPid) continue;
-            const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
+            const round = parseInt(claim.round, 10);
+            const picks = (claim.addsDrops || '').split(',').map(s => s.trim()).filter(Boolean);
 
-            let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
-            try {
-                const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
-                const pData = await pRes.json();
-                const player = pData?.players?.player;
-                if (player?.name) {
-                    addName = player.name.split(', ').reverse().join(' ');
-                    const nameParts = addName.split(' ');
-                    addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
-                    addPos = player.position || '';
-                    addTeam = player.team || 'NFL';
-                }
-            } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
+            for (const pick of picks) {
+                window._pendingWaiversRaw.push({ round, addsDrops: pick });
 
-            let dropName = null;
-            if (dropPid) {
+                // addsDrops is "ADDPID_DROPPID" — dropPid is "0000" when nothing is being dropped
+                const [addPid, dropPidRaw] = pick.split('_');
+                if (!addPid) continue;
+                const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
+
+                let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
                 try {
-                    const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
-                    const dData = await dRes.json();
-                    const dPlayer = dData?.players?.player;
-                    if (dPlayer?.name) {
-                        const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
-                        const dParts = fullDropName.split(' ');
-                        dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
+                    const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
+                    const pData = await pRes.json();
+                    const player = pData?.players?.player;
+                    if (player?.name) {
+                        addName = player.name.split(', ').reverse().join(' ');
+                        const nameParts = addName.split(' ');
+                        addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
+                        addPos = player.position || '';
+                        addTeam = player.team || 'NFL';
                     }
-                } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
-            }
+                } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
 
-            const entry = {
-                pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
-                dropName,
-                priority: claim.round || null,
-                dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
-            };
-            window._pendingWaivers[addPid] = entry;
-            window._pendingWaiversList.push(entry);
-        }
+                let dropName = null;
+                if (dropPid) {
+                    try {
+                        const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
+                        const dData = await dRes.json();
+                        const dPlayer = dData?.players?.player;
+                        if (dPlayer?.name) {
+                            const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
+                            const dParts = fullDropName.split(' ');
+                            dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
+                        }
+                    } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
+                }
+
+                const entry = {
+                    pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
+                    dropName,
+                    priority: round || null,
+                    dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
+                };
+                window._pendingWaivers[addPid] = entry;
+                window._pendingWaiversList.push(entry);
+            }
+        }        }
 
         // Keep the raw round/addsDrops pairs too — canceling or moving a claim requires
         // resubmitting the exact remaining PICKS list for a round, not just this one entry.
