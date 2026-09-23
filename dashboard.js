@@ -2271,23 +2271,27 @@ async function fetchPendingWaivers() {
     try {
         // FRANCHISE_ID is only needed when the request comes FROM the commissioner session (myFid '0000');
         // a normal owner login already scopes this endpoint to their own franchise automatically.
-        const isCommish = (myFid === '0000');
+        // Always pass FRANCHISE_ID explicitly rather than trying to detect a commissioner
+        // session — MFL's franchise_id global isn't reliably set for commissioner logins,
+        // which was silently causing this to fall through to the wrong franchise's queue.
         const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
-        let url = `https://www45.myfantasyleague.com/${year}/export?TYPE=pendingWaivers&L=${lid}&JSON=1`;
-        if (isCommish) url += `&FRANCHISE_ID=${targetFid}`;
+        const url = `https://www45.myfantasyleague.com/${year}/export?TYPE=pendingWaivers&L=${lid}&JSON=1&FRANCHISE_ID=${targetFid}`;
 
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
         const data = await res.json();
         console.log('[waiver-debug] pendingWaivers URL:', url);
         console.log('[waiver-debug] raw pendingWaivers response:', JSON.stringify(data, null, 2));
 
-        let claims = data?.pendingWaivers?.pendingWaiver || [];
+        // Real shape confirmed from MFL's own API docs: <waiverRequest timestamp round addsDrops comments/>
+        let claims = data?.pendingWaivers?.waiverRequest || [];
         if (!Array.isArray(claims)) claims = claims ? [claims] : [];
         console.log('[waiver-debug] claims found:', claims.length);
 
         for (const claim of claims) {
-            const addPid = claim.player || claim.player_id || claim.pid || null;
+            // addsDrops is "ADDPID_DROPPID" — dropPid is "0000" when nothing is being dropped
+            const [addPid, dropPidRaw] = (claim.addsDrops || '').split('_');
             if (!addPid) continue;
+            const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
 
             let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
             try {
@@ -2304,7 +2308,6 @@ async function fetchPendingWaivers() {
             } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
 
             let dropName = null;
-            const dropPid = (claim.drop && claim.drop !== '0000') ? claim.drop : null;
             if (dropPid) {
                 try {
                     const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
@@ -2321,8 +2324,8 @@ async function fetchPendingWaivers() {
             const entry = {
                 pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
                 dropName,
-                priority: claim.priority || claim.waiverOrder || null,
-                dateText: claim.expires ? new Date(parseInt(claim.expires, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
+                priority: claim.round || null,
+                dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
             };
             window._pendingWaivers[addPid] = entry;
             window._pendingWaiversList.push(entry);
@@ -6948,8 +6951,7 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
                             </div>
                         </div>
                         <div style="text-align:right; flex-shrink:0;">
-                            ${c.priority ? `<div style="font-size:11px; font-weight:900; color:#eab308;">Pri ${c.priority}</div>` : ''}
-                            ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; margin-top:2px; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.dateText}</div>` : ''}
+                            ${c.priority ? `<div style="font-size:11px; font-weight:900; color:#eab308;">Round ${c.priority}</div>` : ''}                            ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; margin-top:2px; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.dateText}</div>` : ''}
                         </div>
                     </div>
                 `).join('')}
