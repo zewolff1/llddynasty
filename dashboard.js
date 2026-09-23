@@ -2253,8 +2253,10 @@ $(document).on('click touchend', '.open-settings-btn', function() {
         }
     }
 // --- FETCH PENDING WAIVER CLAIMS (NOT YET PROCESSED) ---
+// --- FETCH PENDING WAIVER CLAIMS (NOT YET PROCESSED) ---
 async function fetchPendingWaivers() {
     window._pendingWaivers = {};
+    window._pendingWaiversList = [];
     try {
         const targetFid = (fid === '0000' ? myFid : fid);
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=93&F=${targetFid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
@@ -2273,6 +2275,8 @@ async function fetchPendingWaivers() {
                 const addPid = addPidMatch ? addPidMatch.pop() : null;
                 if (!addPid) return;
 
+                const addParsed = parseMFLName(addLink.textContent);
+
                 let dropName = null;
                 if (dropLink) {
                     const dParsed = parseMFLName(dropLink.textContent);
@@ -2285,15 +2289,18 @@ async function fetchPendingWaivers() {
                 const dateCell = cells[cells.length - 1];
                 const dateText = dateCell ? dateCell.textContent.trim() : '';
 
-                window._pendingWaivers[addPid] = { dropName, priority, dateText };
+                const entry = {
+                    pid: addPid, name: addParsed.name, shortName: addParsed.shortName,
+                    pos: addParsed.pos, team: addParsed.team, dropName, priority, dateText
+                };
+                window._pendingWaivers[addPid] = entry;
+                window._pendingWaiversList.push(entry);
             });
         });
-
     } catch (err) {
         console.error("Failed to fetch pending waiver claims", err);
     }
 }
- // --- 1. DATA FETCHING ---
 // --- 1. DATA FETCHING ---
 async function fetchMasterStatus() {
     irPlayers = []; taxiPlayers = []; injuryMap = {};
@@ -6884,6 +6891,42 @@ let myRosterCapUsed = 0;
     } catch(e) { console.warn('Auction fetch failed', e); }
 }
 
+// --- MY PENDING WAIVER CLAIMS SECTION ---
+let pendingWaiversHtml = '';
+if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0) {
+    const claims = window._pendingWaiversList;
+    pendingWaiversHtml = `
+        <div style="padding:10px 10px 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Your Pending Waiver Claims</div>
+                <span style="font-size:9px; font-weight:900; color:#eab308; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:6px; padding:3px 8px;">${claims.length} Pending</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+                ${claims.map(c => `
+                    <div class="player-modal-trigger" data-pid="${c.pid}" data-team="${c.team}" style="display:flex; align-items:center; gap:10px; padding:8px 10px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:8px; cursor:pointer;">
+                        <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(234,179,8,0.3);">
+                            <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${c.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                                <span style="font-size:12px; font-weight:900; color:#fff;">${c.shortName || c.name}</span>
+                                <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:8px; font-weight:900;">${c.pos || ''}</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap;">
+                                <img src="${getNFLLogoUrl(c.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;">
+                                ${c.dropName ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
+                            </div>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0;">
+                            ${c.priority ? `<div style="font-size:11px; font-weight:900; color:#eab308;">Pri ${c.priority}</div>` : ''}
+                            ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; margin-top:2px; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.dateText}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+}
+
 // Specific position clicked = group, otherwise flat
         const specificPosList = ['QB','RB','WR','TE','PK','DT+DE','LB','CB+S'];
         const isSpecificPos = specificPosList.includes(playerPosFilter);
@@ -6906,6 +6949,7 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
 
 container.find('#players-loader').remove();
         container.prepend(auctionHtml);
+        container.prepend(pendingWaiversHtml);
         container.append(outputHtml);
 }
 function buildPlayerRightHtml(p, isFAView) {
