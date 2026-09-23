@@ -2264,14 +2264,21 @@ $(document).on('click touchend', '.open-settings-btn', function() {
         }
     }
 // --- FETCH PENDING WAIVER CLAIMS (NOT YET PROCESSED) ---
-// --- FETCH PENDING WAIVER CLAIMS (NOT YET PROCESSED) ---
 async function fetchPendingWaivers() {
     window._pendingWaivers = {};
     window._pendingWaiversList = [];
     try {
         const targetFid = (fid === '0000' ? myFid : fid);
-        const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=93&F=${targetFid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
-        const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+        const url = `https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=93&F=${targetFid}&rnd=${Date.now()}`;
+        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
+        const rawText = await res.text();
+        const doc = new DOMParser().parseFromString(rawText, 'text/html');
+
+        console.log('[waiver-debug] fetched URL:', url);
+        console.log('[waiver-debug] myFid (logged-in session):', myFid, '| fid (team being viewed):', fid, '| targetFid used in request:', targetFid);
+        console.log('[waiver-debug] table.report elements found on page:', doc.querySelectorAll('table.report').length);
+        console.log('[waiver-debug] rows found across those tables:', doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').length);
+        console.log('[waiver-debug] raw page text snippet (first 500 chars):', doc.body?.innerText?.slice(0, 500));
 
         doc.querySelectorAll('table.report').forEach(table => {
             table.querySelectorAll('tr.oddtablerow, tr.eventablerow').forEach(row => {
