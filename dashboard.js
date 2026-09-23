@@ -2330,10 +2330,103 @@ async function fetchPendingWaivers() {
             window._pendingWaivers[addPid] = entry;
             window._pendingWaiversList.push(entry);
         }
+
+        // Keep the raw round/addsDrops pairs too — canceling or moving a claim requires
+        // resubmitting the exact remaining PICKS list for a round, not just this one entry.
+        window._pendingWaiversRaw = claims.map(c => ({ round: parseInt(c.round, 10), addsDrops: c.addsDrops }));
     } catch (err) {
         console.error("Failed to fetch pending waiver claims", err);
     }
 }
+
+// Resubmits a round's entire PICKS list. REPLACE=1 means "this list IS the round now" —
+// which is what makes both cancel (list minus one) and move (list plus/minus one) work.
+async function submitWaiverRoundUpdate(round, picksArray, targetFid) {
+    const params = new URLSearchParams();
+    params.set('TYPE', 'waiverRequest');
+    params.set('L', lid);
+    params.set('ROUND', round);
+    params.set('PICKS', picksArray.join(','));
+    params.set('REPLACE', '1');
+    if (targetFid) params.set('FRANCHISE_ID', targetFid);
+    const res = await fetch(`https://www45.myfantasyleague.com/${year}/import`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    });
+    return await res.text();
+}
+
+window.cancelWaiverClaim = async function(pid, btn) {
+    if (!confirm('Cancel this waiver claim?')) return;
+    const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+    const claim = (window._pendingWaiversRaw || []).find(c => c.addsDrops && c.addsDrops.split('_')[0] === String(pid));
+    if (!claim) { alert('Could not find this claim — try refreshing.'); return; }
+
+    const remaining = (window._pendingWaiversRaw || [])
+        .filter(c => c.round === claim.round && c.addsDrops !== claim.addsDrops)
+        .map(c => c.addsDrops);
+
+    if (btn) btn.text('Canceling...').prop('disabled', true);
+    try {
+        const txt = await submitWaiverRoundUpdate(claim.round, remaining, targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error: ' + (m ? m[1] : 'Unknown'));
+            if (btn) btn.text('Cancel Claim').prop('disabled', false);
+            return;
+        }
+        await fetchPendingWaivers();
+        loadPlayersData('free-agents');
+    } catch (e) {
+        console.error('Cancel waiver error', e);
+        alert('Network error.');
+        if (btn) btn.text('Cancel Claim').prop('disabled', false);
+    }
+};
+
+window.changeWaiverRound = async function(pid, newRoundRaw, btn) {
+    const newRound = parseInt(newRoundRaw, 10);
+    if (!newRound || newRound < 1) { alert('Enter a valid round number.'); return; }
+    const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+    const claim = (window._pendingWaiversRaw || []).find(c => c.addsDrops && c.addsDrops.split('_')[0] === String(pid));
+    if (!claim) { alert('Could not find this claim — try refreshing.'); return; }
+    if (newRound === claim.round) return;
+
+    if (btn) btn.text('Saving...').prop('disabled', true);
+    try {
+        // Pull it out of the old round
+        const oldRemaining = (window._pendingWaiversRaw || [])
+            .filter(c => c.round === claim.round && c.addsDrops !== claim.addsDrops)
+            .map(c => c.addsDrops);
+        let txt = await submitWaiverRoundUpdate(claim.round, oldRemaining, targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error removing from old round: ' + (m ? m[1] : 'Unknown'));
+            if (btn) btn.text('Save').prop('disabled', false);
+            return;
+        }
+
+        // Add it into the new round, alongside whatever's already there
+        const newRoundExisting = (window._pendingWaiversRaw || [])
+            .filter(c => c.round === newRound)
+            .map(c => c.addsDrops);
+        txt = await submitWaiverRoundUpdate(newRound, [...newRoundExisting, claim.addsDrops], targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error adding to new round: ' + (m ? m[1] : 'Unknown'));
+            if (btn) btn.text('Save').prop('disabled', false);
+            return;
+        }
+
+        await fetchPendingWaivers();
+        loadPlayersData('free-agents');
+    } catch (e) {
+        console.error('Change waiver round error', e);
+        alert('Network error.');
+        if (btn) btn.text('Save').prop('disabled', false);
+    }
+};
 // --- 1. DATA FETCHING ---
 async function fetchMasterStatus() {
     irPlayers = []; taxiPlayers = []; injuryMap = {};
@@ -6936,22 +7029,29 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
             </div>
             <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
                 ${claims.map(c => `
-                    <div class="player-modal-trigger" data-pid="${c.pid}" data-team="${c.team}" style="display:flex; align-items:center; gap:10px; padding:8px 10px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:8px; cursor:pointer;">
-                        <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(234,179,8,0.3);">
-                            <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${c.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
-                        </div>
-                        <div style="flex:1; min-width:0;">
-                            <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                                <span style="font-size:12px; font-weight:900; color:#fff;">${c.shortName || c.name}</span>
-                                <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:8px; font-weight:900;">${c.pos || ''}</span>
+                    <div style="padding:8px 10px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:8px;">
+                        <div class="player-modal-trigger" data-pid="${c.pid}" data-team="${c.team}" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                            <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(234,179,8,0.3);">
+                                <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${c.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                             </div>
-                            <div style="display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap;">
-                                <img src="${getNFLLogoUrl(c.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;">
-                                ${c.dropName ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                                    <span style="font-size:12px; font-weight:900; color:#fff;">${c.shortName || c.name}</span>
+                                    <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:8px; font-weight:900;">${c.pos || ''}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap;">
+                                    <img src="${getNFLLogoUrl(c.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;">
+                                    ${c.dropName ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
+                                </div>
                             </div>
+                            ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; text-align:right; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0;">${c.dateText}</div>` : ''}
                         </div>
-                        <div style="text-align:right; flex-shrink:0;">
-                            ${c.priority ? `<div style="font-size:11px; font-weight:900; color:#eab308;">Round ${c.priority}</div>` : ''}                            ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; margin-top:2px; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.dateText}</div>` : ''}
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(234,179,8,0.15);">
+                            <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Round</span>
+                            <input type="number" class="waiver-round-input" data-pid="${c.pid}" value="${c.priority || 1}" min="1"
+                                style="width:44px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:4px 6px; color:#fff; font-size:11px; font-weight:800; text-align:center;">
+                            <button class="waiver-save-round-btn" data-pid="${c.pid}" style="padding:5px 10px; border-radius:6px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
+                            <button class="waiver-cancel-btn" data-pid="${c.pid}" style="margin-left:auto; padding:5px 10px; border-radius:6px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel Claim</button>
                         </div>
                     </div>
                 `).join('')}
@@ -11727,8 +11827,19 @@ $(document).off('click', '.auction-pos-filter-btn').on('click', '.auction-pos-fi
     rerenderAuctionSection();
 });
 
-$(document).on('click', '.fa-bid-btn, .fa-nominate-btn', async function(e) {
+$(document).off('click', '.waiver-save-round-btn').on('click', '.waiver-save-round-btn', async function(e) {
     e.stopPropagation();
+    const pid = $(this).data('pid');
+    const newRound = $(`.waiver-round-input[data-pid="${pid}"]`).val();
+    await window.changeWaiverRound(pid, newRound, $(this));
+});
+$(document).off('click', '.waiver-cancel-btn').on('click', '.waiver-cancel-btn', async function(e) {
+    e.stopPropagation();
+    await window.cancelWaiverClaim($(this).data('pid'), $(this));
+});
+$(document).off('click', '.waiver-round-input').on('click', '.waiver-round-input', function(e) { e.stopPropagation(); });
+
+$(document).on('click', '.fa-bid-btn, .fa-nominate-btn', async function(e) {    e.stopPropagation();
     const pid = $(this).data('pid');
     const name = $(this).data('name') || pid;
     const minBid = parseInt($(this).data('minbid')) || 1000000;
