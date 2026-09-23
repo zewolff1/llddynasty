@@ -2283,66 +2283,53 @@ async function fetchPendingWaivers() {
         console.log('[waiver-debug] raw pendingWaivers response:', JSON.stringify(data, null, 2));
 
         // Real shape confirmed from MFL's own API docs: <waiverRequest timestamp round addsDrops comments/>
-        // Real shape confirmed from MFL's own API docs: <waiverRequest timestamp round addsDrops comments/>
-        // addsDrops can itself be a COMMA-separated list of "ADD_DROP" pairs — MFL treats these as a
-        // ranked fallback chain within one round ("try player A, if that fails try player B"), not as
-        // separate independent claims. So one <waiverRequest> element can represent multiple picks.
         let claims = data?.pendingWaivers?.waiverRequest || [];
         if (!Array.isArray(claims)) claims = claims ? [claims] : [];
-        console.log('[waiver-debug] claims found (rounds):', claims.length);
-
-        window._pendingWaiversRaw = [];
+        console.log('[waiver-debug] claims found:', claims.length);
 
         for (const claim of claims) {
-            const round = parseInt(claim.round, 10);
-            const picks = (claim.addsDrops || '').split(',').map(s => s.trim()).filter(Boolean);
+            // addsDrops is "ADDPID_DROPPID" — dropPid is "0000" when nothing is being dropped
+            const [addPid, dropPidRaw] = (claim.addsDrops || '').split('_');
+            if (!addPid) continue;
+            const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
 
-            for (const pick of picks) {
-                window._pendingWaiversRaw.push({ round, addsDrops: pick });
-
-                // addsDrops is "ADDPID_DROPPID" — dropPid is "0000" when nothing is being dropped
-                const [addPid, dropPidRaw] = pick.split('_');
-                if (!addPid) continue;
-                const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
-
-                let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
-                try {
-                    const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
-                    const pData = await pRes.json();
-                    const player = pData?.players?.player;
-                    if (player?.name) {
-                        addName = player.name.split(', ').reverse().join(' ');
-                        const nameParts = addName.split(' ');
-                        addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
-                        addPos = player.position || '';
-                        addTeam = player.team || 'NFL';
-                    }
-                } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
-
-                let dropName = null;
-                if (dropPid) {
-                    try {
-                        const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
-                        const dData = await dRes.json();
-                        const dPlayer = dData?.players?.player;
-                        if (dPlayer?.name) {
-                            const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
-                            const dParts = fullDropName.split(' ');
-                            dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
-                        }
-                    } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
+            let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
+            try {
+                const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
+                const pData = await pRes.json();
+                const player = pData?.players?.player;
+                if (player?.name) {
+                    addName = player.name.split(', ').reverse().join(' ');
+                    const nameParts = addName.split(' ');
+                    addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
+                    addPos = player.position || '';
+                    addTeam = player.team || 'NFL';
                 }
+            } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
 
-                const entry = {
-                    pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
-                    dropName,
-                    priority: round || null,
-                    dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
-                };
-                window._pendingWaivers[addPid] = entry;
-                window._pendingWaiversList.push(entry);
+            let dropName = null;
+            if (dropPid) {
+                try {
+                    const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
+                    const dData = await dRes.json();
+                    const dPlayer = dData?.players?.player;
+                    if (dPlayer?.name) {
+                        const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
+                        const dParts = fullDropName.split(' ');
+                        dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
+                    }
+                } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
             }
-        }        }
+
+            const entry = {
+                pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
+                dropName,
+                priority: claim.round || null,
+                dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
+            };
+            window._pendingWaivers[addPid] = entry;
+            window._pendingWaiversList.push(entry);
+        }
 
         // Keep the raw round/addsDrops pairs too — canceling or moving a claim requires
         // resubmitting the exact remaining PICKS list for a round, not just this one entry.
@@ -9374,6 +9361,87 @@ async function injectLiveStatusIntoLineupRows(targetFid) {
     });
 }
 
+// Standard median: sort all teams' scores, take the middle (average of two middles if even count).
+function computeMedianScore(matchups) {
+    const scores = [];
+    (matchups || []).forEach(m => { scores.push(m.t1.score); scores.push(m.t2.score); });
+    scores.sort((a, b) => a - b);
+    const n = scores.length;
+    if (n === 0) return 0;
+    const mid = Math.floor(n / 2);
+    return n % 2 !== 0 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2;
+}
+
+// Same "use real score once final, else projection" logic already used for the matchup card,
+// factored out so the League Median view can compute this for every team, not just the two in view.
+function computeTeamProjectedTotal(roster, projMap) {
+    let total = 0;
+    (roster || []).forEach(p => {
+        if (!p.isStarter) return;
+        const status = deriveLiveStatus(p);
+        total += status.done ? p.score : ((projMap && projMap[p.pid] != null) ? projMap[p.pid] : p.score);
+    });
+    return total;
+}
+
+function buildScoresViewToggleHtml() {
+    const mode = window._scoresViewMode || 'matchups';
+    const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
+    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px;">${btn('matchups','Matchups')}${btn('median','League Median')}</div>`;
+}
+
+async function renderLeagueMedianView() {
+    const container = $('#scores-content-container');
+    const matchups = window._liveScoreMatchups || [];
+    if (matchups.length === 0) {
+        container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
+        return;
+    }
+
+    const teams = [];
+    matchups.forEach(m => { teams.push(m.t1); teams.push(m.t2); });
+
+    const currentMedian = computeMedianScore(matchups);
+    const projMaps = await Promise.all(teams.map(t => fetchTeamProjectionsMap(t.fid)));
+    const projTotals = teams.map((t, i) => computeTeamProjectedTotal(t.roster, projMaps[i]));
+    const sortedProj = [...projTotals].sort((a, b) => a - b);
+    const midP = Math.floor(sortedProj.length / 2);
+    const projectedMedian = sortedProj.length === 0 ? 0 : (sortedProj.length % 2 !== 0 ? sortedProj[midP] : (sortedProj[midP - 1] + sortedProj[midP]) / 2);
+
+    const rowsHtml = teams.map((t, i) => {
+        const beatsCur = t.score > currentMedian;
+        const beatsProj = projTotals[i] > projectedMedian;
+        return `
+            <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.02); border:1px solid ${t.fid===fid?'rgba(59,130,246,0.4)':'var(--card-border)'}; border-radius:8px; margin-bottom:6px;">
+                <img src="${t.logo}" onerror="this.style.display='none'" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
+                <div style="flex:1; min-width:0;">
+                    <div data-team-style="${t.fid}" style="font-size:12px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</div>
+                </div>
+                <div style="text-align:right; min-width:56px;">
+                    <div style="font-size:14px; font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'};">${t.score.toFixed(2)}</div>
+                    <div style="font-size:7px; font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsCur ? '▲ Above' : '▼ Below'}</div>
+                </div>
+                <div style="text-align:right; min-width:56px;">
+                    <div style="font-size:12px; font-weight:900; color:#f59e0b;">${projTotals[i].toFixed(1)}</div>
+                    <div style="font-size:7px; font-weight:900; color:${beatsProj ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsProj ? '▲ Proj' : '▼ Proj'}</div>
+                </div>
+            </div>`;
+    }).join('');
+
+    container.html(`
+        <div style="padding:10px;">
+            ${buildScoresViewToggleHtml()}
+            <div style="text-align:center; margin-bottom:12px;">
+                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Current Median</span>
+                <span style="font-size:12px; font-weight:900; color:#fff; margin-left:5px;">${currentMedian.toFixed(2)}</span>
+                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-left:14px;">Projected Median</span>
+                <span style="font-size:12px; font-weight:900; color:#f59e0b; margin-left:5px;">${projectedMedian.toFixed(1)}</span>
+            </div>
+            ${rowsHtml}
+        </div>`);
+    reapplyAllTeamStyles();
+}
+
 
 const LIVE_SCORE_POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
 
@@ -9564,7 +9632,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const yts2 = t2.yetToPlay > 0 ? `${t2.yetToPlay} yet to play` : 'Done';
 
        const tabsHtml = buildLiveScoreTabsHtml(matchups, idx);
-
+       const leagueMedian = computeMedianScore(matchups);
      // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
     // past weeks don't have an in-progress game to poll.
     const isLiveWeek = window._liveScoreActiveWeek === window._liveScoreCurrentWeek;
@@ -9632,6 +9700,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
 
     const html = `
                <div style="padding:10px;">
+            ${buildScoresViewToggleHtml()}
             <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
                 <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
                 <div class="dashboard-pill stacked-pill" id="live-score-week-selector-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);">
@@ -9649,21 +9718,28 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:12px;">
                     <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
 
-                    <div style="flex:1; display:flex; align-items:center; justify-content:space-around; gap:6px;">
-                                               <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
-                            <img src="${t1.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                                                       <span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
+                    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
+                            <div style="position:relative; width:44px; height:44px;">
+                                <img src="${t1.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
+                                ${t1.score > t2.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
+                            </div>
+                            <span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
                             <span style="font-size:22px; font-weight:900; color:${c1}; font-variant-numeric:tabular-nums;">${t1.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts1}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t1Proj.toFixed(1)}</span>
+                            <span style="font-size:8px; font-weight:900; color:${t1.score > leagueMedian ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${t1.score > leagueMedian ? '▲' : '▼'} Median</span>
                         </div>
                         <div style="font-size:11px; font-weight:900; color:var(--text-dim); flex-shrink:0;">vs</div>
                         <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
-                            <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
+                            <div style="position:relative; width:44px; height:44px;">
+                                <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
+                                ${t2.score > t1.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
+                            </div>
                             <span data-team-style="${t2.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>
                             <span style="font-size:22px; font-weight:900; color:${c2}; font-variant-numeric:tabular-nums;">${t2.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts2}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t2Proj.toFixed(1)}</span>
+                            <span style="font-size:8px; font-weight:900; color:${t2.score > leagueMedian ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${t2.score > leagueMedian ? '▲' : '▼'} Median</span>
                         </div>
                     </div>
 
@@ -9803,7 +9879,11 @@ async function loadLiveScores(weekOverride = null) {
             window._liveScoreFirstLoad = false;
         }
 
-        await renderLiveScoreCard();
+        if ((window._scoresViewMode || 'matchups') === 'median') {
+            await renderLeagueMedianView();
+        } else {
+            await renderLiveScoreCard();
+        }
 
         if (window._liveScoreInterval) clearInterval(window._liveScoreInterval);
         // Only auto-refresh while looking at the live/current week — a past week's box score is final.
@@ -10618,6 +10698,15 @@ async function checkNotifBadge() {
         e.stopPropagation();
         window._liveScoreWeekPickerOpen = false;
         await loadLiveScores(parseInt($(this).data('week')));
+    });
+
+    // --- SCORES VIEW TOGGLE (Matchups vs League Median) ---
+    $(document).off('click touchend', '.scores-view-toggle-btn').on('click touchend', '.scores-view-toggle-btn', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._scoresViewMode = $(this).data('mode');
+        if (window._scoresViewMode === 'median') await renderLeagueMedianView();
+        else await renderLiveScoreCard();
     });
     $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
         window._lsTouchStartX = e.originalEvent.touches[0].clientX;
