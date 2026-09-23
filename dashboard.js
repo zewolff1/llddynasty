@@ -29,6 +29,17 @@ const myAppIconUrl = `https://www45.myfantasyleague.com/fflnetdynamic${yearFromU
 
 $(document).ready(function() {
 
+// --- BUILD STAMP ---
+// Manually bump this string every time you push new code to GitHub. A small tag in the
+// bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
+// actually serving your latest push or still serving a cached older version.
+const DASHBOARD_BUILD_STAMP = "2026-09-23 3:45 PM ET";
+$('body').append(`
+    <div id="dashboard-build-stamp" style="position:fixed; bottom:4px; right:6px; z-index:99990; font-size:8px; font-weight:800; color:rgba(255,255,255,0.35); background:rgba(0,0,0,0.4); border-radius:4px; padding:2px 6px; pointer-events:none;">
+        build: ${DASHBOARD_BUILD_STAMP}
+    </div>
+`);
+
 const TEAM_JOIN_YEARS = {
     '0001': 2017, '0002': 2017, '0003': 2017, '0004': 2017, '0005': 2017,
     '0006': 2017, '0007': 2017, '0008': 2017, '0009': 2017, '0010': 2017
