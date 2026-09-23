@@ -2264,57 +2264,69 @@ $(document).on('click touchend', '.open-settings-btn', function() {
         }
     }
 // --- FETCH PENDING WAIVER CLAIMS (NOT YET PROCESSED) ---
+// --- FETCH PENDING WAIVER CLAIMS (NOT YET PROCESSED) ---
 async function fetchPendingWaivers() {
     window._pendingWaivers = {};
     window._pendingWaiversList = [];
     try {
-        const targetFid = (fid === '0000' ? myFid : fid);
-        const url = `https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=93&F=${targetFid}&rnd=${Date.now()}`;
+        // FRANCHISE_ID is only needed when the request comes FROM the commissioner session (myFid '0000');
+        // a normal owner login already scopes this endpoint to their own franchise automatically.
+        const isCommish = (myFid === '0000');
+        const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+        let url = `https://www45.myfantasyleague.com/${year}/export?TYPE=pendingWaivers&L=${lid}&JSON=1`;
+        if (isCommish) url += `&FRANCHISE_ID=${targetFid}`;
+
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
-        const rawText = await res.text();
-        const doc = new DOMParser().parseFromString(rawText, 'text/html');
+        const data = await res.json();
+        console.log('[waiver-debug] pendingWaivers URL:', url);
+        console.log('[waiver-debug] raw pendingWaivers response:', JSON.stringify(data, null, 2));
 
-        console.log('[waiver-debug] fetched URL:', url);
-        console.log('[waiver-debug] myFid (logged-in session):', myFid, '| fid (team being viewed):', fid, '| targetFid used in request:', targetFid);
-        console.log('[waiver-debug] table.report elements found on page:', doc.querySelectorAll('table.report').length);
-        console.log('[waiver-debug] rows found across those tables:', doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').length);
-        console.log('[waiver-debug] raw page text snippet (first 500 chars):', doc.body?.innerText?.slice(0, 500));
+        let claims = data?.pendingWaivers?.pendingWaiver || [];
+        if (!Array.isArray(claims)) claims = claims ? [claims] : [];
+        console.log('[waiver-debug] claims found:', claims.length);
 
-        doc.querySelectorAll('table.report').forEach(table => {
-            table.querySelectorAll('tr.oddtablerow, tr.eventablerow').forEach(row => {
-                const playerLinks = Array.from(row.querySelectorAll('a[class*="position_"]'));
-                if (playerLinks.length === 0) return;
+        for (const claim of claims) {
+            const addPid = claim.player || claim.player_id || claim.pid || null;
+            if (!addPid) continue;
 
-                // First player link = the claim (add), second (if present) = the drop
-                const addLink = playerLinks[0];
-                const dropLink = playerLinks[1] || null;
-
-                const addPidMatch = addLink.getAttribute('href').match(/\d+/g);
-                const addPid = addPidMatch ? addPidMatch.pop() : null;
-                if (!addPid) return;
-
-                const addParsed = parseMFLName(addLink.textContent);
-
-                let dropName = null;
-                if (dropLink) {
-                    const dParsed = parseMFLName(dropLink.textContent);
-                    dropName = dParsed.shortName || dParsed.name;
+            let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
+            try {
+                const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
+                const pData = await pRes.json();
+                const player = pData?.players?.player;
+                if (player?.name) {
+                    addName = player.name.split(', ').reverse().join(' ');
+                    const nameParts = addName.split(' ');
+                    addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
+                    addPos = player.position || '';
+                    addTeam = player.team || 'NFL';
                 }
+            } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
 
-                const cells = Array.from(row.querySelectorAll('td'));
-                const priorityCell = cells.find(td => /^\d+$/.test(td.textContent.trim()));
-                const priority = priorityCell ? priorityCell.textContent.trim() : null;
-                const dateCell = cells[cells.length - 1];
-                const dateText = dateCell ? dateCell.textContent.trim() : '';
+            let dropName = null;
+            const dropPid = (claim.drop && claim.drop !== '0000') ? claim.drop : null;
+            if (dropPid) {
+                try {
+                    const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
+                    const dData = await dRes.json();
+                    const dPlayer = dData?.players?.player;
+                    if (dPlayer?.name) {
+                        const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
+                        const dParts = fullDropName.split(' ');
+                        dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
+                    }
+                } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
+            }
 
-                const entry = {
-                    pid: addPid, name: addParsed.name, shortName: addParsed.shortName,
-                    pos: addParsed.pos, team: addParsed.team, dropName, priority, dateText
-                };
-                window._pendingWaivers[addPid] = entry;
-                window._pendingWaiversList.push(entry);
-            });
-        });
+            const entry = {
+                pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
+                dropName,
+                priority: claim.priority || claim.waiverOrder || null,
+                dateText: claim.expires ? new Date(parseInt(claim.expires, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
+            };
+            window._pendingWaivers[addPid] = entry;
+            window._pendingWaiversList.push(entry);
+        }
     } catch (err) {
         console.error("Failed to fetch pending waiver claims", err);
     }
