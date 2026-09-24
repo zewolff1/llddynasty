@@ -9362,10 +9362,33 @@ async function injectLiveStatusIntoLineupRows(targetFid) {
 }
 
 // Standard median: sort all teams' scores, take the middle (average of two middles if even count).
+// Standard median: sort all teams' scores, take the middle (average of two middles if even count).
 function computeMedianScore(matchups) {
     const scores = [];
     (matchups || []).forEach(m => { scores.push(m.t1.score); scores.push(m.t2.score); });
     scores.sort((a, b) => a - b);
+    const n = scores.length;
+    if (n === 0) return 0;
+    const mid = Math.floor(n / 2);
+    return n % 2 !== 0 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2;
+}
+
+// Double-header weeks list the same team in two different matchup entries — same lineup, same
+// score, just two different opponents that week. Dedupe by franchise id (keeping the first
+// occurrence) so a team's score never gets counted twice toward the median.
+function getUniqueTeamsFromMatchups(matchups) {
+    const seen = new Set();
+    const unique = [];
+    (matchups || []).forEach(m => {
+        [m.t1, m.t2].forEach(t => {
+            if (!seen.has(t.fid)) { seen.add(t.fid); unique.push(t); }
+        });
+    });
+    return unique;
+}
+
+function computeMedianFromTeams(teams) {
+    const scores = (teams || []).map(t => t.score).sort((a, b) => a - b);
     const n = scores.length;
     if (n === 0) return 0;
     const mid = Math.floor(n / 2);
@@ -9398,21 +9421,33 @@ async function renderLeagueMedianView() {
         return;
     }
 
-    const teams = [];
-    matchups.forEach(m => { teams.push(m.t1); teams.push(m.t2); });
+    // Double-header weeks list the same team twice (once per opponent) — dedupe to one row per team.
+    const teams = getUniqueTeamsFromMatchups(matchups);
 
-    const currentMedian = computeMedianScore(matchups);
+    const currentMedian = computeMedianFromTeams(teams);
     const sharedProjMap = await fetchWeekProjectedScoresMap(window._liveScoreActiveWeek);
     const projTotals = teams.map(t => computeTeamProjectedTotal(t.roster, sharedProjMap));
     const sortedProj = [...projTotals].sort((a, b) => a - b);
     const midP = Math.floor(sortedProj.length / 2);
     const projectedMedian = sortedProj.length === 0 ? 0 : (sortedProj.length % 2 !== 0 ? sortedProj[midP] : (sortedProj[midP - 1] + sortedProj[midP]) / 2);
 
-    const rowsHtml = teams.map((t, i) => {
+    // Ranking here is per-team only — matchup pairing is irrelevant to this view entirely.
+    const sortBy = window._medianSortBy || 'projected';
+    const ranked = teams.map((t, i) => ({ team: t, proj: projTotals[i] }));
+    ranked.sort((a, b) => sortBy === 'current' ? (b.team.score - a.team.score) : (b.proj - a.proj));
+
+    const sortBtnHtml = (key, label) => {
+        const active = sortBy === key;
+        return `<button class="median-sort-btn" data-sort="${key}" style="padding:5px 12px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active?'var(--accent-blue)':'var(--card-border)'}; background:${active?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${active?'#fff':'var(--text-dim)'};">${label}</button>`;
+    };
+
+    const rowsHtml = ranked.map((r, rank) => {
+        const t = r.team;
         const beatsCur = t.score > currentMedian;
-        const beatsProj = projTotals[i] > projectedMedian;
+        const beatsProj = r.proj > projectedMedian;
         return `
             <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.02); border:1px solid ${t.fid===fid?'rgba(59,130,246,0.4)':'var(--card-border)'}; border-radius:8px; margin-bottom:6px;">
+                <span style="font-size:11px; font-weight:900; color:var(--text-dim); min-width:16px; text-align:center; flex-shrink:0;">${rank+1}</span>
                 <img src="${t.logo}" onerror="this.style.display='none'" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
                 <div style="flex:1; min-width:0;">
                     <div data-team-style="${t.fid}" style="font-size:12px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</div>
@@ -9422,7 +9457,7 @@ async function renderLeagueMedianView() {
                     <div style="font-size:7px; font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsCur ? '▲ Above' : '▼ Below'}</div>
                 </div>
                 <div style="text-align:right; min-width:56px;">
-                    <div style="font-size:12px; font-weight:900; color:#f59e0b;">${projTotals[i].toFixed(1)}</div>
+                    <div style="font-size:12px; font-weight:900; color:#f59e0b;">${r.proj.toFixed(1)}</div>
                     <div style="font-size:7px; font-weight:900; color:${beatsProj ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsProj ? '▲ Proj' : '▼ Proj'}</div>
                 </div>
             </div>`;
@@ -9431,17 +9466,21 @@ async function renderLeagueMedianView() {
     container.html(`
         <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
-            <div style="text-align:center; margin-bottom:12px;">
+            <div style="text-align:center; margin-bottom:10px;">
                 <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Current Median</span>
                 <span style="font-size:12px; font-weight:900; color:#fff; margin-left:5px;">${currentMedian.toFixed(2)}</span>
                 <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-left:14px;">Projected Median</span>
                 <span style="font-size:12px; font-weight:900; color:#f59e0b; margin-left:5px;">${projectedMedian.toFixed(1)}</span>
             </div>
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
+                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
+                ${sortBtnHtml('projected', 'Projected')}
+                ${sortBtnHtml('current', 'Current')}
+            </div>
             ${rowsHtml}
         </div>`);
     reapplyAllTeamStyles();
 }
-
 
 const LIVE_SCORE_POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
 
@@ -9654,7 +9693,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const yts2 = t2.yetToPlay > 0 ? `${t2.yetToPlay} yet to play` : 'Done';
 
        const tabsHtml = buildLiveScoreTabsHtml(matchups, idx);
-       const leagueMedian = computeMedianScore(matchups);
+       const leagueMedian = computeMedianFromTeams(getUniqueTeamsFromMatchups(matchups));
      // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
     // past weeks don't have an in-progress game to poll.
     const isLiveWeek = window._liveScoreActiveWeek === window._liveScoreCurrentWeek;
@@ -10731,6 +10770,12 @@ async function checkNotifBadge() {
         window._scoresViewMode = $(this).data('mode');
         if (window._scoresViewMode === 'median') await renderLeagueMedianView();
         else await renderLiveScoreCard();
+    });
+    $(document).off('click touchend', '.median-sort-btn').on('click touchend', '.median-sort-btn', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        window._medianSortBy = $(this).data('sort');
+        await renderLeagueMedianView();
     });
     $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
         window._lsTouchStartX = e.originalEvent.touches[0].clientX;
