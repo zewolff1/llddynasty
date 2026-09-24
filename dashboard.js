@@ -9402,8 +9402,8 @@ async function renderLeagueMedianView() {
     matchups.forEach(m => { teams.push(m.t1); teams.push(m.t2); });
 
     const currentMedian = computeMedianScore(matchups);
-    const projMaps = await Promise.all(teams.map(t => fetchTeamProjectionsMap(t.fid)));
-    const projTotals = teams.map((t, i) => computeTeamProjectedTotal(t.roster, projMaps[i]));
+    const sharedProjMap = await fetchWeekProjectedScoresMap(window._liveScoreActiveWeek);
+    const projTotals = teams.map(t => computeTeamProjectedTotal(t.roster, sharedProjMap));
     const sortedProj = [...projTotals].sort((a, b) => a - b);
     const midP = Math.floor(sortedProj.length / 2);
     const projectedMedian = sortedProj.length === 0 ? 0 : (sortedProj.length % 2 !== 0 ? sortedProj[midP] : (sortedProj[midP - 1] + sortedProj[midP]) / 2);
@@ -9478,9 +9478,6 @@ window._liveScoreProjCache = window._liveScoreProjCache || {};async function fet
             const pidMatch = pLink.getAttribute('href').match(/\d+/g);
             const pid = pidMatch ? pidMatch.pop() : null;
             if (!pid) return;
-            // Locate the "Proj Pts" column by its header text (same approach used everywhere
-            // else in this script) instead of trusting a fixed column index, which breaks
-            // whenever the row layout has a different number of columns.
             const headerRow = row.closest('table')?.rows[0];
             const headerThs = headerRow ? [...headerRow.querySelectorAll('th')] : [];
             const projThIdx = headerThs.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts');
@@ -9494,6 +9491,31 @@ window._liveScoreProjCache = window._liveScoreProjCache || {};async function fet
     return map;
 }
 
+// League-wide player projections for a given week — NOT tied to any one franchise's roster
+// page, so it isn't subject to the "can't see opponent's Proj Pts" visibility restriction
+// that some leagues apply to owner logins on the /lineup page.
+window._weekProjScoreCache = window._weekProjScoreCache || {};
+window._weekProjDebugLogged = false;
+async function fetchWeekProjectedScoresMap(wk) {
+    const cacheKey = String(wk);
+    if (window._weekProjScoreCache[cacheKey]) return window._weekProjScoreCache[cacheKey];
+    const map = {};
+    try {
+        const url = `https://www45.myfantasyleague.com/${year}/export?TYPE=projectedScores&L=${lid}${wk ? `&W=${wk}` : ''}&JSON=1`;
+        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        if (!window._weekProjDebugLogged) {
+            window._weekProjDebugLogged = true;
+            console.log('[proj-debug] projectedScores URL:', url);
+            console.log('[proj-debug] raw response (first 800 chars):', JSON.stringify(data).slice(0, 800));
+        }
+        let list = data?.projectedScores?.playerScore || [];
+        if (!Array.isArray(list)) list = list ? [list] : [];
+        list.forEach(p => { if (p && p.id) map[p.id] = parseFloat(p.score) || 0; });
+    } catch(e) { console.warn('Could not fetch league-wide projected scores for week', wk, e); }
+    window._weekProjScoreCache[cacheKey] = map;
+    return map;
+}
 function buildLiveScorePlayerRow(p, projMap, liveDetails) {
     const pos = (p.pos || 'UNK');
     const team = (p.team || 'NFL').toUpperCase();
@@ -9636,11 +9658,13 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
      // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
     // past weeks don't have an in-progress game to poll.
     const isLiveWeek = window._liveScoreActiveWeek === window._liveScoreCurrentWeek;
-    const [projMap1, projMap2, liveDetails] = await Promise.all([
-        fetchTeamProjectionsMap(t1.fid),
-        fetchTeamProjectionsMap(t2.fid),
+    const [sharedProjMap, liveDetails] = await Promise.all([
+        fetchWeekProjectedScoresMap(window._liveScoreActiveWeek),
         isLiveWeek ? fetchLiveScoringDetails(t1.fid) : Promise.resolve({ gameInfo: {}, stats: {} })
     ]);
+    // Kept as two names so nothing below this line needs to change — both teams now read
+    // from the same league-wide map, looked up by player id.
+    const projMap1 = sharedProjMap, projMap2 = sharedProjMap;
 
     // Re-check index/matchup in case the user navigated away while awaiting
     if (window._liveScoreIndex !== idx) return;
