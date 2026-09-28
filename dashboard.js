@@ -2305,77 +2305,191 @@ $(document).on('click touchend', '.open-settings-btn', function() {
 async function fetchPendingWaivers() {
     window._pendingWaivers = {};
     window._pendingWaiversList = [];
+    window._pendingWaiversRaw = [];
     try {
-        // FRANCHISE_ID is only needed when the request comes FROM the commissioner session (myFid '0000');
-        // a normal owner login already scopes this endpoint to their own franchise automatically.
-        // Always pass FRANCHISE_ID explicitly rather than trying to detect a commissioner
-        // session — MFL's franchise_id global isn't reliably set for commissioner logins,
-        // which was silently causing this to fall through to the wrong franchise's queue.
         const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
         const url = `https://www45.myfantasyleague.com/${year}/export?TYPE=pendingWaivers&L=${lid}&JSON=1&FRANCHISE_ID=${targetFid}`;
-
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
         const data = await res.json();
-        console.log('[waiver-debug] pendingWaivers URL:', url);
-        console.log('[waiver-debug] raw pendingWaivers response:', JSON.stringify(data, null, 2));
 
-        // Real shape confirmed from MFL's own API docs: <waiverRequest timestamp round addsDrops comments/>
+        // addsDrops can itself be a COMMA-separated list of "ADD_DROP" pairs — MFL treats these
+        // as a ranked fallback chain within one round. orderIndex tracks each pick's position in
+        // that chain so a cancel/reorder can resubmit the round in the right order.
         let claims = data?.pendingWaivers?.waiverRequest || [];
         if (!Array.isArray(claims)) claims = claims ? [claims] : [];
-        console.log('[waiver-debug] claims found:', claims.length);
 
         for (const claim of claims) {
-            // addsDrops is "ADDPID_DROPPID" — dropPid is "0000" when nothing is being dropped
-            const [addPid, dropPidRaw] = (claim.addsDrops || '').split('_');
-            if (!addPid) continue;
-            const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
+            const round = parseInt(claim.round, 10);
+            const picks = (claim.addsDrops || '').split(',').map(s => s.trim()).filter(Boolean);
 
-            let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
-            try {
-                const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
-                const pData = await pRes.json();
-                const player = pData?.players?.player;
-                if (player?.name) {
-                    addName = player.name.split(', ').reverse().join(' ');
-                    const nameParts = addName.split(' ');
-                    addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
-                    addPos = player.position || '';
-                    addTeam = player.team || 'NFL';
-                }
-            } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
+            for (let i = 0; i < picks.length; i++) {
+                const pick = picks[i];
+                window._pendingWaiversRaw.push({ round, addsDrops: pick, orderIndex: i });
 
-            let dropName = null;
-            if (dropPid) {
+                const [addPid, dropPidRaw] = pick.split('_');
+                if (!addPid) continue;
+                const dropPid = (dropPidRaw && dropPidRaw !== '0000') ? dropPidRaw : null;
+
+                let addName = addPid, addShort = addPid, addPos = '', addTeam = 'NFL';
                 try {
-                    const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
-                    const dData = await dRes.json();
-                    const dPlayer = dData?.players?.player;
-                    if (dPlayer?.name) {
-                        const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
-                        const dParts = fullDropName.split(' ');
-                        dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
+                    const pRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${addPid}&JSON=1`, { credentials: 'include' });
+                    const pData = await pRes.json();
+                    const player = pData?.players?.player;
+                    if (player?.name) {
+                        addName = player.name.split(', ').reverse().join(' ');
+                        const nameParts = addName.split(' ');
+                        addShort = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : addName;
+                        addPos = player.position || '';
+                        addTeam = player.team || 'NFL';
                     }
-                } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
+                } catch(e) { console.warn('Could not resolve waiver player', addPid, e); }
+
+                let dropName = null;
+                if (dropPid) {
+                    try {
+                        const dRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${dropPid}&JSON=1`, { credentials: 'include' });
+                        const dData = await dRes.json();
+                        const dPlayer = dData?.players?.player;
+                        if (dPlayer?.name) {
+                            const fullDropName = dPlayer.name.split(', ').reverse().join(' ');
+                            const dParts = fullDropName.split(' ');
+                            dropName = dParts.length > 1 ? dParts[0].charAt(0) + '. ' + dParts.slice(1).join(' ') : fullDropName;
+                        }
+                    } catch(e) { console.warn('Could not resolve waiver drop player', dropPid, e); }
+                }
+
+                const entry = {
+                    pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
+                    dropName, priority: round || null, round, orderIndex: i,
+                    dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
+                };
+                window._pendingWaivers[addPid] = entry;
+                window._pendingWaiversList.push(entry);
             }
-
-            const entry = {
-                pid: addPid, name: addName, shortName: addShort, pos: addPos, team: addTeam,
-                dropName,
-                priority: claim.round || null,
-                dateText: claim.timestamp ? new Date(parseInt(claim.timestamp, 10) * 1000).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''
-            };
-            window._pendingWaivers[addPid] = entry;
-            window._pendingWaiversList.push(entry);
         }
-
-        // Keep the raw round/addsDrops pairs too — canceling or moving a claim requires
-        // resubmitting the exact remaining PICKS list for a round, not just this one entry.
-        window._pendingWaiversRaw = claims.map(c => ({ round: parseInt(c.round, 10), addsDrops: c.addsDrops }));
     } catch (err) {
         console.error("Failed to fetch pending waiver claims", err);
     }
 }
 
+async function submitWaiverRoundUpdate(round, picksArray, targetFid) {
+    const params = new URLSearchParams();
+    params.set('TYPE', 'waiverRequest');
+    params.set('L', lid);
+    params.set('ROUND', round);
+    params.set('PICKS', picksArray.join(','));
+    params.set('REPLACE', '1');
+    if (targetFid) params.set('FRANCHISE_ID', targetFid);
+    const res = await fetch(`https://www45.myfantasyleague.com/${year}/import`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    });
+    return await res.text();
+}
+
+window.cancelWaiverClaim = async function(pid, btn) {
+    if (!confirm('Cancel this waiver claim?')) return;
+    const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+    const claim = (window._pendingWaiversRaw || []).find(c => c.addsDrops && c.addsDrops.split('_')[0] === String(pid));
+    if (!claim) { alert('Could not find this claim — try refreshing.'); return; }
+
+    const remaining = (window._pendingWaiversRaw || [])
+        .filter(c => c.round === claim.round && c.addsDrops !== claim.addsDrops)
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map(c => c.addsDrops);
+
+    if (btn) btn.text('Canceling...').prop('disabled', true);
+    try {
+        const txt = await submitWaiverRoundUpdate(claim.round, remaining, targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error: ' + (m ? m[1] : 'Unknown'));
+            if (btn) btn.text('Cancel Claim').prop('disabled', false);
+            return;
+        }
+        await fetchPendingWaivers();
+        loadPlayersData('free-agents');
+    } catch (e) {
+        console.error('Cancel waiver error', e);
+        alert('Network error.');
+        if (btn) btn.text('Cancel Claim').prop('disabled', false);
+    }
+};
+
+window.changeWaiverRound = async function(pid, newRoundRaw, btn) {
+    const newRound = parseInt(newRoundRaw, 10);
+    if (!newRound || newRound < 1) { alert('Enter a valid round number.'); return; }
+    const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+    const claim = (window._pendingWaiversRaw || []).find(c => c.addsDrops && c.addsDrops.split('_')[0] === String(pid));
+    if (!claim) { alert('Could not find this claim — try refreshing.'); return; }
+    if (newRound === claim.round) return;
+
+    if (btn) btn.text('Saving...').prop('disabled', true);
+    try {
+        const oldRemaining = (window._pendingWaiversRaw || [])
+            .filter(c => c.round === claim.round && c.addsDrops !== claim.addsDrops)
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map(c => c.addsDrops);
+        let txt = await submitWaiverRoundUpdate(claim.round, oldRemaining, targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error removing from old round: ' + (m ? m[1] : 'Unknown'));
+            if (btn) btn.text('Save').prop('disabled', false);
+            return;
+        }
+
+        const newRoundExisting = (window._pendingWaiversRaw || [])
+            .filter(c => c.round === newRound)
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map(c => c.addsDrops);
+        txt = await submitWaiverRoundUpdate(newRound, [...newRoundExisting, claim.addsDrops], targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error adding to new round: ' + (m ? m[1] : 'Unknown'));
+            if (btn) btn.text('Save').prop('disabled', false);
+            return;
+        }
+
+        await fetchPendingWaivers();
+        loadPlayersData('free-agents');
+    } catch (e) {
+        console.error('Change waiver round error', e);
+        alert('Network error.');
+        if (btn) btn.text('Save').prop('disabled', false);
+    }
+};
+
+window.reorderWaiverClaim = async function(pid, direction, btn) {
+    const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+    const claim = (window._pendingWaiversRaw || []).find(c => c.addsDrops && c.addsDrops.split('_')[0] === String(pid));
+    if (!claim) { alert('Could not find this claim — try refreshing.'); return; }
+
+    const roundPicks = (window._pendingWaiversRaw || [])
+        .filter(c => c.round === claim.round)
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map(c => c.addsDrops);
+
+    const idx = roundPicks.indexOf(claim.addsDrops);
+    const swapIdx = idx + direction;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= roundPicks.length) return;
+
+    [roundPicks[idx], roundPicks[swapIdx]] = [roundPicks[swapIdx], roundPicks[idx]];
+
+    if (btn) btn.prop('disabled', true).css('opacity', '0.4');
+    try {
+        const txt = await submitWaiverRoundUpdate(claim.round, roundPicks, targetFid);
+        if (txt.toLowerCase().includes('error')) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error: ' + (m ? m[1] : 'Unknown'));
+        }
+        await fetchPendingWaivers();
+        loadPlayersData('free-agents');
+    } catch (e) {
+        console.error('Reorder waiver error', e);
+        alert('Network error.');
+    }
+};
 // Resubmits a round's entire PICKS list. REPLACE=1 means "this list IS the round now" —
 // which is what makes both cancel (list minus one) and move (list plus/minus one) work.
 async function submitWaiverRoundUpdate(round, picksArray, targetFid) {
@@ -5006,18 +5120,20 @@ $(document).on('touchmove', '.settings-content-area', function(e) {
 if ($(this).hasClass('player-modal-trigger') && !row.length) {
     const pid = $(this).data('pid');
     if (!pid) return;
-    // Build a minimal synthetic row context
-    const name = $(this).find('div:not(:has(img))').first().text().trim() || pid;
-const pos = $(this).find('span[class*="pos-"]').text().trim() || 'UNK';
+    // Build a minimal synthetic row context. Prefer explicit data-name/data-pos when present
+    // (added for Scoreboard rows) — the text-scrape fallback stays for older triggers
+    // (transaction chips, trade block chips) that don't carry those attributes.
+    const name = $(this).data('name') || $(this).find('div:not(:has(img))').first().text().trim() || pid;
+    const pos = $(this).data('pos') || $(this).find('span[class*="pos-"]').text().trim() || 'UNK';
     const team = $(this).data('team') || $(this).closest('[data-pteam]').data('pteam') || 'NFL';
     const teamImg = getNFLLogoUrl(team);
-
+    const injHtml = $(this).find('.injury-badge').length ? $(this).find('.injury-badge')[0].outerHTML : '';
 
 $('#modal-img').attr('src', `https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png`);
 $('#modal-team-logo').attr('src', teamImg);
 const posColors = { QB: 'var(--pos-qb)', RB: 'var(--pos-rb)', WR: 'var(--pos-wr)', TE: 'var(--pos-te)', PK: 'var(--pos-pk)', DL: 'var(--pos-dl)', LB: 'var(--pos-lb)', DB: 'var(--pos-db)', DE: 'var(--pos-dl)', DT: 'var(--pos-dl)', CB: 'var(--pos-db)', S: 'var(--pos-db)' };
 $('#modal-pos').text(pos).removeClass().css({ fontSize: '13px', fontWeight: '900', marginLeft: '5px', marginRight: '4px', background: 'none', padding: '0', borderRadius: '0', color: posColors[pos.toUpperCase()] || '#fff' });
-$('#modal-name').html(playerName);
+$('#modal-name').html(name);
 $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
         $('#modal-bio-pills').html('');
@@ -7057,38 +7173,61 @@ let myRosterCapUsed = 0;
 // --- MY PENDING WAIVER CLAIMS SECTION ---
 let pendingWaiversHtml = '';
 if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0) {
-    const claims = window._pendingWaiversList;
+    // Group by round, preserving each pick's fallback-priority order within that round.
+    const byRound = {};
+    (window._pendingWaiversList || []).forEach(c => {
+        if (!byRound[c.round]) byRound[c.round] = [];
+        byRound[c.round].push(c);
+    });
+    Object.values(byRound).forEach(arr => arr.sort((a, b) => a.orderIndex - b.orderIndex));
+    const roundsSorted = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+    const totalCount = window._pendingWaiversList.length;
+
     pendingWaiversHtml = `
         <div style="padding:10px 10px 0;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                 <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Your Pending Waiver Claims</div>
-                <span style="font-size:9px; font-weight:900; color:#eab308; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:6px; padding:3px 8px;">${claims.length} Pending</span>
+                <span style="font-size:9px; font-weight:900; color:#eab308; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:6px; padding:3px 8px;">${totalCount} Pending</span>
             </div>
-            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
-                ${claims.map(c => `
-                    <div style="padding:8px 10px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:8px;">
-                        <div class="player-modal-trigger" data-pid="${c.pid}" data-team="${c.team}" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-                            <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(234,179,8,0.3);">
-                                <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${c.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
-                            </div>
-                            <div style="flex:1; min-width:0;">
-                                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                                    <span style="font-size:12px; font-weight:900; color:#fff;">${c.shortName || c.name}</span>
-                                    <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:8px; font-weight:900;">${c.pos || ''}</span>
+            <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:14px;">
+                ${roundsSorted.map(rnd => `
+                    <div>
+                        <div style="font-size:9px; font-weight:900; color:#eab308; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Round ${rnd}${byRound[rnd].length > 1 ? ` — ${byRound[rnd].length} picks, in priority order` : ''}</div>
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            ${byRound[rnd].map((c, i) => `
+                                <div style="padding:8px 10px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:8px;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        ${byRound[rnd].length > 1 ? `
+                                        <div style="display:flex; flex-direction:column; gap:2px; flex-shrink:0;">
+                                            <button class="waiver-reorder-btn" data-pid="${c.pid}" data-dir="-1" ${i === 0 ? 'disabled' : ''} style="width:20px; height:16px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:${i===0?'var(--text-dim)':'#fff'}; font-size:9px; cursor:${i===0?'not-allowed':'pointer'}; opacity:${i===0?'0.3':'1'};">▲</button>
+                                            <button class="waiver-reorder-btn" data-pid="${c.pid}" data-dir="1" ${i === byRound[rnd].length - 1 ? 'disabled' : ''} style="width:20px; height:16px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:${i===byRound[rnd].length-1?'var(--text-dim)':'#fff'}; font-size:9px; cursor:${i===byRound[rnd].length-1?'not-allowed':'pointer'}; opacity:${i===byRound[rnd].length-1?'0.3':'1'};">▼</button>
+                                        </div>` : ''}
+                                        <div class="player-modal-trigger" data-pid="${c.pid}" data-team="${c.team}" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; cursor:pointer;">
+                                            <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(234,179,8,0.3);">
+                                                <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${c.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
+                                            </div>
+                                            <div style="flex:1; min-width:0;">
+                                                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                                                    <span style="font-size:12px; font-weight:900; color:#fff;">${c.shortName || c.name}</span>
+                                                    <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:8px; font-weight:900;">${c.pos || ''}</span>
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap;">
+                                                    <img src="${getNFLLogoUrl(c.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;">
+                                                    ${c.dropName ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; text-align:right; max-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0;">${c.dateText}</div>` : ''}
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(234,179,8,0.15);">
+                                        <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Round</span>
+                                        <input type="number" class="waiver-round-input" data-pid="${c.pid}" value="${c.round}" min="1"
+                                            style="width:44px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:4px 6px; color:#fff; font-size:11px; font-weight:800; text-align:center;">
+                                        <button class="waiver-save-round-btn" data-pid="${c.pid}" style="padding:5px 10px; border-radius:6px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
+                                        <button class="waiver-cancel-btn" data-pid="${c.pid}" style="margin-left:auto; padding:5px 10px; border-radius:6px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel Claim</button>
+                                    </div>
                                 </div>
-                                <div style="display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap;">
-                                    <img src="${getNFLLogoUrl(c.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;">
-                                    ${c.dropName ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
-                                </div>
-                            </div>
-                            ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; text-align:right; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0;">${c.dateText}</div>` : ''}
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(234,179,8,0.15);">
-                            <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Round</span>
-                            <input type="number" class="waiver-round-input" data-pid="${c.pid}" value="${c.priority || 1}" min="1"
-                                style="width:44px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:4px 6px; color:#fff; font-size:11px; font-weight:800; text-align:center;">
-                            <button class="waiver-save-round-btn" data-pid="${c.pid}" style="padding:5px 10px; border-radius:6px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
-                            <button class="waiver-cancel-btn" data-pid="${c.pid}" style="margin-left:auto; padding:5px 10px; border-radius:6px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel Claim</button>
+                            `).join('')}
                         </div>
                     </div>
                 `).join('')}
@@ -9611,8 +9750,16 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
     const oppAbbr = oppMatch ? oppMatch[1].toUpperCase() : null;
     const oppLabel = p.opp || '';
 
-    // Real score/status from the live scoring page, falling back to fantasy-derived status
-    const scoreDisplay = detail && detail.scoreText ? detail.scoreText : oppLabel;
+    // Before kickoff there's no real score/status yet — show the game's day/time instead of
+    // just the bare opponent, same day/time parsing the Lineup tab already does.
+    const dayMatch = (p.opp || '').match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
+    const timeMatch = (p.opp || '').match(/(\d+)(?::\d+)?\s*(a\.m\.|p\.m\.)/i);
+    const kickoffLabel = dayMatch || timeMatch
+        ? `${dayMatch ? dayMatch[1] : ''} ${timeMatch ? `${timeMatch[1]} ${timeMatch[2].toLowerCase().includes('p') ? 'PM' : 'AM'}` : ''}`.trim()
+        : '';
+
+    // Real score/status from the live scoring page, falling back to kickoff time (if upcoming) or opponent
+    const scoreDisplay = detail && detail.scoreText ? detail.scoreText : ((!status.playing && !status.done && kickoffLabel) ? kickoffLabel : oppLabel);
     const statusDisplay = detail && detail.statusText ? detail.statusText : status.label;
 
     const nflColors = {
@@ -9637,7 +9784,7 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
     const rowOpacity = (!status.playing && !status.done) ? '0.55' : '1';
 
     return `
-        <div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}"
+        <div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}" data-name="${p.name}" data-pos="${pos}"
             style="display:flex; align-items:flex-start; gap:8px; padding:6px; border-radius:8px; margin-bottom:4px; background:${rowBg}; border:1px solid var(--card-border); box-shadow:inset 3px 0 0 ${status.color}; opacity:${rowOpacity}; cursor:pointer;">
             <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(255,255,255,0.08); position:relative;">
                 <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
@@ -12046,6 +12193,12 @@ $(document).off('click', '.waiver-save-round-btn').on('click', '.waiver-save-rou
 $(document).off('click', '.waiver-cancel-btn').on('click', '.waiver-cancel-btn', async function(e) {
     e.stopPropagation();
     await window.cancelWaiverClaim($(this).data('pid'), $(this));
+});
+$(document).off('click', '.waiver-reorder-btn').on('click', '.waiver-reorder-btn', async function(e) {
+    e.stopPropagation();
+    const pid = $(this).data('pid');
+    const dir = parseInt($(this).data('dir'), 10);
+    await window.reorderWaiverClaim(pid, dir, $(this));
 });
 $(document).off('click', '.waiver-round-input').on('click', '.waiver-round-input', function(e) { e.stopPropagation(); });
 
