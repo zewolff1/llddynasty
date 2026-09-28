@@ -1,4 +1,3 @@
-
     // --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
 (function forceCustomAppIcon() {
 const lidFromUrl = window.location.href.match(/\/home\/(\d+)/)?.[1] || window.location.href.match(/[?&]L=(\d+)/)?.[1] || "63085";
@@ -1454,6 +1453,44 @@ $(document).off('click', '.proposal-action-btn').on('click', '.proposal-action-b
     } catch(e) {
         console.error('Trade response error', e);
         await loadPendingProposals();
+    }
+});
+
+// "Edit" isn't a native MFL trade action — this revokes the sent proposal, then reopens Trade
+// Hub with the counterparty and the same players preselected on each side, ready to tweak.
+$(document).off('click', '.proposal-edit-btn').on('click', '.proposal-edit-btn', async function() {
+    const tradeId = $(this).data('tradeid');
+    const targetFid = String($(this).data('targetfid')).padStart(4, '0');
+    const giveIds = String($(this).data('give') || '').split(',').filter(Boolean);
+    const receiveIds = String($(this).data('receive') || '').split(',').filter(Boolean);
+    if (!tradeId) return;
+    if (!confirm('This revokes your current proposal so you can edit it, then reopens Trade Hub with the same players selected. Continue?')) return;
+
+    const btn = $(this);
+    btn.text('Loading...').css({'opacity': '0.5', 'pointer-events': 'none'});
+    try {
+        const params = new URLSearchParams();
+        params.set('LEAGUE_ID', lid);
+        params.set('TRADE_ID', tradeId);
+        params.set('ACTION', 'revoke');
+        params.set('COMMENTS', '');
+        const res = await fetch(`https://www45.myfantasyleague.com/${year}/trade_response`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        });
+        const txt = await res.text();
+        if (txt.match(/<error[^>]*>.*?<\/error>/i)) {
+            const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
+            alert('MFL Error revoking: ' + (m ? m[1] : 'Unknown'));
+            btn.text('Edit').css({'opacity': '1', 'pointer-events': 'auto'});
+            return;
+        }
+        await window.loadTradeHub(targetFid, null, giveIds, receiveIds);
+    } catch(e) {
+        console.error('Edit trade error', e);
+        alert('Network error.');
+        btn.text('Edit').css({'opacity': '1', 'pointer-events': 'auto'});
     }
 });
 // --- FONT LIBRARY & STYLE SYSTEM ---
@@ -4129,19 +4166,19 @@ const proj = row.find('.data-badge').first().text() || "0.0 PROJ";
                 </div>
             `);
         } else {
-            populateQuickSwap(pos, isStarter); 
-            if (!isStarter) {
-                let irBtnHtml = hasInjury 
-                    ? `<button class="roster-tx-btn" data-tx-type="deactivate" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to IR</button>`
-                    : `<button disabled style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); border: 1px dashed rgba(255, 255, 255, 0.15); font-weight: 800; font-size: 10px; cursor: not-allowed; text-transform: uppercase;" title="Player must have an injury designation to be placed on IR">IR (Not Injured)</button>`;
+            populateQuickSwap(pos, isStarter);
+            // Previously these buttons only showed for bench players — starters had no way to
+            // be moved to IR/Taxi from this sheet at all. Now shown for any of your own players.
+            let irBtnHtml = hasInjury
+                ? `<button class="roster-tx-btn" data-tx-type="deactivate" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to IR</button>`
+                : `<button disabled style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); border: 1px dashed rgba(255, 255, 255, 0.15); font-weight: 800; font-size: 10px; cursor: not-allowed; text-transform: uppercase;" title="Player must have an injury designation to be placed on IR">IR (Not Injured)</button>`;
 
-                $('#quick-swap-list').prepend(`
-                    <div style="display: flex; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.2);">
-                        ${irBtnHtml}
-                        <button class="roster-tx-btn" data-tx-type="demote" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to Taxi</button>
-                    </div>
-                `);
-            }
+            $('#quick-swap-list').prepend(`
+                <div style="display: flex; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.2);">
+                    ${irBtnHtml}
+                    <button class="roster-tx-btn" data-tx-type="demote" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to Taxi</button>
+                </div>
+            `);
         }
         $('#player-context-menu').addClass('active');
     });
@@ -8394,7 +8431,7 @@ case 'league-schedule': loadLeagueSchedule(); break;
 case 'transactions': loadLeagueTransactions(); break;            case 'league-stats': $('#league-content-container').html('<div class="loading-text" style="text-align:center; margin-top:20px; color:var(--text-dim);">League Stats coming soon...</div>'); break;case 'trades': loadTradeHub(); break;
         }
     };
-async function loadTradeHub(targetFid = null, targetPid = null) {
+async function loadTradeHub(targetFid = null, targetPid = null, presetGive = [], presetReceive = []) {
     const container = $('#league-content-container').html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Trade Hub...</div>');
 
     try {
@@ -8493,9 +8530,8 @@ try {
 } catch(e) {}
 
         // Track selected assets
-        let mySelected = targetPid ? new Set([targetPid]) : new Set();
-        let theirSelected = new Set();
-
+        let mySelected = new Set([...(targetPid ? [String(targetPid)] : []), ...presetGive.map(String)]);
+        let theirSelected = new Set(presetReceive.map(String));
 function buildPlayerChip(p, selected, side) {
     const isSelected = selected.has(String(p.pid));
     const injHtml = p.isPick ? '' : getInjuryHtml(p.pid);
@@ -8862,7 +8898,8 @@ const toFid = cells[3]?.querySelector('a')?.href.match(/F=(\d+)/)?.[1] || '';
             // and one chip per leftover plain-text pick description — instead of one flat text blob.
 function buildAssetChips(cell, contractMap) {
                 let salaryTotal = 0;
-                if (!cell) return { html: '<span style="color:var(--text-dim); font-size:10px;">—</span>', salaryTotal };
+                const pids = [];
+                if (!cell) return { html: '<span style="color:var(--text-dim); font-size:10px;">—</span>', salaryTotal, pids };
                 const chips = [];
                 const seenText = new Set();
 
@@ -8872,6 +8909,7 @@ function buildAssetChips(cell, contractMap) {
                     seenText.add(label);
                     const pidMatch = (a.getAttribute('href') || '').match(/\d+/g);
                     const pid = pidMatch ? pidMatch.pop() : null;
+                    if (pid) pids.push(pid);
                     const contract = pid ? contractMap[pid] : null;
                     if (contract) salaryTotal += contract.salNum;
                     const contractLine = contract
@@ -8903,7 +8941,7 @@ function buildAssetChips(cell, contractMap) {
                 });
 
 const html = chips.join('') || '<span style="color:var(--text-dim); font-size:10px;">—</span>';
-                return { html, salaryTotal };
+                return { html, salaryTotal, pids };
             }
 
             const fromMap = await fetchTeamContractMap(fromFid);
@@ -8976,7 +9014,8 @@ const rejectLink = makeLink(rejectHref);
                     </div>
 <div style="display:flex; gap:6px; margin-top:8px;">
     ${isOutgoing 
-        ? `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="revoke" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Revoke</button>`
+        ? `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="revoke" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Revoke</button>
+           <button class="proposal-edit-btn" data-tradeid="${tradeId}" data-targetfid="${toFid}" data-give="${giveResult.pids.join(',')}" data-receive="${getResult.pids.join(',')}" style="flex:1; padding:5px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; color:var(--accent-blue); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Edit</button>`
         : `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="accept" style="flex:1; padding:5px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:6px; color:#22c55e; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Accept</button>
            <button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="reject" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Reject</button>`
     }
