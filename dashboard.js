@@ -2602,6 +2602,7 @@ async function fetchMasterStatus() {
         });
 
         // Populate Injury Map
+        let injDebugLogged = false;
         [irDoc, taxiDoc, rosDoc].forEach(doc => {
             doc.querySelectorAll('td a[class*="position_"]').forEach(a => {
                 const pid = a.getAttribute('href').match(/\d+/g)?.pop();
@@ -2611,10 +2612,15 @@ async function fetchMasterStatus() {
                     if (injSpan && injSpan.textContent.trim().length <= 3) {
                         injuryMap[pid] = { text: injSpan.textContent.trim(), title: injSpan.getAttribute('title') || '' };
                     }
+                    if (!injDebugLogged && row.innerHTML.toLowerCase().match(/\b(q|d|o|ir|pup)\b/) && row.querySelectorAll('span').length > 0) {
+                        injDebugLogged = true;
+                        console.log('[injury-debug] sample row full HTML:', row.innerHTML);
+                        console.log('[injury-debug] all spans in this row:', [...row.querySelectorAll('span')].map(s => ({ class: s.className, title: s.getAttribute('title'), text: s.textContent.trim() })));
+                    }
                 }
             });
         });
-
+        console.log('[injury-debug] total injuryMap entries found:', Object.keys(injuryMap).length);
         // NEW: ROBUST IR PARSING (Filters for the correct table)
         irDoc.querySelectorAll('table.report').forEach(table => {
             const firstTh = table.querySelector('th');
