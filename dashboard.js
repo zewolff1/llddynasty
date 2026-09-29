@@ -3908,8 +3908,11 @@ function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-
 function populateFillMenu(slot) {
         const list = $('#quick-swap-list').empty(); let allowed = LINEUP_RULES.groups[slot] || [slot];
         if(slot === "DL") allowed = ['DE', 'DT']; if(slot === "DB") allowed = ['CB', 'S'];
-        
-        let players = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow')).map(row => {
+
+        console.log('[fill-debug] slot received:', JSON.stringify(slot), '| allowed positions:', allowed);
+
+        const allRows = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
+        let players = allRows.map(row => {
             const cb = row.querySelector('input[type="checkbox"]'); const pL = row.querySelector('td a[class*="position_"]');
             if (!cb || cb.checked || !pL || irPids.has(cb.value) || taxiPids.has(cb.value)) return null;
             
@@ -3917,10 +3920,23 @@ function populateFillMenu(slot) {
             const { name, shortName, pos, realPos, team } = parseMFLName(pL.textContent);
             
             // WE ADD REALPOS TO THE RETURN OBJECT
-            return { pid: cb.value, name, shortName, pos, realPos, team, proj: parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0, sec: row.querySelectorAll('td')[1]?.textContent.split('(')[0].trim() || "BYE" };
+            return { pid: cb.value, name, shortName, pos, realPos, team,             proj: (() => {
+                const headerRow = row.closest('table')?.rows[0];
+                const headerThs = headerRow ? [...headerRow.querySelectorAll('th')] : [];
+                const projThIdx = headerThs.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts');
+                const projTdIdx = projThIdx - 1;
+                const cells = row.querySelectorAll('td');
+                return (projTdIdx >= 0 && cells[projTdIdx]) ? (parseFloat(cells[projTdIdx].textContent) || 0) : 0;
+            })(), sec: row.querySelectorAll('td')[1]?.textContent.split('(')[0].trim() || "BYE" };
             
+        }).filter(p => p !== null);
+
+        console.log('[fill-debug] all unchecked/eligible-status players found (before position filter):', players.map(p => ({ name: p.name, pos: p.pos, realPos: p.realPos })));
+
         // WE FILTER BY REALPOS HERE
-        }).filter(p => p && allowed.includes(p.realPos));
+        players = players.filter(p => allowed.includes(p.realPos));
+
+        console.log('[fill-debug] players remaining after position filter:', players.map(p => p.name));
         
         players.sort((a,b)=>b.proj-a.proj).forEach(p => list.append(buildSwapRow(p)));
     }
@@ -9779,13 +9795,10 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
     const oppAbbr = oppMatch ? oppMatch[1].toUpperCase() : null;
     const oppLabel = p.opp || '';
 
-    // Before kickoff there's no real score/status yet — show the game's day/time instead of
-    // just the bare opponent, same day/time parsing the Lineup tab already does.
-    const dayMatch = (p.opp || '').match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
-    const timeMatch = (p.opp || '').match(/(\d+)(?::\d+)?\s*(a\.m\.|p\.m\.)/i);
-    const kickoffLabel = dayMatch || timeMatch
-        ? `${dayMatch ? dayMatch[1] : ''} ${timeMatch ? `${timeMatch[1]} ${timeMatch[2].toLowerCase().includes('p') ? 'PM' : 'AM'}` : ''}`.trim()
-        : '';
+      // Before kickoff, show the real scheduled kickoff from nflSchedule rather than trying to
+    // scrape a day/time out of the roster page's opponent text.
+    const scheduleEntry = (window._liveScoreNflSchedule || {})[team];
+    const kickoffLabel = scheduleEntry ? scheduleEntry.label : '';
 
     if ((window._scoresRowDebugCount || 0) < 5) {
         window._scoresRowDebugCount = (window._scoresRowDebugCount || 0) + 1;
@@ -9841,6 +9854,33 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
                 <div style="font-size:7px; font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; white-space:nowrap;">${showProj ? 'PROJ' : statusDisplay}</div>
             </div>
         </div>`;
+}
+
+// NFL's own weekly schedule — gives us real scheduled kickoff times per team, independent of
+// the ajax_ls endpoint (which has been returning empty for this league).
+window._nflScheduleCache = window._nflScheduleCache || {};
+async function fetchNflScheduleForWeek(wk) {
+    const cacheKey = String(wk);
+    if (window._nflScheduleCache[cacheKey]) return window._nflScheduleCache[cacheKey];
+    const map = {};
+    try {
+        const url = `https://www45.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`;
+        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        let games = data?.nflSchedule?.matchup || [];
+        if (!Array.isArray(games)) games = games ? [games] : [];
+        games.forEach(g => {
+            const kickoffMs = parseInt(g.kickoff, 10) * 1000;
+            if (!kickoffMs) return;
+            const label = new Date(kickoffMs).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+            [g.home, g.away].forEach(teamObj => {
+                const abbr = (teamObj?.id || '').toUpperCase();
+                if (abbr) map[abbr] = { kickoffMs, label };
+            });
+        });
+    } catch(e) { console.warn('Could not fetch nflSchedule for week', wk, e); }
+    window._nflScheduleCache[cacheKey] = map;
+    return map;
 }
 
 window._liveScoringDetailsCache = window._liveScoringDetailsCache || {};
@@ -9925,10 +9965,12 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
      // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
     // past weeks don't have an in-progress game to poll.
     const isLiveWeek = window._liveScoreActiveWeek === window._liveScoreCurrentWeek;
-    const [sharedProjMap, liveDetails] = await Promise.all([
+       const [sharedProjMap, liveDetails, nflSchedule] = await Promise.all([
         fetchWeekProjectedScoresMap(window._liveScoreActiveWeek),
-        isLiveWeek ? fetchLiveScoringDetails(t1.fid) : Promise.resolve({ gameInfo: {}, stats: {} })
+        isLiveWeek ? fetchLiveScoringDetails(t1.fid) : Promise.resolve({ gameInfo: {}, stats: {} }),
+        fetchNflScheduleForWeek(window._liveScoreActiveWeek)
     ]);
+    window._liveScoreNflSchedule = nflSchedule;
     // Kept as two names so nothing below this line needs to change — both teams now read
     // from the same league-wide map, looked up by player id.
     const projMap1 = sharedProjMap, projMap2 = sharedProjMap;
