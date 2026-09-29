@@ -9795,20 +9795,25 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
     const oppAbbr = oppMatch ? oppMatch[1].toUpperCase() : null;
     const oppLabel = p.opp || '';
 
-      // Before kickoff, show the real scheduled kickoff from nflSchedule rather than trying to
-    // scrape a day/time out of the roster page's opponent text.
+     // Real per-game status from nflSchedule's gameSecondsRemaining (3600=not started, 0=final,
+    // in between=live) — this is what ajax_ls was supposed to give us but never did for this league.
     const scheduleEntry = (window._liveScoreNflSchedule || {})[team];
     const kickoffLabel = scheduleEntry ? scheduleEntry.label : '';
-
+    let scheduleStatusLabel = '';
+    if (scheduleEntry && scheduleEntry.gsr !== null) {
+        if (scheduleEntry.gsr >= 3600) scheduleStatusLabel = kickoffLabel;
+        else if (scheduleEntry.gsr <= 0) scheduleStatusLabel = 'Final';
+        else scheduleStatusLabel = formatGameClock(scheduleEntry.gsr) || 'Live';
+    }
     if ((window._scoresRowDebugCount || 0) < 5) {
         window._scoresRowDebugCount = (window._scoresRowDebugCount || 0) + 1;
         console.log('[scores-debug] row pid:', p.pid, '| p.opp raw:', JSON.stringify(p.opp), '| kickoffLabel:', JSON.stringify(kickoffLabel), '| detail found:', !!detail, '| statLine:', JSON.stringify(statLine), '| status:', status);
     }
 
-    // Real score/status from the live scoring page, falling back to kickoff time (if upcoming) or opponent
-    const scoreDisplay = detail && detail.scoreText ? detail.scoreText : ((!status.playing && !status.done && kickoffLabel) ? kickoffLabel : oppLabel);
-    const statusDisplay = detail && detail.statusText ? detail.statusText : status.label;
-
+      // Prefer ajax_ls's per-play detail when available, otherwise fall back to nflSchedule's
+    // game-level status (confirmed working), otherwise the player's own fantasy-derived status.
+    const scoreDisplay = (detail && detail.scoreText) ? detail.scoreText : (scheduleStatusLabel || oppLabel);
+    const statusDisplay = (detail && detail.statusText) ? detail.statusText : (scheduleStatusLabel || status.label);
     const nflColors = {
         'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
         'BUF': ['#00338D', '#C60C30'], 'CAR': ['#0085CA', '#101820'], 'CHI': ['#0B162A', '#C83803'],
@@ -9856,26 +9861,32 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
         </div>`;
 }
 
-// NFL's own weekly schedule — gives us real scheduled kickoff times per team, independent of
-// the ajax_ls endpoint (which has been returning empty for this league).
+// NFL's own weekly schedule — confirmed real shape: <nflSchedule week><matchup kickoff
+// gameSecondsRemaining><team id isHome score .../><team .../></matchup></nflSchedule>.
+// gameSecondsRemaining here is PER GAME (3600=not started, 0=final, in between=live), which
+// is exactly the same signal deriveLiveStatus() already knows how to read for players — so
+// this can stand in for the ajax_ls feed that's been returning empty for this league.
 window._nflScheduleCache = window._nflScheduleCache || {};
 async function fetchNflScheduleForWeek(wk) {
     const cacheKey = String(wk);
     if (window._nflScheduleCache[cacheKey]) return window._nflScheduleCache[cacheKey];
     const map = {};
     try {
-        const url = `https://www45.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`;
+        const url = `https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`;
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
         const data = await res.json();
         let games = data?.nflSchedule?.matchup || [];
         if (!Array.isArray(games)) games = games ? [games] : [];
         games.forEach(g => {
             const kickoffMs = parseInt(g.kickoff, 10) * 1000;
-            if (!kickoffMs) return;
-            const label = new Date(kickoffMs).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-            [g.home, g.away].forEach(teamObj => {
-                const abbr = (teamObj?.id || '').toUpperCase();
-                if (abbr) map[abbr] = { kickoffMs, label };
+            const gsr = g.gameSecondsRemaining !== undefined ? parseInt(g.gameSecondsRemaining, 10) : null;
+            const label = kickoffMs ? new Date(kickoffMs).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+            let teams = g.team || [];
+            if (!Array.isArray(teams)) teams = teams ? [teams] : [];
+            teams.forEach(t => {
+                const abbr = (t.id || '').toUpperCase();
+                if (!abbr) return;
+                map[abbr] = { kickoffMs, label, gsr, score: parseFloat(t.score) || 0 };
             });
         });
     } catch(e) { console.warn('Could not fetch nflSchedule for week', wk, e); }
