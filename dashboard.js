@@ -9758,6 +9758,11 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
         ? `${dayMatch ? dayMatch[1] : ''} ${timeMatch ? `${timeMatch[1]} ${timeMatch[2].toLowerCase().includes('p') ? 'PM' : 'AM'}` : ''}`.trim()
         : '';
 
+    if ((window._scoresRowDebugCount || 0) < 5) {
+        window._scoresRowDebugCount = (window._scoresRowDebugCount || 0) + 1;
+        console.log('[scores-debug] row pid:', p.pid, '| p.opp raw:', JSON.stringify(p.opp), '| kickoffLabel:', JSON.stringify(kickoffLabel), '| detail found:', !!detail, '| statLine:', JSON.stringify(statLine), '| status:', status);
+    }
+
     // Real score/status from the live scoring page, falling back to kickoff time (if upcoming) or opponent
     const scoreDisplay = detail && detail.scoreText ? detail.scoreText : ((!status.playing && !status.done && kickoffLabel) ? kickoffLabel : oppLabel);
     const statusDisplay = detail && detail.statusText ? detail.statusText : status.label;
@@ -9890,6 +9895,11 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     // Kept as two names so nothing below this line needs to change — both teams now read
     // from the same league-wide map, looked up by player id.
     const projMap1 = sharedProjMap, projMap2 = sharedProjMap;
+
+    console.log('[scores-debug] isLiveWeek:', isLiveWeek, '| activeWeek:', window._liveScoreActiveWeek, '| currentWeek:', window._liveScoreCurrentWeek);
+    console.log('[scores-debug] liveDetails.gameInfo entries:', Object.keys(liveDetails.gameInfo || {}).length, '| sample:', JSON.stringify(liveDetails.gameInfo).slice(0, 400));
+    console.log('[scores-debug] liveDetails.stats entries:', Object.keys(liveDetails.stats || {}).length, '| sample:', JSON.stringify(liveDetails.stats).slice(0, 400));
+    window._scoresRowDebugCount = 0;
 
     // Re-check index/matchup in case the user navigated away while awaiting
     if (window._liveScoreIndex !== idx) return;
@@ -10065,8 +10075,11 @@ async function loadLiveScores(weekOverride = null) {
             return;
         }
 
-        // Build a pid -> {name,pos,team} lookup from this week's rosters
+               // Build a pid -> {name,pos,team} lookup from this week's rosters
         const playerInfoMap = await fetchWeeklyPlayerInfoMap(activeWeek);
+        const infoSampleKeys = Object.keys(playerInfoMap).slice(0, 3);
+        console.log('[scores-debug] playerInfoMap total pids found:', Object.keys(playerInfoMap).length);
+        console.log('[scores-debug] playerInfoMap sample entries:', infoSampleKeys.map(k => ({ pid: k, ...playerInfoMap[k] })));
 
         const matchups = liveMatchupsRaw.map(m => {
             let franchises = m.franchise;
