@@ -9433,6 +9433,7 @@ window._liveScoreCaption = window._liveScoreCaption || 'Live Scores';
 
 async function fetchWeeklyPlayerInfoMap(weekParam) {
     const map = {};
+    let loggedOnce = false;
     try {
         const url = `https://www45.myfantasyleague.com/${year}/weekly?L=${lid}${weekParam ? `&W=${weekParam}` : ''}`;
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
@@ -9440,6 +9441,14 @@ async function fetchWeeklyPlayerInfoMap(weekParam) {
         doc.querySelectorAll('td.two_column_layout').forEach(block => {
             let isBench = false;
             let slotIndex = 0;
+            // Locate the opponent column by header text instead of a fixed index — this block's
+            // own header row (not the outer page's) is what actually applies here.
+            const headerRow = block.querySelector('table')?.rows[0];
+            const headerThs = headerRow ? [...headerRow.querySelectorAll('th')] : [];
+            const headerLabels = headerThs.map(th => th.textContent.replace(/\s+/g, ' ').trim());
+            let oppThIdx = headerLabels.findIndex(t => /opp/i.test(t));
+            if (oppThIdx === -1) oppThIdx = headerLabels.findIndex(t => /matchup|game/i.test(t));
+
             block.querySelectorAll('tr').forEach(row => {
                 if (row.textContent.includes('Non-Starters') || row.textContent.includes('Bench')) {
                     isBench = true;
@@ -9450,7 +9459,16 @@ async function fetchWeeklyPlayerInfoMap(weekParam) {
                 const pid = pidMatch ? pidMatch.pop() : null;
                 if (!pid || map[pid]) return;
                 const parsed = parseMFLName(pLink.textContent);
-                const oppText = row.querySelectorAll('td')[1]?.textContent.split('(')[0].trim() || '';
+                const cells = row.querySelectorAll('td');
+                const oppTdIdx = oppThIdx >= 0 ? oppThIdx - 1 : 1;
+                const oppText = (oppTdIdx >= 0 && cells[oppTdIdx]) ? cells[oppTdIdx].textContent.split('(')[0].trim() : '';
+
+                if (!loggedOnce) {
+                    loggedOnce = true;
+                    console.log('[weekly-debug] block header labels:', headerLabels, '| resolved opp header idx:', oppThIdx, '→ td idx:', oppTdIdx);
+                    console.log('[weekly-debug] sample row cell text:', [...cells].map(td => td.textContent.replace(/\s+/g,' ').trim()));
+                }
+
                 map[pid] = {
                     name: parsed.shortName || parsed.name,
                     pos: parsed.pos,
@@ -9819,9 +9837,17 @@ async function fetchLiveScoringDetails(fid2) {
     if (window._liveScoringDetailsCache[fid2]) return window._liveScoringDetailsCache[fid2];
     const details = { gameInfo: {}, stats: {} };
     try {
-        const res = await fetch(`https://www45.myfantasyleague.com/${year}/ajax_ls?L=${lid}&FRANCHISE_ID=${fid2}`, { credentials: 'include', cache: 'no-store' });
+        const url = `https://www45.myfantasyleague.com/${year}/ajax_ls?L=${lid}&FRANCHISE_ID=${fid2}`;
+        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        console.log('[ls-debug] ajax_ls URL:', url);
+        console.log('[ls-debug] response length:', html.length, '| first 1000 chars:', html.slice(0, 1000));
+        console.log('[ls-debug] #roster_away found:', !!doc.querySelector('#roster_away'), '| #roster_home found:', !!doc.querySelector('#roster_home'));
+        console.log('[ls-debug] any element with id containing "roster":', [...doc.querySelectorAll('[id*="roster"]')].map(el => el.id));
+        console.log('[ls-debug] any td with class starting "ls_":', [...doc.querySelectorAll('td[class^="ls_"]')].slice(0,5).map(el => el.className));
+
         ['#roster_away', '#roster_home'].forEach(sel => {
             const table = doc.querySelector(sel);
             if (!table) return;
