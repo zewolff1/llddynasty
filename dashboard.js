@@ -3137,8 +3137,10 @@ function buildInactiveRow(p) {
                 if (idx !== -1) { starterHtml += starterPlayers[idx].build(s.l); assigned.add(starterPlayers[idx].pid); }
                 else { starterHtml += renderEmptySlot(s.l); }
             });
-            for (let i = 0; i < 3; i++) {
-                let l = (i === 0) ? "SFLEX" : "FLEX"; let elig = (i === 0) ? ['QB','RB','WR','TE'] : ['RB','WR','TE'];
+                                   // League actually allows 16 total starters / 10 offensive players, not 15/9 — this
+            // adds the missing offensive flex slot (2 SFLEX + 2 FLEX instead of 1 + 2).
+            for (let i = 0; i < 4; i++) {
+                let l = (i < 2) ? "SFLEX" : "FLEX"; let elig = (i < 2) ? ['QB','RB','WR','TE'] : ['RB','WR','TE'];
                 const idx = starterPlayers.findIndex(p => elig.includes(p.pos) && !assigned.has(p.pid));
                 if (idx !== -1) { starterHtml += starterPlayers[idx].build(l); assigned.add(starterPlayers[idx].pid); }
                 else { starterHtml += renderEmptySlot(l); }
@@ -3436,13 +3438,14 @@ function updateSectionCounts(activeSub) {
     const db = counts['DB'] || 0;
 
 
-        const coreOff = Math.min(qb, 1) + Math.min(rb, 2) + Math.min(wr, 2) + Math.min(te, 1);
+               const coreOff = Math.min(qb, 1) + Math.min(rb, 2) + Math.min(wr, 2) + Math.min(te, 1);
 const totalOff = qb + rb + wr + te;
-        const sflex = (totalOff > coreOff && qb > 1) ? 1 : Math.max(0, Math.min(1, totalOff - coreOff));
-        const flex = Math.max(0, totalOff - coreOff - sflex);
+        const extraOff = Math.max(0, totalOff - coreOff);
+        const sflex = Math.min(2, extraOff);
+        const flex = Math.min(2, Math.max(0, extraOff - sflex));
         const idpFlex = Math.max(0, (dl + lb + db) - (Math.min(dl,1)+Math.min(lb,1)+Math.min(db,1)));
 
-       const stats = [{l:'QB',c:qb,r:1}, {l:'RB',c:rb,r:2}, {l:'WR',c:wr,r:2}, {l:'TE',c:te,r:1}, {l:'SFLEX',c:sflex,r:1}, {l:'FLEX',c:flex,r:2}, {l:'DL',c:dl,r:1}, {l:'LB',c:lb,r:1}, {l:'DB',c:db,r:1}, {l:'IDP',c:idpFlex,r:3}];
+       const stats = [{l:'QB',c:qb,r:1}, {l:'RB',c:rb,r:2}, {l:'WR',c:wr,r:2}, {l:'TE',c:te,r:1}, {l:'SFLEX',c:sflex,r:2}, {l:'FLEX',c:flex,r:2}, {l:'DL',c:dl,r:1}, {l:'LB',c:lb,r:1}, {l:'DB',c:db,r:1}, {l:'IDP',c:idpFlex,r:3}];
         let dashboardHtml = "";
 
 if (activeSub === 'roster') {
@@ -3569,7 +3572,8 @@ window.acceptAllOptimal = function() {
         { label: 'DB',    eligible: ['CB', 'S'] },
     ];
 
-    const flexSlots = [
+      const flexSlots = [
+        { label: 'SFLEX', eligible: ['QB', 'RB', 'WR', 'TE'] },
         { label: 'SFLEX', eligible: ['QB', 'RB', 'WR', 'TE'] },
         { label: 'FLEX',  eligible: ['RB', 'WR', 'TE'] },
         { label: 'FLEX',  eligible: ['RB', 'WR', 'TE'] },
@@ -3656,7 +3660,8 @@ window.openOptimizeModal = function() {
          { label: 'DL', eligible: ['DE','DT'] },
         { label: 'LB', eligible: ['LB'] }, { label: 'DB', eligible: ['CB','S'] }
     ];
-    const flexSlots = [
+       const flexSlots = [
+        { label: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { label: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { label: 'FLEX', eligible: ['RB','WR','TE'] },
         { label: 'FLEX', eligible: ['RB','WR','TE'] },
@@ -3664,7 +3669,6 @@ window.openOptimizeModal = function() {
         { label: 'IDP', eligible: ['DE','DT','LB','CB','S'] },
         { label: 'IDP', eligible: ['DE','DT','LB','CB','S'] }
     ];
-
     let targetStarters = new Set();
     let remaining = [...allPlayers];
 
@@ -3786,7 +3790,8 @@ function calculateSuggestedProjections() {
         { pos: 'LB',  eligible: ['LB'] },
         { pos: 'DB',  eligible: ['CB','S'] },
     ];
-    const flexSlots = [
+       const flexSlots = [
+        { pos: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { pos: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { pos: 'FLEX',  eligible: ['RB','WR','TE'] },
         { pos: 'FLEX',  eligible: ['RB','WR','TE'] },
