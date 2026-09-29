@@ -4415,39 +4415,40 @@ async function executeTransaction(type, sourcePid, targetPid, btn) {
         }
 
         btn.text('Processing...').css({'opacity': '0.5', 'pointer-events': 'none'});
-        
-        const apiData = new URLSearchParams();
-        apiData.append('L', lid);
-        apiData.append('TYPE', 'fcfsWaiver'); // MFL standard for Add/Drops
 
-        if (type === 'add') {
-            apiData.append('ADD', sourcePid);
-        } else if (type === 'add-drop') {
-            apiData.append('ADD', sourcePid);
-            apiData.append('DROP', targetPid);
-        }
-
-        // Handle the existing IR/Taxi logic
-        let url = 'import'; // Add/Drops go to the import endpoint
-        if (['activate', 'deactivate', 'swap-ir'].includes(type)) {
-            url = 'ir';
-if (type === 'activate') apiData.append('ACTIVATE', sourcePid);
-if (type === 'deactivate') apiData.append('DEACTIVATE', sourcePid);
-if (type === 'swap-ir') { apiData.append('DEACTIVATE', sourcePid); apiData.append('ACTIVATE', targetPid); }
-        }
-if (['promote', 'demote', 'swap-ts'].includes(type)) {
-    url = 'taxi_squad';
-    apiData.delete('TYPE');
-    if (type === 'promote') apiData.append('PROMOTE', sourcePid);
-    if (type === 'demote') apiData.append('DEMOTE', sourcePid);
-    if (type === 'swap-ts') { apiData.append('DEMOTE', sourcePid); apiData.append('PROMOTE', targetPid); }
-}
-        if (fid !== myFid) apiData.append('FRANCHISE_ID', fid);
+        const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+        let res;
 
         try {
-            const res = await fetch(`https://www45.myfantasyleague.com/${year}/${url}`, { 
-                method: 'POST', body: apiData, credentials: 'include' 
-            });
+            if (['activate', 'deactivate', 'swap-ir', 'promote', 'demote', 'swap-ts'].includes(type)) {
+                // IR/Taxi moves now use the SAME request format as the header's IR/Taxi buttons
+                // (txAction) — that's the format MFL actually accepts. The old ADD/DROP-style
+                // params previously sent here never worked for these three action types.
+                const isIrType = ['activate', 'deactivate', 'swap-ir'].includes(type);
+                const endpoint = isIrType ? 'ir' : 'taxi_squad';
+                const apiData = new URLSearchParams();
+                apiData.append('LEAGUE_ID', lid);
+                apiData.append('FRANCHISE_ID', targetFid);
+                if (type === 'activate') apiData.append('activate' + targetFid, sourcePid);
+                if (type === 'deactivate') apiData.append('deactivate' + targetFid, sourcePid);
+                if (type === 'swap-ir') { apiData.append('deactivate' + targetFid, sourcePid); apiData.append('activate' + targetFid, targetPid); }
+                if (type === 'promote') apiData.append('promote' + targetFid, sourcePid);
+                if (type === 'demote') apiData.append('demote' + targetFid, sourcePid);
+                if (type === 'swap-ts') { apiData.append('demote' + targetFid, sourcePid); apiData.append('promote' + targetFid, targetPid); }
+                res = await fetch(`https://www45.myfantasyleague.com/${year}/${endpoint}`, {
+                    method: 'POST', body: apiData, credentials: 'include', cache: 'no-store'
+                });
+            } else {
+                const apiData = new URLSearchParams();
+                apiData.append('L', lid);
+                apiData.append('TYPE', 'fcfsWaiver');
+                if (type === 'add') apiData.append('ADD', sourcePid);
+                else if (type === 'add-drop') { apiData.append('ADD', sourcePid); apiData.append('DROP', targetPid); }
+                if (fid !== myFid) apiData.append('FRANCHISE_ID', targetFid);
+                res = await fetch(`https://www45.myfantasyleague.com/${year}/import`, {
+                    method: 'POST', body: apiData, credentials: 'include'
+                });
+            }
             let responseText = await res.text();
             let wasWaiverClaim = false;
 
@@ -5232,10 +5233,11 @@ $('#modal-owner-actions').hide();
         // 5. Construct the final High-Res Team Image
         const teamImg = getNFLLogoUrl(teamName);
 
-        const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase();
+              const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase();
         const isLineupMode = activeSub.includes('lineup');
         const isMyTeam = (fid === myFid);
         const isStarter = row.closest('#slots-starters').length > 0;
+        const headerHasInjury = row.find('.injury-badge').length > 0;
 
 window._modalCurrentPid = pid;
         window._modalCurrentName = playerName;
@@ -5254,7 +5256,13 @@ $('#modal-tabs-row').show();
 $('#modal-trade-offer-btn').hide();
 if (isMyTeam) {
     $('#modal-trade-offer-btn').hide();
-$('#modal-owner-actions').show();    $('#tab-btn-lineup').show();
+$('#modal-owner-actions').show();
+    // The header's IR/Taxi buttons duplicate the inline swap-list buttons already shown on the
+    // Lineup tab, so hide them there. The IR button is also hidden entirely (not just disabled)
+    // whenever the player has no injury designation.
+    $('#header-btn-taxi').toggle(!isLineupMode);
+    $('#header-btn-ir').toggle(!isLineupMode && headerHasInjury);
+    $('#tab-btn-lineup').show();
     $('#tab-btn-tx').show();
     $('#tab-btn-gamelog').show();
     $('#tab-btn-contract').show();
