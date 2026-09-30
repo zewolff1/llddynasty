@@ -7661,9 +7661,14 @@ const fLink = row.querySelector('td:nth-child(2) a');
         const teamName = imgNode?.getAttribute('alt') || fLink.textContent.trim() || 'NFL';
         const td2 = row.querySelector('td:nth-child(2)');
         const isCommish = td2 ? td2.textContent.includes('(C)') : false;
-        const txTypeNode = row.querySelector('td.transactiontype');
+                const txTypeNode = row.querySelector('td.transactiontype');
 const txType = txTypeNode ? txTypeNode.textContent.trim() : 'System';
-        if (txType === 'RESIGN' || txType.toLowerCase().includes('resign'))    uniqueTxTypes.add(txType);
+        uniqueTxTypes.add(txType);
+        if (!window._txTypeDebugLogged) {
+            window._txTypeDebugLogged = true;
+            console.log('[tx-filter-debug] td.transactiontype element found:', !!txTypeNode, '| resolved txType used:', JSON.stringify(txType));
+            console.log('[tx-filter-debug] this row\'s actual td classes:', [...row.querySelectorAll('td')].map(td => td.className));
+        }
         const rowFranchises = td2 ? Array.from(td2.querySelectorAll('a[class*="franchise_"]')).map(a => {
             const m = (a.getAttribute('href') || '').match(/F=(\d+)/);
             const rFid = m ? m[1].padStart(4, '0') : '0000';
@@ -7996,12 +8001,15 @@ resignEntries.push({ dateObj: r.dateObj, html: `
                         </div>
 </div>` });
             });
-            uniqueTxTypes.add('Resign');
+            // Resign transactions are no longer shown on this tab — off-season feature, not
+            // relevant again until next year. Still parsed above (deadCapMap etc. depend on the
+            // same fetch), just excluded from display and from the type filter bar.
         }
-const allDatedEntries = [...auctionEntries, ...resignEntries, ...txEntries];
+const allDatedEntries = [...auctionEntries, ...txEntries];
 allDatedEntries.sort((a, b) => (b.dateObj ? b.dateObj.getTime() : 0) - (a.dateObj ? a.dateObj.getTime() : 0));
 txCardsHtml = allDatedEntries.map(e => e.html).join('');
 txCardsHtml = tradeBlockHtml + txCardsHtml;
+console.log('[tx-filter-debug] final uniqueTxTypes set:', [...uniqueTxTypes]);
 let filterHtml = `
             <div style="position: relative; margin-bottom: 15px;">
                 <div id="tx-filter-scroll" class="tx-filter-bar hide-scroll" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; padding-right: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); touch-action: pan-x; -webkit-overflow-scrolling: touch;">
