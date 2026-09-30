@@ -5625,8 +5625,7 @@ const isAlreadyOnBlock = existingGiveUp.includes(pid.toString());
 
                     ${picksChipsHtml}
 
-           <button class="trade-submit-btn" id="confirm-trade-block" data-pid="${pid}" data-giveup="${existingGiveUp.join(',')}" data-removing="${isAlreadyOnBlock}">${isAlreadyOnBlock ? 'Remove from Trade Block' : 'Add to Trade Block'}</button>
-                    <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
+           <button class="trade-submit-btn" id="confirm-trade-block" data-pid="" data-giveup="${pid}" data-removing="${isAlreadyOnBlock}">${isAlreadyOnBlock ? 'Remove from Trade Block' : 'Add to Trade Block'}</button>                    <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
                 </div>
             `);
 
@@ -6200,10 +6199,10 @@ const isRemoving = btn.data('removing') === true || btn.data('removing') === 'tr
                 if (!existingGiveUp.includes(item)) existingGiveUp.push(item);
             });
         }
-if (pid && String(pid).trim() !== '') {
-            const pidStr = String(pid);
-            if (!existingGiveUp.includes(pidStr)) existingGiveUp.push(pidStr);
-        }
+        // Previously there was an unconditional "always re-add this player" step here, left
+        // over from before Remove existed. Since the button now always carries just the single
+        // player or pick being toggled (add OR remove), the branch above already handles both
+        // cases correctly — the extra re-add was exactly what was undoing every removal.
 
         // Don't submit if nothing new was added
         if (existingGiveUp.length === 0) {
