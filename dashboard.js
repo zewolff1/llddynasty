@@ -7454,9 +7454,12 @@ container.html('<div class="loading-text" style="text-align:center; margin-top:2
     }
 
 try {
-        // Fetch transactions and salary adjustments in parallel
+        // Fetch transactions and salary adjustments in parallel — the transactions fetch was
+        // missing credentials: 'include', so it went out without your session cookie and
+        // silently came back empty, which is why only Resign/Trade Block (both authenticated
+        // separately) were showing.
 const [res, adjRes] = await Promise.all([
-            fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=03&TYPE=DEFAULT&FRANCHISE=0000&DAYS=200`, { cache: 'no-store' }),
+            fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=03&TYPE=DEFAULT&FRANCHISE=0000&DAYS=200`, { credentials: 'include', cache: 'no-store' }),
             fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=142`, { credentials: 'include' })
         ]);
         const adjHtml = await adjRes.text();
