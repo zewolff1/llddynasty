@@ -5552,82 +5552,92 @@ window._teamDataDirty = true;
             }
 
         } else if (type === 'block') {
-            
+
 btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'none'});
 
-            let existingGiveUp = [];
-            let existingExchange = ""; 
             try {
-                const tbRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=tradeBait&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
-                const tbData = await tbRes.json();
-                
-                if (tbData && tbData.tradeBaits && tbData.tradeBaits.tradeBait) {
-                    let baits = tbData.tradeBaits.tradeBait;
-                    if (!Array.isArray(baits)) baits = [baits];
-                    
-                    const myBait = baits.find(b => b.franchise_id === fid || b.franchise === fid);
-                    if (myBait) {
-                        if (myBait.willGiveUp) existingGiveUp = myBait.willGiveUp.split(',');
-                        if (myBait.inExchangeFor) existingExchange = myBait.inExchangeFor;
+                console.log('[block-debug] starting, pid:', pid, 'playerName:', playerName);
+                let existingGiveUp = [];
+                let existingExchange = "";
+                try {
+                    const tbRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=tradeBait&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+                    const tbData = await tbRes.json();
+                    console.log('[block-debug] tradeBait response:', tbData);
+
+                    if (tbData && tbData.tradeBaits && tbData.tradeBaits.tradeBait) {
+                        let baits = tbData.tradeBaits.tradeBait;
+                        if (!Array.isArray(baits)) baits = [baits];
+
+                        const myBait = baits.find(b => b.franchise_id === fid || b.franchise === fid);
+                        if (myBait) {
+                            if (myBait.willGiveUp) existingGiveUp = myBait.willGiveUp.split(',');
+                            if (myBait.inExchangeFor) existingExchange = myBait.inExchangeFor;
+                        }
+                    }
+                } catch (err) { console.warn("[block-debug] Could not fetch existing trade bait (continuing anyway).", err); }
+
+                console.log('[block-debug] existingGiveUp after fetch:', existingGiveUp);
+                const isAlreadyOnBlock = existingGiveUp.includes(pid.toString());
+                console.log('[block-debug] isAlreadyOnBlock:', isAlreadyOnBlock);
+
+                if (isAlreadyOnBlock) {
+                    const confirmRemove = confirm(`${playerName} is already on your Trade Block. Remove them?`);
+                    console.log('[block-debug] confirm() returned:', confirmRemove);
+                    if (!confirmRemove) {
+                        btn.html(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
+                        return;
                     }
                 }
-            } catch (err) { console.warn("Could not fetch existing trade bait.", err); }
 
-const isAlreadyOnBlock = existingGiveUp.includes(pid.toString());
-            if (isAlreadyOnBlock) {
-                const confirmRemove = confirm(`${playerName} is already on your Trade Block. Remove them?`);
-                if (!confirmRemove) {
-                    btn.html(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
-                    return;
-                }
-                existingGiveUp = existingGiveUp.filter(id => id !== pid.toString());
-            } else {
-                existingGiveUp.push(pid.toString());
+                const myPicks = window.currentTeamPicks || [];
+                console.log('[block-debug] myPicks:', myPicks);
+                const picksChipsHtml = myPicks.length ? `
+                    <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Include My Picks</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+                        ${myPicks.map(pick => {
+                            const pickId = pick.pickStr ? `${pick.year}_${pick.pickStr.replace('.','_')}` : `${pick.year}_${pick.round}`;
+                            const label = pick.pickStr ? pick.pickStr : `${pick.year} R${pick.round}`;
+                            return `<div class="trade-pick-tag-btn" data-pickid="${pickId}" 
+                                style="padding:6px 10px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:#f59e0b;">
+                                ${label}
+                            </div>`;
+                        }).join('')}
+                    </div>
+                ` : '';
+
+                console.log('[block-debug] about to render modal');
+                $('#modal-actions-container').html(`
+                    <div class="trade-block-form" style="animation: fadeIn 0.3s ease;">
+                        <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">Trading ${playerName}</div>
+                        
+                        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Positions</div>
+                        <div class="trade-tag-group">
+                            <div class="trade-tag-btn" data-val="QB">QB</div>
+                            <div class="trade-tag-btn" data-val="RB">RB</div>
+                            <div class="trade-tag-btn" data-val="WR">WR</div>
+                            <div class="trade-tag-btn" data-val="TE">TE</div>
+                        </div>
+
+                        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Picks</div>
+                        <div class="trade-tag-group">
+                            <div class="trade-tag-btn" data-val="1st Rd">1st Rd</div>
+                            <div class="trade-tag-btn" data-val="2nd Rd">2nd Rd</div>
+                            <div class="trade-tag-btn" data-val="3rd Rd">3rd Rd</div>
+                            <div class="trade-tag-btn" data-val="Future">Future</div>
+                        </div>
+
+                        ${picksChipsHtml}
+
+               <button class="trade-submit-btn" id="confirm-trade-block" data-pid="" data-giveup="${pid}" data-removing="${isAlreadyOnBlock}">${isAlreadyOnBlock ? 'Remove from Trade Block' : 'Add to Trade Block'}</button>
+                        <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
+                    </div>
+                `);
+                console.log('[block-debug] modal rendered successfully');
+            } catch (fatalErr) {
+                console.error('[block-debug] FATAL — this is why it stayed stuck on LOADING:', fatalErr);
+                btn.html(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
+                alert('Something went wrong opening the trade block form: ' + fatalErr.message);
             }
-
-
-
-// Build my picks chips
-            const myPicks = window.currentTeamPicks || [];
-            const picksChipsHtml = myPicks.length ? `
-                <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Include My Picks</div>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
-                    ${myPicks.map(pick => {
-                        const pickId = pick.pickStr ? `${pick.year}_${pick.pickStr.replace('.','_')}` : `${pick.year}_${pick.round}`;
-                        const label = pick.pickStr ? pick.pickStr : `${pick.year} R${pick.round}`;
-                        return `<div class="trade-pick-tag-btn" data-pickid="${pickId}" 
-                            style="padding:6px 10px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:#f59e0b;">
-                            ${label}
-                        </div>`;
-                    }).join('')}
-                </div>
-            ` : '';
-
-            $('#modal-actions-container').html(`
-                <div class="trade-block-form" style="animation: fadeIn 0.3s ease;">
-                    <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">Trading ${playerName}</div>
-                    
-                    <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Positions</div>
-                    <div class="trade-tag-group">
-                        <div class="trade-tag-btn" data-val="QB">QB</div>
-                        <div class="trade-tag-btn" data-val="RB">RB</div>
-                        <div class="trade-tag-btn" data-val="WR">WR</div>
-                        <div class="trade-tag-btn" data-val="TE">TE</div>
-                    </div>
-
-                    <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Picks</div>
-                    <div class="trade-tag-group">
-                        <div class="trade-tag-btn" data-val="1st Rd">1st Rd</div>
-                        <div class="trade-tag-btn" data-val="2nd Rd">2nd Rd</div>
-                        <div class="trade-tag-btn" data-val="3rd Rd">3rd Rd</div>
-                        <div class="trade-tag-btn" data-val="Future">Future</div>
-                    </div>
-
-                    ${picksChipsHtml}
-
-           <button class="trade-submit-btn" id="confirm-trade-block" data-pid="" data-giveup="${pid}" data-removing="${isAlreadyOnBlock}">${isAlreadyOnBlock ? 'Remove from Trade Block' : 'Add to Trade Block'}</button>                    <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
-                </div>
-            `);
 
 } else if (type === 'propose') {
     $('#smart-player-modal').fadeOut(200);
