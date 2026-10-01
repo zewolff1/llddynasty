@@ -5605,7 +5605,6 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
                     </div>
                 ` : '';
 
-                console.log('[block-debug] about to render modal');
                 $('#modal-actions-container').html(`
                     <div class="trade-block-form" style="animation: fadeIn 0.3s ease;">
                         <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">Trading ${playerName}</div>
@@ -5632,9 +5631,12 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
                         <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
                     </div>
                 `);
-                console.log('[block-debug] modal rendered successfully');
+                // The modal content above replaces #modal-actions-container, which is a
+                // different element from the button that was clicked (btn) — so btn was left
+                // permanently stuck on "LOADING..." even though the form rendered successfully.
+                btn.html(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
             } catch (fatalErr) {
-                console.error('[block-debug] FATAL — this is why it stayed stuck on LOADING:', fatalErr);
+                console.error('Block trade form error:', fatalErr);
                 btn.html(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
                 alert('Something went wrong opening the trade block form: ' + fatalErr.message);
             }
