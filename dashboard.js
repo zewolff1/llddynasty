@@ -6163,8 +6163,10 @@ $(document).off('click', '#confirm-trade-block').on('click', '#confirm-trade-blo
         const originalText = btn.text();
         btn.text('PROCESSING...').css({'opacity': '0.5', 'pointer-events': 'none'});
 
+        console.log('[tb-submit-debug] handler fired');
         const pid = btn.data('pid');
         let newGiveUp = btn.data('giveup') ? String(btn.data('giveup')) : '';
+        console.log('[tb-submit-debug] pid:', pid, '| newGiveUp:', newGiveUp, '| removing flag:', btn.data('removing'));
 
         // Add any selected pick tags
         const selectedPickIds = [];
@@ -6175,6 +6177,7 @@ $(document).off('click', '#confirm-trade-block').on('click', '#confirm-trade-blo
             newGiveUp = newGiveUp ? newGiveUp + ',' + selectedPickIds.join(',') : selectedPickIds.join(',');
         }
 
+console.log('[tb-submit-debug] tradeBlockGiveUp (cached) before resolve:', tradeBlockGiveUp);
 // Use local running list, seeded from MFL on first load
 if (tradeBlockGiveUp.length === 0) {
             try {
@@ -6199,6 +6202,7 @@ const myBait = baits.find(b => (b.franchise_id || b.franchise) === myFid);
 
         let existingGiveUp = [...tradeBlockGiveUp];
         let existingExchange = '';
+        console.log('[tb-submit-debug] existingGiveUp resolved to:', existingGiveUp);
 
 const isRemoving = btn.data('removing') === true || btn.data('removing') === 'true';
         const newItems = newGiveUp.split(',').filter(Boolean);
@@ -6248,11 +6252,14 @@ apiData.append('WILL_GIVE_UP', giveUpString);
             if (finalExchange !== "") apiData.append('IN_EXCHANGE_FOR', finalExchange);
             if (fid !== myFid) apiData.append('FRANCHISE_ID', fid);
 
+            console.log('[tb-submit-debug] final POST params:', apiData.toString());
+
             const res = await fetch(`https://www45.myfantasyleague.com/${year}/import`, { 
                 method: 'POST', body: apiData, credentials: 'include', cache: 'no-store'
             });
             
             const responseText = await res.text();
+            console.log('[tb-submit-debug] raw response from MFL:', responseText);
             
             if (responseText.toLowerCase().includes('error')) {
                 const errorMatch = responseText.match(/<error[^>]*>(.*?)<\/error>/i);
