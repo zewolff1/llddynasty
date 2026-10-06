@@ -356,7 +356,7 @@ let prefixHtml = '';
 
         // Return the unified scrolling strip
     return `
-                       <div class="${viewType === 'contracts' ? 'sticky-controls' : ''}" style="display: flex; flex-direction: column; width: 100%; padding: 10px 5px 5px; margin-bottom: 5px; gap: 6px;">
+                       <div class="${(viewType === 'contracts' || viewType === 'lineup') ? 'sticky-controls' : ''}" style="display: flex; flex-direction: column; width: 100%; padding: 10px 5px 5px; margin-bottom: 5px; gap: 6px;">
                 <div style="display: flex; align-items: center; width: 100%; gap: 6px;">
                     ${prefixHtml}
                     <div class="hide-scroll" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; width: 100%; align-items: center;">
@@ -379,45 +379,28 @@ function buildTeamInfoPanel(targetFid) {
     const championships = CHAMPIONSHIPS[targetFid] || [];
     const currentYear2 = parseInt(year);
 
+    const trophy = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+        <path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b"/>
+        <path d="M4 2h2v5C6 7 5 8 4 8 2.9 8 2 7.1 2 6V4c0-1.1.9-2 2-2z" fill="#f59e0b" opacity="0.6"/>
+        <path d="M18 2h2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2-1 0-2-1-2-1V2z" fill="#f59e0b" opacity="0.6"/>
+        <path d="M10 14h4l1 3H9l1-3z" fill="#f59e0b"/>
+        <path d="M7 17h10v2H7v-2z" fill="#f59e0b"/>
+    </svg>`;
+
     let awardsHtml = '';
     if (championships.length > 0) {
-awardsHtml = championships.map((y, index) => {
-    const isDefending = y === currentYear2 - 1;
-    const isFirst = index === 0;
-
-    if (isDefending) {
-        return `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 10px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.5); border-radius:8px; white-space:nowrap; order:-1;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b"/>
-                    <path d="M4 2h2v5C6 7 5 8 4 8 2.9 8 2 7.1 2 6V4c0-1.1.9-2 2-2z" fill="#f59e0b" opacity="0.6"/>
-                    <path d="M18 2h2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2-1 0-2-1-2-1V2z" fill="#f59e0b" opacity="0.6"/>
-                    <path d="M10 14h4l1 3H9l1-3z" fill="#f59e0b"/>
-                    <path d="M7 17h10v2H7v-2z" fill="#f59e0b"/>
-                </svg>
-                <span style="font-size:11px; font-weight:900; color:#f59e0b; line-height:1.2; text-align:center;">${y}<br><span style="font-size:8px; font-weight:800; opacity:0.85;">Champions</span></span>
-            </div>`;
+        // Full-size chips (hidden once you scroll) + a single trophy-with-count icon (shown once you scroll)
+        const chips = championships.map(y => {
+            const short = "'" + String(y).slice(-2);
+            return y === currentYear2 - 1
+                ? `<span class="team-award champ" title="${y} Champions">${trophy(12)}${short} Champs</span>`
+                : `<span class="team-award" title="${y} Champions">${trophy(10)}${short}</span>`;
+        }).join('');
+        const solo = `<span class="team-award-solo" title="${championships.length}x Champion">${trophy(16)}<b>${championships.length}</b></span>`;
+        awardsHtml = `<div class="team-awards">${chips}${solo}</div>`;
     }
 
-    return `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 6px; background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.2); border-radius:6px; white-space:nowrap;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b" opacity="0.8"/>
-                <path d="M4 2h2v5C6 7 5 8 4 8 2.9 8 2 7.1 2 6V4c0-1.1.9-2 2-2z" fill="#f59e0b" opacity="0.5"/>
-                <path d="M18 2h2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2-1 0-2-1-2-1V2z" fill="#f59e0b" opacity="0.5"/>
-                <path d="M10 14h4l1 3H9l1-3z" fill="#f59e0b" opacity="0.8"/>
-                <path d="M7 17h10v2H7v-2z" fill="#f59e0b" opacity="0.8"/>
-            </svg>
-            <span style="font-size:8px; font-weight:900; color:#f59e0b; opacity:0.8; line-height:1;">'${String(y).slice(-2)}</span>
-        </div>`;
-}).join('');
-    }
-
-    return `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:3px;">
-            <div style="font-size:10px; font-weight:800; color:var(--text-dim);">${recordLabel}</div>
-            ${awardsHtml ? `<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; align-items:flex-start;">${awardsHtml}</div>` : ''}
-        </div>`;
+    return `<div class="team-info-row"><span class="team-record">${recordLabel}</span>${awardsHtml}</div>`;
 }
 function getPlayerFilterBarHtml(isFAView) {
     const faSorts = [
@@ -3152,13 +3135,17 @@ for (let i = 0; i < 3; i++) {
             }
 
 container.append(`<div id="lineup-notifications"></div>
-                <div id="lineup-dashboard-inject"></div>
-                <div class="lineup-section" data-section="starters">
-                    <div class="roster-grid" id="slots-starters">${starterHtml}</div>
+                               <div class="sticky-block" data-block="starters">
+                    <div id="lineup-dashboard-inject"></div>
+                    <div class="lineup-section" data-section="starters">
+                        <div class="roster-grid" id="slots-starters">${starterHtml}</div>
+                    </div>
                 </div>
-                ${getToggleBarHtml('lineup')}
-                <div class="lineup-section" data-section="bench">
-                    <div class="roster-grid" id="slots-bench">${benchBuffer}</div>
+                <div class="sticky-block" data-block="bench">
+                    ${getToggleBarHtml('lineup')}
+                    <div class="lineup-section" data-section="bench">
+                        <div class="roster-grid" id="slots-bench">${benchBuffer}</div>
+                    </div>
                 </div>
                 <div class="lineup-section" data-section="ir">
                     <h3 class="section-header">
@@ -13003,14 +12990,51 @@ const result = await applyAuctionContract(pid, commentText);
         console.warn('Auction contract check failed:', e);
     }
 }
-// --- STICKY OFFSET: keeps pinned page controls directly under the sticky header ---
-(function trackHeaderHeight() {
+// --- STICKY HEADER: offset for pinned controls + condense the header on scroll ---
+(function stickyHeader() {
     const header = document.querySelector('.app-header');
     if (!header) return;
-    const sync = () => document.documentElement.style.setProperty('--sticky-top', header.offsetHeight + 'px');
-    sync();
-    if (window.ResizeObserver) new ResizeObserver(sync).observe(header);
-    window.addEventListener('resize', sync);
+
+    const syncOffset = () => document.documentElement.style.setProperty('--sticky-top', header.offsetHeight + 'px');
+    syncOffset();
+    if (window.ResizeObserver) new ResizeObserver(syncOffset).observe(header);
+
+    let stage = 0, ticking = false; // 0 = full card, 1 = one trophy icon, 2 = name only
+
+    function setStage(next) {
+        const before = header.offsetHeight;
+        document.body.classList.toggle('hdr-s1', next >= 1);
+        document.body.classList.toggle('hdr-s2', next >= 2);
+        stage = next;
+        const delta = before - header.offsetHeight; // reading offsetHeight forces the new layout
+        if (delta) window.scrollBy(0, -delta);      // shrinking the header would otherwise make the rows jump
+        syncOffset();
+    }
+
+    function update() {
+        ticking = false;
+        const y = window.scrollY;
+        const room = document.documentElement.scrollHeight - window.innerHeight;
+        let next;
+        if (room < (stage === 0 ? 520 : 380) || y < 30) next = 0;   // short pages never condense (avoids flicker)
+        else if (y < 90)  next = stage === 0 ? 0 : 1;
+        else if (y < 150) next = 1;
+        else if (y < 220) next = stage === 2 ? 2 : 1;
+        else              next = 2;
+        if (next !== stage) setStage(next);
+    }
+
+    window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+    window.addEventListener('resize', () => { syncOffset(); update(); });
+    update();
+
+    // While condensed, tapping the slim bar jumps back to the top, where the full card and team picker are
+    document.addEventListener('click', (e) => {
+        if (document.body.classList.contains('hdr-s1') && e.target.closest('#active-team-switcher-btn')) {
+            e.stopImmediatePropagation();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, true);
 })();
 checkLoginStatus();
     buildAdminTools(); 
