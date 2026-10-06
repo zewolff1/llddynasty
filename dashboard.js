@@ -356,7 +356,7 @@ let prefixHtml = '';
 
         // Return the unified scrolling strip
     return `
-            <div style="display: flex; flex-direction: column; width: 100%; padding: 10px 5px 5px; margin-bottom: 5px; gap: 6px;">
+                       <div class="${viewType === 'contracts' ? 'sticky-controls' : ''}" style="display: flex; flex-direction: column; width: 100%; padding: 10px 5px 5px; margin-bottom: 5px; gap: 6px;">
                 <div style="display: flex; align-items: center; width: 100%; gap: 6px;">
                     ${prefixHtml}
                     <div class="hide-scroll" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; width: 100%; align-items: center;">
@@ -8029,7 +8029,7 @@ txCardsHtml = allDatedEntries.map(e => e.html).join('');
 txCardsHtml = tradeBlockHtml + txCardsHtml;
 console.log('[tx-filter-debug] final uniqueTxTypes set:', [...uniqueTxTypes]);
 let filterHtml = `
-            <div style="position: relative; margin-bottom: 15px;">
+                       <div class="sticky-controls" style="position: relative; margin-bottom: 15px;">
                 <div id="tx-filter-scroll" class="tx-filter-bar hide-scroll" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; padding-right: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); touch-action: pan-x; -webkit-overflow-scrolling: touch;">
                     <button class="tx-filter-btn active" data-filter="all" style="padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; border: 1px solid var(--accent-blue); background: var(--accent-blue); color: #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s;">All</button>
         `;
@@ -13003,6 +13003,15 @@ const result = await applyAuctionContract(pid, commentText);
         console.warn('Auction contract check failed:', e);
     }
 }
+// --- STICKY OFFSET: keeps pinned page controls directly under the sticky header ---
+(function trackHeaderHeight() {
+    const header = document.querySelector('.app-header');
+    if (!header) return;
+    const sync = () => document.documentElement.style.setProperty('--sticky-top', header.offsetHeight + 'px');
+    sync();
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(header);
+    window.addEventListener('resize', sync);
+})();
 checkLoginStatus();
     buildAdminTools(); 
 loadSavedTheme();
