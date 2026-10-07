@@ -12518,7 +12518,9 @@ const auctionResText = await res.text();
 const bidName = $('#fa-modal-name').text().trim() || name;
 const bidAmt = parseInt(bidRaw) / 1000000;
 const contractComment = $('#fa-contract-comment').val().trim();
-sendSlackNotification(`*Auction Bid* — *${leagueFranchises[myFid]}* bid on *${bidName}*\n ${contractComment}`, 'freeAgency');
+if (typeof sendSlackNotification === 'function') {
+    sendSlackNotification(`*Auction Bid* — *${leagueFranchises[myFid]}* bid on *${bidName}*\n ${contractComment}`, 'freeAgency');
+}
 $('#fa-bid-modal').remove();
 if (auctionResText.includes('Auction Bid') || auctionResText.includes('auction_bid') || res.ok) {
     $('#fa-bid-modal').remove();
@@ -13042,7 +13044,6 @@ loadSavedTheme();
 fetchFranchises()
     .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchLeagueSalaryData(), loadResignState()]))
     .then(() => checkCompletedAuctions())
-    .then(() => checkNotifBadge())
     .then(() => {
         applyTeamTheme(myFid, true);
         return loadTeamData();
