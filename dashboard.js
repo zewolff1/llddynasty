@@ -368,17 +368,125 @@ let prefixHtml = '';
             </div>
         `;
     }
+// Pulls record / rank / streak / PF / owner for every franchise from the standings page.
+// Rank is the row's position in the standings table, the same way the League tab shows seeds.
+function parseStandingsDoc(doc) {
+    const out = {};
+    let rank = 0;
+    doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+        const teamLink = row.querySelector('td.fname a');
+        const m = teamLink?.getAttribute('href')?.match(/F=(\d+)/i);
+        if (!m) return;
+        rank++;
+        const ownerMatch = (teamLink.getAttribute('title') || '').match(/Owner:\s*([^,]+)/i);
+        out[m[1].padStart(4, '0')] = {
+            rank,
+            record: row.querySelector('td.h2hwlt')?.textContent.trim() || '',
+            streak: row.querySelector('td.strk')?.textContent.trim() || '',
+            pf: row.querySelector('td.pf')?.textContent.trim() || '',
+            owner: ownerMatch ? ownerMatch[1].trim() : ''
+        };
+    });
+    return out;
+}
+
+// "Next" = each team's first matchup in a week AFTER the latest week that has any scores/results.
+// Doesn't depend on a "current week" lookup. Double-header weeks list both opponents.
+async function loadNextOpponents() {
+    window._nextOpp = {};
+    try {
+        const url = `https://www45.myfantasyleague.com/${year}/export?TYPE=schedule&L=${lid}&JSON=1`;
+        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        console.log('[hdr] schedule response (first 500 chars):', JSON.stringify(data).slice(0, 500));
+
+        const asArray = v => (Array.isArray(v) ? v : (v ? [v] : []));
+        const games = [];
+        asArray(data?.schedule?.weeklySchedule).forEach(w => {
+            const wk = parseInt(w.week, 10);
+            asArray(w.matchup).forEach(m => {
+                const pair = asArray(m.franchise);
+                if (pair.length < 2) return;
+                games.push({
+                    wk,
+                    a: String(pair[0].id).padStart(4, '0'),
+                    b: String(pair[1].id).padStart(4, '0'),
+                    played: pair.some(f => f.result || parseFloat(f.score) > 0)
+                });
+            });
+        });
+
+        const latestPlayed = games.reduce((mx, g) => (g.played ? Math.max(mx, g.wk) : mx), 0);
+        const next = {};
+        games.filter(g => g.wk > latestPlayed).sort((x, y) => x.wk - y.wk).forEach(g => {
+            [[g.a, g.b], [g.b, g.a]].forEach(([me, opp]) => {
+                if (!next[me]) next[me] = { week: g.wk, opps: [opp] };
+                else if (next[me].week === g.wk) next[me].opps.push(opp);
+            });
+        });
+        window._nextOpp = next;
+        console.log('[hdr] games parsed:', games.length, '| latest week with scores:', latestPlayed, '| teams with a next opponent:', Object.keys(next).length);
+    } catch (e) { console.warn('[hdr] schedule fetch failed', e); }
+}
+
+async function loadTeamHeaderStats() {
+    const yr = parseInt(year);
+    const getStandings = async (y) => {
+        try {
+            const res = await fetch(`https://www45.myfantasyleague.com/${y}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' });
+            return parseStandingsDoc(new DOMParser().parseFromString(await res.text(), 'text/html'));
+        } catch (e) { console.warn('[hdr] standings fetch failed for', y, e); return {}; }
+    };
+    const [cur, prev] = await Promise.all([getStandings(yr), getStandings(yr - 1), loadNextOpponents()]);
+    console.log('[hdr] standings parsed: current =', Object.keys(cur).length, 'teams, previous =', Object.keys(prev).length, 'teams | row for the team on screen:', cur[fid]);
+
+    window._teamHdr = { cur, prev };
+
+    // Fill the older record/owner/PF maps (used by the team popup) for anyone they're missing for
+    window._allRecords = window._allRecords || {};
+    window._allOwners = window._allOwners || {};
+    window._allPF = window._allPF || {};
+    Object.entries(cur).forEach(([id, v]) => {
+        if (!window._allRecords[id]) window._allRecords[id] = v.record;
+        if (!window._allOwners[id]) window._allOwners[id] = v.owner;
+        if (!window._allPF[id]) window._allPF[id] = v.pf;
+    });
+
+    refreshTeamInfoPanel();
+}
+
+function refreshTeamInfoPanel() {
+    $('#team-info-panel-wrapper').html(buildTeamInfoPanel(fid));
+}
+
 function buildTeamInfoPanel(targetFid) {
-    targetFid = String(targetFid).padStart(4,'0');
+    targetFid = String(targetFid).padStart(4, '0');
     const isOffseason = localStorage.getItem(`fa_mode_${lid}`) !== 'false';
-    const record = isOffseason
-        ? (window._allPrevRecords?.[targetFid] || window._allRecords?.[targetFid] || '')
-        : (window._allRecords?.[targetFid] || '');
-    const recordLabel = isOffseason ? `2025: ${record}` : record;
+    const hdr = window._teamHdr || { cur: {}, prev: {} };
+    const usePrev = isOffseason && !!hdr.prev[targetFid];
+    const s = (usePrev ? hdr.prev[targetFid] : hdr.cur[targetFid]) || {};
+    const teamCount = Object.keys(usePrev ? hdr.prev : hdr.cur).length;
+
+    const record = s.record
+        || (isOffseason ? (window._allPrevRecords?.[targetFid] || window._allRecords?.[targetFid]) : window._allRecords?.[targetFid])
+        || '';
+
+    const ord = n => { const v = n % 100, sfx = ['th', 'st', 'nd', 'rd']; return n + (sfx[(v - 20) % 10] || sfx[v] || sfx[0]); };
+    const chip = (label, value, color, title) =>
+        `<span class="team-stat-chip"${title ? ` title="${title}"` : ''}><i>${label}</i><b style="color:${color}">${value}</b></span>`;
+
+    const chips = [];
+    if (record) chips.push(chip(isOffseason ? `'${String(parseInt(year) - 1).slice(-2)}` : 'REC', record, '#fff'));
+    if (s.rank) chips.push(chip('RANK', ord(s.rank), 'var(--accent-teal)', `${ord(s.rank)} of ${teamCount}`));
+    const sm = (s.streak || '').match(/^([WLT])[a-z]*\s*(\d+)/i);
+    if (sm) {
+        const k = sm[1].toUpperCase();
+        const word = k === 'W' ? 'win' : k === 'L' ? 'losing' : 'tie';
+        chips.push(chip('STRK', k + sm[2], k === 'W' ? '#22c55e' : k === 'L' ? '#ef4444' : 'var(--text-dim)', `${sm[2]}-game ${word} streak`));
+    }
 
     const championships = CHAMPIONSHIPS[targetFid] || [];
     const currentYear2 = parseInt(year);
-
     const trophy = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
         <path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b"/>
         <path d="M4 2h2v5C6 7 5 8 4 8 2.9 8 2 7.1 2 6V4c0-1.1.9-2 2-2z" fill="#f59e0b" opacity="0.6"/>
@@ -386,21 +494,28 @@ function buildTeamInfoPanel(targetFid) {
         <path d="M10 14h4l1 3H9l1-3z" fill="#f59e0b"/>
         <path d="M7 17h10v2H7v-2z" fill="#f59e0b"/>
     </svg>`;
-
     let awardsHtml = '';
     if (championships.length > 0) {
-        // Full-size chips (hidden once you scroll) + a single trophy-with-count icon (shown once you scroll)
-        const chips = championships.map(y => {
+        const trophyChips = championships.map(y => {
             const short = "'" + String(y).slice(-2);
             return y === currentYear2 - 1
                 ? `<span class="team-award champ" title="${y} Champions">${trophy(12)}${short} Champs</span>`
                 : `<span class="team-award" title="${y} Champions">${trophy(10)}${short}</span>`;
         }).join('');
         const solo = `<span class="team-award-solo" title="${championships.length}x Champion">${trophy(16)}<b>${championships.length}</b></span>`;
-        awardsHtml = `<div class="team-awards">${chips}${solo}</div>`;
+        awardsHtml = `<div class="team-awards">${trophyChips}${solo}</div>`;
     }
 
-    return `<div class="team-info-row"><span class="team-record">${recordLabel}</span>${awardsHtml}</div>`;
+    const nx = window._nextOpp?.[targetFid];
+    let nextHtml = '';
+    if (nx && nx.opps.length) {
+        const names = nx.opps.map(id =>
+            `<img class="team-next-logo" src="${getFranchiseLogoUrl(id)}" onerror="this.style.display='none'"><span data-team-style="${id}">${leagueFranchises[id] || id}</span>`
+        ).join('<em>&amp;</em>');
+        nextHtml = `<div class="team-next"><i>NEXT · WK ${nx.week}</i>${names}</div>`;
+    }
+
+    return `<div class="team-info-row"><div class="team-stat-chips">${chips.join('')}</div>${awardsHtml}</div>${nextHtml}`;
 }
 function getPlayerFilterBarHtml(isFAView) {
     const faSorts = [
@@ -11149,9 +11264,8 @@ data.league.franchises.franchise.forEach(f => {
 });
 buildInlineTeamSwitcher();
 applyTeamTheme(myFid, true);
-setTimeout(() => {
-    $('#team-info-panel-wrapper').html(buildTeamInfoPanel(fid));
-}, 1500);
+refreshTeamInfoPanel();   // trophies show right away
+loadTeamHeaderStats();    // stats fill in the moment the data actually arrives
 await loadAllTeamStylesFromHomepage();
 reapplyAllTeamStyles();
 
@@ -13046,6 +13160,7 @@ fetchFranchises()
     .then(() => checkCompletedAuctions())
     .then(() => {
         applyTeamTheme(myFid, true);
+        refreshTeamInfoPanel();
         return loadTeamData();
     });
 });
