@@ -3022,7 +3022,11 @@ const lookupFid = fid === '0000' ? myFid : fid;
             updateSectionCounts(activeSub);
             if (activeSub === 'lineup') injectLiveStatusIntoLineupRows(fid);
         }
-        updateLineupNotifications(); updateSubmitButton();
+updateLineupNotifications(); updateSubmitButton();
+        if (activeSub === 'lineup' && !window._projResync && syncProjFromDisplay() > 0) {
+            window._projResync = true;
+            try { renderActiveTab(); } finally { window._projResync = false; }
+        }
         setTimeout(applyTeamStyle, 50);
     }
     // --- 3. LINEUP & ROSTER BUILDER ---
@@ -3654,7 +3658,41 @@ function getRowProj(row) {
     const cells = row.querySelectorAll('td');
     return (idx >= 0 && cells[idx]) ? (parseFloat(cells[idx].textContent) || 0) : 0;
 }
+// The lineup rows on screen are the source of truth for projections. Copy each displayed "x.x PROJ"
+// back into the hidden lineup table so the optimizer, quick swap, fill menu and Optimal total read the same numbers.
+// Returns how many cells changed.
+function syncProjFromDisplay() {
+    if (!currentDoc) return 0;
+    const table = currentDoc.querySelector('table.report');
+    if (!table) return 0;
+    const shown = {};
+    document.querySelectorAll('#player-rows-container .player-row[data-pid]').forEach(el => {
+        const m = el.textContent.match(/(-?\d+(?:\.\d+)?)\s*PROJ/i);
+        if (m) shown[el.getAttribute('data-pid')] = parseFloat(m[1]);
+    });
+    if (!Object.keys(shown).length) return 0;
+    const ths = [...(table.rows[0]?.querySelectorAll('th') || [])];
+    const idx = ths.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts') - 1;
+    if (idx < 0) return 0;
+    const diffs = [];
+    table.querySelectorAll('tr.oddtablerow, tr.eventablerow').forEach(row => {
+        const link = row.querySelector('td a[class*="position_"]');
+        const cell = row.querySelectorAll('td')[idx];
+        if (!link || !cell) return;
+        const pid = link.getAttribute('href').match(/\d+/g).pop();
+        if (!(pid in shown)) return;
+        const old = parseFloat(cell.textContent) || 0;
+        if (Math.abs(old - shown[pid]) > 0.05) diffs.push(`${pid}: table ${old} -> screen ${shown[pid]}`);
+        cell.textContent = shown[pid].toFixed(1);
+    });
+    if (diffs.length && !window._projSyncLogged) {
+        window._projSyncLogged = true;
+        console.log('[proj-sync] table differed from screen for', diffs.length, 'players, e.g.', diffs.slice(0, 5));
+    }
+    return diffs.length;
+}
 window.acceptAllOptimal = function() {
+    syncProjFromDisplay();
     if (!currentDoc) return;
     let allPlayers = [];
     
@@ -3747,6 +3785,7 @@ window.acceptAllOptimal = function() {
 };
 
 window.openOptimizeModal = function() {
+    syncProjFromDisplay();
     if (!currentDoc) return;
 
     // Calculate optimal lineup
@@ -3876,6 +3915,7 @@ function calculateTotalProjections() {
 }
 
 function calculateSuggestedProjections() {
+    syncProjFromDisplay();
     if (!currentDoc) return calculateTotalProjections();
     
     let all = [];
@@ -3999,6 +4039,7 @@ function buildSwapRow(p) {
         );
     }
 function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-list') {
+        syncProjFromDisplay();
         const list = $(targetContainer).empty(); let eligible = [targetPos];
         if (['FLEX', 'WR', 'RB', 'TE'].includes(targetPos)) eligible = ['WR', 'RB', 'TE'];
         if (['SFLEX', 'QB', 'WR', 'RB', 'TE'].includes(targetPos)) eligible = ['QB', 'WR', 'RB', 'TE'];
@@ -4023,6 +4064,7 @@ function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-
     }
 
 function populateFillMenu(slot) {
+        syncProjFromDisplay();
         const list = $('#quick-swap-list').empty(); let allowed = LINEUP_RULES.groups[slot] || [slot];
         if(slot === "DL") allowed = ['DE', 'DT']; if(slot === "DB") allowed = ['CB', 'S'];
 
@@ -4136,6 +4178,7 @@ ${subHtml}
     }
     
 function getBestBenchOption(slot) {
+        syncProjFromDisplay();
         if (!currentDoc) return null; let allowed = LINEUP_RULES.groups[slot] || [slot];
         if(slot === "DL") allowed = ['DE', 'DT']; if(slot === "DB") allowed = ['CB', 'S'];
         let bench = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow')).map(row => {
