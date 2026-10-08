@@ -3802,7 +3802,7 @@ window.openOptimizeModal = function() {
         allPlayers.push({
             pid: checkbox.value,
             name, shortName, pos, realPos,
-proj: getRowProj(row)
+proj: getRowProj(row),
             isCurrentStarter: checkbox.checked
         });
     });
