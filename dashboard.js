@@ -8856,9 +8856,9 @@ window.openMainTab = function(evt, tabId) {
         if (tabId === 'tab-team') { 
 window._teamDataDirty = true;
             loadTeamData(); 
-               } else if (tabId === 'tab-league') { 
+                } else if (tabId === 'tab-league') { 
             ensureRecapsSubTab();
-            loadLeagueStandings();
+            loadLeagueStandings(); 
 } else if (tabId === 'tab-players') {
             const activeBtn = $('#subtabs-players .sub-tab-btn.active');
             let subId = activeBtn.length ? activeBtn.text().trim().toLowerCase().replace(' ', '-') : 'free-agents';
@@ -10284,6 +10284,7 @@ async function renderWeeklyRecap() {
     container.html(header + sections.join('') + '</div>');
     reapplyAllTeamStyles();
 }
+// =================== END WEEKLY RECAP ===================
 // ===================== LEAGUE RECAPS TAB =====================
 window._recapState = window._recapState || { view: 'week', wk: null, fid: null, pickerOpen: false };
 window._recapWeekCache = window._recapWeekCache || {};
@@ -10717,7 +10718,6 @@ async function loadRecapsTab() {
     }
 }
 // =================== END LEAGUE RECAPS TAB ===================
-// =================== END WEEKLY RECAP ===================
 const LIVE_SCORE_POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
 
 function sortLiveScoreRoster(roster) {
