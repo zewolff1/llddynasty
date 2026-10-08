@@ -5538,8 +5538,18 @@ $('#modal-trade-offer-btn').hide();
 $('#modal-owner-actions').hide();
     $('#tab-btn-tx').addClass('active');
     $('#tab-tx').addClass('active');
-    const isMyTeamCheck = leagueFranchises[myFid] !== undefined;
-    $('#modal-actions-container').html(`<div class="modal-mgmt-grid"><div class="modal-mgmt-btn" style="grid-column:span 2; border-color:var(--accent-blue);" onclick="txAction('propose','${pid}',event)"><span>Propose Trade</span></div></div>`);
+const isMyTeamCheck = leagueFranchises[myFid] !== undefined;
+    // Make the tabs work for triggers that open without a roster row (Scoreboard, recaps, chips)
+    window._modalCurrentPid = String(pid);
+    window._modalCurrentName = name;
+    window._modalActionsLock = false;
+    $('#tab-btn-lineup').hide();
+    $('#tab-btn-tx, #tab-btn-gamelog, #tab-btn-history').show();
+    if ($(this).data('name')) { // Scoreboard / recap rows open on Game Log
+        $('.modal-tab-btn, .modal-tab-content').removeClass('active');
+        $('#tab-btn-gamelog, #tab-gamelog').addClass('active');
+        loadModalGameLog(pid);
+    }    $('#modal-actions-container').html(`<div class="modal-mgmt-grid"><div class="modal-mgmt-btn" style="grid-column:span 2; border-color:var(--accent-blue);" onclick="txAction('propose','${pid}',event)"><span>Propose Trade</span></div></div>`);
     $('#smart-player-modal').css('display', 'flex').hide().fadeIn(200);
     $('body').css('overflow', 'hidden');
     return;
@@ -10886,8 +10896,7 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
     // Live = tinted + glowing left edge, Final = neutral full-brightness, Upcoming = dimmed —
     // so it's obvious at a glance who's done, who's playing, and who hasn't started.
     const rowBg = status.playing ? `${status.color}14` : 'rgba(0,0,0,0.2)';
-    const rowOpacity = (!status.playing && !status.done) ? '0.55' : '1';
-
+const rowOpacity = '1';
     return `
         <div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}" data-name="${p.name}" data-pos="${pos}"
             style="display:flex; align-items:flex-start; gap:8px; padding:6px; border-radius:8px; margin-bottom:4px; background:${rowBg}; border:1px solid var(--card-border); box-shadow:inset 3px 0 0 ${status.color}; opacity:${rowOpacity}; cursor:pointer;">
