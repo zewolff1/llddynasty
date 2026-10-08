@@ -11334,8 +11334,17 @@ async function renderProjectedDraft(container) {
         fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=futureDraftPicks&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' })
     ]);
 
-    // 1. Standings -> projected order (worst record picks first, fewer points breaks ties)
+    // 1. Standings: find the Max PF (potential points) column, plus record / PF for the champion call
     const doc = new DOMParser().parseFromString(await stRes.text(), 'text/html');
+    let headerLabels = [], maxIdx = -1;
+    doc.querySelectorAll('table.report tr').forEach(tr => {
+        if (maxIdx !== -1) return;
+        const labels = [...tr.querySelectorAll('th')].map(th => th.textContent.replace(/\s+/g, ' ').trim());
+        const idx = labels.findIndex(t => /max\s*pf|max\s*pts|potential/i.test(t));
+        if (idx !== -1) { headerLabels = labels; maxIdx = idx; }
+    });
+    console.log('[draft-proj] Max PF column index:', maxIdx, '| headers:', headerLabels);
+    const num = s => parseFloat(String(s || '0').replace(/,/g, '')) || 0;
     const teams = [];
     doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
         const link = row.querySelector('td.fname a');
@@ -11344,15 +11353,32 @@ async function renderProjectedDraft(container) {
         const nums = (row.querySelector('td.h2hwlt')?.textContent || '').match(/\d+/g) || [];
         const w = parseInt(nums[0] || 0), l = parseInt(nums[1] || 0), t = parseInt(nums[2] || 0);
         const gp = w + l + t;
+        const direct = row.querySelector('td.maxpf, td.pp, td.mpf, td.maxpoints');
+        const cells = row.querySelectorAll('td');
         teams.push({
             fid: m[1].padStart(4, '0'), w, l, t,
             pct: gp ? (w + t / 2) / gp : 0,
-            pf: parseFloat((row.querySelector('td.pf')?.textContent || '0').replace(/,/g, '')) || 0
+            pf: num(row.querySelector('td.pf')?.textContent),
+            maxpf: num(direct ? direct.textContent : (maxIdx >= 0 && cells[maxIdx] ? cells[maxIdx].textContent : 0))
         });
     });
-    teams.sort((a, b) => a.pct - b.pct || a.pf - b.pf);
 
-    // 2. Who owns each team's pick next year (handles traded picks)
+    if (!teams.length || !teams.some(t => t.maxpf > 0)) {
+        container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px; line-height:1.6;">Couldn't find a Max PF column on the standings page.<br>Check the browser console for "[draft-proj]" to see which columns were found.</div></div>`);
+        return;
+    }
+
+    // 2. Champion always picks last. Use the recorded champion for this season if there is one,
+    //    otherwise the current top seed (best record, then points scored) as the projection.
+    const knownChamp = (typeof CHAMPIONSHIPS !== 'undefined')
+        ? Object.keys(CHAMPIONSHIPS).find(f => (CHAMPIONSHIPS[f] || []).map(String).includes(String(year))) : null;
+    const topSeed = [...teams].sort((a, b) => b.pct - a.pct || b.pf - a.pf)[0];
+    const champFid = (knownChamp && String(knownChamp).padStart(4, '0')) || topSeed.fid;
+    const champFinal = !!knownChamp;
+    const others = teams.filter(t => t.fid !== champFid).sort((a, b) => a.maxpf - b.maxpf || a.pf - b.pf);
+    const order = [...others, teams.find(t => t.fid === champFid)].filter(Boolean);
+
+    // 3. Who owns each team's pick next year (handles traded picks)
     const owner = {};
     let found = 0;
     try {
@@ -11368,27 +11394,26 @@ async function renderProjectedDraft(container) {
         });
     } catch (e) { console.warn('futureDraftPicks failed', e); }
 
-    if (!teams.length) {
-        container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">Standings aren't available yet.</div></div>`);
-        return;
-    }
-
     let board = `<div style="padding:0 5px;">
-        <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:10px; line-height:1.5;">Based on current standings: worst record picks first, fewer points scored breaks ties.${found ? '' : ' Pick trades for ' + nextYear + ' weren\'t found, so every team is shown with its own picks.'}</div>`;
+        <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:10px; line-height:1.5;">Lowest Max PF picks first. The league champion always picks last.${champFinal ? '' : ' Until the season ends, the current top seed is shown as the projected champion.'}${found ? '' : ' Pick trades for ' + nextYear + ' weren\'t found, so every team is shown with its own picks.'}</div>`;
     for (let r = 1; r <= ROUNDS; r++) {
         board += `<div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
             <div style="padding:10px 14px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border); font-size:11px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Round ${r}</div>`;
-        teams.forEach((t, i) => {
+        order.forEach((t, i) => {
             const ownerFid = (owner[r] && owner[r][t.fid]) || t.fid;
             const traded = ownerFid !== t.fid;
             const mine = ownerFid === myFid;
+            const isChamp = t.fid === champFid;
             const key = `${r}.${String(i + 1).padStart(2, '0')}`;
             board += `<div style="display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); background:${mine ? 'rgba(34,197,94,0.04)' : 'transparent'};">
                 <span style="font-size:10px; font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:32px;">${key}</span>
                 <img src="${getFranchiseLogoUrl(ownerFid)}" onerror="this.style.opacity='0'" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
                 <span data-team-style="${ownerFid}" style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[ownerFid] || ownerFid}</span>
                 ${traded ? `<span style="display:inline-flex; align-items:center; gap:4px; flex-shrink:0;"><span style="font-size:9px; color:#f59e0b; font-weight:800;">from</span><img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg);"></span>` : ''}
-                <span style="font-size:9px; font-weight:800; color:var(--text-dim); min-width:38px; text-align:right; flex-shrink:0;">${t.w}-${t.l}${t.t ? '-' + t.t : ''}</span>
+                <div style="text-align:right; min-width:58px; flex-shrink:0;">
+                    <div style="font-size:10px; font-weight:800; color:${isChamp ? '#f59e0b' : 'var(--text-dim)'};">${isChamp ? (champFinal ? 'CHAMPION' : 'PROJ. CHAMP') : t.maxpf.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
+                    <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${isChamp ? 'Picks last' : 'Max PF'}</div>
+                </div>
             </div>`;
         });
         board += `</div>`;
