@@ -201,7 +201,7 @@ let rookiePids = new Set();
 
     const LINEUP_RULES = {
         total: { min: 8, max: 17 },
-        rosterLimit: 39, 
+        rosterLimit: 40, 
         positions: {
             'QB': { min: 1, max: 2 }, 'RB': { min: 2, max: 5 },
             'WR': { min: 2, max: 6 }, 'TE': { min: 1, max: 3 },
@@ -680,7 +680,7 @@ function loadRulesContent() {
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
                         <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Roster Size</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">39 players total — 30 active, 4 IR, 5 Taxi Squad</div>
+                        <div style="font-size:12px; color:#fff; line-height:1.6;">40 players total — 30 active, 4 IR, 5 Taxi Squad</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
