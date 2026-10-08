@@ -3802,7 +3802,7 @@ window.openOptimizeModal = function() {
         allPlayers.push({
             pid: checkbox.value,
             name, shortName, pos, realPos,
-            proj: parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0,
+proj: getRowProj(row)
             isCurrentStarter: checkbox.checked
         });
     });
@@ -3812,7 +3812,7 @@ window.openOptimizeModal = function() {
     const coreSlots = [
         { label: 'QB', eligible: ['QB'] }, { label: 'RB', eligible: ['RB'] },
         { label: 'RB', eligible: ['RB'] }, { label: 'WR', eligible: ['WR'] },
-        { label: 'WR', eligible: ['WR'] }, { label: 'TE', eligible: ['TE'] },
+       { label: 'WR', eligible: ['WR'] }, { label: 'TE', eligible: ['TE'] }, { label: 'PK', eligible: ['PK'] },
          { label: 'DL', eligible: ['DE','DT'] },
         { label: 'LB', eligible: ['LB'] }, { label: 'DB', eligible: ['CB','S'] }
     ];
@@ -4055,7 +4055,7 @@ function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-
             const { name, shortName, pos, realPos, team } = parseMFLName(pL.textContent);
             
             // WE ADD REALPOS TO THE RETURN OBJECT
-            return { pid: cb.value, name, shortName, pos, realPos, team, proj: parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0, sec: row.querySelectorAll('td')[1]?.textContent.split('(')[0].trim() || "BYE", isChecked: cb.checked };
+            return { pid: cb.value, name, shortName, pos, realPos, team, proj: getRowProj(row), sec: row.querySelectorAll('td')[1]?.textContent.split('(')[0].trim() || "BYE", isChecked: cb.checked };
             
         // WE FILTER BY REALPOS HERE
         }).filter(p => p && (p.isChecked === !findBench) && eligible.includes(p.realPos));
