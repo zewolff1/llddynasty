@@ -10489,12 +10489,12 @@ function recapEvents(summaries) {
 }
 
 const RECAP_AWARDS = [
-    { key: 'high', icon: '🔥', title: 'Highest Score' },
-    { key: 'potw', icon: '⭐', title: 'Players of the Week' },
-    { key: 'blowout', icon: '💥', title: 'Biggest Blowout' },
-    { key: 'close', icon: '😰', title: 'Closest Game' },
-    { key: 'upset', icon: '🚨', title: 'Upsets' },
-    { key: 'gutsy', icon: '🧠', title: 'Gutsiest Calls' }
+    { key: 'high', icon: '', title: 'Highest Score' },
+    { key: 'potw', icon: '', title: 'Players of the Week' },
+    { key: 'blowout', icon: '', title: 'Biggest Blowout' },
+    { key: 'close', icon: '', title: 'Closest Game' },
+    { key: 'upset', icon: '', title: 'Upsets' },
+    { key: 'gutsy', icon: '', title: 'Gutsiest Calls' }
 ];
 
 // ---------- small UI helpers ----------
@@ -10536,7 +10536,7 @@ function recapPlayerRow(p, o) {
 function recapCard(title, icon, body, sub) {
     return `<div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-bottom:10px;">
         <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:10px;">
-            <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${icon} ${title}</span>
+            <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${title}</span>
             ${sub ? `<span style="font-size:8px; font-weight:800; color:var(--text-dim);">${sub}</span>` : ''}
         </div>${body}</div>`;
 }
@@ -10640,7 +10640,7 @@ function recapTeamView(events, selFid) {
     const counts = {};
     mine.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
     const summary = RECAP_AWARDS.map(a => `<div style="flex:1; min-width:62px; text-align:center; padding:6px 4px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border);">
-        <div style="font-size:14px;">${a.icon}</div><div style="font-size:15px; font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
+        <div style="font-size:15px; font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
         <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${a.title}</div></div>`).join('');
     const wkBadge = w => `<span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
     const rowsHtml = mine.map(e => {
@@ -10653,7 +10653,7 @@ function recapTeamView(events, selFid) {
         else if (e.type === 'upset') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:9px; font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
         else if (e.type === 'gutsy') body = recapGutsyCard(e.c, false);
         return `<div style="display:flex; gap:10px; margin-bottom:8px;">
-            <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}<div style="font-size:16px; margin-top:4px;">${a.icon}</div></div>
+            <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}</div>
             <div style="flex:1; min-width:0;"><div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">${a.title}${e.type === 'gutsy' && e.c.decisive ? ' · <span style="color:#f59e0b;">GAME-WINNER</span>' : ''}</div>${body}</div>
         </div>`;
     }).join('');
