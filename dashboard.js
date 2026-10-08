@@ -12764,12 +12764,33 @@ $(document).off('click', '.gl-tab').on('click', '.gl-tab', function(e) {
     fetchAndRender();
 }
 
-async function loadModalContract(pid) {
-const realContainer = $('#modal-actions-container');
+// Which franchise currently owns a player (so the Contract tab works for other teams' players)
+window._rosterOwnerCache = window._rosterOwnerCache || { at: 0, map: null };
+async function resolvePlayerOwner(pid) {
+    try {
+        const c = window._rosterOwnerCache;
+        if (!c.map || Date.now() - c.at > 120000) {
+            const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=rosters&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+            const data = await res.json();
+            const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
+            const map = {};
+            asArr(data?.rosters?.franchise).forEach(f => asArr(f.player).forEach(p => { map[String(p.id)] = String(f.id).padStart(4, '0'); }));
+            c.map = map; c.at = Date.now();
+        }
+        return c.map[String(pid)] || '';   // '' = not on any roster (free agent)
+    } catch (e) { return null; }           // null = lookup failed, caller falls back to the viewed team
+}
+
+async function loadModalContract(pid) {const realContainer = $('#modal-actions-container');
     // Same container, but writes are skipped while a Block/Resign form is open
     const container = { length: realContainer.length, html: (h) => { if (!window._modalActionsLock) realContainer.html(h); return realContainer; } };    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
-        const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${fid}`, { credentials: 'include' });
+        const ownerFid = await resolvePlayerOwner(pid);
+        if (ownerFid === '') {
+            container.html('<div style="text-align:center; padding:20px; color:var(--text-dim);">Not on a roster, so there is no contract.</div>');
+            return;
+        }
+        const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${ownerFid || fid}`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         const rows = Array.from(doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
         const startYear = parseInt(year) || 2026;
@@ -12850,7 +12871,11 @@ const realContainer = $('#modal-actions-container');
         capHitRows += '</div>';
 
         const salaryCap = window.leagueSalaryCap || 823;
-        const capUsed = window.currentTeamCapUsed || 0;
+let capUsed = window.currentTeamCapUsed || 0;
+        if (ownerFid && ownerFid !== String(fid).padStart(4, '0')) {
+            // Another team's player: total that team's salaries instead of the viewed team's cap
+            capUsed = rows.reduce((sum, r) => sum + (parseFloat((r.querySelector('td.salary')?.textContent || '').replace(/[^0-9.]/g, '')) || 0), 0);
+        }
         const capPct = Math.min(100, (capUsed / salaryCap) * 100).toFixed(1);
         const barColor = capUsed > salaryCap ? '#ef4444' : capPct > 90 ? '#f59e0b' : '#22c55e';
         const capRemaining = (salaryCap - capUsed).toFixed(1);
