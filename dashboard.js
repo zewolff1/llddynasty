@@ -11016,7 +11016,253 @@ function buildLiveScoreTabsHtml(matchups, activeIdx) {
         }).join('')}
       </div>`;
 }
+// ===================== SCOREBOARD: RECORD CHIPS, WIN PROBABILITY, MATCHUP PREVIEW =====================
+function pvNormCdf(x) {
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    const d = 0.3989423 * Math.exp(-x * x / 2);
+    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x > 0 ? 1 - p : p;
+}
 
+function pvTeamModel(roster, projMap) {
+    let score = 0, remain = 0, variance = 0;
+    (roster || []).forEach(p => {
+        if (!p.isStarter) return;
+        score += p.score;
+        const st = deriveLiveStatus(p);
+        if (st.done) return;
+        const proj = (projMap && projMap[p.pid] != null) ? projMap[p.pid] : 0;
+        let frac = 1;
+        if (st.playing) frac = (p.gsr != null && !isNaN(p.gsr)) ? Math.max(0, Math.min(1, p.gsr / 3600)) : 0.5;
+        const rem = Math.max(0, proj * frac);
+        remain += rem;
+        const sd = 0.5 * proj * Math.sqrt(frac) + 1;
+        variance += sd * sd;
+    });
+    return { score, mean: score + remain, variance };
+}
+
+function computeWinProb(t1, t2, projMap) {
+    const a = pvTeamModel(t1.roster, projMap), b = pvTeamModel(t2.roster, projMap);
+    const sd = Math.sqrt(a.variance + b.variance);
+    let p1;
+    if (sd < 0.01) p1 = a.score > b.score ? 1 : a.score < b.score ? 0 : 0.5;
+    else p1 = pvNormCdf((a.mean - b.mean) / sd);
+    return { p1, p2: 1 - p1, mean1: a.mean, mean2: b.mean };
+}
+
+function pvOrd(n) { const v = n % 100, s = ['th', 'st', 'nd', 'rd']; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+function scoreTeamChips(f) {
+    const hdr = (window._teamHdr && window._teamHdr.cur) || {};
+    const s = hdr[f] || {};
+    const rec = s.record || (window._allRecords && window._allRecords[f]) || '';
+    const n = Object.keys(hdr).length;
+    const chip = (label, val, color) => `<span style="display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:5px; padding:2px 5px;"><i style="font-style:normal; font-size:7px; font-weight:900; color:var(--text-dim);">${label}</i><b style="font-size:9px; font-weight:900; color:${color};">${val}</b></span>`;
+    const out = [];
+    if (rec) out.push(chip('REC', rec, '#fff'));
+    if (s.rank) out.push(chip('RANK', pvOrd(s.rank) + (n ? '/' + n : ''), 'var(--accent-teal, #14b8a6)'));
+    const sm = (s.streak || '').match(/^([WLT])[a-z]*\s*(\d+)/i);
+    if (sm) { const k = sm[1].toUpperCase(); out.push(chip('STRK', k + sm[2], k === 'W' ? '#22c55e' : k === 'L' ? '#ef4444' : 'var(--text-dim)')); }
+    return out.length ? `<div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:center;">${out.join('')}</div>` : '';
+}
+
+function pvWinProbHtml(p, color) {
+    return `<span style="font-size:9px; font-weight:900; color:${color}; text-transform:uppercase;">Win ${Math.round(p * 100)}%</span>`;
+}
+
+window._pvGamesCache = window._pvGamesCache || {};
+async function pvSeasonGames(y) {
+    if (window._pvGamesCache[y]) return window._pvGamesCache[y];
+    const games = [];
+    try {
+        const res = await fetch(`https://www45.myfantasyleague.com/${y}/export?TYPE=schedule&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
+        asArr(data?.schedule?.weeklySchedule).forEach(w => asArr(w.matchup).forEach(m => {
+            const pair = asArr(m.franchise);
+            if (pair.length < 2) return;
+            const as = parseFloat(pair[0].score) || 0, bs = parseFloat(pair[1].score) || 0;
+            games.push({ y: parseInt(y, 10), wk: parseInt(w.week, 10), a: String(pair[0].id).padStart(4, '0'), b: String(pair[1].id).padStart(4, '0'), as, bs, played: as > 0 || bs > 0 });
+        }));
+    } catch (e) { /* year not available */ }
+    window._pvGamesCache[y] = games;
+    return games;
+}
+function pvTeamSeason(games, f) {
+    const mine = games.filter(g => g.played && (g.a === f || g.b === f)).sort((x, y) => x.wk - y.wk);
+    const s = { w: 0, l: 0, t: 0, pf: 0, pa: 0, high: 0, results: [], n: mine.length };
+    mine.forEach(g => {
+        const my = g.a === f ? g.as : g.bs, op = g.a === f ? g.bs : g.as;
+        s.pf += my; s.pa += op; s.high = Math.max(s.high, my);
+        const r = my > op ? 'W' : my < op ? 'L' : 'T';
+        s[r.toLowerCase()]++; s.results.push(r);
+    });
+    return s;
+}
+
+window._pvNameCache = window._pvNameCache || {};
+async function pvPlayerNames(pids) {
+    const need = pids.filter(p => /^\d+$/.test(p) && !window._pvNameCache[p]);
+    if (need.length) {
+        try {
+            const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=players&L=${lid}&PLAYERS=${need.join(',')}&JSON=1`, { credentials: 'include' });
+            const data = await res.json();
+            [].concat(data?.players?.player || []).forEach(p => {
+                const parts = String(p.name || '').split(', ');
+                window._pvNameCache[p.id] = (parts.length > 1 ? parts[1].charAt(0) + '. ' + parts[0] : p.name) + (p.position ? ` (${p.position})` : '');
+            });
+        } catch (e) { /* fall back to ids */ }
+    }
+    return window._pvNameCache;
+}
+function pvAssetLabel(id, names, y) {
+    if (/^\d+$/.test(id)) return names[id] || ('Player ' + id);
+    let m = id.match(/^FP_(\d+)_(\d{4})_(\d+)/);
+    if (m) return `${m[2]} Round ${m[3]} pick (${leagueFranchises[m[1]] || m[1]})`;
+    m = id.match(/^DP_(\d+)_(\d+)/);
+    if (m) return `${y} pick ${parseInt(m[1]) + 1}.${String(parseInt(m[2]) + 1).padStart(2, '0')}`;
+    return id;
+}
+async function pvFetchTransactions(y, trade) {
+    try {
+        const res = await fetch(`https://www45.myfantasyleague.com/${y}/export?TYPE=transactions&L=${lid}&COUNT=${trade ? 1000 : 300}${trade ? '&TRANS_TYPE=TRADE' : ''}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        return [].concat(data?.transactions?.transaction || []);
+    } catch (e) { return []; }
+}
+
+function pvCard(title, bodyId) {
+    return `<div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-bottom:10px;">
+        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${title}</div>
+        <div id="${bodyId}"><div style="text-align:center; padding:10px; color:var(--text-dim); font-size:10px; font-weight:800; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div></div></div>`;
+}
+
+async function openMatchupPreview() {
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
+    if (!m) return;
+    const A = m.t1, B = m.t2;
+    const wk = window._liveScoreActiveWeek;
+    const yr = parseInt(year, 10);
+    $('#matchup-preview-modal').remove();
+    const hdrStats = (window._teamHdr && window._teamHdr.cur) || {};
+    const side = t => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">${recapLogo(t.fid, 46)}<div style="max-width:100%; display:flex;">${recapTeamName(t.fid, 11)}</div>${scoreTeamChips(t.fid)}</div>`;
+    $('body').append(`<div id="matchup-preview-modal" style="position:fixed; inset:0; z-index:99995; background:rgba(0,0,0,0.78); display:flex; align-items:center; justify-content:center; padding:12px;">
+        <div style="width:100%; max-width:520px; max-height:90vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--card-border);">
+                <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Week ${wk} Matchup Preview</span>
+                <button class="pv-close" style="width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:12px 14px; overflow-y:auto;">
+                <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:12px;">${side(A)}<div style="font-size:11px; font-weight:900; color:var(--text-dim); padding-top:16px;">vs</div>${side(B)}</div>
+                ${pvCard('Team Comparison', 'pv-compare')}
+                ${pvCard('Head-to-Head History', 'pv-h2h')}
+                ${pvCard('Key Players This Week', 'pv-key')}
+                ${pvCard('Same NFL Game', 'pv-same')}
+                ${pvCard('Trades Between These Teams', 'pv-trades')}
+                ${pvCard('Recent Moves', 'pv-moves')}
+            </div></div></div>`);
+    reapplyAllTeamStyles();
+    $('#matchup-preview-modal').on('click', function(e) { if (e.target === this) $(this).remove(); });
+    $('#matchup-preview-modal .pv-close').on('click', function() { $('#matchup-preview-modal').remove(); });
+    const put = (id, html) => { $('#' + id).html(html); reapplyAllTeamStyles(); };
+    const empty = txt => `<div style="font-size:10px; color:var(--text-dim);">${txt}</div>`;
+
+    const projMap = await fetchWeekProjectedScoresMap(wk);
+
+    pvSeasonGames(yr).then(games => {
+        const sa = pvTeamSeason(games, A.fid), sb = pvTeamSeason(games, B.fid);
+        const wp = computeWinProb(A, B, projMap);
+        const rows = [];
+        const row = (label, va, vb, better) => rows.push(`<div style="display:grid; grid-template-columns:1fr 78px 1fr; align-items:center; gap:6px; padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
+            <div style="text-align:right; font-size:12px; font-weight:900; color:${better === 'a' ? '#22c55e' : '#fff'};">${va}</div>
+            <div style="text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${label}</div>
+            <div style="text-align:left; font-size:12px; font-weight:900; color:${better === 'b' ? '#22c55e' : '#fff'};">${vb}</div></div>`);
+        const cmp = (x, y, hi = true) => x === y ? '' : ((x > y) === hi ? 'a' : 'b');
+        const rec = s => `${s.w}-${s.l}${s.t ? '-' + s.t : ''}`;
+        const rk = f => hdrStats[f]?.rank ? pvOrd(hdrStats[f].rank) : '—';
+        const avg = s => s.n ? s.pf / s.n : 0;
+        row('Record', rec(sa), rec(sb), cmp(sa.w - sa.l, sb.w - sb.l));
+        row('Rank', rk(A.fid), rk(B.fid), hdrStats[A.fid] && hdrStats[B.fid] ? cmp(hdrStats[A.fid].rank, hdrStats[B.fid].rank, false) : '');
+        row('Pts For', sa.pf.toFixed(1), sb.pf.toFixed(1), cmp(sa.pf, sb.pf));
+        row('Pts Against', sa.pa.toFixed(1), sb.pa.toFixed(1), cmp(sa.pa, sb.pa, false));
+        row('Avg / Game', avg(sa).toFixed(1), avg(sb).toFixed(1), cmp(avg(sa), avg(sb)));
+        row('High Score', sa.high.toFixed(1), sb.high.toFixed(1), cmp(sa.high, sb.high));
+        const dots = s => s.results.slice(-5).map(r => `<span style="display:inline-block; width:14px; height:14px; line-height:14px; text-align:center; border-radius:3px; font-size:8px; font-weight:900; color:#fff; background:${r === 'W' ? '#22c55e' : r === 'L' ? '#ef4444' : '#64748b'};">${r}</span>`).join(' ') || '—';
+        row('Last 5', dots(sa), dots(sb), '');
+        const pa = pvTeamModel(A.roster, projMap), pb = pvTeamModel(B.roster, projMap);
+        row('Projected', pa.mean.toFixed(1), pb.mean.toFixed(1), cmp(pa.mean, pb.mean));
+        row('Win Prob', Math.round(wp.p1 * 100) + '%', Math.round(wp.p2 * 100) + '%', cmp(wp.p1, wp.p2));
+        put('pv-compare', rows.join(''));
+    });
+
+    Promise.all(Array.from({ length: 10 }, (_, i) => pvSeasonGames(yr - i))).then(all => {
+        const meets = all.flat().filter(g => g.played && ((g.a === A.fid && g.b === B.fid) || (g.a === B.fid && g.b === A.fid)) && !(g.y === yr && g.wk >= wk))
+            .sort((x, y) => (y.y - x.y) || (y.wk - x.wk));
+        if (!meets.length) { put('pv-h2h', empty('These teams have no recorded meetings yet.')); return; }
+        let aw = 0, bw = 0, ties = 0, apts = 0, bpts = 0;
+        const lines = meets.map(g => {
+            const sa = g.a === A.fid ? g.as : g.bs, sb = g.a === A.fid ? g.bs : g.as;
+            apts += sa; bpts += sb;
+            if (sa > sb) aw++; else if (sb > sa) bw++; else ties++;
+            return `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; border-top:1px solid rgba(255,255,255,0.04); font-size:10px; font-weight:800;">
+                <span style="color:var(--text-dim); min-width:62px;">${g.y} · Wk ${g.wk}</span>
+                <span style="color:${sa > sb ? '#22c55e' : '#fff'};">${sa.toFixed(1)}</span><span style="color:var(--text-dim);">–</span><span style="color:${sb > sa ? '#22c55e' : '#fff'};">${sb.toFixed(1)}</span></div>`;
+        });
+        const lead = aw === bw ? 'Series tied' : `${leagueFranchises[aw > bw ? A.fid : B.fid]} leads`;
+        put('pv-h2h', `<div style="text-align:center; margin-bottom:8px;"><span style="font-size:15px; font-weight:900; color:#fff;">${aw}–${bw}${ties ? '–' + ties : ''}</span>
+            <div style="font-size:9px; font-weight:800; color:var(--text-dim);">${lead} · avg ${(apts / meets.length).toFixed(1)} – ${(bpts / meets.length).toFixed(1)} · ${meets.length} meeting${meets.length === 1 ? '' : 's'}</div></div>
+            <div style="font-size:8px; font-weight:900; color:var(--text-dim); display:flex; justify-content:space-between; margin-bottom:2px;"><span></span><span>${leagueFranchises[A.fid]} – ${leagueFranchises[B.fid]}</span></div>${lines.slice(0, 8).join('')}`);
+    });
+
+    const top = t => t.roster.filter(p => p.isStarter).sort((x, y) => (projMap[y.pid] || 0) - (projMap[x.pid] || 0)).slice(0, 3);
+    const keyCol = t => `<div style="flex:1; min-width:0;"><div style="display:flex; margin-bottom:6px;">${recapTeamName(t.fid, 10)}</div>${top(t).map(p => recapPlayerRow(p, { size: 30, right: `<div style="font-size:12px; font-weight:900; color:#f59e0b;">${(projMap[p.pid] || 0).toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">PROJ</div>` })).join('')}</div>`;
+    put('pv-key', `<div style="display:flex; gap:8px;">${keyCol(A)}${keyCol(B)}</div>`);
+    const oppOf = p => ((p.opp || '').match(/(?:vs|@)\s*([A-Z]{2,3})/i) || [])[1]?.toUpperCase();
+    const same = [];
+    A.roster.filter(p => p.isStarter).forEach(pa => B.roster.filter(p => p.isStarter).forEach(pb => {
+        const ta = String(pa.team || '').toUpperCase(), tb = String(pb.team || '').toUpperCase();
+        if (!ta || ta === 'NFL') return;
+        if (ta === tb || oppOf(pa) === tb) same.push({ pa, pb, kind: ta === tb ? 'Teammates' : 'Opponents' });
+    }));
+    put('pv-same', same.length ? same.slice(0, 8).map(x => `<div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid rgba(255,255,255,0.04);">
+        <span style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.pa.name} <span style="color:var(--text-dim);">(${recapNormPos(x.pa)})</span></span>
+        <span style="font-size:8px; font-weight:900; color:#f59e0b; text-transform:uppercase;">${x.kind}</span>
+        <span style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.pb.name} <span style="color:var(--text-dim);">(${recapNormPos(x.pb)})</span></span></div>`).join('') : empty('No starters share an NFL game this week.'));
+
+    Promise.all(Array.from({ length: 8 }, (_, i) => pvFetchTransactions(yr - i, true).then(list => list.map(t => ({ ...t, _y: yr - i }))))).then(async all => {
+        const trades = all.flat().filter(t => t.type === 'TRADE' && ((t.franchise === A.fid && t.franchise2 === B.fid) || (t.franchise === B.fid && t.franchise2 === A.fid)))
+            .sort((x, y) => parseInt(y.timestamp) - parseInt(x.timestamp));
+        if (!trades.length) { put('pv-trades', empty('These two teams have never traded with each other.')); return; }
+        const ids = new Set();
+        trades.forEach(t => [t.franchise1_gave_up, t.franchise2_gave_up].forEach(s => String(s || '').split(',').filter(Boolean).forEach(i => ids.add(i))));
+        const names = await pvPlayerNames([...ids]);
+        put('pv-trades', trades.slice(0, 6).map(t => {
+            const gave = (list, y) => String(list || '').split(',').filter(Boolean).map(i => pvAssetLabel(i, names, y)).join(', ') || 'nothing';
+            const aGave = t.franchise === A.fid ? t.franchise1_gave_up : t.franchise2_gave_up;
+            const bGave = t.franchise === A.fid ? t.franchise2_gave_up : t.franchise1_gave_up;
+            const d = new Date(parseInt(t.timestamp) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            return `<div style="padding:7px 0; border-top:1px solid rgba(255,255,255,0.04);"><div style="font-size:8px; font-weight:900; color:var(--text-dim); margin-bottom:3px;">${d}</div>
+                <div style="font-size:10px; font-weight:700; color:#fff; line-height:1.5;"><b>${leagueFranchises[A.fid]}</b> sent: ${gave(aGave, t._y)}</div>
+                <div style="font-size:10px; font-weight:700; color:#fff; line-height:1.5;"><b>${leagueFranchises[B.fid]}</b> sent: ${gave(bGave, t._y)}</div></div>`;
+        }).join(''));
+    });
+
+    pvFetchTransactions(yr, false).then(async list => {
+        const kinds = { FREE_AGENT: 'Free agent', BBID_WAIVER: 'Waiver', WAIVER: 'Waiver', AUCTION_WON: 'Auction' };
+        const mine = f => list.filter(t => t.franchise === f && kinds[t.type]).sort((x, y) => parseInt(y.timestamp) - parseInt(x.timestamp)).slice(0, 4);
+        const parse = t => { const [add, drop] = String(t.transaction || '').split('|'); const ids = s => String(s || '').split(',').map(x => x.split('_')[0]).filter(Boolean); return { add: ids(add), drop: ids(drop) }; };
+        const ids = new Set();
+        [A.fid, B.fid].forEach(f => mine(f).forEach(t => { const p = parse(t); p.add.concat(p.drop).forEach(i => ids.add(i)); }));
+        const names = await pvPlayerNames([...ids]);
+        const col = t => `<div style="flex:1; min-width:0;"><div style="display:flex; margin-bottom:6px;">${recapTeamName(t.fid, 10)}</div>${mine(t.fid).map(tx => {
+            const p = parse(tx);
+            return `<div style="font-size:9px; font-weight:700; color:#fff; line-height:1.5; padding:3px 0; border-top:1px solid rgba(255,255,255,0.04);"><span style="color:var(--text-dim);">${kinds[tx.type]}</span>${p.add.length ? `<br><span style="color:#22c55e;">+ ${p.add.map(i => names[i] || i).join(', ')}</span>` : ''}${p.drop.length ? `<br><span style="color:#ef4444;">− ${p.drop.map(i => names[i] || i).join(', ')}</span>` : ''}</div>`;
+        }).join('') || empty('None')}</div>`;
+        put('pv-moves', `<div style="display:flex; gap:8px;">${col(A)}${col(B)}</div>`);
+    });
+}
+// =================== END SCOREBOARD PREVIEW ===================
 async function renderLiveScoreCard() {    const container = $('#scores-content-container');    const matchups = window._liveScoreMatchups || [];
     if (matchups.length === 0) {
         container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
@@ -11073,7 +11319,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
 
     const t1Proj = computeProjectedTotal(t1.roster, projMap1);
     const t2Proj = computeProjectedTotal(t2.roster, projMap2);
-
+    const wp = computeWinProb(t1, t2, sharedProjMap);
      function buildTeamRosterHtml(roster, projMap) {
         const { starters, bench } = sortLiveScoreRoster(roster);
         if (starters.length === 0 && bench.length === 0) {
@@ -11135,21 +11381,25 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                                 ${t1.score > t2.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
                             </div>
                             <span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
+                            ${scoreTeamChips(t1.fid)}
                             <span style="font-size:22px; font-weight:900; color:${c1}; font-variant-numeric:tabular-nums;">${t1.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts1}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t1Proj.toFixed(1)}</span>
+                            ${pvWinProbHtml(wp.p1, wp.p1 >= 0.5 ? "#22c55e" : "#ef4444")}
                             <span style="font-size:8px; font-weight:900; color:${t1.score > leagueMedian ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${t1.score > leagueMedian ? '▲' : '▼'} Median</span>
                         </div>
-                        <div style="font-size:11px; font-weight:900; color:var(--text-dim); flex-shrink:0;">vs</div>
+                        <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px;"><div style="font-size:11px; font-weight:900; color:var(--text-dim);">vs</div><button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button></div>
                         <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
                             <div style="position:relative; width:44px; height:44px;">
                                 <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
                                 ${t2.score > t1.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
                             </div>
                             <span data-team-style="${t2.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>
+                            ${scoreTeamChips(t2.fid)}
                             <span style="font-size:22px; font-weight:900; color:${c2}; font-variant-numeric:tabular-nums;">${t2.score.toFixed(2)}</span>
                             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts2}</span>
                             <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t2Proj.toFixed(1)}</span>
+                            ${pvWinProbHtml(wp.p2, wp.p2 >= 0.5 ? "#22c55e" : "#ef4444")}
                             <span style="font-size:8px; font-weight:900; color:${t2.score > leagueMedian ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${t2.score > leagueMedian ? '▲' : '▼'} Median</span>
                         </div>
                     </div>
@@ -12232,8 +12482,13 @@ async function checkNotifBadge() {
         await loadLiveScores(parseInt($(this).data('week')));
     });
 
-    // --- SCORES VIEW TOGGLE (Matchups vs League Median) ---
-    $(document).off('click touchend', '.scores-view-toggle-btn').on('click touchend', '.scores-view-toggle-btn', async function(e) {
+    $(document).off('click touchend', '.scores-preview-btn').on('click touchend', '.scores-preview-btn', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        e.preventDefault(); e.stopPropagation();
+        openMatchupPreview();
+    });
+
+    // --- SCORES VIEW TOGGLE (Matchups vs League Median) ---    $(document).off('click touchend', '.scores-view-toggle-btn').on('click touchend', '.scores-view-toggle-btn', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
         window._scoresViewMode = $(this).data('mode');
