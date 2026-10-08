@@ -6290,14 +6290,16 @@ $(document).off('click', '#confirm-trade-block').on('click', '#confirm-trade-blo
 
 console.log('[tb-submit-debug] tradeBlockGiveUp (cached) before resolve:', tradeBlockGiveUp);
 // Use local running list, seeded from MFL on first load
-if (tradeBlockGiveUp.length === 0) {
+if (tradeBlockGiveUp.length === 0 || window._tbSeededFor !== fid) {
+            window._tbSeededFor = fid;
+            tradeBlockGiveUp = [];
             try {
                 const tbRes = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=tradeBait&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
                 const tbData = await tbRes.json();
                 if (tbData?.tradeBaits?.tradeBait) {
                     let baits = tbData.tradeBaits.tradeBait;
                     if (!Array.isArray(baits)) baits = [baits];
-const myBait = baits.find(b => (b.franchise_id || b.franchise) === myFid);
+const myBait = baits.find(b => String(b.franchise_id || b.franchise).padStart(4, '0') === String(fid).padStart(4, '0'));
                     // Store ALL teams' trade blocks
                     if (!Array.isArray(baits)) baits = [baits];
                     baits.forEach(bait => {
@@ -6332,7 +6334,7 @@ const isRemoving = btn.data('removing') === true || btn.data('removing') === 'tr
         // cases correctly — the extra re-add was exactly what was undoing every removal.
 
         // Don't submit if nothing new was added
-        if (existingGiveUp.length === 0) {
+        if (existingGiveUp.length === 0 && !isRemoving) {
             alert('Please select at least one asset to add to the trade block.');
             btn.text(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
             return;
