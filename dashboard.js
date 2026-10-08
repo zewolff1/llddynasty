@@ -4567,10 +4567,141 @@ function renderDropMenu(addPid) {
         
         $('#player-context-menu').addClass('active');
     }
+// ROSTER FULL: pop up your roster so you can check which player(s) to drop to make room for the add.
+async function openDropToAddModal(addPid) {
+        const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
+        const salaryCapAmt = window.leagueSalaryCap || 823;
+
+        // Info on the player being added, read from the row you tapped Add on
+        const $addRow = $(`.player-row[data-pid="${addPid}"]`).first();
+        const addName = $addRow.attr('data-pname') || 'this player';
+        const addPos = ($addRow.attr('data-ppos') || '').toUpperCase();
+        const addTeam = $addRow.attr('data-pteam') || '';
+
+        const closeJs = "$('#drop-add-modal').remove(); $('body').css('overflow','');";
+        $('#drop-add-modal').remove();
+        $('body').append(`<div id="drop-add-modal" class="player-modal-backdrop" style="z-index:99999; display:flex;"><div class="player-modal-box" style="padding:30px; max-width:420px; text-align:center; color:var(--text-dim); font-size:11px; font-weight:800; text-transform:uppercase;">Loading roster...</div></div>`).css('overflow', 'hidden');
+
+        let players = [];
+        try {
+            const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${targetFid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+            const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+                const pLink = row.querySelector('td.player a[class*="position_"]');
+                if (!pLink) return;
+                const pid = pLink.getAttribute('href').match(/\d+/g)?.pop();
+                if (!pid) return;
+                const { name, pos, team } = parseMFLName(pLink.textContent);
+                const salaryText = row.querySelector('td.salary')?.textContent.trim() || '';
+                const salNum = parseFloat(salaryText.replace(/[^0-9.]/g, '')) || 0;
+                const yrsNum = parseInt(row.querySelector('td.contractyear')?.textContent) || 0;
+                const guarText = row.querySelector('td.contractinfo')?.textContent.trim() || '';
+                const gPct = (parseFloat(guarText.replace(/[^0-9.]/g, '')) || 0) / 100;
+                players.push({ pid, name, pos: pos || '', team: team || '', salaryText, salNum, yrsNum, guarText, hit: parseFloat((salNum * gPct * yrsNum).toFixed(1)) });
+            });
+        } catch (e) { console.warn('Drop modal roster fetch failed', e); }
+
+        if (!players.length) {
+            $('#drop-add-modal .player-modal-box').html(`<div style="color:#ef4444;">Couldn't load your roster.</div><button onclick="${closeJs}" style="margin-top:14px; padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; cursor:pointer;">Close</button>`);
+            return;
+        }
+
+        const need = Math.max(1, players.length + 1 - LINEUP_RULES.rosterLimit);
+        const totalSal = players.reduce((s, p) => s + p.salNum, 0);
+        const viewedIsTarget = String(fid).padStart(4, '0') === targetFid;
+        const tagFor = pid => viewedIsTarget ? (irPids.has(pid) ? 'IR' : taxiPids.has(pid) ? 'TS' : '') : '';
+        players.sort((a, b) => (a.hit - b.hit) || (a.salNum - b.salNum));
+
+        const rowsHtml = players.map(p => {
+            const tag = tagFor(p.pid);
+            return `
+            <label style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(0,0,0,0.2); border-radius:8px; margin-bottom:6px; border-left:3px solid #ef4444; cursor:pointer;">
+                <input type="checkbox" class="drop-cb" data-pid="${p.pid}" data-sal="${p.salNum}" data-hit="${p.hit}" style="width:16px; height:16px; flex-shrink:0;">
+                <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; background:var(--card-bg); flex-shrink:0;">
+                    <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:12px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
+                        <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:8px; font-weight:900;">${p.pos}</span>
+                        ${tag ? `<span style="font-size:8px; font-weight:900; color:#f59e0b; border:1px solid rgba(245,158,11,0.4); border-radius:4px; padding:0 4px;">${tag}</span>` : ''}
+                    </div>
+                    <div style="font-size:9px; color:var(--text-dim); font-weight:700; margin-top:2px;">${p.team} · ${p.salaryText} · ${p.yrsNum}yr · ${p.guarText}</div>
+                </div>
+                <div style="text-align:right; flex-shrink:0;">
+                    <div style="font-size:12px; font-weight:900; color:#ef4444;">$${p.hit.toFixed(1)}m</div>
+                    <div style="font-size:7px; color:var(--text-dim); font-weight:800; text-transform:uppercase;">cap hit</div>
+                </div>
+            </label>`;
+        }).join('');
+
+        const modalHtml = `
+        <div id="drop-add-modal" class="player-modal-backdrop" style="z-index:99999; display:flex;">
+            <div class="player-modal-box" style="padding:0; overflow:hidden; max-width:420px;">
+                <button class="player-modal-close" onclick="${closeJs}">✕</button>
+                <div style="padding:16px 20px; border-bottom:1px solid var(--card-border); background:rgba(239,68,68,0.08);">
+                    <div style="font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Roster Full</div>
+                    <div style="font-size:10px; color:var(--text-dim); margin-top:3px;">Select ${need} player${need > 1 ? 's' : ''} to drop to make room</div>
+                </div>
+                <div style="padding:12px 16px 0;">
+                    <div style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(34,197,94,0.08); border-radius:8px; border-left:3px solid #22c55e;">
+                        <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; background:var(--card-bg); flex-shrink:0;">
+                            <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${addPid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:8px; font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px;">Adding</div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-size:13px; font-weight:900; color:#fff;">${addName}</span>
+                                <span class="pos-text-${addPos.toLowerCase()}" style="font-size:8px; font-weight:900;">${addPos}</span>
+                                <span style="font-size:9px; color:var(--text-dim); font-weight:700;">${addTeam}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin:10px 2px 8px;">
+                        <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Your Roster (${players.length})</span>
+                        <span style="font-size:10px; font-weight:900; color:#fff;">Current salary $${totalSal.toFixed(1)}m <span style="color:var(--text-dim);">/ $${salaryCapAmt}m</span></span>
+                    </div>
+                </div>
+                <div style="padding:0 16px; max-height:42vh; overflow-y:auto;">${rowsHtml}</div>
+                <div style="padding:10px 16px; border-top:1px solid var(--card-border); background:rgba(0,0,0,0.2);">
+                    <div id="drop-sel-count" style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px;">0 selected · ${need} needed</div>
+                    <div style="display:flex; gap:16px;">
+                        <div><div style="font-size:7px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Selected salary</div><div id="drop-sel-sal" style="font-size:13px; font-weight:900; color:#fff;">$0.0m</div></div>
+                        <div><div style="font-size:7px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Selected cap hit</div><div id="drop-sel-hit" style="font-size:13px; font-weight:900; color:#ef4444;">$0.0m</div></div>
+                    </div>
+                </div>
+                <div style="padding:12px 16px; border-top:1px solid var(--card-border); display:flex; gap:8px;">
+                    <button id="drop-add-confirm" disabled style="flex:1; padding:10px; background:#00ceb8; color:var(--card-bg); border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:not-allowed; opacity:0.4;">Select players to drop</button>
+                    <button onclick="${closeJs}" style="padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; cursor:pointer;">Cancel</button>
+                </div>
+            </div>
+        </div>`;
+
+        window._dropAdd = { addPid, need };
+        $('#drop-add-modal').replaceWith(modalHtml);
+
+        $(document).off('change.dropadd', '.drop-cb').on('change.dropadd', '.drop-cb', function() {
+            let n = 0, sal = 0, hit = 0;
+            $('.drop-cb:checked').each(function() { n++; sal += parseFloat($(this).data('sal')) || 0; hit += parseFloat($(this).data('hit')) || 0; });
+            const ok = n >= (window._dropAdd?.need || 1);
+            $('#drop-sel-count').text(`${n} selected · ${window._dropAdd?.need || 1} needed`);
+            $('#drop-sel-sal').text(`$${sal.toFixed(1)}m`);
+            $('#drop-sel-hit').text(`$${hit.toFixed(1)}m`);
+            $('#drop-add-confirm').prop('disabled', !ok).css({ opacity: ok ? 1 : 0.4, cursor: ok ? 'pointer' : 'not-allowed' }).text(ok ? `Drop ${n} & Add` : 'Select players to drop');
+        });
+        $(document).off('click.dropadd', '#drop-add-confirm').on('click.dropadd', '#drop-add-confirm', function() {
+            const drops = $('.drop-cb:checked').map(function() { return String($(this).data('pid')); }).get();
+            if (!drops.length || !window._dropAdd) return;
+            const addId = window._dropAdd.addPid;
+            $('#drop-add-modal').remove();
+            $('body').css('overflow', '');
+            executeTransaction('add-drop', addId, drops.join(','), $('<button></button>'));
+        });
+    }
 async function executeTransaction(type, sourcePid, targetPid, btn) {
         // Handle Roster Full logic for simple adds
         if (type === 'add' && window.currentRosterSize >= LINEUP_RULES.rosterLimit) {
-            renderDropMenu(sourcePid);
+openDropToAddModal(sourcePid);
             return;
         }
 
@@ -4610,14 +4741,18 @@ async function executeTransaction(type, sourcePid, targetPid, btn) {
                 });
             }
             let responseText = await res.text();
-            let wasWaiverClaim = false;
-
+let wasWaiverClaim = false;
+            if (type === 'add' && /maximum roster size/i.test(responseText)) {
+                btn.text('Add').css({'opacity': '1', 'pointer-events': 'auto'});
+                openDropToAddModal(sourcePid);
+                return;
+            }
             if (responseText.toLowerCase().includes('error') && (type === 'add' || type === 'add-drop')) {
                 const waiverData = new URLSearchParams();
                 waiverData.append('L', lid);
                 waiverData.append('TYPE', 'waiverRequest');
                 waiverData.append('ROUND', '1');
-                waiverData.append('PICKS', `${sourcePid}_${type === 'add-drop' ? targetPid : '0000'}`);
+                waiverData.append('PICKS', `${sourcePid}_${type === 'add-drop' ? String(targetPid).split(',')[0] : '0000'}`);
                 if (fid !== myFid) waiverData.append('FRANCHISE_ID', fid);
 
                 const waiverRes = await fetch(`https://www45.myfantasyleague.com/${year}/import`, {
