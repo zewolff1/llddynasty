@@ -2835,8 +2835,11 @@ const picksFutureURL = `https://www45.myfantasyleague.com/${year}/options?L=${li
 const responses = await Promise.all(fetches);
         
         const html = await responses[0].text();
-        currentDoc = new DOMParser().parseFromString(html, 'text/html');
-
+currentDoc = new DOMParser().parseFromString(html, 'text/html');
+        if (activeSub.includes('lineup')) {
+            console.log('[opt] table.report count on lineup page:', currentDoc.querySelectorAll('table.report').length);
+            currentDoc.querySelectorAll('table.report').forEach((t, i) => { if (i > 0) t.remove(); });
+        }
 if (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
             const bodyText = (currentDoc.body?.innerText || '').replace(/\s+/g, ' ').trim();
             const match = bodyText.match(/You may not[\s\S]*?(?=Go Back|$)/i);
@@ -3638,7 +3641,19 @@ $('#lineup-dashboard-inject').html(dashboardHtml);
     }
 
     // --- 6. OPTIMIZER ---
-
+// Same rows the lineup screen draws: the FIRST table.report only
+function getLineupPlayerRows() {
+    const tables = currentDoc ? currentDoc.querySelectorAll('table.report') : [];
+    if (tables.length > 1 && !window._optTableLogged) { window._optTableLogged = true; console.log('[opt] lineup page has', tables.length, 'table.report elements; using the first'); }
+    return tables[0] ? Array.from(tables[0].querySelectorAll('tr.oddtablerow, tr.eventablerow')) : [];
+}
+// "Proj Pts" column found by header text, never by a fixed index
+function getRowProj(row) {
+    const ths = [...(row.closest('table')?.rows[0]?.querySelectorAll('th') || [])];
+    const idx = ths.findIndex(th => th.textContent.replace(/\s+/g, ' ').trim() === 'Proj Pts') - 1;
+    const cells = row.querySelectorAll('td');
+    return (idx >= 0 && cells[idx]) ? (parseFloat(cells[idx].textContent) || 0) : 0;
+}
 window.acceptAllOptimal = function() {
     if (!currentDoc) return;
     let allPlayers = [];
@@ -3655,7 +3670,7 @@ window.acceptAllOptimal = function() {
             pid: checkbox.value, 
             pos,       // display pos (DL, DB, etc.)
             realPos,   // actual pos (DE, DT, CB, S, etc.)
-            proj: parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0 
+            proj: getRowProj(row)
         });
     });
 
@@ -4127,7 +4142,7 @@ function getBestBenchOption(slot) {
             const cb = row.querySelector('input[type="checkbox"]'); const pL = row.querySelector('td a[class*="position_"]');
             if (!cb || cb.checked || !pL || irPids.has(cb.value) || taxiPids.has(cb.value)) return null;
             const { name, shortName, pos, realPos } = parseMFLName(pL.textContent);
-            return { pid: cb.value, name, shortName, pos, realPos, proj: parseFloat(row.querySelectorAll('td')[4]?.textContent) || 0 };
+            return { pid: cb.value, name, shortName, pos, realPos, proj: getRowProj(row) };
         }).filter(p => p && allowed.includes(p.realPos));
         return bench.length === 0 ? null : bench.sort((a,b)=>b.proj-a.proj)[0];
     }
@@ -6073,8 +6088,8 @@ if (!resText.toLowerCase().includes('error')) {
                             $('body').css('overflow', '');
                             // Re-fetch contracts page so updated salary is reflected
                             const freshRes = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${myFid}`, { credentials: 'include' });
-                            currentDoc = new DOMParser().parseFromString(await freshRes.text(), 'text/html');
-                            renderActiveTab();
+currentDoc = new DOMParser().parseFromString(await freshRes.text(), 'text/html');
+                            currentDoc.querySelectorAll('table.report').forEach((t, i) => { if (i > 0) t.remove(); });                            renderActiveTab();
                         } else {
                             throw new Error(resText || 'Server error');
                         }
