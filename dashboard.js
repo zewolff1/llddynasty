@@ -10016,7 +10016,7 @@ function computeTeamProjectedTotal(roster, projMap) {
 function buildScoresViewToggleHtml() {
     const mode = window._scoresViewMode || 'matchups';
     const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
-    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px;">${btn('matchups','Matchups')}${btn('median','League Median')}</div>`;
+    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px;">${btn('matchups','Matchups')}${btn('median','League Median')}${btn('recap','Recap')}</div>`;
 }
 
 async function renderLeagueMedianView() {
@@ -10087,7 +10087,202 @@ async function renderLeagueMedianView() {
         </div>`);
     reapplyAllTeamStyles();
 }
+// ===================== WEEKLY RECAP =====================
+window._schedScoresCache = window._schedScoresCache || null;
+async function fetchAllWeekScores() {
+    // { weekNumber: { fid: score } } for every week MFL has a score for
+    if (window._schedScoresCache) return window._schedScoresCache;
+    const out = {};
+    try {
+        const res = await fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=schedule&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
+        asArr(data?.schedule?.weeklySchedule).forEach(w => {
+            const wk = parseInt(w.week, 10);
+            asArr(w.matchup).forEach(m => {
+                asArr(m.franchise).forEach(f => {
+                    const sc = parseFloat(f.score);
+                    if (!isNaN(sc) && sc > 0) {
+                        out[wk] = out[wk] || {};
+                        out[wk][String(f.id).padStart(4, '0')] = sc;
+                    }
+                });
+            });
+        });
+        window._schedScoresCache = out;
+    } catch (e) { console.warn('Recap: could not load schedule scores', e); }
+    return out;
+}
 
+function recapNormPos(p) {
+    const r = String(p.realPos || p.pos || '').toUpperCase();
+    if (r === 'DE' || r === 'DT' || r === 'DL') return 'DL';
+    if (r === 'CB' || r === 'S' || r === 'DB') return 'DB';
+    if (r === 'K') return 'PK';
+    return r;
+}
+
+// Best possible lineup by PROJECTION for one team (same slot rules as the lineup optimizer)
+function recapOptimalLineup(roster, projMap) {
+    const pool = (roster || []).map(p => ({ p, pos: recapNormPos(p), proj: projMap[p.pid] != null ? projMap[p.pid] : 0 }));
+    const slots = [
+        ['QB'], ['RB'], ['RB'], ['WR'], ['WR'], ['TE'], ['PK'], ['DL'], ['LB'], ['DB'],
+        ['RB', 'WR', 'TE'], ['RB', 'WR', 'TE'],
+        ['QB', 'RB', 'WR', 'TE'], ['QB', 'RB', 'WR', 'TE'],
+        ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB']
+    ];
+    const used = new Set();
+    slots.forEach(elig => {
+        let best = null;
+        pool.forEach(x => {
+            if (used.has(x.p.pid) || !elig.includes(x.pos)) return;
+            if (!best || x.proj > best.proj) best = x;
+        });
+        if (best) used.add(best.p.pid);
+    });
+    return used;
+}
+
+function recapTeamChip(t, align) {
+    return `<span style="display:inline-flex; align-items:center; gap:5px; min-width:0;">
+        <img src="${t.logo}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
+        <span data-team-style="${t.fid}" style="font-size:10px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</span>
+    </span>`;
+}
+
+function recapCard(title, icon, bodyHtml) {
+    return `<div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-bottom:10px;">
+        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">${icon} ${title}</div>
+        ${bodyHtml}
+    </div>`;
+}
+
+async function renderWeeklyRecap() {
+    const container = $('#scores-content-container');
+    const matchups = window._liveScoreMatchups || [];
+    const wk = window._liveScoreActiveWeek;
+    const isLiveWk = wk === window._liveScoreCurrentWeek;
+
+    const header = `
+        <div style="padding:10px;">
+            ${buildScoresViewToggleHtml()}
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
+                <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer;">‹</button>
+                <div class="dashboard-pill stacked-pill" style="border-bottom-color:var(--accent-blue);">
+                    <span class="pill-label">RECAP · WEEK</span>
+                    <span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${wk}</span>
+                </div>
+                <button class="live-score-week-next" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer;">›</button>
+                ${isLiveWk ? '<span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● In progress</span>' : ''}
+            </div>`;
+
+    const teams = getUniqueTeamsFromMatchups(matchups);
+    const games = matchups.filter(m => m.t1.score > 0 || m.t2.score > 0);
+    if (!games.length) {
+        container.html(header + `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No completed games for Week ${wk} yet.</div></div>`);
+        reapplyAllTeamStyles();
+        return;
+    }
+    container.html(header + `<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase;">Building recap...</div></div>`);
+
+    const [projMap, allScores] = await Promise.all([fetchWeekProjectedScoresMap(wk), fetchAllWeekScores()]);
+    if (window._liveScoreActiveWeek !== wk || (window._scoresViewMode || 'matchups') !== 'recap') return;
+
+    const sections = [];
+
+    // 1. Highest score
+    const top = [...teams].sort((a, b) => b.score - a.score)[0];
+    sections.push(recapCard('Highest Score', '🔥', `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(top)}
+        <span style="font-size:16px; font-weight:900; color:#22c55e;">${top.score.toFixed(2)}</span></div>`));
+
+    // 2. Players of the week
+    const posOrder = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
+    const potw = posOrder.map(pos => {
+        let best = null;
+        teams.forEach(t => (t.roster || []).forEach(p => {
+            if (!p.isStarter || recapNormPos(p) !== pos) return;
+            if (!best || p.score > best.p.score) best = { p, t };
+        }));
+        return best ? { pos, ...best } : null;
+    }).filter(Boolean);
+    sections.push(recapCard('Players of the Week', '⭐', potw.map(x => `
+        <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:9px; font-weight:900; color:var(--text-dim); width:22px;">${x.pos}</span>
+            <div style="flex:1; min-width:0;">
+                <div style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${x.p.name} <span style="color:var(--text-dim); font-weight:700;">${x.p.team || ''}</span></div>
+                <div style="font-size:9px;">${recapTeamChip(x.t)}</div>
+            </div>
+            <span style="font-size:13px; font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</span>
+        </div>`).join('')));
+
+    // 3 & 4. Blowout / closest
+    const withMargin = games.filter(m => m.t1.score > 0 && m.t2.score > 0).map(m => ({ m, d: Math.abs(m.t1.score - m.t2.score) }));
+    const gameRow = (m) => {
+        const w = m.t1.score >= m.t2.score ? m.t1 : m.t2, l = w === m.t1 ? m.t2 : m.t1;
+        return `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0;">${recapTeamChip(w)}<span style="font-size:13px; font-weight:900; color:#22c55e;">${w.score.toFixed(2)}</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0;">${recapTeamChip(l)}<span style="font-size:13px; font-weight:900; color:#ef4444;">${l.score.toFixed(2)}</span></div>`;
+    };
+    if (withMargin.length) {
+        const blow = [...withMargin].sort((a, b) => b.d - a.d)[0];
+        const close = [...withMargin].sort((a, b) => a.d - b.d)[0];
+        sections.push(recapCard('Biggest Blowout', '💥', gameRow(blow.m) + `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-align:right;">Margin ${blow.d.toFixed(2)}</div>`));
+        sections.push(recapCard('Closest Game', '😰', gameRow(close.m) + `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-align:right;">Margin ${close.d.toFixed(2)}</div>`));
+    }
+
+    // 5. Upsets: loser outscored the winner in more than half of the previous weeks
+    const upsets = [];
+    withMargin.forEach(({ m, d }) => {
+        if (d === 0) return;
+        const w = m.t1.score > m.t2.score ? m.t1 : m.t2, l = w === m.t1 ? m.t2 : m.t1;
+        let lWins = 0, total = 0;
+        for (let k = 1; k < wk; k++) {
+            const s = allScores[k];
+            if (!s || s[w.fid] == null || s[l.fid] == null) continue;
+            total++;
+            if (s[l.fid] > s[w.fid]) lWins++;
+        }
+        if (total >= 1 && lWins / total > 0.5) upsets.push({ w, l, lWins, total, pct: lWins / total });
+    });
+    upsets.sort((a, b) => b.pct - a.pct || b.total - a.total);
+    sections.push(recapCard('Upsets', '🚨', upsets.length ? upsets.map(u => `
+        <div style="padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(u.w)}<span style="font-size:11px; font-weight:900; color:#22c55e;">${u.w.score.toFixed(1)}</span></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(u.l)}<span style="font-size:11px; font-weight:900; color:#ef4444;">${u.l.score.toFixed(1)}</span></div>
+            <div style="font-size:9px; font-weight:800; color:#f59e0b; margin-top:2px;">${u.l.name} had outscored ${u.w.name} in ${u.lWins} of ${u.total} earlier week${u.total === 1 ? '' : 's'} (${Math.round(u.pct * 100)}%) but lost.</div>
+        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`));
+
+    // 6. Gutsiest calls
+    const calls = [];
+    teams.forEach(t => {
+        const roster = t.roster || [];
+        const optimal = recapOptimalLineup(roster, projMap);
+        const gutsy = roster.filter(p => p.isStarter && !optimal.has(p.pid));
+        const displaced = roster.filter(p => !p.isStarter && optimal.has(p.pid));
+        const taken = new Set();
+        [...gutsy].sort((a, b) => b.score - a.score).forEach(g => {
+            const gp = recapNormPos(g);
+            const cands = displaced.filter(d => !taken.has(d.pid));
+            const pick = cands.filter(d => recapNormPos(d) === gp).sort((a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0))[0]
+                || cands.filter(d => ['QB','RB','WR','TE'].includes(recapNormPos(d)) === ['QB','RB','WR','TE'].includes(gp)).sort((a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0))[0];
+            if (!pick) return;
+            taken.add(pick.pid);
+            const margin = g.score - pick.score;
+            if (margin > 0) calls.push({ t, g, d: pick, margin, gProj: projMap[g.pid] || 0, dProj: projMap[pick.pid] || 0 });
+        });
+    });
+    calls.sort((a, b) => b.margin - a.margin);
+    sections.push(recapCard('Gutsiest Calls', '🧠', calls.length ? calls.slice(0, 5).map(c => `
+        <div style="padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
+            <div style="font-size:9px;">${recapTeamChip(c.t)}</div>
+            <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#22c55e;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
+            <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#22c55e; font-weight:900;">+${c.margin.toFixed(1)} pts</span></div>
+        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">No gutsy calls paid off this week.</div>`));
+
+    container.html(header + sections.join('') + '</div>');
+    reapplyAllTeamStyles();
+}
+// =================== END WEEKLY RECAP ===================
 const LIVE_SCORE_POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
 
 function sortLiveScoreRoster(roster) {
@@ -10614,8 +10809,10 @@ async function loadLiveScores(weekOverride = null) {
             window._liveScoreFirstLoad = false;
         }
 
-        if ((window._scoresViewMode || 'matchups') === 'median') {
+              if ((window._scoresViewMode || 'matchups') === 'median') {
             await renderLeagueMedianView();
+        } else if ((window._scoresViewMode || 'matchups') === 'recap') {
+            await renderWeeklyRecap();
         } else {
             await renderLiveScoreCard();
         }
@@ -11440,7 +11637,8 @@ async function checkNotifBadge() {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
         window._scoresViewMode = $(this).data('mode');
-        if (window._scoresViewMode === 'median') await renderLeagueMedianView();
+                if (window._scoresViewMode === 'median') await renderLeagueMedianView();
+        else if (window._scoresViewMode === 'recap') await renderWeeklyRecap();
         else await renderLiveScoreCard();
     });
     $(document).off('click touchend', '.median-sort-btn').on('click touchend', '.median-sort-btn', async function(e) {
