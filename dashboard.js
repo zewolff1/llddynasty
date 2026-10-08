@@ -5343,6 +5343,7 @@ $('#modal-owner-actions').hide();
 
 window._modalCurrentPid = pid;
         window._modalCurrentName = playerName;
+        window._modalActionsLock = false;
         $('#header-btn-taxi').off('click').on('click', function(e) { txAction('taxi', pid, e); });
         $('#header-btn-ir').off('click').on('click', function(e) { txAction('ir', pid, e); });
         $('#header-btn-block').off('click').on('click', function(e) { txAction('block', pid, e); });
@@ -5491,7 +5492,7 @@ $(document).off('click', '.modal-tab-btn').on('click', '.modal-tab-btn', functio
     const pid = window._modalCurrentPid;
     if (!pid) return;
     if (target === 'tab-gamelog') loadModalGameLog(pid);
-    else if (target === 'tab-tx') loadModalContract(pid);
+    else if (target === 'tab-tx') { window._modalActionsLock = false; loadModalContract(pid); }
     else if (target === 'tab-history') loadModalHistory(pid);
 });
     $(document).off('click', '.player-modal-close, .player-modal-backdrop').on('click', '.player-modal-close, .player-modal-backdrop', function(e) {
@@ -5501,13 +5502,21 @@ $(document).off('click', '.modal-tab-btn').on('click', '.modal-tab-btn', functio
     });
 
 // --- MASTER TRANSACTION ROUTER ---
-    window.txAction = async function(type, pid, evt) {
-const fullHeaderName = $('#modal-name').text().trim();
+// Block and Resign build their forms inside #modal-actions-container, which lives in the
+// "Contract" tab. On the Lineup page the popup opens on "Set Lineup", so those forms were being
+// built inside a hidden tab. This switches to the right tab first, and sets a lock so the
+// background contract loader can't overwrite the form a moment later.
+function showActionsTab() {
+    window._modalActionsLock = true;
+    $('.modal-tab-btn, .modal-tab-content').removeClass('active');
+    $('#tab-btn-tx, #tab-tx').addClass('active');
+}
+window.txAction = async function(type, pid, evt) {const fullHeaderName = $('#modal-name').text().trim();
 const playerName = window._modalCurrentName || fullHeaderName;
 if (!pid) pid = window._modalCurrentPid;
     if (!pid) { console.warn('txAction: no pid'); return; }
-    pid = String(pid);
-const btn = $(evt && evt.currentTarget ? evt.currentTarget : evt && evt.target ? evt.target : document.body);
+pid = String(pid);
+        if (type === 'block' || type === 'resign') showActionsTab();const btn = $(evt && evt.currentTarget ? evt.currentTarget : evt && evt.target ? evt.target : document.body);
         const originalText = btn.html();
 
         if (type === 'cut') {
@@ -11673,8 +11682,9 @@ $(document).off('click', '.gl-tab').on('click', '.gl-tab', function(e) {
 }
 
 async function loadModalContract(pid) {
-    const container = $('#modal-actions-container');
-    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+const realContainer = $('#modal-actions-container');
+    // Same container, but writes are skipped while a Block/Resign form is open
+    const container = { length: realContainer.length, html: (h) => { if (!window._modalActionsLock) realContainer.html(h); return realContainer; } };    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${fid}`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
