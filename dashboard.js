@@ -10619,7 +10619,7 @@ function recapAwardsView(events) {
                 hot: a.key === 'gutsy' && e.c.decisive
             })));
             const wins = a.key === 'gutsy' ? r.list.filter(e => e.c.decisive).length : 0;
-            return `<div style="display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; margin-bottom:4px; background:rgba(0,0,0,0.2); border:1px solid ${r.fid === (typeof myFid !== 'undefined' ? myFid : fid) ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'};">
+                       return `<div class="recap-award-row" data-award="${a.key}" data-fid="${r.fid}" style="cursor:pointer; display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; margin-bottom:4px; background:rgba(0,0,0,0.2); border:1px solid ${r.fid === (typeof myFid !== 'undefined' ? myFid : fid) ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'};">
                 <span style="font-size:11px; font-weight:900; color:var(--text-dim); width:14px; text-align:center;">${i + 1}</span>
                 ${recapLogo(r.fid, 30)}
                 <div style="flex:1; min-width:0;">
@@ -10632,7 +10632,7 @@ function recapAwardsView(events) {
                 </div>
             </div>`;
         }).join('') : `<div style="font-size:10px; color:var(--text-dim);">None yet.</div>`;
-        return recapCard(a.title, a.icon, body, 'Season leaderboard');
+        return recapCard(a.title, a.icon, body, 'Tap a team for details');
     }).join('');
 }
 
@@ -10660,6 +10660,44 @@ function recapTeamView(events, selFid) {
     }).join('');
     return `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">${summary}</div>` +
         (mine.length ? rowsHtml : `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No awards yet.</div>`);
+}
+
+function recapEventBody(e) {
+    if (e.type === 'high') return `<div style="font-size:12px; font-weight:900; color:#22c55e;">${e.score.toFixed(2)} pts${e.opp ? ` <span style="color:var(--text-dim); font-weight:700;">vs ${leagueFranchises[e.opp.fid] || e.opp.fid} ${e.opp.score.toFixed(1)}</span>` : ''}</div>`;
+    if (e.type === 'potw') return recapPlayerRow(e.p, { accent: '#22c55e', right: `<div style="font-size:14px; font-weight:900; color:#22c55e;">${e.p.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">BEST ${e.pos}</div>` });
+    if (e.type === 'blowout') return `<div style="font-size:11px; font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
+    if (e.type === 'close') return `<div style="font-size:11px; font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
+    if (e.type === 'upset') return `<div style="font-size:11px; font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:9px; font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
+    if (e.type === 'gutsy') return recapGutsyCard(e.c, false);
+    return '';
+}
+
+// Popup listing every entry a team has for one award
+function openRecapAwardModal(awardKey, f) {
+    $('#recap-award-modal').remove();
+    const award = RECAP_AWARDS.find(a => a.key === awardKey);
+    const list = (window._recapEvents || []).filter(e => e.type === awardKey && e.fid === f).sort((a, b) => b.wk - a.wk);
+    const wins = awardKey === 'gutsy' ? list.filter(e => e.c.decisive).length : 0;
+    const rows = list.map(e => `<div style="display:flex; gap:10px; margin-bottom:8px;">
+        <div style="width:40px; flex-shrink:0; text-align:center;"><span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${e.wk}</span></div>
+        <div style="flex:1; min-width:0;">${recapEventBody(e).replace(/class="player-modal-trigger"/g, '')}</div>
+    </div>`).join('');
+    const html = `<div id="recap-award-modal" style="position:fixed; inset:0; z-index:99995; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; padding:16px;">
+        <div style="width:100%; max-width:480px; max-height:82vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--card-border);">
+                ${recapLogo(f, 34)}
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex;">${recapTeamName(f, 12)}</div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${award.title} · ${list.length} ${list.length === 1 ? 'entry' : 'entries'}${wins ? ` · <span style="color:#f59e0b;">${wins} game-winner${wins > 1 ? 's' : ''}</span>` : ''}</div>
+                </div>
+                <button class="recap-modal-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:12px 14px; overflow-y:auto;">${rows || '<div style="font-size:11px; color:var(--text-dim);">No entries.</div>'}</div>
+        </div></div>`;
+    $('body').append(html);
+    reapplyAllTeamStyles();
+    $('#recap-award-modal').on('click', function(ev) { if (ev.target === this) $(this).remove(); });
+    $('#recap-award-modal .recap-modal-close').on('click', function() { $('#recap-award-modal').remove(); });
 }
 
 async function loadRecapsTab() {
@@ -10704,6 +10742,7 @@ async function loadRecapsTab() {
                 if (token !== window._recapToken) return;
             }
             const events = recapEvents(summaries);
+            window._recapEvents = events;
             if (st.view === 'awards') inner = recapAwardsView(events);
             else {
                 const fids = Object.keys(leagueFranchises).filter(f => /^\d{4}$/.test(f)).sort();
@@ -12101,6 +12140,14 @@ async function checkNotifBadge() {
     });
 
     // --- LEAGUE RECAPS TAB ---
+        // Tap a team on the By Award view to see its entries
+    $(document).off('click touchend', '.recap-award-row').on('click touchend', '.recap-award-row', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        openRecapAwardModal($(this).data('award'), String($(this).data('fid')).padStart(4, '0'));
+    });
+
     function recapBind(sel, fn) {
         $(document).off('click touchend', sel).on('click touchend', sel, async function(e) {
             if (e.type === 'touchend' && touchMoved) return;
