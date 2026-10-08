@@ -11307,10 +11307,102 @@ async function loadLiveScores(weekOverride = null) {
         container.html('<div style="text-align:center; color:#ef4444; padding:20px; font-weight:800;">Failed to load live scores.</div>');
     }
 }
-async function loadDraftData() {
-    const container = $('#draft-content-container');
+// ===================== DRAFT TAB: PROJECTED ORDER =====================
+// Picks the default view: during the season (any week has scores) show next year's projected
+// order; in the offseason show the live draft board. A button press overrides this.
+async function getDraftSegment() {
+    if (window._draftSeg) return window._draftSeg;
+    let inSeason = false;
+    try { inSeason = Object.keys(await fetchAllWeekScores()).length > 0; } catch (e) {}
+    return inSeason ? 'projected' : 'last';
+}
+
+function draftSegHtml(active) {
+    const nextYear = parseInt(year, 10) + 1;
+    const btn = (key, label) => `<button class="draft-seg-btn" data-seg="${key}" style="flex:1; padding:8px 10px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
+    return `<div style="display:flex; gap:6px; margin-bottom:12px; padding:0 5px;">${btn('projected', nextYear + ' Projected Order')}${btn('last', year + ' Draft')}</div>`;
+}
+
+async function renderProjectedDraft(container) {
+    const nextYear = parseInt(year, 10) + 1;
+    const ROUNDS = 5;
+    const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
+    container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Projected Order...</div></div>`);
+
+    const [stRes, fpRes] = await Promise.all([
+        fetch(`https://www45.myfantasyleague.com/${year}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' }),
+        fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=futureDraftPicks&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' })
+    ]);
+
+    // 1. Standings -> projected order (worst record picks first, fewer points breaks ties)
+    const doc = new DOMParser().parseFromString(await stRes.text(), 'text/html');
+    const teams = [];
+    doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+        const link = row.querySelector('td.fname a');
+        const m = link?.getAttribute('href').match(/F=(\d+)/i);
+        if (!m) return;
+        const nums = (row.querySelector('td.h2hwlt')?.textContent || '').match(/\d+/g) || [];
+        const w = parseInt(nums[0] || 0), l = parseInt(nums[1] || 0), t = parseInt(nums[2] || 0);
+        const gp = w + l + t;
+        teams.push({
+            fid: m[1].padStart(4, '0'), w, l, t,
+            pct: gp ? (w + t / 2) / gp : 0,
+            pf: parseFloat((row.querySelector('td.pf')?.textContent || '0').replace(/,/g, '')) || 0
+        });
+    });
+    teams.sort((a, b) => a.pct - b.pct || a.pf - b.pf);
+
+    // 2. Who owns each team's pick next year (handles traded picks)
+    const owner = {};
+    let found = 0;
+    try {
+        const fp = await fpRes.json();
+        asArr(fp?.futureDraftPicks?.franchise).forEach(f => {
+            const ownerFid = String(f.id).padStart(4, '0');
+            asArr(f.futureDraftPick).forEach(p => {
+                if (String(p.year) !== String(nextYear)) return;
+                const orig = String(p.originalPickFor || f.id).padStart(4, '0');
+                (owner[p.round] = owner[p.round] || {})[orig] = ownerFid;
+                found++;
+            });
+        });
+    } catch (e) { console.warn('futureDraftPicks failed', e); }
+
+    if (!teams.length) {
+        container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">Standings aren't available yet.</div></div>`);
+        return;
+    }
+
+    let board = `<div style="padding:0 5px;">
+        <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:10px; line-height:1.5;">Based on current standings: worst record picks first, fewer points scored breaks ties.${found ? '' : ' Pick trades for ' + nextYear + ' weren\'t found, so every team is shown with its own picks.'}</div>`;
+    for (let r = 1; r <= ROUNDS; r++) {
+        board += `<div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
+            <div style="padding:10px 14px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border); font-size:11px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Round ${r}</div>`;
+        teams.forEach((t, i) => {
+            const ownerFid = (owner[r] && owner[r][t.fid]) || t.fid;
+            const traded = ownerFid !== t.fid;
+            const mine = ownerFid === myFid;
+            const key = `${r}.${String(i + 1).padStart(2, '0')}`;
+            board += `<div style="display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); background:${mine ? 'rgba(34,197,94,0.04)' : 'transparent'};">
+                <span style="font-size:10px; font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:32px;">${key}</span>
+                <img src="${getFranchiseLogoUrl(ownerFid)}" onerror="this.style.opacity='0'" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
+                <span data-team-style="${ownerFid}" style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[ownerFid] || ownerFid}</span>
+                ${traded ? `<span style="display:inline-flex; align-items:center; gap:4px; flex-shrink:0;"><span style="font-size:9px; color:#f59e0b; font-weight:800;">from</span><img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg);"></span>` : ''}
+                <span style="font-size:9px; font-weight:800; color:var(--text-dim); min-width:38px; text-align:right; flex-shrink:0;">${t.w}-${t.l}${t.t ? '-' + t.t : ''}</span>
+            </div>`;
+        });
+        board += `</div>`;
+    }
+    board += `</div>`;
+    container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}${board}</div>`);
+    reapplyAllTeamStyles();
+}
+// =================== END DRAFT TAB: PROJECTED ORDER ===================
+
+async function loadDraftData() {    const container = $('#draft-content-container');
     container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Draft Board...</div>');
     try {
+        if ((await getDraftSegment()) === 'projected') { await renderProjectedDraft(container); return; }
         const [res, picksRes] = await Promise.all([
             fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=17&DISPLAY=LEAGUE&CMD=LIST`, { credentials: 'include', cache: 'no-store' }),
             fetch(`https://www45.myfantasyleague.com/${year}/export?TYPE=draftPicks&L=${lid}&JSON=1`, { credentials: 'include' })
@@ -12001,8 +12093,7 @@ ${(() => { const realFid2 = (myFid === '0000' ? fid : myFid).padStart(4,'0'); co
                 boardHtml += `</div>`;
             }
 
-container.html(`<div style="padding:10px 0;">${clockHtml}${toggleHtml}${boardHtml}</div>`);
-
+container.html(`<div style="padding:10px 0;">${draftSegHtml('last')}${clockHtml}${toggleHtml}${boardHtml}</div>`);
             // Start live countdown ticker
             if (window._draftClockTick) clearInterval(window._draftClockTick);
 window._draftClockTick = setInterval(() => {
@@ -12146,6 +12237,15 @@ async function checkNotifBadge() {
         if (e.type === 'touchend') e.preventDefault();
         e.stopPropagation();
         openRecapAwardModal($(this).data('award'), String($(this).data('fid')).padStart(4, '0'));
+    });
+
+    // Draft tab: Projected Order / current-year draft switch
+    $(document).off('click touchend', '.draft-seg-btn').on('click touchend', '.draft-seg-btn', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        window._draftSeg = $(this).data('seg');
+        await loadDraftData();
     });
 
     function recapBind(sel, fn) {
