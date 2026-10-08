@@ -6318,22 +6318,19 @@ const myBait = baits.find(b => String(b.franchise_id || b.franchise).padStart(4,
         console.log('[tb-submit-debug] existingGiveUp resolved to:', existingGiveUp);
 
 const isRemoving = btn.data('removing') === true || btn.data('removing') === 'true';
-        const newItems = newGiveUp.split(',').filter(Boolean);
+        const pidStr = pid ? String(pid).trim() : '';
         if (isRemoving) {
-            newItems.forEach(item => {
-                existingGiveUp = existingGiveUp.filter(id => id !== item);
-            });
+            // Remove only what this popup is about: the player (pid), or the pick when pid is blank
+            const toRemove = pidStr ? [pidStr] : newGiveUp.split(',').filter(Boolean);
+            existingGiveUp = existingGiveUp.filter(id => !toRemove.includes(id));
         } else {
-            newItems.forEach(item => {
+            newGiveUp.split(',').filter(Boolean).forEach(item => {
                 if (!existingGiveUp.includes(item)) existingGiveUp.push(item);
             });
+            if (pidStr && !existingGiveUp.includes(pidStr)) existingGiveUp.push(pidStr);
         }
-        // Previously there was an unconditional "always re-add this player" step here, left
-        // over from before Remove existed. Since the button now always carries just the single
-        // player or pick being toggled (add OR remove), the branch above already handles both
-        // cases correctly — the extra re-add was exactly what was undoing every removal.
 
-        // Don't submit if nothing new was added
+        // Only block an empty submission when adding. Removing the last asset is allowed.
         if (existingGiveUp.length === 0 && !isRemoving) {
             alert('Please select at least one asset to add to the trade block.');
             btn.text(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
