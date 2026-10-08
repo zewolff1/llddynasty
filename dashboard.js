@@ -10018,7 +10018,8 @@ function computeTeamProjectedTotal(roster, projMap) {
 function buildScoresViewToggleHtml() {
     const mode = window._scoresViewMode || 'matchups';
     const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
-    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px;">${btn('matchups','Matchups')}${btn('median','League Median')}${btn('recap','Recap')}</div>`;
+        const linkBtn = `<button class="scores-recap-link-btn" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Weekly Recap ›</button>`;
+    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">${btn('matchups','Matchups')}${btn('median','League Median')}${linkBtn}</div>`;
 }
 
 async function renderLeagueMedianView() {
@@ -12076,6 +12077,22 @@ async function checkNotifBadge() {
         else if (window._scoresViewMode === 'recap') await renderWeeklyRecap();
         else await renderLiveScoreCard();
     });
+        // --- Scoreboard → League Recaps jump (same pattern as the Trades jump) ---
+    $(document).off('click touchend', '.scores-recap-link-btn').on('click touchend', '.scores-recap-link-btn', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        const wk = window._liveScoreActiveWeek;
+        const st = window._recapState;
+        st.view = 'week';
+        st.pickerOpen = false;
+        if (wk) st.wk = wk;
+        $('.tab-btn').filter(function() { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
+        setTimeout(() => {
+            $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Recaps'; }).trigger('click');
+        }, 300);
+    });
+
     $(document).off('click touchend', '.median-sort-btn').on('click touchend', '.median-sort-btn', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
