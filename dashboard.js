@@ -11016,6 +11016,7 @@ function buildLiveScoreTabsHtml(matchups, activeIdx) {
         }).join('')}
       </div>`;
 }
+
 // ===================== SCOREBOARD: RECORD CHIPS, WIN PROBABILITY, MATCHUP PREVIEW =====================
 function pvNormCdf(x) {
     const t = 1 / (1 + 0.2316419 * Math.abs(x));
@@ -12488,7 +12489,8 @@ async function checkNotifBadge() {
         openMatchupPreview();
     });
 
-    // --- SCORES VIEW TOGGLE (Matchups vs League Median) ---    $(document).off('click touchend', '.scores-view-toggle-btn').on('click touchend', '.scores-view-toggle-btn', async function(e) {
+    // --- SCORES VIEW TOGGLE (Matchups vs League Median) ---
+    $(document).off('click touchend', '.scores-view-toggle-btn').on('click touchend', '.scores-view-toggle-btn', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
         window._scoresViewMode = $(this).data('mode');
