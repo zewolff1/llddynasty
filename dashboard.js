@@ -4572,6 +4572,10 @@ async function openDropToAddModal(addPid) {
         const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
         const salaryCapAmt = window.leagueSalaryCap || 823;
 
+        // Default contract every added free agent receives (salary in $m). 0% guaranteed = no cap hit.
+        const NEW_CONTRACT = { sal: 1.0, yrs: 1, guar: 0 };
+        const newHit = parseFloat((NEW_CONTRACT.sal * (NEW_CONTRACT.guar / 100) * NEW_CONTRACT.yrs).toFixed(1));
+
         // Info on the player being added, read from the row you tapped Add on
         const $addRow = $(`.player-row[data-pid="${addPid}"]`).first();
         const addName = $addRow.attr('data-pname') || 'this player';
@@ -4607,7 +4611,7 @@ async function openDropToAddModal(addPid) {
         }
 
         const need = Math.max(1, players.length + 1 - LINEUP_RULES.rosterLimit);
-        const totalSal = players.reduce((s, p) => s + p.salNum, 0);
+        const totalSal = parseFloat(players.reduce((s, p) => s + p.salNum, 0).toFixed(1));
         const viewedIsTarget = String(fid).padStart(4, '0') === targetFid;
         const tagFor = pid => viewedIsTarget ? (irPids.has(pid) ? 'IR' : taxiPids.has(pid) ? 'TS' : '') : '';
         players.sort((a, b) => (a.hit - b.hit) || (a.salNum - b.salNum));
@@ -4635,6 +4639,8 @@ async function openDropToAddModal(addPid) {
             </label>`;
         }).join('');
 
+        const row = (label, valueHtml, extra = '') => `<span style="color:var(--text-dim); ${extra}">${label}</span><span style="text-align:right; ${extra}">${valueHtml}</span>`;
+
         const modalHtml = `
         <div id="drop-add-modal" class="player-modal-backdrop" style="z-index:99999; display:flex;">
             <div class="player-modal-box" style="padding:0; overflow:hidden; max-width:420px;">
@@ -4655,19 +4661,22 @@ async function openDropToAddModal(addPid) {
                                 <span class="pos-text-${addPos.toLowerCase()}" style="font-size:8px; font-weight:900;">${addPos}</span>
                                 <span style="font-size:9px; color:var(--text-dim); font-weight:700;">${addTeam}</span>
                             </div>
+                            <div style="font-size:9px; color:var(--text-dim); font-weight:700; margin-top:2px;">$${NEW_CONTRACT.sal.toFixed(1)}m · ${NEW_CONTRACT.yrs}yr · ${NEW_CONTRACT.guar}% guar · <span style="color:#ef4444;">$${newHit.toFixed(1)}m hit</span></div>
                         </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin:10px 2px 8px;">
-                        <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Your Roster (${players.length})</span>
-                        <span style="font-size:10px; font-weight:900; color:#fff;">Current salary $${totalSal.toFixed(1)}m <span style="color:var(--text-dim);">/ $${salaryCapAmt}m</span></span>
-                    </div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:10px 2px 8px;">Your Roster (${players.length})</div>
                 </div>
-                <div style="padding:0 16px; max-height:42vh; overflow-y:auto;">${rowsHtml}</div>
+                <div style="padding:0 16px; max-height:36vh; overflow-y:auto;">${rowsHtml}</div>
                 <div style="padding:10px 16px; border-top:1px solid var(--card-border); background:rgba(0,0,0,0.2);">
                     <div id="drop-sel-count" style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px;">0 selected · ${need} needed</div>
-                    <div style="display:flex; gap:16px;">
-                        <div><div style="font-size:7px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Selected salary</div><div id="drop-sel-sal" style="font-size:13px; font-weight:900; color:#fff;">$0.0m</div></div>
-                        <div><div style="font-size:7px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Selected cap hit</div><div id="drop-sel-hit" style="font-size:13px; font-weight:900; color:#ef4444;">$0.0m</div></div>
+                    <div style="display:grid; grid-template-columns:1fr auto; gap:3px 12px; font-size:10px; font-weight:800; color:#fff;">
+                        ${row('Current salary', `$${totalSal.toFixed(1)}m`)}
+                        ${row('− Salary dropped', '<span id="drop-sel-sal">$0.0m</span>')}
+                        ${row('+ Cap hit from drops', '<span id="drop-sel-hit" style="color:#ef4444;">$0.0m</span>')}
+                        ${row(`+ New contract ($${NEW_CONTRACT.sal.toFixed(1)}m, ${NEW_CONTRACT.guar}% guar)`, `$${NEW_CONTRACT.sal.toFixed(1)}m`)}
+                        <span style="border-top:1px solid var(--card-border); padding-top:4px; font-size:11px; font-weight:900;">Salary after</span>
+                        <span id="drop-after" style="border-top:1px solid var(--card-border); padding-top:4px; text-align:right; font-size:11px; font-weight:900;"></span>
+                        ${row('Cap remaining', '<span id="drop-remaining"></span>')}
                     </div>
                 </div>
                 <div style="padding:12px 16px; border-top:1px solid var(--card-border); display:flex; gap:8px;">
@@ -4680,15 +4689,23 @@ async function openDropToAddModal(addPid) {
         window._dropAdd = { addPid, need };
         $('#drop-add-modal').replaceWith(modalHtml);
 
-        $(document).off('change.dropadd', '.drop-cb').on('change.dropadd', '.drop-cb', function() {
+        // Recompute everything whenever a checkbox changes
+        const recalc = () => {
             let n = 0, sal = 0, hit = 0;
             $('.drop-cb:checked').each(function() { n++; sal += parseFloat($(this).data('sal')) || 0; hit += parseFloat($(this).data('hit')) || 0; });
-            const ok = n >= (window._dropAdd?.need || 1);
-            $('#drop-sel-count').text(`${n} selected · ${window._dropAdd?.need || 1} needed`);
+            const after = parseFloat((totalSal - sal + hit + NEW_CONTRACT.sal + newHit).toFixed(1));
+            const remaining = parseFloat((salaryCapAmt - after).toFixed(1));
+            const pct = (after / salaryCapAmt) * 100;
+            const color = after > salaryCapAmt ? '#ef4444' : pct > 90 ? '#f59e0b' : '#22c55e';
+            const ok = n >= need;
+            $('#drop-sel-count').text(`${n} selected · ${need} needed`);
             $('#drop-sel-sal').text(`$${sal.toFixed(1)}m`);
             $('#drop-sel-hit').text(`$${hit.toFixed(1)}m`);
+            $('#drop-after').text(`$${after.toFixed(1)}m / $${salaryCapAmt}m`).css('color', color);
+            $('#drop-remaining').text(remaining < 0 ? `-$${Math.abs(remaining).toFixed(1)}m (over cap)` : `$${remaining.toFixed(1)}m`).css('color', color);
             $('#drop-add-confirm').prop('disabled', !ok).css({ opacity: ok ? 1 : 0.4, cursor: ok ? 'pointer' : 'not-allowed' }).text(ok ? `Drop ${n} & Add` : 'Select players to drop');
-        });
+        };
+        $(document).off('change.dropadd', '.drop-cb').on('change.dropadd', '.drop-cb', recalc);
         $(document).off('click.dropadd', '#drop-add-confirm').on('click.dropadd', '#drop-add-confirm', function() {
             const drops = $('.drop-cb:checked').map(function() { return String($(this).data('pid')); }).get();
             if (!drops.length || !window._dropAdd) return;
@@ -4697,6 +4714,7 @@ async function openDropToAddModal(addPid) {
             $('body').css('overflow', '');
             executeTransaction('add-drop', addId, drops.join(','), $('<button></button>'));
         });
+        recalc();
     }
 async function executeTransaction(type, sourcePid, targetPid, btn) {
         // Handle Roster Full logic for simple adds
