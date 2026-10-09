@@ -11059,7 +11059,7 @@ function computeWinProb(t1, t2, projMap) {
 
 function pvOrd(n) { const v = n % 100, s = ['th', 'st', 'nd', 'rd']; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 
-function scoreTeamChips(f) {
+function scoreTeamChipsOld(f) {
     const hdr = (window._teamHdr && window._teamHdr.cur) || {};
     const s = hdr[f] || {};
     const rec = s.record || (window._allRecords && window._allRecords[f]) || '';
@@ -11269,6 +11269,61 @@ async function openMatchupPreview() {
     });
 }
 // =================== END SCOREBOARD PREVIEW ===================
+// ---------- SCOREBOARD HEADER (cleaned up) ----------
+function scoreTeamChips(f) {
+    const hdr = (window._teamHdr && window._teamHdr.cur) || {};
+    const s = hdr[f] || {};
+    let rec = s.record || (window._allRecords && window._allRecords[f]) || '';
+    rec = String(rec).replace(/-0$/, '');
+    const out = [];
+    if (rec) out.push(`<b style="color:#fff;">${rec}</b>`);
+    if (s.rank) out.push(`<b style="color:var(--accent-teal, #14b8a6);">#${s.rank}</b>`);
+    const sm = (s.streak || '').match(/^([WLT])[a-z]*\s*(\d+)/i);
+    if (sm) { const k = sm[1].toUpperCase(); out.push(`<b style="color:${k === 'W' ? '#22c55e' : k === 'L' ? '#ef4444' : 'var(--text-dim)'};">${k}${sm[2]}</b>`); }
+    return out.length ? `<div style="font-size:10px; font-weight:800; display:flex; gap:8px; justify-content:center; align-items:center;">${out.join('<span style="color:var(--card-border);">|</span>')}</div>` : '';
+}
+
+function buildScoreHeaderHtml(o) {
+    const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian } = o;
+    const arrow = (v, m) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
+    const team = (t, c, yts, other) => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; min-width:0;">
+        <div style="position:relative; width:44px; height:44px;">
+            <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
+            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
+        </div>
+        <span data-team-style="${t.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
+        ${scoreTeamChips(t.fid)}
+        <span style="font-size:22px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.1;">${t.score.toFixed(2)}</span>
+        ${arrow(t.score, leagueMedian)}
+        <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts}</span>
+    </div>`;
+    const a = Math.round(wp.p1 * 100), b = 100 - a;
+    const projCol = (proj, t) => `<div style="flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;">
+        <span style="font-size:16px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span>${arrow(proj, projMedian)}</div>`;
+    return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:flex-start; gap:6px;">
+                ${team(t1, c1, yts1, t2)}
+                <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:14px;">
+                    <div style="font-size:11px; font-weight:900; color:var(--text-dim);">vs</div>
+                    <button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button>
+                </div>
+                ${team(t2, c2, yts2, t1)}
+            </div>
+            <div style="margin-top:12px; padding:10px; border-radius:10px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.25);">
+                <div style="text-align:center; font-size:8px; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">Projected Final</div>
+                <div style="display:flex; align-items:center; gap:6px;">${projCol(t1Proj, t1)}<div style="width:1px; align-self:stretch; background:rgba(245,158,11,0.25);"></div>${projCol(t2Proj, t2)}</div>
+                <div style="text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; margin:10px 0 4px;">Win Probability</div>
+                <div style="display:flex; height:16px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,0.08);">
+                    <div style="width:${a}%; background:#3b82f6; display:flex; align-items:center; justify-content:flex-start; padding-left:6px; font-size:9px; font-weight:900; color:#fff; min-width:${a > 0 ? 28 : 0}px;">${a}%</div>
+                    <div style="width:${b}%; background:#a855f7; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:9px; font-weight:900; color:#fff; min-width:${b > 0 ? 28 : 0}px;">${b}%</div>
+                </div>
+            </div>
+        </div>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+    </div>`;
+}
 async function renderLiveScoreCard() {    const container = $('#scores-content-container');    const matchups = window._liveScoreMatchups || [];
     if (matchups.length === 0) {
         container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
@@ -11326,6 +11381,12 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const t1Proj = computeProjectedTotal(t1.roster, projMap1);
     const t2Proj = computeProjectedTotal(t2.roster, projMap2);
     const wp = computeWinProb(t1, t2, sharedProjMap);
+    const projMedian = (() => {
+        const v = getUniqueTeamsFromMatchups(matchups).map(t => computeProjectedTotal(t.roster, projMap1)).sort((x, y) => x - y);
+        if (!v.length) return 0;
+        const m = Math.floor(v.length / 2);
+        return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+    })();
      function buildTeamRosterHtml(roster, projMap) {
         const { starters, bench } = sortLiveScoreRoster(roster);
         if (starters.length === 0 && bench.length === 0) {
@@ -11378,41 +11439,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
             ${tabsHtml}
 
             <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:12px;">
-                    <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
-
-                    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
-                            <div style="position:relative; width:44px; height:44px;">
-                                <img src="${t1.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                                ${t1.score > t2.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
-                            </div>
-                            <span data-team-style="${t1.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t1.name}</span>
-                            ${scoreTeamChips(t1.fid)}
-                            <span style="font-size:22px; font-weight:900; color:${c1}; font-variant-numeric:tabular-nums;">${t1.score.toFixed(2)}</span>
-                            <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts1}</span>
-                            <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t1Proj.toFixed(1)}</span>
-                            ${pvWinProbHtml(wp.p1, wp.p1 >= 0.5 ? "#22c55e" : "#ef4444")}
-                            <span style="font-size:8px; font-weight:900; color:${t1.score > leagueMedian ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${t1.score > leagueMedian ? '▲' : '▼'} Median</span>
-                        </div>
-                        <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px;"><div style="font-size:11px; font-weight:900; color:var(--text-dim);">vs</div><button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button></div>
-                        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; min-width:0;">
-                            <div style="position:relative; width:44px; height:44px;">
-                                <img src="${t2.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-                                ${t2.score > t1.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
-                            </div>
-                            <span data-team-style="${t2.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t2.name}</span>
-                            ${scoreTeamChips(t2.fid)}
-                            <span style="font-size:22px; font-weight:900; color:${c2}; font-variant-numeric:tabular-nums;">${t2.score.toFixed(2)}</span>
-                            <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts2}</span>
-                            <span style="font-size:9px; font-weight:900; color:#f59e0b;">Proj: ${t2Proj.toFixed(1)}</span>
-                            ${pvWinProbHtml(wp.p2, wp.p2 >= 0.5 ? "#22c55e" : "#ef4444")}
-                            <span style="font-size:8px; font-weight:900; color:${t2.score > leagueMedian ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${t2.score > leagueMedian ? '▲' : '▼'} Median</span>
-                        </div>
-                    </div>
-
-                    <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
-                </div>
-
+                ${buildScoreHeaderHtml({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian })}
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1; min-width:0;">${t1Rows}</div>
                     <div style="flex:1; min-width:0;">${t2Rows}</div>
