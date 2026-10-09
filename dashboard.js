@@ -11382,7 +11382,7 @@ function buildScoreHeaderHtml2Old(o) {
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
-function buildScoreHeaderHtml3Old(o) {
+function buildScoreHeaderHtml3(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
     const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
     const card = (t, side, c, yts, proj, tc, pct, other) => {
