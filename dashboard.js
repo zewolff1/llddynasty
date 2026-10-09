@@ -11419,7 +11419,7 @@ function buildScoreHeaderHtml3Old(o) {
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
-function buildScoreHeaderHtml3(o) {
+function buildScoreHeaderHtml3Old(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
     const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
     const card = (t, side, c, yts, proj, tc, pct, other) => {
@@ -11436,8 +11436,8 @@ function buildScoreHeaderHtml3(o) {
             <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div>`;
         const bar = `<div style="height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; display:flex; justify-content:${left ? 'flex-start' : 'flex-end'};"><div style="width:${pct}%; background:${tc}; border-radius:3px;"></div></div>`;
         const pctEl = `<span style="font-size:11px; font-weight:900; color:#fff;">${pct}% <span style="font-size:7px; font-weight:800; color:var(--text-dim); letter-spacing:0.5px;">WIN</span></span>`;
-        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:11px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span><span style="font-size:8px; font-weight:900; color:${proj > projMedian ? '#22c55e' : '#ef4444'};">${proj > projMedian ? '▲' : '▼'}</span></span>`;
-        return `<div style="flex:1 1 0; min-width:0; padding:10px 10px 10px; border-radius:18px; background:linear-gradient(${left ? '135deg' : '225deg'}, ${tc}22, rgba(255,255,255,0.02) 70%); border:1px solid ${tc}55; display:flex; flex-direction:column;">
+        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap; max-width:100%; box-sizing:border-box; overflow:hidden; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:11px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span><span style="font-size:8px; font-weight:900; color:${proj > projMedian ? '#22c55e' : '#ef4444'};">${proj > projMedian ? '▲' : '▼'}</span></span>`;
+        return `<div style="flex:1 1 0; min-width:0; padding:10px 10px 10px; border-radius:18px; background:linear-gradient(${left ? '135deg' : '225deg'}, ${tc}22, rgba(255,255,255,0.02) 70%); border:1px solid ${tc}55; display:flex; flex-direction:column; overflow:hidden;">
             <div style="display:flex; align-items:center; gap:6px; flex-direction:${left ? 'row' : 'row-reverse'};">${logo}${name}</div>
             <div style="margin-top:4px;">${chips}</div>
             ${scoreBlock}${bar}
