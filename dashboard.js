@@ -10880,9 +10880,7 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails, teamColor) {
 
       // Prefer ajax_ls's per-play detail when available, otherwise fall back to nflSchedule's
     // game-level status (confirmed working), otherwise the player's own fantasy-derived status.
-        if (!scheduleEntry && !window._schedMissLogged) { window._schedMissLogged = true; console.warn('[scores] no nflSchedule entry for team', team, '| schedule keys:', Object.keys(window._liveScoreNflSchedule || {})); }
-    const schedScore = (scheduleEntry && scheduleEntry.opp && scheduleEntry.gsr !== null && scheduleEntry.gsr < 3600) ? `${team} ${scheduleEntry.score}-${scheduleEntry.oppScore} ${scheduleEntry.opp}` : '';
-    const scoreDisplay = (detail && detail.scoreText) ? detail.scoreText : (schedScore || kickoffLabel || scheduleStatusLabel || oppLabel);
+    const scoreDisplay = (detail && detail.scoreText) ? detail.scoreText : (scheduleStatusLabel || oppLabel);
     const statusDisplay = (detail && detail.statusText) ? detail.statusText : (scheduleStatusLabel || status.label);
     const nflColors = {
         'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
@@ -10955,12 +10953,11 @@ async function fetchNflScheduleForWeek(wk) {
             teams.forEach(t => {
                 const abbr = (t.id || '').toUpperCase();
                 if (!abbr) return;
-                               const other = teams.find(x => x !== t);
-                map[abbr] = { kickoffMs, label, gsr, score: parseFloat(t.score) || 0, opp: other ? String(other.id || '').toUpperCase() : '', oppScore: other ? (parseFloat(other.score) || 0) : 0 };
+                map[abbr] = { kickoffMs, label, gsr, score: parseFloat(t.score) || 0 };
             });
         });
     } catch(e) { console.warn('Could not fetch nflSchedule for week', wk, e); }
-        if (Object.keys(map).length) window._nflScheduleCache[cacheKey] = map; // never cache an empty/failed result
+    window._nflScheduleCache[cacheKey] = map;
     return map;
 }
 
@@ -11385,7 +11382,7 @@ function buildScoreHeaderHtml2Old(o) {
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
-function buildScoreHeaderHtml3(o) {
+function buildScoreHeaderHtml3Old(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
     const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
     const card = (t, side, c, yts, proj, tc, pct, other) => {
@@ -11407,6 +11404,44 @@ function buildScoreHeaderHtml3(o) {
             <div style="display:flex; align-items:center; gap:8px; flex-direction:${left ? 'row' : 'row-reverse'};">${logo}${text}</div>
             ${scoreBlock}${bar}
             <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; margin-top:5px; flex-direction:${left ? 'row' : 'row-reverse'};">${pctEl}${projEl}</div>
+        </div>`;
+    };
+    const a = Math.round(wp.p1 * 100), b = 100 - a;
+    return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <div style="flex:1; min-width:0; position:relative; display:flex; align-items:stretch; gap:4px; margin-bottom:16px;">
+            ${card(t1, 'left', c1, yts1, t1Proj, tc1, a, t2)}
+            ${card(t2, 'right', c2, yts2, t2Proj, tc2, b, t1)}
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:50%; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; color:var(--text-dim); z-index:2;">VS</div>
+            <button class="scores-preview-btn" style="position:absolute; left:50%; bottom:-18px; transform:translateX(-50%); white-space:nowrap; background:var(--card-bg); border:1px solid rgba(59,130,246,0.5); color:var(--accent-blue); border-radius:6px; padding:3px 9px; font-size:8px; font-weight:900; text-transform:uppercase; cursor:pointer; z-index:2;">Preview</button>
+        </div>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+    </div>`;
+}
+// ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
+function buildScoreHeaderHtml3(o) {
+    const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
+    const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
+    const card = (t, side, c, yts, proj, tc, pct, other) => {
+        const left = side === 'left';
+        const al = left ? 'flex-start' : 'flex-end';
+        const logo = `<div style="position:relative; flex-shrink:0; width:34px; height:34px;">
+            <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:34px; height:34px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:2px solid ${tc}; box-sizing:border-box;">
+            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; ${left ? 'right' : 'left'}:-4px; background:rgba(245,158,11,0.95); border-radius:50%; width:14px; height:14px; display:flex; align-items:center; justify-content:center; font-size:8px; border:1px solid var(--card-bg);">🏆</span>` : ''}</div>`;
+        const name = `<span data-team-style="${t.fid}" style="flex:1; min-width:0; font-size:11px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:${left ? 'left' : 'right'};">${t.name}</span>`;
+        const chips = scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al).replace('font-size:10px', 'font-size:9px; white-space:nowrap').replace('gap:8px', 'gap:5px');
+        const scoreBlock = `<div style="display:flex; flex-direction:column; align-items:${al}; gap:1px; margin:8px 0 6px;">
+            <span style="font-size:26px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.05;">${t.score.toFixed(2)}</span>
+            ${arrow(t.score, leagueMedian)}
+            <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div>`;
+        const bar = `<div style="height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; display:flex; justify-content:${left ? 'flex-start' : 'flex-end'};"><div style="width:${pct}%; background:${tc}; border-radius:3px;"></div></div>`;
+        const pctEl = `<span style="font-size:11px; font-weight:900; color:#fff;">${pct}% <span style="font-size:7px; font-weight:800; color:var(--text-dim); letter-spacing:0.5px;">WIN</span></span>`;
+        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:11px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span><span style="font-size:8px; font-weight:900; color:${proj > projMedian ? '#22c55e' : '#ef4444'};">${proj > projMedian ? '▲' : '▼'}</span></span>`;
+        return `<div style="flex:1 1 0; min-width:0; padding:10px 10px 10px; border-radius:18px; background:linear-gradient(${left ? '135deg' : '225deg'}, ${tc}22, rgba(255,255,255,0.02) 70%); border:1px solid ${tc}55; display:flex; flex-direction:column;">
+            <div style="display:flex; align-items:center; gap:6px; flex-direction:${left ? 'row' : 'row-reverse'};">${logo}${name}</div>
+            <div style="margin-top:4px;">${chips}</div>
+            ${scoreBlock}${bar}
+            <div style="display:flex; flex-direction:column; align-items:${al}; gap:5px; margin-top:6px;">${pctEl}${projEl}</div>
         </div>`;
     };
     const a = Math.round(wp.p1 * 100), b = 100 - a;
