@@ -5013,6 +5013,7 @@ $('body').append(`
     <div id="tab-btn-tx" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-tx">Contract</div>
     <div id="tab-btn-gamelog" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-gamelog">Game Log</div>
 <div id="tab-btn-history" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-history">History</div>
+    <div id="tab-btn-news" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-news">News</div>
 </div>
 
 <div class="player-modal-body" style="padding: 0;">
@@ -5026,7 +5027,10 @@ $('body').append(`
         <div id="modal-gamelog-container" style="padding: 15px; max-height: 400px; overflow-y: auto;"></div>
     </div>
     <div id="tab-history" class="modal-tab-content">
-        <div id="modal-history-container" style="padding: 15px; max-height: 400px; overflow-y: auto;"></div>
+              <div id="modal-history-container" style="padding: 15px; max-height: 400px; overflow-y: auto;"></div>
+    </div>
+    <div id="tab-news" class="modal-tab-content">
+        <div id="modal-news-container" style="padding: 15px; max-height: 400px; overflow-y: auto;"></div>
     </div>
 </div>
     </div>
@@ -5739,7 +5743,8 @@ $(document).off('click', '.modal-tab-btn').on('click', '.modal-tab-btn', functio
     if (!pid) return;
     if (target === 'tab-gamelog') loadModalGameLog(pid);
     else if (target === 'tab-tx') { window._modalActionsLock = false; loadModalContract(pid); }
-    else if (target === 'tab-history') loadModalHistory(pid);
+       else if (target === 'tab-history') loadModalHistory(pid);
+    else if (target === 'tab-news') loadModalNews(pid);
 });
     $(document).off('click', '.player-modal-close, .player-modal-backdrop').on('click', '.player-modal-close, .player-modal-backdrop', function(e) {
         if ($(e.target).closest('.player-modal-box').length && !$(e.target).hasClass('player-modal-close')) { return; }
@@ -12767,7 +12772,61 @@ fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=123&MONTH=${
             });
     })
 .catch(e => console.warn('Calendar prefetch failed', e));
+// ---------- PLAYER NEWS TAB ----------
+window._newsCache = window._newsCache || {};
+async function loadModalNews(pid) {
+    const container = $('#modal-news-container');
+    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    const name = String(window._modalCurrentName || '');
+    let last = '';
+    if (name.includes(',')) last = name.split(',')[0].trim();
+    else last = name.replace(/\s+(Jr\.?|Sr\.?|II|III|IV)$/i, '').trim().split(/\s+/).slice(1).join(' ');
+    const lastL = last.toLowerCase();
+    const mentions = txt => !!lastL && txt.toLowerCase().includes(lastL);
 
+    const urls = [
+        `https://www45.myfantasyleague.com/${year}/news_articles?L=${lid}&PLAYERS=${pid}`,
+        `https://www45.myfantasyleague.com/${year}/news_articles?L=${lid}&MYNEWS=1`,
+        `https://www45.myfantasyleague.com/${year}/news_articles?L=${lid}`
+    ];
+    try {
+        let items = window._newsCache[pid];
+        if (!items) {
+            items = [];
+            for (const url of urls) {
+                const res = await fetch(url, { credentials: 'include' });
+                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                const seen = new Set();
+                doc.querySelectorAll('tr, li, div[class*="news"], div[class*="article"]').forEach(el => {
+                    if (el.querySelector('tr, li, div[class*="news"], div[class*="article"]')) return; // innermost only
+                    const text = el.textContent.replace(/\s+/g, ' ').trim();
+                    if (text.length < 40 || seen.has(text)) return;
+                    const a = el.querySelector(`a[href*="${pid}"]`);
+                    if (!a && !mentions(text)) return;
+                    seen.add(text);
+                    const link = el.querySelector('a[href^="http"], a[href^="/"]:not([href*="player?"])');
+                    const dm = text.match(/\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|[A-Z][a-z]{2,8}\.? \d{1,2},? \d{4}|\d+\s+(?:minute|hour|day)s?\s+ago)\b/);
+                    items.push({ text, date: dm ? dm[1] : '', href: link ? link.href : '' });
+                });
+                if (items.length) break;
+                console.log('[news] no items for', pid, name, 'from', url, '| page text sample:', doc.body ? doc.body.textContent.replace(/\s+/g, ' ').slice(0, 300) : '');
+            }
+            window._newsCache[pid] = items;
+        }
+        if (window._modalCurrentPid !== pid) return;
+        if (!items.length) {
+            container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px; font-weight:700;">No recent news for this player.</div>');
+            return;
+        }
+        container.html(items.slice(0, 12).map(n => `<div style="padding:10px; margin-bottom:8px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border);">
+            ${n.date ? `<div style="font-size:8px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">${n.date}</div>` : ''}
+            <div style="font-size:11px; font-weight:600; color:#fff; line-height:1.5;">${$('<div>').text(n.text.length > 600 ? n.text.slice(0, 600) + '…' : n.text).html()}</div>
+            ${n.href ? `<a href="${n.href}" target="_blank" rel="noopener" style="display:inline-block; margin-top:6px; font-size:9px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Read more ›</a>` : ''}</div>`).join(''));
+    } catch (e) {
+        console.warn('[news] failed', e);
+        container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">Could not load news.</div>');
+    }
+}
 async function loadModalGameLog(pid) {
     const container = $('#modal-gamelog-container');
     container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
