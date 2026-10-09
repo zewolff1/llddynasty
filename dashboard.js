@@ -11337,7 +11337,7 @@ function scoreTeamColors(f1, f2) {
     return [a, b];
 }
 
-function buildScoreHeaderHtml2(o) {
+function buildScoreHeaderHtml2Old(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
     const arrow = (v, m) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
     const logo = t => `<div style="position:relative; width:30px; height:30px; flex-shrink:0;">
@@ -11377,6 +11377,43 @@ function buildScoreHeaderHtml2(o) {
                 ${ident(t2, 'right')}
             </div>
             <div style="display:flex; align-items:center; gap:8px;">${score(t1, c1, yts1, t2)}${center}${score(t2, c2, yts2, t1)}</div>
+        </div>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+    </div>`;
+}
+// ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
+function buildScoreHeaderHtml3(o) {
+    const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
+    const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
+    const card = (t, side, c, yts, proj, tc, pct, other) => {
+        const left = side === 'left';
+        const al = left ? 'flex-start' : 'flex-end';
+        const logo = `<div style="position:relative; flex-shrink:0; width:38px; height:38px;">
+            <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:2px solid ${tc}; box-sizing:border-box;">
+            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; ${left ? 'right' : 'left'}:-4px; background:rgba(245,158,11,0.95); border-radius:50%; width:15px; height:15px; display:flex; align-items:center; justify-content:center; font-size:8px; border:1px solid var(--card-bg);">🏆</span>` : ''}</div>`;
+        const text = `<div style="flex:1; min-width:0; display:flex; flex-direction:column; align-items:${al}; gap:2px;">
+            <span data-team-style="${t.fid}" style="font-size:11px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
+            ${scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al).replace('font-size:10px', 'font-size:9px')}</div>`;
+        const scoreBlock = `<div style="display:flex; flex-direction:column; align-items:${al}; gap:1px; margin:8px 0 6px;">
+            <span style="font-size:26px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.05;">${t.score.toFixed(2)}</span>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:${al};">${arrow(t.score, leagueMedian)}<span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div></div>`;
+        const bar = `<div style="height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; display:flex; justify-content:${left ? 'flex-start' : 'flex-end'};"><div style="width:${pct}%; background:${tc}; border-radius:3px;"></div></div>`;
+        const pctEl = `<span style="font-size:11px; font-weight:900; color:#fff;">${pct}%</span>`;
+        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:11px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span>${arrow(proj, projMedian, 'Med')}</span>`;
+        return `<div style="flex:1; min-width:0; padding:12px 12px 10px; border-radius:20px; background:linear-gradient(${left ? '135deg' : '225deg'}, ${tc}22, rgba(255,255,255,0.02) 70%); border:1px solid ${tc}55;">
+            <div style="display:flex; align-items:center; gap:8px; flex-direction:${left ? 'row' : 'row-reverse'};">${logo}${text}</div>
+            ${scoreBlock}${bar}
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; margin-top:5px; flex-direction:${left ? 'row' : 'row-reverse'};">${pctEl}${projEl}</div>
+        </div>`;
+    };
+    const a = Math.round(wp.p1 * 100), b = 100 - a;
+    return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <div style="flex:1; min-width:0; position:relative; display:flex; align-items:stretch; gap:4px; margin-bottom:16px;">
+            ${card(t1, 'left', c1, yts1, t1Proj, tc1, a, t2)}
+            ${card(t2, 'right', c2, yts2, t2Proj, tc2, b, t1)}
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:50%; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; color:var(--text-dim); z-index:2;">VS</div>
+            <button class="scores-preview-btn" style="position:absolute; left:50%; bottom:-18px; transform:translateX(-50%); white-space:nowrap; background:var(--card-bg); border:1px solid rgba(59,130,246,0.5); color:var(--accent-blue); border-radius:6px; padding:3px 9px; font-size:8px; font-weight:900; text-transform:uppercase; cursor:pointer; z-index:2;">Preview</button>
         </div>
         <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
@@ -11497,7 +11534,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
             ${tabsHtml}
 
             <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
-                ${buildScoreHeaderHtml2({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 })}
+                ${buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 })}
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1; min-width:0;">${t1Rows}</div>
                     <div style="flex:1; min-width:0;">${t2Rows}</div>
