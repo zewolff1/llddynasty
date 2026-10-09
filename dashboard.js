@@ -10880,7 +10880,9 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails, teamColor) {
 
       // Prefer ajax_ls's per-play detail when available, otherwise fall back to nflSchedule's
     // game-level status (confirmed working), otherwise the player's own fantasy-derived status.
-    const scoreDisplay = (detail && detail.scoreText) ? detail.scoreText : (scheduleStatusLabel || oppLabel);
+        if (!scheduleEntry && !window._schedMissLogged) { window._schedMissLogged = true; console.warn('[scores] no nflSchedule entry for team', team, '| schedule keys:', Object.keys(window._liveScoreNflSchedule || {})); }
+    const schedScore = (scheduleEntry && scheduleEntry.opp && scheduleEntry.gsr !== null && scheduleEntry.gsr < 3600) ? `${team} ${scheduleEntry.score}-${scheduleEntry.oppScore} ${scheduleEntry.opp}` : '';
+    const scoreDisplay = (detail && detail.scoreText) ? detail.scoreText : (schedScore || kickoffLabel || scheduleStatusLabel || oppLabel);
     const statusDisplay = (detail && detail.statusText) ? detail.statusText : (scheduleStatusLabel || status.label);
     const nflColors = {
         'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
@@ -10953,11 +10955,12 @@ async function fetchNflScheduleForWeek(wk) {
             teams.forEach(t => {
                 const abbr = (t.id || '').toUpperCase();
                 if (!abbr) return;
-                map[abbr] = { kickoffMs, label, gsr, score: parseFloat(t.score) || 0 };
+                               const other = teams.find(x => x !== t);
+                map[abbr] = { kickoffMs, label, gsr, score: parseFloat(t.score) || 0, opp: other ? String(other.id || '').toUpperCase() : '', oppScore: other ? (parseFloat(other.score) || 0) : 0 };
             });
         });
     } catch(e) { console.warn('Could not fetch nflSchedule for week', wk, e); }
-    window._nflScheduleCache[cacheKey] = map;
+        if (Object.keys(map).length) window._nflScheduleCache[cacheKey] = map; // never cache an empty/failed result
     return map;
 }
 
