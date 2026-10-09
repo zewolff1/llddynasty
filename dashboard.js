@@ -10934,7 +10934,56 @@ const rowOpacity = '1';
 // is exactly the same signal deriveLiveStatus() already knows how to read for players — so
 // this can stand in for the ajax_ls feed that's been returning empty for this league.
 window._nflScheduleCache = window._nflScheduleCache || {};
+// NFL schedule for a week: kickoff, game clock, opponent, home/away and scores per team.
+// Reads the JSON export first, then falls back to the static nfl_sched_<week>.xml file.
 async function fetchNflScheduleForWeek(wk) {
+    window._nflScheduleCache = window._nflScheduleCache || {};
+    const cacheKey = String(wk);
+    if (window._nflScheduleCache[cacheKey]) return window._nflScheduleCache[cacheKey];
+    const map = {};
+    const ingest = (kickoff, gsrRaw, teams) => {
+        const kickoffMs = parseInt(kickoff, 10) * 1000;
+        const gsr = (gsrRaw !== undefined && gsrRaw !== null && gsrRaw !== '') ? parseInt(gsrRaw, 10) : null;
+        const label = kickoffMs ? new Date(kickoffMs).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+        teams.forEach(t => {
+            const abbr = String(t.id || '').toUpperCase();
+            if (!abbr) return;
+            const other = teams.find(x => x !== t);
+            const home = String(t.isHome) === '1' ? true : (String(t.isHome) === '0' ? false : null);
+            map[abbr] = {
+                kickoffMs, label, gsr, score: parseFloat(t.score) || 0,
+                opp: other ? String(other.id || '').toUpperCase() : '',
+                oppScore: other ? (parseFloat(other.score) || 0) : 0,
+                isHome: home
+            };
+        });
+    };
+    try {
+        const res = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        let games = data?.nflSchedule?.matchup || [];
+        if (!Array.isArray(games)) games = games ? [games] : [];
+        games.forEach(g => {
+            let teams = g.team || [];
+            if (!Array.isArray(teams)) teams = teams ? [teams] : [];
+            ingest(g.kickoff, g.gameSecondsRemaining, teams);
+        });
+    } catch (e) { console.warn('[nfl-sched] JSON export failed for week', wk, e); }
+    if (!Object.values(map).some(v => v.opp)) {
+        try {
+            const res = await fetch(`https://api.myfantasyleague.com/fflnetdynamic${year}/nfl_sched_${wk}.xml`, { cache: 'no-store' });
+            const doc = new DOMParser().parseFromString(await res.text(), 'text/xml');
+            doc.querySelectorAll('matchup').forEach(m => {
+                const teams = [...m.querySelectorAll('team')].map(t => ({ id: t.getAttribute('id'), isHome: t.getAttribute('isHome'), score: t.getAttribute('score') }));
+                ingest(m.getAttribute('kickoff'), m.getAttribute('gameSecondsRemaining'), teams);
+            });
+        } catch (e) { console.warn('[nfl-sched] XML fallback failed for week', wk, e); }
+    }
+    console.log('[nfl-sched] week', wk, 'teams loaded:', Object.keys(map).length);
+    if (Object.keys(map).length) window._nflScheduleCache[cacheKey] = map; // never cache a failed/empty result
+    return map;
+}
+async function fetchNflScheduleForWeekOld(wk) {
     const cacheKey = String(wk);
     if (window._nflScheduleCache[cacheKey]) return window._nflScheduleCache[cacheKey];
     const map = {};
@@ -11482,7 +11531,9 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
     const detail = liveDetails && liveDetails.gameInfo ? liveDetails.gameInfo[p.pid] : null;
     const stat = liveDetails && liveDetails.stats ? liveDetails.stats[p.pid] : '';
     const oppM = (p.opp || '').match(/(vs|@)\s*([A-Z]{2,3})/i);
-    const oppTxt = oppM ? `${oppM[1].toLowerCase() === 'vs' ? 'vs' : '@'} ${oppM[2].toUpperCase()}` : (sched && sched.opp ? 'vs ' + sched.opp : '');
+        const oppAbbr = oppM ? oppM[2].toUpperCase() : (sched && sched.opp ? sched.opp : '');
+    const atVs = oppM ? (oppM[1].toLowerCase() === 'vs' ? 'vs' : '@') : (sched && sched.isHome === false ? '@' : 'vs');
+    const oppTxt = oppAbbr ? `${atVs} <img src="${getNFLLogoUrl(oppAbbr)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain; vertical-align:middle;"> ${oppAbbr}` : '';
     const g = sched ? sched.gsr : null;
     let line1;
     if (detail && detail.scoreText) line1 = detail.scoreText;
@@ -11502,7 +11553,7 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
             </div>
             <div style="flex:1; min-width:0; text-align:${left ? 'left' : 'right'};">
                 <div style="font-size:11px; font-weight:800; color:#fff; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
-                <div style="font-size:9px; font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><span style="color:var(--text-dim);"> · ${team}</span></div>
+                <div style="font-size:9px; font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-left:4px;"></div>
             </div>
             <div style="flex-shrink:0; text-align:${left ? 'right' : 'left'};">
                 <div style="font-size:15px; font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${val}</div>
