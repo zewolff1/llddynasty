@@ -11456,6 +11456,86 @@ function buildScoreHeaderHtml3(o) {
         <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
 }
+// ---------- SCOREBOARD: PAIRED (Sleeper-style) PLAYER ROWS ----------
+function lsSlotLabel(a, b) {
+    const pa = a ? recapNormPos(a) : '', pb = b ? recapNormPos(b) : '';
+    if (pa && pa === pb) return pa;
+    const set = [pa, pb].filter(Boolean);
+    if (set.length === 1) return set[0];
+    if (set.includes('QB')) return 'SFLX';
+    if (set.every(x => ['RB', 'WR', 'TE'].includes(x))) return 'FLEX';
+    if (set.every(x => ['DL', 'LB', 'DB'].includes(x))) return 'IDP';
+    return 'FLEX';
+}
+
+function lsSideCard(p, projMap, liveDetails, color, side) {
+    const left = side === 'left';
+    if (!p) return '<div></div>';
+    const status = deriveLiveStatus(p);
+    const team = String(p.team || 'NFL').toUpperCase();
+    const pos = recapNormPos(p) || String(p.pos || '').toUpperCase();
+    const proj = (projMap && projMap[p.pid] != null) ? projMap[p.pid] : null;
+    const showProj = !status.playing && !status.done && p.score === 0 && proj !== null;
+    const val = showProj ? proj.toFixed(1) : p.score.toFixed(1);
+    const valColor = showProj ? '#f59e0b' : (status.done ? '#fff' : (status.playing ? '#22c55e' : 'var(--text-dim)'));
+    const sched = (window._liveScoreNflSchedule || {})[team];
+    const detail = liveDetails && liveDetails.gameInfo ? liveDetails.gameInfo[p.pid] : null;
+    const stat = liveDetails && liveDetails.stats ? liveDetails.stats[p.pid] : '';
+    const oppM = (p.opp || '').match(/(vs|@)\s*([A-Z]{2,3})/i);
+    const oppTxt = oppM ? `${oppM[1].toLowerCase() === 'vs' ? 'vs' : '@'} ${oppM[2].toUpperCase()}` : (sched && sched.opp ? 'vs ' + sched.opp : '');
+    const g = sched ? sched.gsr : null;
+    let line1;
+    if (detail && detail.scoreText) line1 = detail.scoreText;
+    else if (sched && sched.opp && g !== null && g < 3600) line1 = `${team} ${sched.score}-${sched.oppScore} ${sched.opp}`;
+    else line1 = `${sched ? sched.label : ''} ${oppTxt}`.trim() || p.opp || '—';
+    let line2;
+    if (detail && detail.statusText) line2 = detail.statusText;
+    else if (sched && g !== null) line2 = g >= 3600 ? 'Yet to play' : (g <= 0 ? 'Final' : (formatGameClock(g) || 'Live'));
+    else line2 = status.label === 'Upcoming' ? 'Yet to play' : status.label;
+    const bg = status.playing ? `${color}30` : `${color}14`;
+    return `<div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}" data-name="${p.name}" data-pos="${pos}"
+        style="min-width:0; cursor:pointer; padding:8px 9px; border-radius:12px; background:${bg}; border:1px solid ${color}40; box-shadow:inset ${left ? '' : '-'}3px 0 0 ${color};">
+        <div style="display:flex; align-items:center; gap:6px; flex-direction:${left ? 'row' : 'row-reverse'};">
+            <div style="position:relative; width:34px; height:34px; flex-shrink:0; border-radius:50%; overflow:hidden; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
+                <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; object-position:top;">
+                <span style="position:absolute; bottom:0; ${left ? 'right' : 'left'}:0; width:8px; height:8px; border-radius:50%; background:${status.color}; border:1px solid var(--card-bg); ${status.playing ? 'animation:pulse-blue 1.2s infinite;' : ''}"></span>
+            </div>
+            <div style="flex:1; min-width:0; text-align:${left ? 'left' : 'right'};">
+                <div style="font-size:11px; font-weight:800; color:#fff; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                <div style="font-size:9px; font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><span style="color:var(--text-dim);"> · ${team}</span></div>
+            </div>
+            <div style="flex-shrink:0; text-align:${left ? 'right' : 'left'};">
+                <div style="font-size:15px; font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${val}</div>
+                ${showProj ? '<div style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.5px;">PROJ</div>' : ''}
+            </div>
+        </div>
+        <div style="margin-top:6px; text-align:${left ? 'left' : 'right'};">
+            <div style="font-size:9px; font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1}</div>
+            <div style="font-size:8px; font-weight:800; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; line-height:1.3;">${line2}</div>
+            ${stat ? `<div style="font-size:8px; color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
+        </div>
+    </div>`;
+}
+
+function buildPairedRosterHtml(r1, r2, projMap, liveDetails, tc1, tc2) {
+    const a = sortLiveScoreRoster(r1), b = sortLiveScoreRoster(r2);
+    const section = (label, l1, l2, fixedLabel) => {
+        const n = Math.max(l1.length, l2.length);
+        if (!n) return '';
+        let html = buildLiveScoreSectionHeader(label);
+        for (let i = 0; i < n; i++) {
+            const p1 = l1[i], p2 = l2[i];
+            const slot = fixedLabel || lsSlotLabel(p1, p2);
+            const slotColor = (!fixedLabel && slot.length <= 2) ? `var(--pos-${slot.toLowerCase()}, #fff)` : '#fff';
+            html += `<div style="position:relative; display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:6px;">
+                ${lsSideCard(p1, projMap, liveDetails, tc1, 'left')}${lsSideCard(p2, projMap, liveDetails, tc2, 'right')}
+                <div style="position:absolute; left:50%; top:22px; transform:translate(-50%,-50%); min-width:28px; height:28px; padding:0 3px; box-sizing:border-box; border-radius:14px; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:900; color:${slotColor}; pointer-events:none; z-index:2;">${slot}</div>
+            </div>`;
+        }
+        return html;
+    };
+    return section('Starters', a.starters, b.starters) + section('Bench', a.bench, b.bench, 'BN');
+}
 async function renderLiveScoreCard() {    const container = $('#scores-content-container');    const matchups = window._liveScoreMatchups || [];
     if (matchups.length === 0) {
         container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">No matchup data found.</div>');
@@ -11573,10 +11653,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
 
             <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
                 ${buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 })}
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1; min-width:0;">${t1Rows}</div>
-                    <div style="flex:1; min-width:0;">${t2Rows}</div>
-                </div>
+                                ${buildPairedRosterHtml(t1.roster, t2.roster, sharedProjMap, liveDetails, tc1, tc2)}
             </div>
 
         </div>`;
