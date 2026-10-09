@@ -12774,6 +12774,23 @@ fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=123&MONTH=${
 .catch(e => console.warn('Calendar prefetch failed', e));
 // ---------- PLAYER NEWS TAB ----------
 window._newsCache = window._newsCache || {};
+function newsSplit(text) {
+    // "1.QB Josh Allen: Two total TDs in loss (Rotowire) Allen completed ... Analysis: ..."
+    let t = text.replace(/^\s*\d+\.\s*/, '').trim();
+    const m = t.match(/^(.*?\((?:[^()]{2,40})\))\s*(.*)$/s);
+    let head = m ? m[1].trim() : t.slice(0, 90) + (t.length > 90 ? '…' : '');
+    let body = m ? m[2].trim() : t;
+    return { head, body };
+}
+function newsEsc(s) { return $('<div>').text(s).html(); }
+function newsBodyHtml(body) {
+    const i = body.search(/\bAnalysis:/);
+    const report = i >= 0 ? body.slice(0, i).trim() : body;
+    const analysis = i >= 0 ? body.slice(i + 9).trim() : '';
+    return `<div style="font-size:12px; font-weight:600; color:#fff; line-height:1.6;">${newsEsc(report)}</div>` +
+        (analysis ? `<div style="font-size:8px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:12px 0 4px;">Analysis</div><div style="font-size:12px; font-weight:500; color:#cbd5e1; line-height:1.6;">${newsEsc(analysis)}</div>` : '');
+}
+
 async function loadModalNews(pid) {
     const container = $('#modal-news-container');
     container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
@@ -12798,18 +12815,17 @@ async function loadModalNews(pid) {
                 const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
                 const seen = new Set();
                 doc.querySelectorAll('tr, li, div[class*="news"], div[class*="article"]').forEach(el => {
-                    if (el.querySelector('tr, li, div[class*="news"], div[class*="article"]')) return; // innermost only
+                    if (el.querySelector('tr, li, div[class*="news"], div[class*="article"]')) return;
                     const text = el.textContent.replace(/\s+/g, ' ').trim();
                     if (text.length < 40 || seen.has(text)) return;
-                    const a = el.querySelector(`a[href*="${pid}"]`);
-                    if (!a && !mentions(text)) return;
+                    if (!el.querySelector(`a[href*="${pid}"]`) && !mentions(text)) return;
                     seen.add(text);
-                    const link = el.querySelector('a[href^="http"], a[href^="/"]:not([href*="player?"])');
-                    const dm = text.match(/\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|[A-Z][a-z]{2,8}\.? \d{1,2},? \d{4}|\d+\s+(?:minute|hour|day)s?\s+ago)\b/);
-                    items.push({ text, date: dm ? dm[1] : '', href: link ? link.href : '' });
+                    const { head, body } = newsSplit(text);
+                    const link = el.querySelector('a[href^="http"]:not([href*="myfantasyleague.com"])');
+                    items.push({ head, body, href: link ? link.href : '' });
                 });
                 if (items.length) break;
-                console.log('[news] no items for', pid, name, 'from', url, '| page text sample:', doc.body ? doc.body.textContent.replace(/\s+/g, ' ').slice(0, 300) : '');
+                console.log('[news] no items for', pid, name, 'from', url);
             }
             window._newsCache[pid] = items;
         }
@@ -12818,15 +12834,35 @@ async function loadModalNews(pid) {
             container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px; font-weight:700;">No recent news for this player.</div>');
             return;
         }
-        container.html(items.slice(0, 12).map(n => `<div style="padding:10px; margin-bottom:8px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border);">
-            ${n.date ? `<div style="font-size:8px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">${n.date}</div>` : ''}
-            <div style="font-size:11px; font-weight:600; color:#fff; line-height:1.5;">${$('<div>').text(n.text.length > 600 ? n.text.slice(0, 600) + '…' : n.text).html()}</div>
-            ${n.href ? `<a href="${n.href}" target="_blank" rel="noopener" style="display:inline-block; margin-top:6px; font-size:9px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Read more ›</a>` : ''}</div>`).join(''));
+        window._newsOpen = items;
+        container.html(items.slice(0, 15).map((n, i) => `<div class="news-item-row" data-i="${i}" style="display:flex; align-items:center; gap:8px; padding:10px; margin-bottom:6px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); cursor:pointer;">
+            <span style="flex:1; min-width:0; font-size:11px; font-weight:800; color:#fff; line-height:1.4;">${newsEsc(n.head)}</span>
+            <span style="flex-shrink:0; color:var(--text-dim); font-size:14px;">›</span></div>`).join(''));
     } catch (e) {
         console.warn('[news] failed', e);
         container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">Could not load news.</div>');
     }
 }
+
+$(document).off('click touchend', '.news-item-row').on('click touchend', '.news-item-row', function(e) {
+    if (e.type === 'touchend' && touchMoved) return;
+    e.preventDefault();
+    const n = (window._newsOpen || [])[parseInt($(this).data('i'), 10)];
+    if (!n) return;
+    $('#news-story-modal').remove();
+    $('body').append(`<div id="news-story-modal" style="position:fixed; inset:0; z-index:100000; background:rgba(0,0,0,0.78); display:flex; align-items:center; justify-content:center; padding:14px;">
+        <div style="width:100%; max-width:480px; max-height:85vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
+            <div style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-bottom:1px solid var(--card-border);">
+                <div style="flex:1; font-size:13px; font-weight:900; color:#fff; line-height:1.35;">${newsEsc(n.head)}</div>
+                <button class="news-story-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:14px; overflow-y:auto;">${newsBodyHtml(n.body)}
+                ${n.href ? `<a href="${n.href}" target="_blank" rel="noopener" style="display:inline-block; margin-top:12px; font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Full article ›</a>` : ''}</div>
+        </div></div>`);
+});
+$(document).off('click', '#news-story-modal, .news-story-close').on('click', '#news-story-modal, .news-story-close', function(e) {
+    if (e.target === this || $(this).hasClass('news-story-close')) $('#news-story-modal').remove();
+});
 async function loadModalGameLog(pid) {
     const container = $('#modal-gamelog-container');
     container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
