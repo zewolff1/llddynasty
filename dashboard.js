@@ -10846,7 +10846,7 @@ async function fetchWeekProjectedScoresMap(wk) {
     window._weekProjScoreCache[cacheKey] = map;
     return map;
 }
-function buildLiveScorePlayerRow(p, projMap, liveDetails) {
+function buildLiveScorePlayerRow(p, projMap, liveDetails, teamColor) {
     const pos = (p.pos || 'UNK');
     const team = (p.team || 'NFL').toUpperCase();
     const detail = liveDetails && liveDetails.gameInfo ? liveDetails.gameInfo[p.pid] : null;
@@ -10900,11 +10900,11 @@ function buildLiveScorePlayerRow(p, projMap, liveDetails) {
 
     // Live = tinted + glowing left edge, Final = neutral full-brightness, Upcoming = dimmed —
     // so it's obvious at a glance who's done, who's playing, and who hasn't started.
-    const rowBg = status.playing ? `${status.color}14` : 'rgba(0,0,0,0.2)';
+        const rowBg = teamColor ? (status.playing ? `${teamColor}30` : `${teamColor}14`) : (status.playing ? `${status.color}14` : 'rgba(0,0,0,0.2)');
 const rowOpacity = '1';
     return `
         <div class="player-modal-trigger" data-pid="${p.pid}" data-team="${team}" data-name="${p.name}" data-pos="${pos}"
-            style="display:flex; align-items:flex-start; gap:8px; padding:6px; border-radius:8px; margin-bottom:4px; background:${rowBg}; border:1px solid var(--card-border); box-shadow:inset 3px 0 0 ${status.color}; opacity:${rowOpacity}; cursor:pointer;">
+            style="display:flex; align-items:flex-start; gap:8px; padding:6px; border-radius:8px; margin-bottom:4px; background:${rowBg}; border:1px solid var(--card-border); box-shadow:inset 3px 0 0 ${teamColor || status.color}; opacity:${rowOpacity}; cursor:pointer;">
             <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(255,255,255,0.08); position:relative;">
                 <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                 <span style="position:absolute; bottom:-1px; right:-1px; width:8px; height:8px; border-radius:50%; background:${status.color}; border:1px solid var(--card-bg); ${dotAnim}"></span>
@@ -11283,7 +11283,7 @@ function scoreTeamChips(f) {
     return out.length ? `<div style="font-size:10px; font-weight:800; display:flex; gap:8px; justify-content:center; align-items:center;">${out.join('<span style="color:var(--card-border);">|</span>')}</div>` : '';
 }
 
-function buildScoreHeaderHtml(o) {
+function buildScoreHeaderHtmlOld(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian } = o;
     const arrow = (v, m) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
     const team = (t, c, yts, other) => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; min-width:0;">
@@ -11320,6 +11320,63 @@ function buildScoreHeaderHtml(o) {
                     <div style="width:${b}%; background:#a855f7; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:9px; font-weight:900; color:#fff; min-width:${b > 0 ? 28 : 0}px;">${b}%</div>
                 </div>
             </div>
+        </div>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+    </div>`;
+}
+// ---------- SCOREBOARD HEADER v2 (compact identity row, projections between scores, team colors) ----------
+function scoreTeamColors(f1, f2) {
+    const get = f => {
+        const s = (window._teamStyles && window._teamStyles[f]) || {};
+        let c = s.primaryColor;
+        if (!c) { try { c = (JSON.parse(localStorage.getItem('franchise_style_' + f) || '{}')).primaryColor; } catch (e) {} }
+        return /^#[0-9a-f]{6}$/i.test(c || '') ? c : null;
+    };
+    let a = get(f1) || '#3b82f6', b = get(f2) || '#a855f7';
+    if (a.toLowerCase() === b.toLowerCase()) b = '#a855f7' === a ? '#3b82f6' : '#a855f7';
+    return [a, b];
+}
+
+function buildScoreHeaderHtml2(o) {
+    const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
+    const arrow = (v, m) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
+    const logo = t => `<div style="position:relative; width:30px; height:30px; flex-shrink:0;">
+        <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:30px; height:30px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);"></div>`;
+    const ident = (t, side) => {
+        const al = side === 'left' ? 'flex-start' : 'flex-end';
+        const text = `<div style="display:flex; flex-direction:column; align-items:${al}; gap:2px; min-width:0;">
+            <span data-team-style="${t.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
+            ${scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al)}</div>`;
+        return `<div style="flex:1; display:flex; align-items:center; gap:6px; min-width:0; justify-content:${al};">${side === 'left' ? logo(t) + text : text + logo(t)}</div>`;
+    };
+    const score = (t, c, yts, other) => `<div style="flex-shrink:0; min-width:64px; display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center;">
+        <span style="font-size:22px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.1;">${t.score.toFixed(2)}${t.score > other.score ? ' <span title="Winning matchup" style="font-size:11px;">🏆</span>' : ''}</span>
+        ${arrow(t.score, leagueMedian)}
+        <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span>
+    </div>`;
+    const a = Math.round(wp.p1 * 100), b = 100 - a;
+    const proj = p => `<div style="flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;"><span style="font-size:15px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums; line-height:1.1;">${p.toFixed(1)}</span>${arrow(p, projMedian)}</div>`;
+    const center = `<div style="flex:1; min-width:0; padding:8px; border-radius:10px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.25);">
+        <div style="text-align:center; font-size:7px; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:4px;">Projected Final</div>
+        <div style="display:flex; align-items:center; gap:4px;">${proj(t1Proj)}<div style="width:1px; align-self:stretch; background:rgba(245,158,11,0.25);"></div>${proj(t2Proj)}</div>
+        <div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:rgba(255,255,255,0.08); margin-top:8px;">
+            <div style="width:${a}%; background:${tc1}; display:flex; align-items:center; justify-content:flex-start; padding-left:5px; font-size:8px; font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.7); min-width:${a > 0 ? 26 : 0}px;">${a}%</div>
+            <div style="width:${b}%; background:${tc2}; display:flex; align-items:center; justify-content:flex-end; padding-right:5px; font-size:8px; font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.7); min-width:${b > 0 ? 26 : 0}px;">${b}%</div>
+        </div>
+        <div style="text-align:center; font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; margin-top:3px;">Win Probability</div>
+    </div>`;
+    return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                ${ident(t1, 'left')}
+                <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:4px;">
+                    <div style="font-size:10px; font-weight:900; color:var(--text-dim);">vs</div>
+                    <button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button>
+                </div>
+                ${ident(t2, 'right')}
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">${score(t1, c1, yts1, t2)}${center}${score(t2, c2, yts2, t1)}</div>
         </div>
         <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
@@ -11387,7 +11444,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
         const m = Math.floor(v.length / 2);
         return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
     })();
-     function buildTeamRosterHtml(roster, projMap) {
+     function buildTeamRosterHtml(roster, projMap, teamColor) {
         const { starters, bench } = sortLiveScoreRoster(roster);
         if (starters.length === 0 && bench.length === 0) {
             return '<div style="text-align:center; padding:10px; color:var(--text-dim); font-size:9px;">No lineup data</div>';
@@ -11395,17 +11452,18 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
         let html = '';
         if (starters.length) {
             html += buildLiveScoreSectionHeader('Starters');
-            html += starters.map(p => buildLiveScorePlayerRow(p, projMap, liveDetails)).join('');
+            html += starters.map(p => buildLiveScorePlayerRow(p, projMap, liveDetails, teamColor)).join('');
         }
         if (bench.length) {
             html += buildLiveScoreSectionHeader('Bench');
-            html += bench.map(p => buildLiveScorePlayerRow(p, projMap, liveDetails)).join('');
+            html += bench.map(p => buildLiveScorePlayerRow(p, projMap, liveDetails, teamColor)).join('');
         }
         return html;
     }
 
-    const t1Rows = buildTeamRosterHtml(t1.roster, projMap1);
-    const t2Rows = buildTeamRosterHtml(t2.roster, projMap2);
+        const [tc1, tc2] = scoreTeamColors(t1.fid, t2.fid);
+    const t1Rows = buildTeamRosterHtml(t1.roster, projMap1, tc1);
+    const t2Rows = buildTeamRosterHtml(t2.roster, projMap2, tc2);
 
     const activeWk = window._liveScoreActiveWeek;
     const isLiveWk = activeWk === window._liveScoreCurrentWeek;
@@ -11439,7 +11497,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
             ${tabsHtml}
 
             <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
-                ${buildScoreHeaderHtml({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian })}
+                ${buildScoreHeaderHtml2({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 })}
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1; min-width:0;">${t1Rows}</div>
                     <div style="flex:1; min-width:0;">${t2Rows}</div>
