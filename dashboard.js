@@ -12816,13 +12816,20 @@ async function loadModalNews(pid) {
                 const seen = new Set();
                 doc.querySelectorAll('tr, li, div[class*="news"], div[class*="article"]').forEach(el => {
                     if (el.querySelector('tr, li, div[class*="news"], div[class*="article"]')) return;
-                    const text = el.textContent.replace(/\s+/g, ' ').trim();
+                                        const clone = el.cloneNode(true);
+                    clone.querySelectorAll('script, style, noscript, iframe, [id*="freestar"], [class*="freestar"]').forEach(x => x.remove());
+                    const moreA = [...clone.querySelectorAll('a')].find(a => /^\(?\s*more\s*\)?$/i.test(a.textContent.trim()));
+                    const more = moreA ? moreA.href : '';
+                    let text = clone.textContent.replace(/\s+/g, ' ').trim();
+                    let age = '';
+                    text = text.replace(/\s*(\d+\s+(?:minutes?|hours?|days?|weeks?|months?)|just now)\s*$/i, (m, a) => { age = a; return ''; });
+                    text = text.replace(/\s*\.{0,3}\s*\(\s*More\s*\)\s*$/i, '…').trim();
                     if (text.length < 40 || seen.has(text)) return;
                     if (!el.querySelector(`a[href*="${pid}"]`) && !mentions(text)) return;
                     seen.add(text);
                     const { head, body } = newsSplit(text);
                     const link = el.querySelector('a[href^="http"]:not([href*="myfantasyleague.com"])');
-                    items.push({ head, body, href: link ? link.href : '' });
+                                        items.push({ head, body, age, more, href: link ? link.href : '' });
                 });
                 if (items.length) break;
                 console.log('[news] no items for', pid, name, 'from', url);
@@ -12856,9 +12863,34 @@ $(document).off('click touchend', '.news-item-row').on('click touchend', '.news-
                 <div style="flex:1; font-size:13px; font-weight:900; color:#fff; line-height:1.35;">${newsEsc(n.head)}</div>
                 <button class="news-story-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
             </div>
-            <div style="padding:14px; overflow-y:auto;">${newsBodyHtml(n.body)}
+                       <div style="padding:14px; overflow-y:auto;">${n.age ? `<div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">${newsEsc(n.age)} ago</div>` : ''}<div id="news-story-body">${newsBodyHtml(n.body)}${n.more ? '<div style="margin-top:10px; font-size:9px; font-weight:800; color:var(--text-dim);">Loading full story…</div>' : ''}</div>
                 ${n.href ? `<a href="${n.href}" target="_blank" rel="noopener" style="display:inline-block; margin-top:12px; font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Full article ›</a>` : ''}</div>
-        </div></div>`);
+               </div></div>`);
+    if (n.more) {
+        (async () => {
+            try {
+                const res = await fetch(n.more, { credentials: 'include' });
+                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                doc.querySelectorAll('script, style, noscript, iframe, [id*="freestar"], [class*="freestar"]').forEach(x => x.remove());
+                const startKey = n.body.slice(0, 40).replace(/…$/, '');
+                const aIdx = n.body.indexOf('Analysis:');
+                const anKey = aIdx >= 0 ? n.body.slice(aIdx, aIdx + 30) : '';
+                let best = null, bestLen = Infinity;
+                doc.querySelectorAll('div, td, p, article, section').forEach(el => {
+                    const t = el.textContent.replace(/\s+/g, ' ').trim();
+                    if (t.includes(startKey) && (!anKey || t.includes(anKey)) && t.length < bestLen) { best = t; bestLen = t.length; }
+                });
+                if (best) {
+                    const from = best.indexOf(startKey);
+                    let full = best.slice(from).replace(/\s*\.{0,3}\s*\(\s*More\s*\)[\s\S]*$/i, '').trim();
+                    if (full.length > n.body.length - 5 && $('#news-story-body').length) $('#news-story-body').html(newsBodyHtml(full));
+                    else $('#news-story-body').html(newsBodyHtml(n.body));
+                } else {
+                    $('#news-story-body').html(newsBodyHtml(n.body));
+                }
+            } catch (e) { $('#news-story-body').html(newsBodyHtml(n.body)); }
+        })();
+    }
 });
 $(document).off('click', '#news-story-modal, .news-story-close').on('click', '#news-story-modal, .news-story-close', function(e) {
     if (e.target === this || $(this).hasClass('news-story-close')) $('#news-story-modal').remove();
