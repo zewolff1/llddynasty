@@ -9930,6 +9930,7 @@ async function fetchWeeklyPlayerInfoMap(weekParam) {
 function formatGameClock(gsr) {
     if (gsr === null || isNaN(gsr) || gsr > 3600) return null; // pregame, no clock yet
     if (gsr <= 0) return null; // final, handled elsewhere
+    if (gsr === 1800) return 'Half';
     const elapsed = 3600 - gsr;
     const quarter = Math.min(4, Math.floor(elapsed / 900) + 1);
     const secsLeftInQuarter = 900 - (elapsed - (quarter - 1) * 900);
@@ -9940,6 +9941,13 @@ function formatGameClock(gsr) {
 }
 
 function deriveLiveStatus(p) {
+    // The NFL schedule feed is the most reliable per-game signal, so it wins when we have it
+    const sched = scheduleStatusForTeam(p.team);
+    if (sched) {
+        if (sched.state === 'final') return { label: 'Final', color: '#94a3b8', playing: false, done: true };
+        if (sched.state === 'live') return { label: sched.label, color: '#ef4444', playing: true, done: false };
+        return { label: 'Upcoming', color: '#f59e0b', playing: false, done: false };
+    }
     if (p.rawStatus) {
         const s = String(p.rawStatus).toLowerCase();
         if (s.includes('final') || s.includes('post') || s.includes('bye')) return { label: 'Final', color: '#94a3b8', playing: false, done: true };
@@ -10801,8 +10809,12 @@ function sortLiveScoreRoster(roster) {
         if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
         return a.name.localeCompare(b.name);
     });
-    const starters = list.filter(p => p.isStarter);
+        const starters = list.filter(p => p.isStarter);
     const bench = list.filter(p => !p.isStarter);
+    if (window._liveScoreSort && window._liveScoreSort !== 'slot') {
+        const byStatus = (a, b) => (liveStatusRank(a) - liveStatusRank(b)) || ((a.slotIndex || 0) - (b.slotIndex || 0));
+        starters.sort(byStatus); bench.sort(byStatus);
+    }
     return { starters, bench };
 }
 
@@ -10954,8 +10966,11 @@ window._nflScheduleCache = window._nflScheduleCache || {};
 // Reads the JSON export first, then falls back to the static nfl_sched_<week>.xml file.
 async function fetchNflScheduleForWeek(wk) {
     window._nflScheduleCache = window._nflScheduleCache || {};
-    const cacheKey = String(wk);
-    if (window._nflScheduleCache[cacheKey]) return window._nflScheduleCache[cacheKey];
+        const cacheKey = String(wk);
+    window._nflScheduleCacheAt = window._nflScheduleCacheAt || {};
+    const fresh = Date.now() - (window._nflScheduleCacheAt[cacheKey] || 0) < 20000;
+    const liveWeek = String(wk) === String(window._liveScoreCurrentWeek);
+    if (window._nflScheduleCache[cacheKey] && (!liveWeek || fresh)) return window._nflScheduleCache[cacheKey];
     const map = {};
     const ingest = (kickoff, gsrRaw, teams) => {
         const kickoffMs = parseInt(kickoff, 10) * 1000;
@@ -10996,12 +11011,16 @@ async function fetchNflScheduleForWeek(wk) {
         } catch (e) { console.warn('[nfl-sched] XML fallback failed for week', wk, e); }
     }
     console.log('[nfl-sched] week', wk, 'teams loaded:', Object.keys(map).length);
-    if (Object.keys(map).length) window._nflScheduleCache[cacheKey] = map; // never cache a failed/empty result
+    if (Object.keys(map).length)     window._nflScheduleCache[cacheKey] = map;
+    window._nflScheduleCacheAt[cacheKey] = Date.now(); // never cache a failed/empty result
     return map;
 }
 async function fetchNflScheduleForWeekOld(wk) {
-    const cacheKey = String(wk);
-    if (window._nflScheduleCache[cacheKey]) return window._nflScheduleCache[cacheKey];
+        const cacheKey = String(wk);
+    window._nflScheduleCacheAt = window._nflScheduleCacheAt || {};
+    const fresh = Date.now() - (window._nflScheduleCacheAt[cacheKey] || 0) < 20000;
+    const liveWeek = String(wk) === String(window._liveScoreCurrentWeek);
+    if (window._nflScheduleCache[cacheKey] && (!liveWeek || fresh)) return window._nflScheduleCache[cacheKey];
     const map = {};
     try {
         const url = `https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`;
@@ -11023,7 +11042,7 @@ async function fetchNflScheduleForWeekOld(wk) {
         });
     } catch(e) { console.warn('Could not fetch nflSchedule for week', wk, e); }
     window._nflScheduleCache[cacheKey] = map;
-    return map;
+    window._nflScheduleCacheAt[cacheKey] = Date.now();    return map;
 }
 
 window._liveScoringDetailsCache = window._liveScoringDetailsCache || {};
@@ -11729,8 +11748,88 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     reapplyAllTeamStyles();
     document.querySelector(`.live-score-tab[data-idx="${idx}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 }
-async function loadLiveScores(weekOverride = null) {
-    const container = $('#scores-content-container');
+// ===================== LIVE GAME STATE (clock) + PLAYING NOW + SORT =====================
+const NFL_ABBR_ALIAS = { JAX: 'JAC', WSH: 'WAS', LV: 'LVR', GB: 'GBP', KC: 'KCC', NE: 'NEP', NO: 'NOS', SF: 'SFO', TB: 'TBB', LA: 'LAR' };
+
+// Reads the NFL schedule feed for a team's game: 'pre' | 'live' | 'final', plus a label like "Q2 8:41".
+function scheduleStatusForTeam(team) {
+    const sched = window._liveScoreNflSchedule || {};
+    const key = String(team || '').toUpperCase();
+    const e = sched[key] || sched[NFL_ABBR_ALIAS[key]];
+    if (!e) return null;
+    const now = Date.now();
+    const gsr = e.gsr;
+    if (gsr !== null && gsr !== undefined && !isNaN(gsr)) {
+        if (gsr <= 0) return { state: 'final', label: 'Final' };
+        if (gsr < 3600) return { state: 'live', label: formatGameClock(gsr) || 'Live' };
+        // Feed still says 3600 but kickoff has passed: the game has started, the clock just hasn't ticked yet
+        if (e.kickoffMs && now >= e.kickoffMs && now < e.kickoffMs + 4.5 * 3600 * 1000) return { state: 'live', label: 'Live' };
+        return { state: 'pre', label: e.label };
+    }
+    if (e.kickoffMs) {
+        if (now < e.kickoffMs) return { state: 'pre', label: e.label };
+        if (now < e.kickoffMs + 4.5 * 3600 * 1000) return { state: 'live', label: 'Live' };
+        return { state: 'final', label: 'Final' };
+    }
+    return null;
+}
+
+// Scoreboard sort: 'slot' (default, lineup order), 'live' (playing first), 'ytp' (yet to play first)
+window._liveScoreSort = (function () { try { return localStorage.getItem('lld_scores_sort') || 'slot'; } catch (e) { return 'slot'; } })();
+function liveStatusRank(p) {
+    const s = deriveLiveStatus(p);
+    if (window._liveScoreSort === 'ytp') return s.playing ? 1 : (s.done ? 2 : 0);
+    return s.playing ? 0 : (s.done ? 2 : 1);
+}
+
+// Strip above the starters: who is on the field right now for each side, with the game clock, plus the sort control
+function buildLiveNowHtml(t1, t2) {
+    const mode = window._liveScoreSort || 'slot';
+    const cols = (typeof scoreTeamColors === 'function') ? scoreTeamColors(t1.fid, t2.fid) : ['#3b82f6', '#3b82f6'];
+    const live = t => (t.roster || []).filter(p => p.isStarter && deriveLiveStatus(p).playing).sort((a, b) => (a.slotIndex || 0) - (b.slotIndex || 0));
+    const l1 = live(t1), l2 = live(t2);
+    const chip = (p, color, right) => {
+        const st = deriveLiveStatus(p), pos = (p.pos || '').toUpperCase();
+        const img = `<span style="position:relative; width:22px; height:22px; flex-shrink:0; border-radius:50%; overflow:hidden; background:var(--card-bg);"><img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;"></span>`;
+        const txt = `<span style="min-width:0; text-align:${right ? 'right' : 'left'};"><span style="display:block; font-size:9px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name} <span class="pos-text-${pos.toLowerCase()}" style="font-size:7px; font-weight:900;">${pos}</span></span><span style="display:block; font-size:8px; font-weight:900; color:#ef4444; white-space:nowrap;">${st.label}</span></span>`;
+        const pts = `<span style="font-size:11px; font-weight:900; color:#22c55e; flex-shrink:0;">${(p.score || 0).toFixed(1)}</span>`;
+        return `<div class="player-modal-trigger" data-pid="${p.pid}" data-team="${(p.team || '').toUpperCase()}" data-name="${p.name}" data-pos="${pos}" style="display:flex; align-items:center; gap:6px; flex-direction:${right ? 'row-reverse' : 'row'}; padding:4px 6px; border-radius:8px; margin-bottom:3px; background:${color}22; border:1px solid ${color}55; cursor:pointer;">${img}${txt}${pts}</div>`;
+    };
+    const col = (list, color, right) => `<div style="flex:1; min-width:0;">${list.length ? list.map(p => chip(p, color, right)).join('') : `<div style="font-size:8px; font-weight:800; color:var(--text-dim); text-align:${right ? 'right' : 'left'}; padding:4px 2px;">—</div>`}</div>`;
+    const sortBtn = (key, label) => `<button class="live-sort-btn" data-sort="${key}" style="padding:4px 8px; border-radius:6px; font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:0.4px; cursor:pointer; border:1px solid ${mode === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${mode === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${mode === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
+    const total = l1.length + l2.length;
+    return `<div id="live-now-strip" style="margin:0 0 12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+            <span style="font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:${total ? '#ef4444' : 'var(--text-dim)'};">${total ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:5px; animation: pulse-blue 1.2s infinite;"></span>Playing now · ${total}` : 'Nobody playing right now'}</span>
+            <div style="display:flex; gap:4px;">${sortBtn('slot', 'Lineup')}${sortBtn('live', 'Live first')}${sortBtn('ytp', 'To play')}</div>
+        </div>
+        ${total ? `<div style="display:flex; gap:8px;">${col(l1, cols[0], false)}${col(l2, cols[1], true)}</div>` : ''}
+    </div>`;
+}
+function injectLiveNowStrip() {
+    const inner = document.getElementById('live-score-card-inner');
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
+    if (!inner || !m) return;
+    const old = document.getElementById('live-now-strip'); if (old) old.remove();
+    if (window._liveScoreActiveWeek !== window._liveScoreCurrentWeek) return; // past weeks have nobody playing
+    const html = buildLiveNowHtml(m.t1, m.t2), first = inner.firstElementChild;
+    if (first) first.insertAdjacentHTML('afterend', html); else inner.insertAdjacentHTML('afterbegin', html);
+}
+// Run the strip after every scoreboard render, without touching renderLiveScoreCard itself
+const _origRenderLiveScoreCard = renderLiveScoreCard;
+renderLiveScoreCard = async function () {
+    await _origRenderLiveScoreCard.apply(this, arguments);
+    injectLiveNowStrip();
+};
+$(document).off('click.livesort').on('click.livesort', '.live-sort-btn', function (e) {
+    e.stopPropagation();
+    window._liveScoreSort = String($(this).data('sort'));
+    try { localStorage.setItem('lld_scores_sort', window._liveScoreSort); } catch (err) {}
+    renderLiveScoreCard();
+});
+// =================== END LIVE GAME STATE ===================
+
+async function loadLiveScores(weekOverride = null) {    const container = $('#scores-content-container');
     window._liveScoringDetailsCache = {};
     const weekChanged = weekOverride !== null && weekOverride !== window._liveScoreActiveWeek;
     if (!window._liveScoreMatchups) {
