@@ -1226,7 +1226,8 @@ if (pageMatch) {
     const faModeMatch = pageText.match(/<!--FAMODE:(true|false)-->/);
     if (faModeMatch) {
         window.offseasonMode = faModeMatch[1] === 'true';
-        localStorage.setItem(`fa_mode_${lid}`, window.offseasonMode);
+localStorage.setItem(`fa_mode_${lid}`, window.offseasonMode);
+        applyDraftTabVisibility();
     }
 
     return;
@@ -4300,7 +4301,8 @@ $(document).on('click', '#toggle-fa-mode-btn', async function() {
     } catch(e) { console.warn('Could not save FA mode', e); }
     localStorage.setItem(`fa_mode_${lid}`, newState);
     updateFaModeToggleUI(newState);
-    window.offseasonMode = newState;
+       window.offseasonMode = newState;
+    applyDraftTabVisibility();
 });
 $(document).on('click', '#toggle-contracts-stats-btn', function() {
     const full = $('#contracts-stats-row-full');
@@ -8041,7 +8043,9 @@ const fLink = row.querySelector('td:nth-child(2) a');
         const td2 = row.querySelector('td:nth-child(2)');
         const isCommish = td2 ? td2.textContent.includes('(C)') : false;
                 const txTypeNode = row.querySelector('td.transactiontype');
-const txType = txTypeNode ? txTypeNode.textContent.trim() : 'System';
+const rawTxType = txTypeNode ? txTypeNode.textContent.trim() : 'System';
+if (/\btaxi\b|\bir\b|injured/i.test(rawTxType)) return;   // hide IR and taxi moves
+const txType = /waiver|add\s*\/?\s*drop/i.test(rawTxType) ? 'Add/Drop' : rawTxType;   // waivers share the Add/Drop filter
         uniqueTxTypes.add(txType);
         if (!window._txTypeDebugLogged) {
             window._txTypeDebugLogged = true;
@@ -8741,8 +8745,8 @@ container.html(scheduleHtml);
         }
     }
     // --- LEAGUE STANDINGS FETCHER ---
-async function loadLeagueStandings() {
-    const container = $('#league-content-container');
+async function loadStandingsTable() {
+    const container = $('#standings-seg-body');
     if (window._standingsCache) {
         container.html(window._standingsCache);
         reapplyAllTeamStyles();
@@ -8838,7 +8842,19 @@ fetch(`https://www45.myfantasyleague.com/${parseInt(year) - 1}/standings?L=${lid
             window._allPrevRecords[rowFid] = row.querySelector('td.h2hwlt')?.textContent.trim() || '';
         });
     }).catch(e => console.warn('Prev year standings fetch failed', e));
+// Hide the Draft tab (set to 'offseason', 'inseason', 'always' or 'never')
+const HIDE_DRAFT_TAB = 'offseason';
+function applyDraftTabVisibility() {
+    const hide = HIDE_DRAFT_TAB === 'always'
+        || (HIDE_DRAFT_TAB === 'offseason' && window.offseasonMode)
+        || (HIDE_DRAFT_TAB === 'inseason' && !window.offseasonMode);
+    $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-draft'); }).toggle(!hide);
+    if (hide && $('#tab-draft').is(':visible')) {
+        $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-team'); }).trigger('click');
+    }
+}
 window.openMainTab = function(evt, tabId) {
+    applyDraftTabVisibility();
         // Clear draft poll and clock when leaving draft tab
         if (tabId !== 'tab-draft') {
             if (window._draftPollInterval) { clearInterval(window._draftPollInterval); window._draftPollInterval = null; }
@@ -11860,10 +11876,106 @@ async function loadLiveScores(weekOverride = null) {
         container.html('<div style="text-align:center; color:#ef4444; padding:20px; font-weight:800;">Failed to load live scores.</div>');
     }
 }
-// ===================== DRAFT TAB: PROJECTED ORDER =====================
-// Picks the default view: during the season (any week has scores) show next year's projected
+// ===================== STANDINGS: SEGMENTS (Standings / Next Year Order / Playoffs) =====================
+function standingsSegHtml(active) {
+    const nextYear = parseInt(year, 10) + 1;
+    const btn = (key, label) => `<button class="standings-seg-btn" data-seg="${key}" style="flex:1; padding:8px 6px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
+    return `<div style="display:flex; gap:6px; padding:10px 10px 0;">${btn('table', 'Standings')}${btn('order', nextYear + ' Order')}${btn('bracket', 'Playoffs')}</div>`;
+}
+
+async function loadLeagueStandings() {
+    const seg = window._standingsSeg || 'table';
+    $('#league-content-container').html(`${standingsSegHtml(seg)}<div id="standings-seg-body"></div>`);
+    const body = $('#standings-seg-body');
+    if (seg === 'order') await renderProjectedDraft(body);
+    else if (seg === 'bracket') await renderPlayoffBracket(body);
+    else await loadStandingsTable();
+}
+
+// Projected playoff bracket: top 4 qualify, #1 v #4 and #2 v #3, single elimination
+async function renderPlayoffBracket(container) {
+    const QUALIFIERS = 4, REG_WEEKS = 14;
+    container.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Playoff Picture...</div>');
+    try {
+        const res = await fetch(`https://www45.myfantasyleague.com/${year}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' });
+        const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+        const num = s => parseFloat(String(s || '0').replace(/,/g, '')) || 0;
+        const teams = [];
+        // Rows come back in MFL's own standings order, so row order is the seed order
+        doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+            const m = row.querySelector('td.fname a')?.getAttribute('href')?.match(/F=(\d+)/i);
+            if (!m) return;
+            const nums = (row.querySelector('td.h2hwlt')?.textContent || '').match(/\d+/g) || [];
+            const w = parseInt(nums[0] || 0), l = parseInt(nums[1] || 0), t = parseInt(nums[2] || 0);
+            teams.push({ fid: m[1].padStart(4, '0'), w, l, t, gp: w + l + t, pf: num(row.querySelector('td.pf')?.textContent) });
+        });
+        if (teams.length < QUALIFIERS) {
+            container.html('<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">Not enough standings data yet.</div>');
+            return;
+        }
+        const rec = t => `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`;
+        const fmtPf = n => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const played = Math.max(...teams.map(t => t.gp));
+        const left = Math.max(0, REG_WEEKS - played);
+
+        const teamRow = (t, seed) => {
+            const mine = t.fid === myFid;
+            return `<div style="display:flex; align-items:center; gap:10px; padding:9px 12px; background:${mine ? 'rgba(34,197,94,0.06)' : 'transparent'};">
+                <span style="font-size:11px; font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:18px;">${seed}</span>
+                <img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.opacity='0'" style="width:26px; height:26px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
+                <span data-team-style="${t.fid}" style="font-size:12px; font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[t.fid] || t.fid}</span>
+                <div style="text-align:right; flex-shrink:0;">
+                    <div style="font-size:11px; font-weight:900; color:#fff;">${rec(t)}</div>
+                    <div style="font-size:8px; font-weight:800; color:var(--text-dim);">${fmtPf(t.pf)} PF</div>
+                </div>
+            </div>`;
+        };
+        const tbdRow = label => `<div style="display:flex; align-items:center; gap:10px; padding:9px 12px;">
+            <span style="font-size:11px; font-weight:900; color:var(--text-dim); min-width:18px;">?</span>
+            <span style="width:26px; height:26px; border-radius:50%; border:1px dashed var(--card-border); flex-shrink:0;"></span>
+            <span style="font-size:11px; font-weight:800; color:var(--text-dim);">${label}</span>
+        </div>`;
+        const card = (title, sub, a, b) => `<div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border);">
+                <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${title}</span>
+                <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${sub}</span>
+            </div>
+            ${a}<div style="height:1px; background:rgba(255,255,255,0.05);"></div>${b}
+        </div>`;
+
+        const s = teams;
+        let html = `<div style="padding:10px;">
+            <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:12px; line-height:1.5;">${left > 0 ? `If the playoffs started today · ${left} regular-season game${left === 1 ? '' : 's'} left` : 'Final regular-season seeding'}. Top ${QUALIFIERS} qualify; ties broken by points scored.</div>
+            ${card('Semifinal 1', 'Weeks 15–16', teamRow(s[0], 1), teamRow(s[3], 4))}
+            ${card('Semifinal 2', 'Weeks 15–16', teamRow(s[1], 2), teamRow(s[2], 3))}
+            ${card('Championship', 'Weeks 17–18', tbdRow('Winner of Semifinal 1'), tbdRow('Winner of Semifinal 2'))}`;
+
+        const cut = s[QUALIFIERS - 1];
+        const bubble = s.slice(QUALIFIERS, QUALIFIERS + 3);
+        if (bubble.length) {
+            html += `<div style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 2px 8px;">On the bubble</div>
+            <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
+            ${bubble.map((t, i) => {
+                const gb = ((cut.w - t.w) + (t.l - cut.l)) / 2;
+                const pfBack = cut.pf - t.pf;
+                return teamRow(t, QUALIFIERS + 1 + i).replace(/(<div style="text-align:right; flex-shrink:0;">)/, `$1<div style="font-size:8px; font-weight:900; color:#f59e0b; margin-bottom:2px;">${gb > 0 ? gb + ' GB' : 'Tied'}${pfBack > 0 ? ' · ' + fmtPf(pfBack) + ' PF back' : ''}</div>`);
+            }).join('<div style="height:1px; background:rgba(255,255,255,0.05);"></div>')}
+            </div>`;
+        }
+        html += '</div>';
+        container.html(html);
+        reapplyAllTeamStyles();
+    } catch (e) {
+        console.error('Playoff bracket error:', e);
+        container.html('<div style="text-align:center; color:#ef4444; padding:20px; font-weight:800;">Failed to load the playoff picture.</div>');
+    }
+}
+// =================== END STANDINGS: SEGMENTS ===================
+
+// ===================== DRAFT TAB: PROJECTED ORDER =====================// Picks the default view: during the season (any week has scores) show next year's projected
 // order; in the offseason show the live draft board. A button press overrides this.
 async function getDraftSegment() {
+    return 'last'; // Projected order now lives under League > Standings
     if (window._draftSeg) return window._draftSeg;
     let inSeason = false;
     try { inSeason = Object.keys(await fetchAllWeekScores()).length > 0; } catch (e) {}
@@ -11871,6 +11983,7 @@ async function getDraftSegment() {
 }
 
 function draftSegHtml(active) {
+    return ''; // the Draft tab no longer has a Projected Order toggle
     const nextYear = parseInt(year, 10) + 1;
     const btn = (key, label) => `<button class="draft-seg-btn" data-seg="${key}" style="flex:1; padding:8px 10px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
     return `<div style="display:flex; gap:6px; margin-bottom:12px; padding:0 5px;">${btn('projected', nextYear + ' Projected Order')}${btn('last', year + ' Draft')}</div>`;
@@ -12828,8 +12941,17 @@ async function checkNotifBadge() {
         if (e.type === 'touchend' && touchMoved) return;
         if (e.type === 'touchend') e.preventDefault();
         e.stopPropagation();
-        window._draftSeg = $(this).data('seg');
+               window._draftSeg = $(this).data('seg');
         await loadDraftData();
+    });
+
+    // League > Standings: Standings / Next Year Order / Playoffs
+    $(document).off('click touchend', '.standings-seg-btn').on('click touchend', '.standings-seg-btn', async function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        window._standingsSeg = $(this).data('seg');
+        await loadLeagueStandings();
     });
 
     function recapBind(sel, fn) {
