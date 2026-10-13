@@ -10340,7 +10340,8 @@ async function renderWeeklyRecap() {
         </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`));
 
     // 6. Gutsiest calls
-    const calls = [];
+        const calls = [];
+    const overs = [];
     teams.forEach(t => {
         const roster = t.roster || [];
         const optimal = recapOptimalLineup(roster, projMap);
@@ -10356,6 +10357,7 @@ async function renderWeeklyRecap() {
             taken.add(pick.pid);
             const margin = g.score - pick.score;
             if (margin > 0) calls.push({ t, g, d: pick, margin, gProj: projMap[g.pid] || 0, dProj: projMap[pick.pid] || 0 });
+            else if (margin < 0) overs.push({ t, g, d: pick, margin: -margin, gProj: projMap[g.pid] || 0, dProj: projMap[pick.pid] || 0 });
         });
     });
     calls.sort((a, b) => b.margin - a.margin);
@@ -10365,6 +10367,14 @@ async function renderWeeklyRecap() {
             <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#22c55e;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
             <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#22c55e; font-weight:900;">+${c.margin.toFixed(1)} pts</span></div>
         </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">No gutsy calls paid off this week.</div>`));
+
+    overs.sort((a, b) => b.margin - a.margin);
+    sections.push(recapCard('The Overthinker', '🤡', overs.length ? overs.slice(0, 5).map(c => `
+        <div style="padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
+            <div style="font-size:9px;">${recapTeamChip(c.t)}</div>
+            <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#ef4444;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
+            <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#ef4444; font-weight:900;">−${c.margin.toFixed(1)} pts</span></div>
+        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">Nobody outsmarted themselves this week.</div>`));
 
     container.html(header + sections.join('') + '</div>');
     reapplyAllTeamStyles();
@@ -10484,7 +10494,7 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
     const games = matchups.filter(m => m.t1.score > 0 && m.t2.score > 0);
     const oppOf = {};
     games.forEach(m => { if (!oppOf[m.t1.fid]) oppOf[m.t1.fid] = m.t2; if (!oppOf[m.t2.fid]) oppOf[m.t2.fid] = m.t1; });
-    const S = { wk, played: games.length, top: null, potw: [], blowout: null, close: null, upsets: [], calls: [] };
+    const S = { wk, played: games.length, top: null, potw: [], blowout: null, close: null, upsets: [], calls: [], overs: [] };
     if (!games.length) return S;
 
     const top = [...teams].sort((a, b) => b.score - a.score)[0];
@@ -10535,7 +10545,17 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
             if (!pick) return;
             taken.add(pick.pid);
             const margin = g.score - pick.score;
-            if (margin <= 0) return;
+            if (margin < 0) {
+                const wO = !!opp && t.score > opp.score;
+                S.overs.push({
+                    fid: t.fid, g, d: pick, margin: -margin,
+                    gProj: projMap[g.pid] || 0, dProj: projMap[pick.pid] || 0,
+                    teamScore: t.score, oppScore: opp ? opp.score : null, oppFid: opp ? opp.fid : null,
+                    won: wO, decisive: !!opp && !wO && (t.score - margin) > opp.score
+                });
+                return;
+            }
+            if (margin === 0) return;
             const won = !!opp && t.score > opp.score;
             S.calls.push({
                 fid: t.fid, g, d: pick, margin,
@@ -10546,6 +10566,7 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
         });
     });
     S.calls.sort((a, b) => (b.decisive - a.decisive) || (b.margin - a.margin));
+    S.overs.sort((a, b) => (b.decisive - a.decisive) || (b.margin - a.margin));
     return S;
 }
 
@@ -10569,6 +10590,7 @@ function recapEvents(summaries) {
         if (S.close) ev.push({ wk: S.wk, type: 'close', fid: S.close.w.fid, w: S.close.w, l: S.close.l, d: S.close.d });
         S.upsets.forEach(u => ev.push({ wk: S.wk, type: 'upset', fid: u.w.fid, u }));
         S.calls.forEach(c => ev.push({ wk: S.wk, type: 'gutsy', fid: c.fid, c }));
+        (S.overs || []).forEach(c => ev.push({ wk: S.wk, type: 'overthink', fid: c.fid, c }));
     });
     return ev;
 }
@@ -10579,7 +10601,8 @@ const RECAP_AWARDS = [
     { key: 'blowout', icon: '', title: 'Biggest Blowout' },
     { key: 'close', icon: '', title: 'Closest Game' },
     { key: 'upset', icon: '', title: 'Upsets' },
-    { key: 'gutsy', icon: '', title: 'Gutsiest Calls' }
+    { key: 'gutsy', icon: '', title: 'Gutsiest Calls' },
+    { key: 'overthink', icon: '', title: 'The Overthinker' }
 ];
 
 // ---------- small UI helpers ----------
@@ -10654,6 +10677,22 @@ function recapGutsyCard(c, withTeam) {
 }
 
 // ---------- views ----------
+function recapOverCard(c, withTeam) {
+    const swing = c.decisive
+        ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.5); font-size:10px; font-weight:800; color:#ef4444; line-height:1.4;">
+            💀 <b>COST THE GAME</b> — lost ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}. Starting ${c.d.name} instead would have been ${(c.teamScore + c.margin).toFixed(1)}–${c.oppScore.toFixed(1)}, a win over ${leagueFranchises[c.oppFid] || c.oppFid}.</div>`
+        : (c.oppScore != null ? `<div style="margin-top:6px; font-size:9px; font-weight:700; color:var(--text-dim);">${c.won ? 'Team won' : 'Team lost'} ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}${c.won ? ' anyway' : ' — wouldn\'t have changed the result'}</div>` : '');
+    return `<div style="padding:8px; border-radius:10px; margin-bottom:8px; background:rgba(255,255,255,0.015); border:1px solid ${c.decisive ? 'rgba(239,68,68,0.5)' : 'var(--card-border)'};">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+            ${withTeam ? recapTeamChip(c.fid, 22) : '<span></span>'}
+            ${recapPill('−' + c.margin.toFixed(1) + ' pts', '#ef4444')}
+        </div>
+        ${recapPlayerRow(c.g, { accent: '#ef4444', tag: 'STARTED', right: `<div style="font-size:14px; font-weight:900; color:#ef4444;">${c.g.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:#f59e0b;">PROJ ${c.gProj.toFixed(1)}</div>` })}
+        ${recapPlayerRow(c.d, { dim: true, accent: '#22c55e', tag: 'BENCHED', right: `<div style="font-size:14px; font-weight:900; color:#22c55e;">${c.d.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:#f59e0b;">PROJ ${c.dProj.toFixed(1)}</div>` })}
+        ${swing}
+    </div>`;
+}
+
 function recapWeekView(S) {
     if (!S.top) return `<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">No completed games for Week ${S.wk}.</div>`;
     const out = [];
@@ -10682,6 +10721,7 @@ function recapWeekView(S) {
             </div>
         </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${S.wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`, 'Lost to a team they usually outscore'));
     out.push(recapCard('Gutsiest Calls', '🧠', S.calls.length ? S.calls.slice(0, 6).map(c => recapGutsyCard(c, true)).join('') : `<div style="font-size:10px; color:var(--text-dim);">No gutsy calls paid off this week.</div>`, 'Started against the projections, and it worked'));
+    out.push(recapCard('The Overthinker', '🤡', (S.overs || []).length ? S.overs.slice(0, 6).map(c => recapOverCard(c, true)).join('') : `<div style="font-size:10px; color:var(--text-dim);">Nobody outsmarted themselves this week.</div>`, 'Started against the projections, and it backfired'));
     return out.join('');
 }
 
@@ -10700,9 +10740,9 @@ function recapAwardsView(events) {
             const chips = recapChips(r.list.map(e => ({
                 wk: e.wk,
                 label: a.key === 'potw' ? e.pos : '',
-                hot: a.key === 'gutsy' && e.c.decisive
+hot: (a.key === 'gutsy' || a.key === 'overthink') && e.c.decisive
             })));
-            const wins = a.key === 'gutsy' ? r.list.filter(e => e.c.decisive).length : 0;
+            const wins = (a.key === 'gutsy' || a.key === 'overthink') ? r.list.filter(e => e.c.decisive).length : 0;
                        return `<div class="recap-award-row" data-award="${a.key}" data-fid="${r.fid}" style="cursor:pointer; display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; margin-bottom:4px; background:rgba(0,0,0,0.2); border:1px solid ${r.fid === (typeof myFid !== 'undefined' ? myFid : fid) ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'};">
                 <span style="font-size:11px; font-weight:900; color:var(--text-dim); width:14px; text-align:center;">${i + 1}</span>
                 ${recapLogo(r.fid, 30)}
@@ -10736,7 +10776,8 @@ function recapTeamView(events, selFid) {
         else if (e.type === 'blowout') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
         else if (e.type === 'close') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
         else if (e.type === 'upset') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:9px; font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
-        else if (e.type === 'gutsy') body = recapGutsyCard(e.c, false);
+               else if (e.type === 'gutsy') body = recapGutsyCard(e.c, false);
+        else if (e.type === 'overthink') body = recapOverCard(e.c, false);
         return `<div style="display:flex; gap:10px; margin-bottom:8px;">
             <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}</div>
             <div style="flex:1; min-width:0;"><div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">${a.title}${e.type === 'gutsy' && e.c.decisive ? ' · <span style="color:#f59e0b;">GAME-WINNER</span>' : ''}</div>${body}</div>
@@ -10752,7 +10793,8 @@ function recapEventBody(e) {
     if (e.type === 'blowout') return `<div style="font-size:11px; font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
     if (e.type === 'close') return `<div style="font-size:11px; font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
     if (e.type === 'upset') return `<div style="font-size:11px; font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:9px; font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
-    if (e.type === 'gutsy') return recapGutsyCard(e.c, false);
+        if (e.type === 'gutsy') return recapGutsyCard(e.c, false);
+    if (e.type === 'overthink') return recapOverCard(e.c, false);
     return '';
 }
 
@@ -10761,7 +10803,7 @@ function openRecapAwardModal(awardKey, f) {
     $('#recap-award-modal').remove();
     const award = RECAP_AWARDS.find(a => a.key === awardKey);
     const list = (window._recapEvents || []).filter(e => e.type === awardKey && e.fid === f).sort((a, b) => b.wk - a.wk);
-    const wins = awardKey === 'gutsy' ? list.filter(e => e.c.decisive).length : 0;
+    const wins = (awardKey === 'gutsy' || awardKey === 'overthink') ? list.filter(e => e.c.decisive).length : 0;
     const rows = list.map(e => `<div style="display:flex; gap:10px; margin-bottom:8px;">
         <div style="width:40px; flex-shrink:0; text-align:center;"><span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${e.wk}</span></div>
         <div style="flex:1; min-width:0;">${recapEventBody(e).replace(/class="player-modal-trigger"/g, '')}</div>
