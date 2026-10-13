@@ -170,6 +170,11 @@ let playerFiltersActive = false;
 let playerFilterPanelOpen = false;
     let lineupSortBy = 'proj';  
 window.offseasonMode = true;  
+window.applyDraftTabVisibility = function() {
+    // Draft tab only exists in the offseason; hide it while in-season mode is on
+    $('[onclick*="tab-draft"]').css('display', window.offseasonMode ? '' : 'none');
+};
+$(function() { applyDraftTabVisibility(); setTimeout(applyDraftTabVisibility, 800); setTimeout(applyDraftTabVisibility, 2500); });  
 let playerSortBy = 'own'; // Default to "Own Percentage"
 let playerPosFilter = '*'; // Default to "All Positions"
     let contractSortBy = 'capHit'; 
@@ -1226,6 +1231,7 @@ if (pageMatch) {
     const faModeMatch = pageText.match(/<!--FAMODE:(true|false)-->/);
     if (faModeMatch) {
         window.offseasonMode = faModeMatch[1] === 'true';
+applyDraftTabVisibility();
 localStorage.setItem(`fa_mode_${lid}`, window.offseasonMode);
         applyDraftTabVisibility();
     }
@@ -3097,7 +3103,7 @@ let swapIndicator = '';
 
 let rStat = irPids.has(pid) ? "IR" : taxiPids.has(pid) ? "TS" : "";
 const inlineStatusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
-                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: 11px; font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>`;
+                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: 11px; font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0;"><span style="font-size: 13px; font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: 8px; font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
                 
                 // Core Matchup UI Variables
                 let teamMatch = secondaryText.match(/(?:vs|@)\s*([A-Z]{2,3})/i);
@@ -3151,10 +3157,24 @@ onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit
                         </div>`;
                 }
 
-return `<div class="player-row pos-border-${pos.toLowerCase()} ${isChanged ? 'status-changed' : ''}" 
+// ---- compact one-line schedule pill + rank/avg (lineup rows only) ----
+if (isL) {
+    const cDay = secondaryText.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
+    const cTime = secondaryText.match(/(\d+)(?::\d+)?\s*(a\.m\.|p\.m\.)/i);
+    const cWhen = [cDay ? cDay[1] : '', cTime ? `${cTime[1]} ${cTime[2].toLowerCase().includes('p') ? 'PM' : 'AM'}` : ''].join(' ').trim() || secondaryText || '-';
+    let cPA = '';
+    if (opp && pointsAllowedMap[opp]?.[realPos]) {
+        const cRank = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][opp] : 0;
+        const cCls = (cRank >= 24) ? 'matchup-easy' : (cRank <= 9) ? 'matchup-tough' : 'matchup-neutral';
+        cPA = `<div class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin: 0; display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 4px; line-height: 1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[opp][realPos]))} PA (#${cRank})</div>`;
+    }
+    matchupHtml = `<div class="matchup-compact" style="display: flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 6px; background: linear-gradient(135deg, ${c1}35, ${c2}15); border: 1px solid ${c1}50; white-space: nowrap; flex-shrink: 0; box-sizing: border-box;">${opp ? `<span style="font-size: 10px; font-weight: 900; color: #fff; letter-spacing: 0.4px;">${opp}</span>` : ''}<span style="font-size: 10px; font-weight: 800; color: #fff;">${cWhen}</span>${cPA}</div>
+        <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 9px; white-space: nowrap; flex-shrink: 0;"><span style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span style="font-weight: 800; color: var(--text-dim);">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span></span>`;
+}
+return `<div class="player-row pos-border-${pos.toLowerCase()} ${isChanged ? 'status-changed' : ''}"
              data-pid="${pid}" data-pname="${name}" data-pteam="${team}" data-ppos="${pos}">
     ${btnHtml}
-    <div class="player-img-wrapper" style="width: 46px; height: 46px; flex-shrink: 0; margin-right: 10px;">
+    <div class="player-img-wrapper" style="width: 30px; height: 30px; flex-shrink: 0; margin-right: 8px;">
         <div class="player-circle" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
             <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
             <img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.opacity='0'" style="width:100%; height:100%; object-fit:cover; position:relative; z-index:2;">
@@ -3179,7 +3199,7 @@ ${inlinePosBadge}
 
 <div style="display: flex; align-items: stretch; gap: 8px; flex-wrap: nowrap;">
     ${matchupHtml}
-    ${isL ? `
+    ${false ? `
     <div style="padding: 6px 12px; border-radius: 8px; background: rgba(0,206,184,0.08); border: 1px solid rgba(0,206,184,0.2); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px; flex-shrink: 0; align-self: stretch;">
         <span style="font-size: 13px; font-weight: 900; color: var(--accent-teal); letter-spacing: 0.3px; white-space: nowrap;">${projNum.toFixed(1)} PROJ</span>
         <div style="display: flex; gap: 6px; align-items: center;">
@@ -4301,7 +4321,7 @@ $(document).on('click', '#toggle-fa-mode-btn', async function() {
     } catch(e) { console.warn('Could not save FA mode', e); }
     localStorage.setItem(`fa_mode_${lid}`, newState);
     updateFaModeToggleUI(newState);
-       window.offseasonMode = newState;
+       applyDraftTabVisibility();
     applyDraftTabVisibility();
 });
 $(document).on('click', '#toggle-contracts-stats-btn', function() {
