@@ -3662,7 +3662,8 @@ dashboardHtml = `<div class="roster-dashboard">
 
             </div>`;
             
-$('#lineup-dashboard-inject').html(dashboardHtml);  
+$('#lineup-dashboard-inject').html(dashboardHtml);
+injectTeamAwardsStrip(fid, '#lineup-dashboard-inject');  
 
      }
     }
@@ -10875,8 +10876,8 @@ function getAllRecapEvents() {
 }
 
 // Award totals strip on the Team tab dashboard; tap a category to jump to By Team in Recaps
-async function injectTeamAwardsStrip(f) {
-    const host = $('#roster-dashboard-inject');
+async function injectTeamAwardsStrip(f, hostSel) {
+    const host = $(hostSel || '#roster-dashboard-inject');
     if (!host.length) return;
     host.find('#team-awards-strip').remove();
     host.append('<div id="team-awards-strip"></div>');
@@ -13225,7 +13226,8 @@ async function checkNotifBadge() {
     recapBind('.recap-wk-prev', function() { const s = window._recapState; s.wk = Math.max(1, (s.wk || 1) - 1); s.pickerOpen = false; });
     recapBind('.recap-wk-next', function() { const s = window._recapState; s.wk = (s.wk || 1) + 1; s.pickerOpen = false; });
     recapBind('.recap-wk-pill', function() { window._recapState.pickerOpen = !window._recapState.pickerOpen; });
-    recapBind('.recap-wk-opt', function() { window._recapState.wk = parseInt($(this).data('week')); window._recapState.pickerOpen = false; });
+        recapBind('.recap-wk-opt', function() { window._recapState.wk = parseInt($(this).data('week')); window._recapState.pickerOpen = false; });
+    recapBind('.recap-team-pill', function() { window._recapState.fid = String($(this).data('fid')).padStart(4, '0'); });
         $(document).off('click', '.recap-team-tile').on('click', '.recap-team-tile', function() {
         const g = document.getElementById('recap-grp-' + $(this).data('award'));
         if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
