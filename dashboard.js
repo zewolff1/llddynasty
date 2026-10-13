@@ -10205,6 +10205,31 @@ function recapOptimalLineup(roster, projMap) {
     return used;
 }
 
+// Can this set of starters (positions) still fill the lineup slots? Also caps QBs.
+const RECAP_MAX_QB = 2;
+function recapLineupLegal(positions) {
+    if (positions.filter(p => p === 'QB').length > RECAP_MAX_QB) return false;
+    const slots = [['QB'], ['RB'], ['RB'], ['WR'], ['WR'], ['TE'], ['PK'], ['DL'], ['LB'], ['DB'],
+        ['RB', 'WR', 'TE'], ['RB', 'WR', 'TE'], ['QB', 'RB', 'WR', 'TE'], ['QB', 'RB', 'WR', 'TE'],
+        ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB']];
+    const owner = new Array(slots.length).fill(-1);
+    const place = (i, seen) => {
+        for (let s = 0; s < slots.length; s++) {
+            if (seen[s] || !slots[s].includes(positions[i])) continue;
+            seen[s] = true;
+            if (owner[s] < 0 || place(owner[s], seen)) { owner[s] = i; return true; }
+        }
+        return false;
+    };
+    return positions.every((_, i) => place(i, []));
+}
+// Best benched player who could really have replaced starter g
+function recapLegalSwapPick(g, cands, roster, projMap) {
+    const base = roster.filter(p => p.isStarter && p.pid !== g.pid).map(recapNormPos);
+    return cands.filter(d => recapLineupLegal(base.concat(recapNormPos(d))))
+        .sort((a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0))[0];
+}
+
 function recapTeamChip(t, align) {
     return `<span style="display:inline-flex; align-items:center; gap:5px; min-width:0;">
         <img src="${t.logo}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
@@ -10326,7 +10351,7 @@ async function renderWeeklyRecap() {
             const gp = recapNormPos(g);
             const cands = displaced.filter(d => !taken.has(d.pid));
             const pick = cands.filter(d => recapNormPos(d) === gp).sort((a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0))[0]
-                || cands.filter(d => ['QB','RB','WR','TE'].includes(recapNormPos(d)) === ['QB','RB','WR','TE'].includes(gp)).sort((a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0))[0];
+               || recapLegalSwapPick(g, cands, roster, projMap);
             if (!pick) return;
             taken.add(pick.pid);
             const margin = g.score - pick.score;
@@ -10506,7 +10531,7 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
             const cands = displaced.filter(d => !taken.has(d.pid));
             const byProj = (a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0);
             const pick = cands.filter(d => recapNormPos(d) === gp).sort(byProj)[0]
-                || cands.filter(d => isOff(recapNormPos(d)) === isOff(gp)).sort(byProj)[0];
+|| recapLegalSwapPick(g, cands, t.roster, projMap);
             if (!pick) return;
             taken.add(pick.pid);
             const margin = g.score - pick.score;
