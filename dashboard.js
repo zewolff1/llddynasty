@@ -3603,7 +3603,9 @@ window.currentRosterSize = totalPlayers;
                     ` + ['QB','RB','WR','TE','PK','DL','LB','DB'].map(p => `<div class="dashboard-pill stacked-pill stat-${p.toLowerCase()}"><span class="pill-label">${p}</span><span class="pill-value">${rCounts[p]||0}</span></div>`).join('') + `
                 </div>
             </div>`;
-$('#roster-dashboard-inject').html(dashboardHtml);        } else {
+$('#roster-dashboard-inject').html(dashboardHtml);
+            injectTeamAwardsStrip(fid);
+        } else {
             const currentProj = calculateTotalProjections();
             const optimalProj = calculateSuggestedProjections();
             const needsOptimization = parseFloat(optimalProj) > parseFloat(currentProj) || $('.player-row.empty-slot').length > 0;
@@ -10826,6 +10828,71 @@ function openRecapAwardModal(awardKey, f) {
     $('#recap-award-modal .recap-modal-close').on('click', function() { $('#recap-award-modal').remove(); });
 }
 
+const RECAP_ICONS = { high: '🔥', potw: '⭐', blowout: '💥', close: '😰', upset: '🚨', gutsy: '🧠', overthink: '🤡' };
+
+// By Team view, grouped by award type (newest week first inside each group)
+function recapTeamView2(events, selFid) {
+    const mine = events.filter(e => e.fid === selFid);
+    const counts = {};
+    mine.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
+    const summary = RECAP_AWARDS.map(a => `<div class="recap-team-tile" data-award="${a.key}" style="flex:1; min-width:62px; text-align:center; padding:6px 4px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); cursor:${counts[a.key] ? 'pointer' : 'default'}; opacity:${counts[a.key] ? 1 : 0.5};">
+        <div style="font-size:15px; font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
+        <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${a.title}</div></div>`).join('');
+    const wkBadge = w => `<span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
+    const groups = RECAP_AWARDS.filter(a => counts[a.key]).map(a => {
+        const list = mine.filter(e => e.type === a.key).sort((x, y) => y.wk - x.wk);
+        const hot = (a.key === 'gutsy' || a.key === 'overthink') ? list.filter(e => e.c && e.c.decisive).length : 0;
+        const hotTxt = hot ? ` · ${hot} ${a.key === 'gutsy' ? 'game-winning' : 'game-costing'}` : '';
+        const rows = list.map(e => `<div style="display:flex; gap:10px; margin-bottom:8px;">
+            <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}</div>
+            <div style="flex:1; min-width:0;">${recapEventBody(e)}</div></div>`).join('');
+        return `<div id="recap-grp-${a.key}">${recapCard(`${a.title} · ${list.length}${hotTxt}`, RECAP_ICONS[a.key] || '', rows)}</div>`;
+    }).join('');
+    return `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">${summary}</div>` +
+        (groups || `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No awards yet.</div>`);
+}
+
+// Every award event for every completed week (loaded once, then cached)
+function getAllRecapEvents() {
+    if (window._recapEventsFull) return Promise.resolve(window._recapEventsFull);
+    if (window._recapEventsPromise) return window._recapEventsPromise;
+    window._recapEventsPromise = (async () => {
+        const allScores = await fetchAllWeekScores();
+        const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b);
+        const latest = weeks.length ? weeks[weeks.length - 1] : 0;
+        const summaries = [];
+        for (let w = 1; w <= latest; w += 3) {
+            const batch = [];
+            for (let k = w; k < w + 3 && k <= latest; k++) batch.push(getRecapSummary(k, allScores, latest));
+            summaries.push(...await Promise.all(batch));
+        }
+        const events = recapEvents(summaries);
+        window._recapEvents = events;
+        window._recapEventsFull = events;
+        return events;
+    })().catch(err => { window._recapEventsPromise = null; throw err; });
+    return window._recapEventsPromise;
+}
+
+// Award totals strip on the Team tab dashboard; tap a category to jump to By Team in Recaps
+async function injectTeamAwardsStrip(f) {
+    const host = $('#roster-dashboard-inject');
+    if (!host.length) return;
+    host.find('#team-awards-strip').remove();
+    host.append('<div id="team-awards-strip"></div>');
+    let events;
+    try { events = await getAllRecapEvents(); } catch (e) { $('#team-awards-strip').remove(); return; }
+    const strip = $('#team-awards-strip');
+    if (!strip.length) return;
+    if (!events.length) { strip.remove(); return; }
+    const fx = String(f).padStart(4, '0');
+    const counts = {};
+    events.filter(e => e.fid === fx).forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
+    const short = { high: 'TOP SCORE', potw: 'POTW', blowout: 'BLOWOUT', close: 'CLOSE', upset: 'UPSETS', gutsy: 'GUTSY', overthink: 'OVERTHINK' };
+    strip.html(`<div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:8px 4px 4px;">Season Awards</div>
+        <div class="dashboard-row overflow-row">${RECAP_AWARDS.map(a => `<div class="dashboard-pill stacked-pill team-award-chip" data-award="${a.key}" data-fid="${fx}" style="min-width:45px; cursor:${counts[a.key] ? 'pointer' : 'default'}; opacity:${counts[a.key] ? 1 : 0.45}; border-bottom-color:${counts[a.key] ? '#f59e0b' : 'var(--card-border)'};"><span class="pill-label">${short[a.key] || a.title}</span><span class="pill-value">${counts[a.key] || 0}</span></div>`).join('')}</div>`);
+}
+
 async function loadRecapsTab() {
     const token = ++window._recapToken;
     const st = window._recapState;
@@ -10873,10 +10940,15 @@ async function loadRecapsTab() {
             else {
                 const fids = Object.keys(leagueFranchises).filter(f => /^\d{4}$/.test(f)).sort();
                 const pills = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px;">${fids.map(f => `<div class="recap-team-pill" data-fid="${f}" style="flex-shrink:0; display:flex; align-items:center; gap:5px; padding:5px 9px; border-radius:8px; cursor:pointer; background:${f === st.fid ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${f === st.fid ? 'var(--accent-blue)' : 'var(--card-border)'};">${recapLogo(f, 20)}<span style="font-size:9px; font-weight:800; color:${f === st.fid ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${leagueFranchises[f]}</span></div>`).join('')}</div>`;
-                inner = pills + recapTeamView(events, st.fid);
+                inner = pills + recapTeamView2(events, st.fid);
             }
         }
         container.html(`<div style="padding:10px;">${viewBar}${inner}</div>`);
+        if (st.focusAward) {
+            const gEl = document.getElementById('recap-grp-' + st.focusAward);
+            st.focusAward = null;
+            if (gEl) setTimeout(() => gEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }
         reapplyAllTeamStyles();
     } catch (e) {
         console.error('Recaps error:', e);
@@ -13154,7 +13226,23 @@ async function checkNotifBadge() {
     recapBind('.recap-wk-next', function() { const s = window._recapState; s.wk = (s.wk || 1) + 1; s.pickerOpen = false; });
     recapBind('.recap-wk-pill', function() { window._recapState.pickerOpen = !window._recapState.pickerOpen; });
     recapBind('.recap-wk-opt', function() { window._recapState.wk = parseInt($(this).data('week')); window._recapState.pickerOpen = false; });
-    recapBind('.recap-team-pill', function() { window._recapState.fid = String($(this).data('fid')).padStart(4, '0'); });
+        $(document).off('click', '.recap-team-tile').on('click', '.recap-team-tile', function() {
+        const g = document.getElementById('recap-grp-' + $(this).data('award'));
+        if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $(document).off('click touchend', '.team-award-chip').on('click touchend', '.team-award-chip', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        const st = window._recapState;
+        st.view = 'team'; st.pickerOpen = false;
+        st.fid = String($(this).data('fid')).padStart(4, '0');
+        st.focusAward = $(this).data('award');
+        $('.tab-btn').filter(function() { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
+        setTimeout(() => {
+            $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Recaps'; }).trigger('click');
+        }, 300);
+    });
     $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
         window._lsTouchStartX = e.originalEvent.touches[0].clientX;
     });
