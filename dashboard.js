@@ -460,6 +460,28 @@ async function loadTeamHeaderStats() {
     refreshTeamInfoPanel();
 }
 
+// Small weekly-award chips (icon + count) that sit next to the championship trophies
+function buildWeeklyAwardChips(targetFid) {
+    if (!document.getElementById('team-wk-awards-style')) {
+        const st = document.createElement('style');
+        st.id = 'team-wk-awards-style';
+        st.textContent = 'body.hdr-s1 .team-wk-awards, body.hdr-s2 .team-wk-awards { display: none !important; } .team-wk-awards { display: inline-flex; gap: 4px; margin-left: 6px; align-items: center; } .team-award.twk { cursor: pointer; gap: 2px; }';
+        document.head.appendChild(st);
+    }
+    if (!window._recapEventsFull) {
+        if (!window._recapHdrKick) {
+            window._recapHdrKick = true;
+            getAllRecapEvents().then(() => refreshTeamInfoPanel()).catch(() => { window._recapHdrKick = false; });
+        }
+        return '';
+    }
+    const counts = {};
+    window._recapEventsFull.filter(e => e.fid === targetFid).forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
+    const chips = RECAP_AWARDS.filter(a => counts[a.key]).map(a =>
+        `<span class="team-award twk team-award-chip" data-award="${a.key}" data-fid="${targetFid}" title="${a.title}: ${counts[a.key]}"><span style="font-size:10px; line-height:1;">${RECAP_ICONS[a.key] || ''}</span><b style="font-size:9px;">${counts[a.key]}</b></span>`).join('');
+    return chips ? `<span class="team-wk-awards">${chips}</span>` : '';
+}
+
 function refreshTeamInfoPanel() {
     $('#team-info-panel-wrapper').html(buildTeamInfoPanel(fid));
 }
@@ -510,6 +532,9 @@ function buildTeamInfoPanel(targetFid) {
         const solo = `<span class="team-award-solo" title="${championships.length}x Champion">${trophy(16)}<b>${championships.length}</b></span>`;
         awardsHtml = `<div class="team-awards">${trophyChips}${solo}</div>`;
     }
+
+     const wkAwardsHtml = buildWeeklyAwardChips(targetFid);
+    if (wkAwardsHtml) awardsHtml = awardsHtml ? awardsHtml.replace(/<\/div>$/, wkAwardsHtml + '</div>') : `<div class="team-awards">${wkAwardsHtml}</div>`;
 
     const nx = window._nextOpp?.[targetFid];
     let nextHtml = '';
@@ -10909,6 +10934,7 @@ function getAllRecapEvents() {
 
 // Award totals strip on the Team tab dashboard; tap a category to jump to By Team in Recaps
 async function injectTeamAwardsStrip(f, hostSel) {
+    return; // weekly awards now live in the team header, next to the trophies
     const host = $(hostSel || '#roster-dashboard-inject');
     if (!host.length) return;
     host.find('#team-awards-strip').remove();
