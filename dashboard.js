@@ -4239,6 +4239,43 @@ function hydrateDynRanks(tries = 0) {
         }
     }, 250);
 }
+async function getCurrentNflSched() {
+    if (window._playersNflSched && Date.now() - window._playersNflSchedAt < 600000) return window._playersNflSched;
+    const map = {};
+    try {
+        const res = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&JSON=1`, { credentials: 'include' });
+        const data = await res.json();
+        let games = data?.nflSchedule?.matchup || [];
+        if (!Array.isArray(games)) games = games ? [games] : [];
+        games.forEach(g => {
+            let teams = g.team || [];
+            if (!Array.isArray(teams)) teams = teams ? [teams] : [];
+            teams.forEach(t => {
+                const other = teams.find(x => x !== t);
+                map[String(t.id || '').toUpperCase()] = {
+                    kickoffMs: g.kickoff ? parseInt(g.kickoff, 10) * 1000 : 0,
+                    opp: other ? String(other.id || '').toUpperCase() : '',
+                    isHome: String(t.isHome) === '1' ? true : (String(t.isHome) === '0' ? false : null)
+                };
+            });
+        });
+    } catch (e) { console.warn('Could not load NFL schedule for player rows', e); }
+    if (Object.keys(map).length) { window._playersNflSched = map; window._playersNflSchedAt = Date.now(); }
+    return map;
+}
+function oppPillHtml(team, realPos, sched) {
+    const g = sched && sched[(team || '').toUpperCase()];
+    if (!g || !g.opp) return `<span style="color:var(--text-dim);">BYE</span>`;
+    const d = g.kickoffMs ? new Date(g.kickoffMs) : null;
+    const when = d ? `${d.toLocaleDateString([], { weekday: 'short' })} ${d.toLocaleTimeString([], { hour: 'numeric' })}` : '';
+    let pa = '';
+    if (pointsAllowedMap[g.opp]?.[realPos]) {
+        const rank = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][g.opp] : 0;
+        const cls = (rank >= 24) ? 'matchup-easy' : (rank <= 9) ? 'matchup-tough' : 'matchup-neutral';
+        pa = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${g.opp}" data-pos="${realPos}" style="cursor:pointer; margin:0; display:inline-block; font-size:9px; padding:1px 5px; border-radius:4px; line-height:1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[g.opp][realPos]))} PA (#${rank})</div>`;
+    }
+    return `<span>${g.isHome === false ? '@' : ''}${g.opp}</span><span style="color:var(--text-dim);">·</span><span>${when}</span>${pa}`;
+}
 function buildCompactUniversalRow(data, opts) {
     const pid = String(data.pid);
     const team = (data.team || 'NFL').toUpperCase();
@@ -4249,6 +4286,7 @@ function buildCompactUniversalRow(data, opts) {
     const pill = opts.pill ? `<div style="display:flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:6px; background:linear-gradient(135deg, ${colors[0]}35, ${colors[1]}15); border:1px solid ${colors[0]}50; white-space:nowrap; flex-shrink:0; box-sizing:border-box; font-size:10px; font-weight:900; color:#fff;">${opts.pill}</div>` : '';
     hydrateDynRanks();
     return `<div class="player-row pos-border-${posL} ${opts.extraClasses || ''}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
+                ${opts.leftContent ? `<div style="display:flex; align-items:center; flex-shrink:0; margin-right:8px;">${opts.leftContent}</div>` : ''}
         <div class="player-img-wrapper" style="width:30px; height:30px; flex-shrink:0; margin-right:8px;">
             <div class="player-circle" style="width:100%; height:100%; position:relative; overflow:hidden;">
                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
@@ -4265,7 +4303,7 @@ function buildCompactUniversalRow(data, opts) {
                 <span class="short-name" style="display:none; font-size:13px; font-weight:800; color:#fff;">${data.shortName || data.name}</span>
                 <span class="pos-text-${posL}" style="font-size:11px; font-weight:900; flex-shrink:0;">${data.pos || ''}</span>
                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:16px; height:16px; object-fit:contain; flex-shrink:0;">
-                ${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
+                               ${opts.ownerHtml || ''}                ${opts.ownerHtml || ''}${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
                 ${opts.topRight ? `<span style="margin-left:auto; display:flex; align-items:baseline; gap:4px; flex-shrink:0; white-space:nowrap;">${opts.topRight}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
@@ -7504,6 +7542,7 @@ async function loadPlayersData(subTabId, containerId) {
 }
 
 async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
+    const nflSched = await getCurrentNflSched();
     if (isFAView) {
         await fetchPendingWaivers();
     }
@@ -7840,14 +7879,16 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
-                    pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : `<span style="color:#22c55e;">FREE AGENT</span>`,
+                    pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: p.salary
                         ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>`
                         : `<b style="font-size:15px; font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">PROJ</small>`,
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
-                        : `<span style="font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap;"><span style="color:#f59e0b; font-weight:900;">${p.addVal}%</span> ADD · ${p.ownVal}% OWN</span>`,
+                                                : `<span style="font-size:9px; white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span></span>`,
+                    ownerHtml: p.ownerFid ? `<img src="https://www45.myfantasyleague.com/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png" class="team-popup-trigger" data-fid="${p.ownerFid}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0; cursor:pointer;">` : '',
                     rightContent: buildPlayerRightHtml(p, isFAView),
+                    leftContent: p._actionBtn || '',
                     rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
                 }
             );
@@ -7868,7 +7909,7 @@ function buildPlayerRightHtml(p, isFAView) {
         const capHit = (salNum * gPct * yrsNum).toFixed(1);
         return `
             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                <img src="${logoUrl}" class="team-popup-trigger" data-fid="${p.ownerFid}" style="width:28px; height:28px; border-radius:50%; border:1px solid var(--card-border); background:#000; object-fit:cover; cursor:pointer;">
+                <img src="${logoUrl}" class="team-popup-trigger" data-fid="${p.ownerFid}" style="display:none; width:28px; height:28px; border-radius:50%; border:1px solid var(--card-border); background:#000; object-fit:cover; cursor:pointer;">
 
             </div>`;
      } else {
@@ -7909,7 +7950,7 @@ function buildPlayerRightHtml(p, isFAView) {
                         <span style="font-size: 8px; font-weight: 800; color: var(--text-dim);">${p.ownVal}% OWN</span>
                     </div>
                 </div>
-                ${actionBtn}
+                ${(p._actionBtn = actionBtn, '')}
             </div>`;
     }
 }
