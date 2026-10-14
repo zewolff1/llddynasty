@@ -2851,7 +2851,18 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
             console.log('[opt] table.report count on lineup page:', currentDoc.querySelectorAll('table.report').length);
             currentDoc.querySelectorAll('table.report').forEach((t, i) => { if (i > 0) t.remove(); });
         }
-if (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
+// Other owners: the submit-lineup page can be blocked or empty, so fall back to their roster page
+        if (activeSub.includes('lineup') && fid !== myFid) {
+            const lineupBlocked = (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) || !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow');
+            if (lineupBlocked) {
+                try {
+                    const rRes = await fetch(`https://www45.myfantasyleague.com/${year}/options?L=${lid}&O=07&F=${fid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                    currentDoc = new DOMParser().parseFromString(await rRes.text(), 'text/html');
+                    currentDoc.querySelectorAll('table.report').forEach((t, i) => { if (i > 0) t.remove(); });
+                } catch (e) { console.warn('Roster fallback failed', e); }
+            }
+        }
+        if (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
             const bodyText = (currentDoc.body?.innerText || '').replace(/\s+/g, ' ').trim();
             const match = bodyText.match(/You may not[\s\S]*?(?=Go Back|$)/i);
             const errMsg = match ? match[0].trim() : 'This action is currently unavailable.';
@@ -2999,6 +3010,23 @@ window.currentTeamPicks = draftPicks;
         }
 
         originalStarterIds.clear();
+        // Other owners: if no starters came through, read them from the weekly page (same source as the Scores tab)
+        if (fid !== myFid && activeSub.includes('lineup')) {
+            try {
+                const lRows = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
+                if (!lRows.some(r => r.querySelector('input[type="checkbox"]')?.checked)) {
+                    const wMap = await fetchWeeklyPlayerInfoMap(window._liveScoreActiveWeek || '');
+                    lRows.forEach(r => {
+                        const pl = r.querySelector('td.player a[class*="position_"]');
+                        if (!pl) return;
+                        const pid2 = pl.getAttribute('href').match(/\d+/g).pop();
+                        let cb = r.querySelector('input[type="checkbox"]');
+                        if (!cb) { cb = currentDoc.createElement('input'); cb.type = 'checkbox'; cb.value = pid2; r.appendChild(cb); }
+                        cb.checked = !!(wMap[pid2] && wMap[pid2].isStarter);
+                    });
+                }
+            } catch (e) { console.warn('Could not load starters for another owner', e); }
+        }
         currentDoc.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => originalStarterIds.add(cb.value));
 
 renderActiveTab();
