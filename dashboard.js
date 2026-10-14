@@ -764,19 +764,23 @@ function loadRulesContent() {
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
                         <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Playoffs</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">Top 4 teams qualify · Weeks 15–18 · Single elimination</div>
+                        <div style="font-size:12px; color:#fff; line-height:1.6;">Top 5 teams qualify · Weeks 15–18 · Single elimination · #1 seed gets a bye</div>
                         <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                                                <span style="font-size:11px; color:var(--text-dim);">Round 1</span>
+                                <span style="font-size:11px; font-weight:900; color:#fff;">Week 15</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
                                 <span style="font-size:11px; color:var(--text-dim);">Semifinals</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">Weeks 15–16</span>
+                                <span style="font-size:11px; font-weight:900; color:#fff;">Weeks 16–17</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
                                 <span style="font-size:11px; color:var(--text-dim);">Championship</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">Weeks 17–18</span>
+                                <span style="font-size:11px; font-weight:900; color:#fff;">Week 18</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; padding:5px 0;">
                                 <span style="font-size:11px; color:var(--text-dim);">Seeding</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">#1 vs #4 · #2 vs #3</span>
+                                <span style="font-size:11px; font-weight:900; color:#fff;">#4 vs #5 · winner plays #1 · #2 vs #3</span>
                             </div>
                         </div>
                     </div>
@@ -12153,7 +12157,7 @@ async function loadLeagueStandings() {
 
 // Projected playoff bracket: top 4 qualify, #1 v #4 and #2 v #3, single elimination
 async function renderPlayoffBracket(container) {
-    const QUALIFIERS = 4, REG_WEEKS = 14;
+    const QUALIFIERS = 5, REG_WEEKS = 14;
     container.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Playoff Picture...</div>');
     try {
         const res = await fetch(`https://www45.myfantasyleague.com/${year}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' });
@@ -12205,9 +12209,10 @@ async function renderPlayoffBracket(container) {
         const s = teams;
         let html = `<div style="padding:10px;">
             <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:12px; line-height:1.5;">${left > 0 ? `If the playoffs started today · ${left} regular-season game${left === 1 ? '' : 's'} left` : 'Final regular-season seeding'}. Top ${QUALIFIERS} qualify; ties broken by points scored.</div>
-            ${card('Semifinal 1', 'Weeks 15–16', teamRow(s[0], 1), teamRow(s[3], 4))}
-            ${card('Semifinal 2', 'Weeks 15–16', teamRow(s[1], 2), teamRow(s[2], 3))}
-            ${card('Championship', 'Weeks 17–18', tbdRow('Winner of Semifinal 1'), tbdRow('Winner of Semifinal 2'))}`;
+                       ${card('Round 1', 'Week 15', teamRow(s[3], 4), teamRow(s[4], 5))}
+            ${card('Semifinal 1', 'Weeks 16–17', teamRow(s[0], 1), tbdRow('Winner of Round 1 (#4 vs #5)'))}
+            ${card('Semifinal 2', 'Weeks 16–17', teamRow(s[1], 2), teamRow(s[2], 3))}
+            ${card('Championship', 'Week 18', tbdRow('Winner of Semifinal 1'), tbdRow('Winner of Semifinal 2'))}`;
 
         const cut = s[QUALIFIERS - 1];
         const bubble = s.slice(QUALIFIERS, QUALIFIERS + 3);
