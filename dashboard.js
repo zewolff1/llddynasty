@@ -4303,7 +4303,7 @@ function buildCompactUniversalRow(data, opts) {
                 <span class="short-name" style="display:none; font-size:13px; font-weight:800; color:#fff;">${data.shortName || data.name}</span>
                 <span class="pos-text-${posL}" style="font-size:11px; font-weight:900; flex-shrink:0;">${data.pos || ''}</span>
                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:16px; height:16px; object-fit:contain; flex-shrink:0;">
-                               ${opts.ownerHtml || ''}                ${opts.ownerHtml || ''}${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
+                              ${opts.ownerHtml || ''}${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
                 ${opts.topRight ? `<span style="margin-left:auto; display:flex; align-items:baseline; gap:4px; flex-shrink:0; white-space:nowrap;">${opts.topRight}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
