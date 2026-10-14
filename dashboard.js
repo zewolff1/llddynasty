@@ -4311,7 +4311,7 @@ function buildCompactUniversalRow(data, opts) {
                 ${opts.bottomRight ? `<span style="margin-left:auto; flex-shrink:0;">${opts.bottomRight}</span>` : ''}
             </div>
         </div>
-        <div class="player-right-slot" style="${opts.rightSlotStyle || ''}">${opts.rightContent || ''}</div>
+                <div class="player-right-slot" style="${opts.rightSlotStyle || ''}">${opts.ownerHtml ? '' : (opts.rightContent || '')}</div>
     </div>`;
 }
 // ===== END COMPACT ROW + RANK HELPERS =====
@@ -9091,8 +9091,11 @@ window.openMainTab = function(evt, tabId) {
             if (window._liveScoreInterval) { clearInterval(window._liveScoreInterval); window._liveScoreInterval = null; }
         }
         // Switch button states
-        $('.tab-btn').removeClass('active');
+                $('.tab-btn').removeClass('active');
         $(evt.currentTarget).addClass('active');
+        // Always close the team selector when changing tabs
+        $('#team-selector-drawer').stop(true, true).hide();
+        $('#switcher-arrow').css('transform', 'rotate(0deg)');
 
         // Switch visibility immediately (No Opacity Fade)
         $('.tab-content').hide().removeClass('active');
@@ -14519,8 +14522,10 @@ ${myFid === '0000' ? `<div style="position:absolute; top:-4px; right:-8px; backg
             
             $('#subtabs-team').after(drawerHtml);
 
-            $('#active-team-switcher-btn').off('click').on('click', function() {
-                $('#team-selector-drawer').slideToggle(200);
+                       $('#active-team-switcher-btn').off('click').on('click', function(e) {
+                // Clicks on trophies / award chips in the header navigate elsewhere; they must not toggle the drawer
+                if ($(e.target).closest('.team-award-chip, .team-award, .team-awards, .team-award-solo, .team-wk-awards').length) return;
+                $('#team-selector-drawer').stop(true, true).slideToggle(200);
                 const arrow = $('#switcher-arrow');
                 const isRotated = arrow.css('transform') !== 'none' && arrow.css('transform') !== 'matrix(1, 0, 0, 1, 0, 0)';
                 arrow.css('transform', isRotated ? 'rotate(0deg)' : 'rotate(180deg)');
