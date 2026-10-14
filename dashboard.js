@@ -3452,9 +3452,10 @@ const currentCapHitDisplay = (salNum * gPct * relativeYrsLeft).toFixed(1);
 const innerRowHtml = buildUniversalRow(
     { pid, name, shortName, pos, team },
     {
-        subText: `${salary} · ${relativeYrsLeft}yr · ${guar} · <span style="color:#f59e0b;">$${currentCapHitDisplay}m hit</span>`,
-        subTextColor: '#22c55e',
-        rightContent: '',
+               compact: true,
+        pill: contractPillHtml(currentCapHitDisplay, relativeYrsLeft, guar),
+        topRight: `<b style="font-size:15px; font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>`,
+        bottomRight: rankLineHtml(pid, pos, salNum),
         nameSuffix: !isUnderContract ? '<span style="font-size:9px; color:#ef4444; margin-left:6px;">(Expired)</span>' : '',
         rowStyle: 'margin-bottom: 0 !important; cursor: pointer;'
     }
@@ -4182,7 +4183,103 @@ function populateFillMenu(slot) {
     }
 
     // --- 8. UTILITIES ---
+// ===== COMPACT ROW + RANK HELPERS =====
+function dynGrp(pos) {
+    pos = (pos || '').toUpperCase();
+    if (['DE', 'DT', 'DL'].includes(pos)) return 'DL';
+    if (['CB', 'S', 'DB'].includes(pos)) return 'DB';
+    return pos;
+}
+function contractRankFor(pos, salNum) {
+    const arr = (window.leagueSalaryData && window.leagueSalaryData[dynGrp(pos)]) || [];
+    if (!arr.length || !salNum) return null;
+    let r = 1;
+    for (const e of arr) { if (e.sal > salNum + 1e-9) r++; else break; }
+    return r;
+}
+function contractPillHtml(hit, yrs, guar) {
+    return `<span style="color:#f59e0b;">$${parseFloat(hit || 0).toFixed(1)}m</span><span style="color:var(--text-dim);">HIT</span><span style="color:var(--text-dim);">·</span><span>${yrs}YR</span><span style="color:var(--text-dim);">·</span><span>${guar} <span style="color:var(--text-dim);">GUAR</span></span>`;
+}
+function rankLineHtml(pid, pos, salNum) {
+    const g = dynGrp(pos), cr = contractRankFor(pos, salNum);
+    const i = (c) => `font-style:normal; font-weight:900; color:${c};`;
+    return `<span style="font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap;">${cr ? `<i style="${i('#f59e0b')}">${g}#${cr}</i> CTR · ` : ''}<span class="dyn-rank" data-pid="${pid}" data-grp="${g}"><i style="${i('var(--accent-blue)')}">${g}#–</i></span> DYN</span>`;
+}
+window._dynRankCache = window._dynRankCache || {};
+function getDynRankMap(grp) {
+    if (!window._dynRankCache[grp]) {
+        window._dynRankCache[grp] = (async () => {
+            const map = {};
+            try {
+                const res = await fetch(`https://www45.myfantasyleague.com/${year}/reports?R=RANKS&L=${lid}&STATUS=*&POS=${grp}&ROOKIES=0&INJURED=0&SOURCE=sharks`, { credentials: 'include' });
+                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach((row, idx) => {
+                    const a = row.querySelector('td.player a');
+                    const m = a && (a.getAttribute('href') || '').match(/\d+/g);
+                    if (m) map[m.pop()] = idx + 1;
+                });
+            } catch (e) { console.warn('Dynasty rank fetch failed', grp, e); }
+            return map;
+        })();
+    }
+    return window._dynRankCache[grp];
+}
+let _dynTimer = null;
+function hydrateDynRanks(tries = 0) {
+    clearTimeout(_dynTimer);
+    _dynTimer = setTimeout(async () => {
+        const els = [...document.querySelectorAll('.dyn-rank:not([data-done])')];
+        if (!els.length) { if (tries < 8) hydrateDynRanks(tries + 1); return; }
+        for (const el of els) {
+            const map = await getDynRankMap(el.dataset.grp);
+            const r = map[el.dataset.pid];
+            el.dataset.done = '1';
+            const iEl = el.querySelector('i');
+            if (iEl) iEl.textContent = `${el.dataset.grp}#${r || 'NR'}`;
+        }
+    }, 250);
+}
+function buildCompactUniversalRow(data, opts) {
+    const pid = String(data.pid);
+    const team = (data.team || 'NFL').toUpperCase();
+    const posL = (data.pos || '').toLowerCase();
+    const rStat = opts.forcedStatus || (irPids.has(pid) ? 'IR' : taxiPids.has(pid) ? 'TS' : '');
+    const statusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : '';
+    const colors = (typeof NFL_TEAM_COLORS !== 'undefined' && NFL_TEAM_COLORS[team]) || ['#3b82f6', '#1e293b'];
+    const pill = opts.pill ? `<div style="display:flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:6px; background:linear-gradient(135deg, ${colors[0]}35, ${colors[1]}15); border:1px solid ${colors[0]}50; white-space:nowrap; flex-shrink:0; box-sizing:border-box; font-size:10px; font-weight:900; color:#fff;">${opts.pill}</div>` : '';
+    hydrateDynRanks();
+    return `<div class="player-row pos-border-${posL} ${opts.extraClasses || ''}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
+        <div class="player-img-wrapper" style="width:30px; height:30px; flex-shrink:0; margin-right:8px;">
+            <div class="player-circle" style="width:100%; height:100%; position:relative; overflow:hidden;">
+                <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
+                <img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'" style="width:100%; height:100%; object-fit:cover; position:relative; z-index:2;">
+            </div>
+        </div>
+        <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;">
+            <div style="font-size:9px; font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div>
+            <div style="display:flex; align-items:center; justify-content:center; margin-top:3px;"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;"></div>
+        </div>
+        <div class="player-info" style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span class="full-name" style="font-size:13px; font-weight:800; color:#fff;">${data.name}</span>
+                <span class="short-name" style="display:none; font-size:13px; font-weight:800; color:#fff;">${data.shortName || data.name}</span>
+                <span class="pos-text-${posL}" style="font-size:11px; font-weight:900; flex-shrink:0;">${data.pos || ''}</span>
+                <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:16px; height:16px; object-fit:contain; flex-shrink:0;">
+                ${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
+                ${opts.topRight ? `<span style="margin-left:auto; display:flex; align-items:baseline; gap:4px; flex-shrink:0; white-space:nowrap;">${opts.topRight}</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
+                ${pill}
+                ${opts.bottomRight ? `<span style="margin-left:auto; flex-shrink:0;">${opts.bottomRight}</span>` : ''}
+            </div>
+        </div>
+        <div class="player-right-slot" style="${opts.rightSlotStyle || ''}">${opts.rightContent || ''}</div>
+    </div>`;
+}
+// ===== END COMPACT ROW + RANK HELPERS =====
+
 function buildUniversalRow(data, opts = {}) {
+    if (opts.compact) return buildCompactUniversalRow(data, opts);
         let playerTeam = (data.team || 'NFL').toUpperCase();
         let rStat = opts.forcedStatus || (irPids.has(data.pid.toString()) ? "IR" : taxiPids.has(data.pid.toString()) ? "TS" : "");
         const injHtml = getInjuryHtml(data.pid);
@@ -7742,8 +7839,14 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
             outputHtml += buildUniversalRow(
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
-                    subText: p.salary ? `${p.salary} · ${p.years}yr · ${p.guar} · <span style="color:#ef4444;">$${p.capHitNum.toFixed(1)}m hit</span>` : 'Free Agent',
-                    subTextColor: '#22c55e',
+                                        compact: true,
+                    pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : `<span style="color:#22c55e;">FREE AGENT</span>`,
+                    topRight: p.salary
+                        ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>`
+                        : `<b style="font-size:15px; font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">PROJ</small>`,
+                    bottomRight: p.salary
+                        ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
+                        : `<span style="font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap;"><span style="color:#f59e0b; font-weight:900;">${p.addVal}%</span> ADD · ${p.ownVal}% OWN</span>`,
                     rightContent: buildPlayerRightHtml(p, isFAView),
                     rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
                 }
@@ -7799,7 +7902,7 @@ function buildPlayerRightHtml(p, isFAView) {
         return `
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
                 ${auctionBadgeHtml}
-                <div style="background: rgba(0,206,184,0.08); border: 1px solid rgba(0,206,184,0.15); border-radius: 8px; padding: 5px 10px; text-align: right;">
+                <div style="display: none; background: rgba(0,206,184,0.08); border: 1px solid rgba(0,206,184,0.15); border-radius: 8px; padding: 5px 10px; text-align: right;">
                     <div style="font-size: 13px; font-weight: 900; color: var(--accent-teal); line-height: 1;">${p.projVal.toFixed(1)} <span style="font-size: 9px;">PROJ</span></div>
                     <div style="display: flex; gap: 6px; margin-top: 3px; justify-content: flex-end;">
                         <span style="font-size: 8px; font-weight: 900; color: #f59e0b;">${p.addVal}% ADD</span>
@@ -7871,10 +7974,12 @@ const rightDataHtml = logoUrl
 const rowHtml = buildUniversalRow(
     { pid, name, shortName, pos, team },
     {
-        subText: salNum > 0 
-            ? `${salary} · ${yrsNum}yr · ${guar} · <span style="color:#f59e0b;">$${capHitDisplay}m hit</span>` 
-            : (ownerFid ? `On ${leagueFranchises[ownerFid]}` : 'Free Agent'),
-        subTextColor: salNum > 0 ? '#22c55e' : (ownerFid ? 'var(--accent-blue)' : 'var(--accent-blue)'),
+                compact: true,
+        pill: salNum > 0
+            ? contractPillHtml(capHitDisplay, yrsNum, guar)
+            : `<span style="color:var(--accent-blue);">${ownerFid ? `On ${leagueFranchises[ownerFid]}` : 'Free Agent'}</span>`,
+        topRight: salNum > 0 ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>` : '',
+        bottomRight: salNum > 0 ? rankLineHtml(pid, pos, salNum) : '',
         rightContent: rightDataHtml,
         rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
         nameSuffix: rookieHtml,
