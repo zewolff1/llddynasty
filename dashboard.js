@@ -475,6 +475,9 @@ function buildWeeklyAwardChips(targetFid) {
         }
         return '';
     }
+        const mineCounted = window._recapEventsFull.filter(e => e.fid === targetFid && (AWARD_COUNT_OVERTHINK || e.type !== 'overthink'));
+    if (!mineCounted.length) return '';
+    return `<span class="team-wk-awards"><span class="team-award twk team-award-badge" data-fid="${targetFid}" title="Season awards: ${mineCounted.length}"><span style="font-size:10px; line-height:1;">🏅</span><b style="font-size:9px;">${mineCounted.length}</b></span></span>`;
     const counts = {};
     window._recapEventsFull.filter(e => e.fid === targetFid).forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
     const chips = RECAP_AWARDS.filter(a => counts[a.key]).map(a =>
@@ -11007,6 +11010,57 @@ function recapEventBody(e) {
     return '';
 }
 
+// Header award badge: true = The Overthinker also counts toward the number (it is a negative award, so it is off)
+const AWARD_COUNT_OVERTHINK = false;
+
+function recapGoToTeam(f) {
+    const st = window._recapState;
+    st.view = 'team'; st.pickerOpen = false;
+    st.fid = String(f).padStart(4, '0');
+    st.focusAward = null;
+    $('.tab-btn').filter(function() { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
+    setTimeout(() => {
+        $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Recaps'; }).trigger('click');
+    }, 300);
+}
+
+// Popup with all of one team's awards this season, plus a See more button that opens Recaps > By Team
+function openTeamAwardsModal(f) {
+    $('#recap-award-modal').remove();
+    const events = (window._recapEventsFull || []).filter(e => e.fid === f);
+    const counted = events.filter(e => AWARD_COUNT_OVERTHINK || e.type !== 'overthink').length;
+    const wkBadge = w => `<span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
+    const groups = RECAP_AWARDS.filter(a => events.some(e => e.type === a.key)).map(a => {
+        const list = events.filter(e => e.type === a.key).sort((x, y) => y.wk - x.wk);
+        const dim = (a.key === 'overthink' && !AWARD_COUNT_OVERTHINK);
+        const rows = list.map(e => `<div style="display:flex; gap:10px; margin-bottom:8px;">
+            <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}</div>
+            <div style="flex:1; min-width:0;">${recapEventBody(e).replace(/class="player-modal-trigger"/g, '')}</div></div>`).join('');
+        return `<div style="margin-bottom:14px; ${dim ? 'opacity:0.75;' : ''}">
+            <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">${RECAP_ICONS[a.key] || ''} ${a.title} · ${list.length}${dim ? ' · not counted' : ''}</div>${rows}</div>`;
+    }).join('');
+    const html = `<div id="recap-award-modal" style="position:fixed; inset:0; z-index:99995; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; padding:16px;">
+        <div style="width:100%; max-width:480px; max-height:82vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--card-border);">
+                ${recapLogo(f, 34)}
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex;">${recapTeamName(f, 12)}</div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Season awards · ${counted}</div>
+                </div>
+                <button class="recap-modal-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:12px 14px; overflow-y:auto;">${groups || '<div style="font-size:11px; color:var(--text-dim);">No awards yet.</div>'}</div>
+            <div style="padding:10px 14px; border-top:1px solid var(--card-border);">
+                <button class="recap-modal-more" style="width:100%; padding:10px; border-radius:8px; background:var(--accent-blue); color:#fff; border:none; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer;">See more</button>
+            </div>
+        </div></div>`;
+    $('body').append(html);
+    reapplyAllTeamStyles();
+    $('#recap-award-modal').on('click', function(ev) { if (ev.target === this) $(this).remove(); });
+    $('#recap-award-modal .recap-modal-close').on('click', function() { $('#recap-award-modal').remove(); });
+    $('#recap-award-modal .recap-modal-more').on('click', function() { $('#recap-award-modal').remove(); recapGoToTeam(f); });
+}
+
 // Popup listing every entry a team has for one award
 function openRecapAwardModal(awardKey, f) {
     $('#recap-award-modal').remove();
@@ -13453,6 +13507,29 @@ async function checkNotifBadge() {
             $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Recaps'; }).trigger('click');
         }, 300);
     });
+       if (!document.getElementById('team-hdr-click-style')) {
+        const hs = document.createElement('style');
+        hs.id = 'team-hdr-click-style';
+        hs.textContent = '#active-team-switcher-btn { cursor: default !important; } #active-team-switcher-btn > div:first-child { cursor: pointer; } .team-stat-chips, .team-award-badge { cursor: pointer; }';
+        document.head.appendChild(hs);
+    }
+    // Header award badge -> popup with this team's awards
+    $(document).off('click touchend', '.team-award-badge').on('click touchend', '.team-award-badge', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        openTeamAwardsModal(String($(this).data('fid')).padStart(4, '0'));
+    });
+    // Header record / rank / streak -> League > Standings
+    $(document).off('click touchend', '.team-stat-chips').on('click touchend', '.team-stat-chips', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+        $('.tab-btn').filter(function() { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
+        setTimeout(() => {
+            $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Standings'; }).trigger('click');
+        }, 300);
+    });
     $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
         window._lsTouchStartX = e.originalEvent.touches[0].clientX;
     });
@@ -14524,7 +14601,7 @@ ${myFid === '0000' ? `<div style="position:absolute; top:-4px; right:-8px; backg
 
                        $('#active-team-switcher-btn').off('click').on('click', function(e) {
                 // Clicks on trophies / award chips in the header navigate elsewhere; they must not toggle the drawer
-                if ($(e.target).closest('.team-award-chip, .team-award, .team-awards, .team-award-solo, .team-wk-awards').length) return;
+               if (!$(e.target).closest('#active-team-switcher-btn > div:first-child').length) return;
                 $('#team-selector-drawer').stop(true, true).slideToggle(200);
                 const arrow = $('#switcher-arrow');
                 const isRotated = arrow.css('transform') !== 'none' && arrow.css('transform') !== 'matrix(1, 0, 0, 1, 0, 0)';
