@@ -1,0 +1,38 @@
+{
+  "leagueId": "63085",
+  "leagueName": "LLD Dynasty",
+  "salaryCap": 823,
+  "adminFids": ["0000", "0001"],
+  "defendingChampFid": "0001",
+  "logoUrl": "https://raw.githubusercontent.com/zewolff1/llddynasty/4f81a6a726ce6e42253b9be29c9c8ab1c3b9e576/content/Dark%20Blue%20and%20Orange%20Illustrative%20Football%20League%20Badge%20Logo%20(1).svg",
+  "joinYears": {
+    "0001": 2017, "0002": 2017, "0003": 2017, "0004": 2017, "0005": 2017,
+    "0006": 2017, "0007": 2017, "0008": 2017, "0009": 2017, "0010": 2017
+  },
+  "championships": {
+    "0001": [2017, 2020, 2023, 2025],
+    "0002": [2018, 2021, 2022],
+    "0005": [2024]
+  },
+  "teamThemes": {},
+  "lineupRules": {
+    "total": { "min": 8, "max": 17 },
+    "rosterLimit": 40,
+    "positions": {
+      "QB": { "min": 1, "max": 2 }, "RB": { "min": 2, "max": 5 },
+      "WR": { "min": 2, "max": 6 }, "TE": { "min": 1, "max": 3 },
+      "DE": { "group": "DL", "min": 1, "max": 4 }, "DT": { "group": "DL", "min": 1, "max": 4 },
+      "LB": { "min": 1, "max": 4 },
+      "CB": { "group": "DB", "min": 1, "max": 4 }, "S": { "group": "DB", "min": 1, "max": 4 }
+    },
+    "groups": {
+      "OFFENSE_MAX": { "pos": ["QB", "RB", "WR", "TE"], "max": 10 },
+      "IDP_MAX": { "pos": ["DE", "DT", "LB", "CB", "S"], "max": 6 },
+      "OFFENSE": ["QB", "RB", "WR", "TE"],
+      "IDP": ["DE", "DT", "LB", "CB", "S"],
+      "FLEX": ["RB", "WR", "TE"],
+      "SFLEX": ["QB", "RB", "WR", "TE"]
+    }
+  },
+  "features": { "rules": true }
+}
