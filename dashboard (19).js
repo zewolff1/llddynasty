@@ -9073,7 +9073,8 @@ applyTeamTheme(fid, true);
 } else {
             applyTeamTheme(fid, false);
             $('#active-team-switcher-btn').hide();
-            $('#tab-header-custom').remove();
+                       $('#tab-header-custom').remove();
+var customHtml = '';
 if (tabId === 'tab-players') {
                 let faCountdownHtml = '';
                 if (window._calendarEvents) {
