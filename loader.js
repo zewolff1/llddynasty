@@ -3,6 +3,21 @@
    Pin a version per league with:  <script>window.LLD_VERSION='v1'</script> before the line above. */
 (function () {
   var me = document.currentScript;
+  window.toggleAdminMode = function () {
+    var btn = document.getElementById('admin-toggle-btn');
+    document.body.classList.toggle('admin-mode');
+    var on = document.body.classList.contains('admin-mode');
+    if (btn) { btn.innerHTML = on ? '\u2715' : '\u2699\uFE0F'; btn.style.background = on ? '#ff4444' : '#333'; }
+  };
+  // Add ?lld_debug=1 to the page URL to get a small "!" button that shows script errors you can copy.
+  try { if (/[?&]lld_debug=1/.test(location.search)) localStorage.setItem('lld_debug', '1'); if (/[?&]lld_debug=0/.test(location.search)) localStorage.removeItem('lld_debug'); } catch (e) {}
+  var dbg = false; try { dbg = localStorage.getItem('lld_debug') === '1'; } catch (e) {}
+  if (dbg) {
+    var errs = [];
+    var show = function (t) { errs.push(t); if (errs.length > 15) errs.shift(); var b = document.getElementById('lld-dbg'); if (!b) { b = document.createElement('div'); b.id = 'lld-dbg'; b.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483647;background:#b91c1c;color:#fff;font:700 12px/1.3 system-ui;padding:6px 10px;border-radius:14px;max-width:92vw'; b.onclick = function () { b.innerHTML = '<pre style="white-space:pre-wrap;margin:0;font:11px/1.3 monospace;max-height:50vh;overflow:auto">' + errs.join('\n\n').replace(/</g, '&lt;') + '</pre>'; }; document.body.appendChild(b); } b.textContent = '! ' + errs.length + ' error(s) - tap'; };
+    window.addEventListener('error', function (e) { show((e.message || 'error') + ' @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+    window.addEventListener('unhandledrejection', function (e) { show('promise: ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)); });
+  }
   var BASE = 'https://cdn.jsdelivr.net/gh/zewolff1/llddynasty@' + (window.LLD_VERSION || 'main') + '/';
   var m = location.href.match(/\/home\/(\d+)/) || location.href.match(/[?&]L=(\d+)/);
   var lid = m && m[1];
