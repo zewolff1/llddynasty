@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lilita+One&display=swap');
+/* ==========================================================
+   THEME: BRICK BUILDER  (Lego-style; overrides only)
+   Navy baseplate with studs, yellow accents, chunky rounded cards, Fredoka + Lilita One.
+========================================================== */
+html:has(body.theme-lego) { background-color: #121b27 !important; }
+
+body.theme-lego,
+body.theme-lego#body_home {
+    --page-bg: #121b27;
+    --card-bg: #1b2635;
+    --card-border: #2f3d52;
+    --card-hover: #243246;
+    --text-dim: #9fb0c8;
+    --accent-blue: #f5cd2f;
+    --accent-teal: #f5cd2f;
+    --pos-qb: #ff5c6c; --pos-rb: #4cd68a; --pos-wr: #5fb0ff; --pos-te: #ffd23f;
+    --pos-dl: #ff9f1c; --pos-lb: #b98bff; --pos-db: #ff7ac8;
+    background-color: #121b27 !important;
+    background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,.05) 0 3px, transparent 3.5px) !important;
+    background-size: 22px 22px !important;
+    background-attachment: scroll !important;
+    font-family: "Fredoka", system-ui, sans-serif;
+}
+body.theme-lego .app-container,
+body.theme-lego .main-page-wrapper { background-color: transparent; background-image: none; }
+body.theme-lego .app-header { background: #0d141d; border-bottom: 4px solid #f5cd2f; }
+
+body.theme-lego .tab-btn,
+body.theme-lego .sub-tab-btn,
+body.theme-lego .section-header,
+body.theme-lego button { font-family: "Fredoka", system-ui, sans-serif; font-weight: 700; }
+body.theme-lego .tab-btn.active { color: #f5cd2f; border-bottom-color: #f5cd2f; }
+body.theme-lego .sub-tab-btn { border-radius: 12px; background: #1b2635; border: 2px solid #2f3d52; border-bottom-width: 4px; }
+body.theme-lego .sub-tab-btn.active { background: #f5cd2f; color: #1a1a1a; border: 2px solid #c9a100; border-bottom-width: 4px; border-radius: 12px; }
+
+/* Rows are bricks: chunky bottom edge, rounded corners, a row of studs along the top */
+body.theme-lego .player-row {
+    border: 2px solid #2f3d52 !important;
+    border-bottom-width: 4px !important;
+    border-radius: 12px !important;
+    margin-bottom: 7px !important;
+    background-image: radial-gradient(circle at 50% 0, rgba(255,255,255,.10) 0 3px, transparent 3.5px) !important;
+    background-size: 16px 7px !important;
+    background-repeat: repeat-x !important;
+    background-position: 8px 0 !important;
+}
+@media (hover: hover) {
+    body.theme-lego .player-row:hover { border-color: #f5cd2f !important; transform: none; }
+}
+body.theme-lego .section-header { border-left: 6px solid #f5cd2f; padding-left: 10px; border-radius: 4px; }
+body.theme-lego .app-container button:not(.tab-btn):not(.sub-tab-btn) { border-radius: 12px; }
