@@ -2,7 +2,7 @@
 const LLD = Object.assign({
     leagueId: '',
     origin: (/^https:\/\/www\d+\.myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
-    salaryCap: 823,
+    salaryCap: 200,
     adminFids: ['0000'],
     defendingChampFid: null,
     logoUrl: '',
@@ -10,6 +10,9 @@ const LLD = Object.assign({
     championships: {},
     teamThemes: {},
     lineupRules: null,
+    irSlots: 4,
+    taxiSlots: 5,
+    usesSalaries: true,
     features: { rules: true }
 }, window.LLD_CONFIG || {});
 const MFL_ORIGIN = LLD.origin;
@@ -53,6 +56,16 @@ const LLD_READY = (async function lldAutoConfig() {
         clearTimeout(to);
         const L = (await r.json()).league || {};
         if (!cfg.leagueName && L.name) LLD.leagueName = L.name;
+        if (!cfg.logoUrl && L.leagueLogo) LLD.logoUrl = L.leagueLogo;
+        if (!cfg.irSlots && parseInt(L.injuredReserve, 10) > 0) LLD.irSlots = parseInt(L.injuredReserve, 10);
+        if (!cfg.taxiSlots && parseInt(L.taxiSquad, 10) > 0) LLD.taxiSlots = parseInt(L.taxiSquad, 10);
+        if (cfg.usesSalaries === undefined && L.usesSalaries !== undefined) LLD.usesSalaries = String(L.usesSalaries) !== '0';
+        if (!cfg.adminFids && L.commish_username) {
+            let fr = (L.franchises && L.franchises.franchise) || [];
+            if (!Array.isArray(fr)) fr = [fr];
+            const mine = fr.filter(f => f && f.username && String(f.username).toLowerCase() === String(L.commish_username).toLowerCase()).map(f => f.id);
+            if (mine.length) LLD.adminFids = Array.from(new Set(['0000'].concat(mine)));
+        }
         if (!cfg.salaryCap && L.salaryCapAmount) {
             let cap = parseFloat(L.salaryCapAmount);
             if (cap >= 1e6) cap = cap / 1e6;
@@ -283,6 +296,16 @@ let rookiePids = new Set();
     const lineupURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
 
     const LINEUP_RULES = LLD.lineupRules || LLD_DEFAULT_RULES;
+    // Position pills for the roster summary, built from this league's lineup rules
+    function lldPosPills() {
+        const P = LINEUP_RULES.positions || {};
+        const minOf = (keys) => { const v = keys.map(k => P[k] && P[k].min).filter(m => m > 0); return v.length ? Math.max.apply(null, v) : 0; };
+        return [
+            { l: 'QB', min: minOf(['QB']) }, { l: 'RB', min: minOf(['RB']) }, { l: 'WR', min: minOf(['WR']) },
+            { l: 'TE', min: minOf(['TE']) }, { l: 'DL', min: minOf(['DE', 'DT']) }, { l: 'LB', min: minOf(['LB']) },
+            { l: 'DB', min: minOf(['CB', 'S']) }
+        ].filter(x => x.min > 0);
+    }
 
 let pointsAllowedMap = {};
 let pointsAllowedRankMap = {}; 
@@ -3586,13 +3609,13 @@ const activeYearTotal = selectedYear === startYear && mflTotalOverride > 0
             </div>
             <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #ef4444;">
                 <span class="pill-label">IR</span>
-                <span class="pill-value">${totalIR}/4</span>
+                <span class="pill-value">${totalIR}/${LLD.irSlots}</span>
             </div>
             <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #f59e0b;">
                 <span class="pill-label">TAXI</span>
-                <span class="pill-value">${totalTaxi}/5</span>
+                <span class="pill-value">${totalTaxi}/${LLD.taxiSlots}</span>
             </div>` + 
-            [{l:'QB',min:1}, {l:'RB',min:2}, {l:'WR',min:2}, {l:'TE',min:1},  {l:'DL',min:1}, {l:'LB',min:1}, {l:'DB',min:1}]
+            lldPosPills()
             .map(p => `<div class="dashboard-pill stacked-pill stat-${p.l.toLowerCase()} ${posCounts[p.l] < p.min ? 'status-empty' : ''}"><span class="pill-label">${p.l}</span><span class="pill-value">${posCounts[p.l]||0}/${p.min}</span></div>`).join('');
 
 window._capYears = Object.keys(capByYear).sort();
@@ -3637,9 +3660,9 @@ const sal = p.salary || 0;
             <span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${selectedYear}</span>
         </div>
         <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#3b82f6;"><span class="pill-label">ROSTER</span><span class="pill-value">${totalPlayers}/${LINEUP_RULES.rosterLimit}</span></div>
-        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#ef4444;"><span class="pill-label">IR</span><span class="pill-value">${totalIR}/4</span></div>
-        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${totalTaxi}/5</span></div>
-        ${[{l:'QB',min:1},{l:'RB',min:2},{l:'WR',min:2},{l:'TE',min:1},{l:'DL',min:1},{l:'LB',min:1},{l:'DB',min:1}]
+        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#ef4444;"><span class="pill-label">IR</span><span class="pill-value">${totalIR}/${LLD.irSlots}</span></div>
+        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${totalTaxi}/${LLD.taxiSlots}</span></div>
+        ${lldPosPills()
             .map(p => `<div class="dashboard-pill stacked-pill stat-${p.l.toLowerCase()} ${(posCounts[p.l]||0) < p.min ? 'status-empty' : ''}"><span class="pill-label">${p.l}</span><span class="pill-value">${posCounts[p.l]||0}/${p.min}</span></div>`).join('')}
     </div>
     ${window._yearSelectorOpen ? `<div class="dashboard-row overflow-row" style="padding-bottom:10px;">
@@ -3737,8 +3760,8 @@ window.currentRosterSize = totalPlayers;
             dashboardHtml = `<div class="roster-dashboard">
                 <div class="dashboard-row overflow-row">
                     <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #3b82f6;"><span class="pill-label">ROSTER</span><span class="pill-value">${totalPlayers}/${LINEUP_RULES.rosterLimit}</span></div>
-                    <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #ef4444;"><span class="pill-label">IR</span><span class="pill-value">${totalIR}/4</span></div>
-                    <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${totalTaxi}/5</span></div>
+                    <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #ef4444;"><span class="pill-label">IR</span><span class="pill-value">${totalIR}/${LLD.irSlots}</span></div>
+                    <div class="dashboard-pill stacked-pill" style="min-width: 45px; border-bottom-color: #f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${totalTaxi}/${LLD.taxiSlots}</span></div>
                     ` + ['QB','RB','WR','TE','PK','DL','LB','DB'].map(p => `<div class="dashboard-pill stacked-pill stat-${p.toLowerCase()}"><span class="pill-label">${p}</span><span class="pill-value">${rCounts[p]||0}</span></div>`).join('') + `
                 </div>
             </div>`;
@@ -4635,9 +4658,9 @@ $(document).on('click', '#toggle-contracts-stats-btn', function() {
         const pc = d.posCounts || {};
         full.html(`
             <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#3b82f6;"><span class="pill-label">ROSTER</span><span class="pill-value">${d.totalPlayers}/${LINEUP_RULES.rosterLimit}</span></div>
-            <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#ef4444;"><span class="pill-label">IR</span><span class="pill-value">${d.totalIR}/4</span></div>
-            <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${d.totalTaxi}/5</span></div>
-            ${[{l:'QB',min:1},{l:'RB',min:2},{l:'WR',min:2},{l:'TE',min:1},{l:'DL',min:1},{l:'LB',min:1},{l:'DB',min:1}]
+            <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#ef4444;"><span class="pill-label">IR</span><span class="pill-value">${d.totalIR}/${LLD.irSlots}</span></div>
+            <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${d.totalTaxi}/${LLD.taxiSlots}</span></div>
+            ${lldPosPills()
                 .map(p => `<div class="dashboard-pill stacked-pill stat-${p.l.toLowerCase()} ${(pc[p.l]||0) < p.min ? 'status-empty' : ''}"><span class="pill-label">${p.l}</span><span class="pill-value">${pc[p.l]||0}/${p.min}</span></div>`).join('')}
         `);
     }
@@ -7872,7 +7895,7 @@ let myRosterCapUsed = 0;
                         <div style="position:absolute; left:${faRosterPct.toFixed(1)}%; top:0; width:${(faCapPct - faRosterPct).toFixed(1)}%; height:100%; background:#f59e0b;"></div>
                     </div>
                     ${(() => {
-                        const posMins = [{l:'QB',min:1},{l:'RB',min:2},{l:'WR',min:2},{l:'TE',min:1},{l:'DL',min:1},{l:'LB',min:1},{l:'DB',min:1}];
+                        const posMins = lldPosPills();
                         const deficient = posMins.filter(p => (myPosCounts[p.l]||0) < p.min);
                         const rosterPills = `<div class="dashboard-pill stacked-pill" style="min-width:52px; border-bottom-color:#3b82f6;"><span class="pill-label">ROSTER</span><span class="pill-value">${myRosterTotal}/${LINEUP_RULES.rosterLimit}</span></div>`
                             + deficient.map(p => `<div class="dashboard-pill stacked-pill stat-${p.l.toLowerCase()} status-empty"><span class="pill-label">${p.l}</span><span class="pill-value">${myPosCounts[p.l]||0}/${p.min}</span></div>`).join('');
@@ -15738,6 +15761,7 @@ checkLoginStatus();
     buildAdminTools(); 
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
+if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 fetchFranchises()
     .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()]))
     .then(() => checkCompletedAuctions())
