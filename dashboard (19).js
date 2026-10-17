@@ -1,4 +1,4 @@
-// ===== LLD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
+// ===== LLD CONFIG (per-lleague values come from window.LLD_CONFIG, set by loader.js) =====
 const LLD = Object.assign({
     leagueId: '',
     origin: (/^https:\/\/www\d+\.myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
