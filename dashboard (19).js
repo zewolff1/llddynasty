@@ -132,6 +132,84 @@ let rookiePids = new Set();
 // NEW: Save your actual franchise ID and prepare a dictionary for the league
     const myFid = (typeof franchise_id !== 'undefined' && franchise_id !== '') ? String(franchise_id).trim().padStart(4, '0') : fid;
     let leagueFranchises = {};
+
+    // ---- DEFAULT IMAGES / NAMES / EMPTY STATES (new leagues with nothing uploaded yet) ----
+    function lldInitials(name, fallback) {
+        const words = String(name || '').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        if (!words.length) return fallback || '?';
+        return (words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[1][0]).toUpperCase();
+    }
+    function lldPlaceholderSvg(text, seed, square) {
+        let h = 0; String(seed).split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) % 360; });
+        const bg = `hsl(${h},45%,32%)`;
+        const shape = square
+            ? `<rect x="4" y="4" width="92" height="92" rx="20" fill="${bg}"/>`
+            : `<circle cx="50" cy="50" r="48" fill="${bg}"/>`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${shape}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="${text.length > 2 ? 28 : 36}" fill="#fff">${text}</text></svg>`;
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+    function lldLeagueLogoPlaceholder() {
+        return lldPlaceholderSvg(lldInitials(LLD.leagueName, 'LG'), LLD.leagueId || 'league', true);
+    }
+    function lldTeamLogoPlaceholder(fid) {
+        const n = String(parseInt(fid, 10) || fid);
+        return lldPlaceholderSvg(lldInitials(leagueFranchises[fid], n), fid, false);
+    }
+    document.addEventListener('error', function (e) {
+        const img = e.target;
+        if (!img || img.tagName !== 'IMG' || img.dataset.lldFallback) return;
+        const src = img.getAttribute('src') || '';
+        let ph = null;
+        const f = src.match(/_franchise_logo(\d+)\.\w+/);
+        if (f) ph = lldTeamLogoPlaceholder(f[1]);
+        else if (/_league_logo\.jpg/.test(src)) {
+            if (LLD.logoUrl && !img.dataset.lldTriedCfg) { img.dataset.lldTriedCfg = '1'; img.src = LLD.logoUrl; return; }
+            ph = lldLeagueLogoPlaceholder();
+        }
+        else if (img.id === 'auth-logo' || (LLD.logoUrl && src === LLD.logoUrl)) ph = lldLeagueLogoPlaceholder();
+        if (!ph) return;
+        img.dataset.lldFallback = '1';
+        img.src = ph;
+        // some images have an inline onerror that hides them; undo that for the placeholder
+        setTimeout(function () { if (img.getAttribute('src') !== ph) img.src = ph; if (img.style.display === 'none') img.style.display = ''; }, 0);
+    }, true);
+    // Empty-state messages when a tab has nothing to show yet (before the draft, before rosters exist)
+    (function () {
+        const EMPTY = {
+            'player-rows-container': ['No players on this roster yet', 'Rosters fill in after the draft. Check back once it has happened.'],
+            'players-content-container': ['No players to show yet', 'Free agents and rosters will appear here once the league has players.'],
+            'draft-content-container': ['The draft hasn\u2019t happened yet', 'The draft order and picks will appear here once it is set up.'],
+            'league-content-container': ['Nothing here yet', 'Standings and transactions will appear once games and moves happen.'],
+            'scores-content-container': ['No scores yet', 'Scores will appear once the season starts.']
+        };
+        let timer = null;
+        function check() {
+            Object.keys(EMPTY).forEach(function (id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const real = Array.from(el.children).filter(c => !c.classList.contains('lld-empty-state'));
+                const tab = el.closest('.tab-content');
+                const shown = tab && tab.classList.contains('active');
+                const text = el.textContent.replace(/\s+/g, ' ').trim();
+                const hasMedia = !!el.querySelector('img, table, input, canvas, svg');
+                const empty = !text.replace(/loading[^a-z]*/ig, '').trim() && !hasMedia && !el.querySelector('.loader, .spinner, #players-loader');
+                const old = el.querySelector('.lld-empty-state');
+                if (shown && empty && !old) {
+                    const d = document.createElement('div');
+                    d.className = 'lld-empty-state';
+                    d.style.cssText = 'text-align:center; padding:48px 24px; color:var(--text-dim);';
+                    d.innerHTML = '<div style="font-size:15px; font-weight:900; color:#fff; margin-bottom:6px;">' + EMPTY[id][0] + '</div><div style="font-size:12px; font-weight:600;">' + EMPTY[id][1] + '</div>';
+                    el.appendChild(d);
+                } else if (old && real.length) {
+                    old.remove();
+                }
+            });
+        }
+        function schedule() { clearTimeout(timer); timer = setTimeout(check, 1500); }
+        new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+        document.addEventListener('click', schedule, true);
+        schedule();
+    })();
     const rosterURL = `${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${fid}`;
     const lineupURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
 
@@ -156,6 +234,7 @@ let rookiePids = new Set();
 let pointsAllowedMap = {};
 let pointsAllowedRankMap = {}; 
     let playerAverages = {}; // Stores player averages
+    let playerSeason = {}; // pid -> {pts, avg, gp} current-season totals
     let playerRanks = {};    // NEW: Stores player positional ranks
     
     // Helper to format numbers like '1' into '1ST', '2' into '2ND'
@@ -2267,6 +2346,26 @@ $(document).on('click touchend', '.open-settings-btn', function() {
     setTimeout(applyStylePreview, 100);
 });
 // --- FETCH PLAYER AVERAGES & RANKS ---
+    async function fetchPlayerSeason() {
+        try {
+            const get = async (w) => {
+                const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=playerScores&L=${lid}&W=${w}&YEAR=${year}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+                const d = await r.json();
+                let l = d?.playerScores?.playerScore || [];
+                if (!Array.isArray(l)) l = l ? [l] : [];
+                return l;
+            };
+            const [ytd, avg] = await Promise.all([get('YTD'), get('AVG')]);
+            const avgMap = {};
+            avg.forEach(x => { if (x && x.id) avgMap[x.id] = parseFloat(x.score) || 0; });
+            ytd.forEach(x => {
+                if (!x || !x.id) return;
+                const pts = parseFloat(x.score) || 0;
+                const a = avgMap[x.id] || 0;
+                playerSeason[x.id] = { pts, avg: a, gp: a ? Math.round(pts / a) : 0 };
+            });
+        } catch (e) { console.warn('Could not load season totals', e); }
+    }
     async function fetchPlayerAverages() {
         try {
             const targetYear = parseInt(year) - 1; 
@@ -2320,7 +2419,7 @@ $(document).on('click touchend', '.open-settings-btn', function() {
 // --- FETCH POINTS ALLOWED (DEFENSIVE MATCHUPS & RANKS) ---
     async function fetchPointsAllowed() {
         try {
-            const paRes = await fetch(`${MFL_ORIGIN}/2025/options?L=${lid}&O=81`, { credentials: 'include', cache: 'no-store' });
+            const paRes = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=81`, { credentials: 'include', cache: 'no-store' });
             const paText = await paRes.text();
             const paDoc = new DOMParser().parseFromString(paText, 'text/html');
 
@@ -3091,7 +3190,7 @@ let swapIndicator = '';
 
 let rStat = irPids.has(pid) ? "IR" : taxiPids.has(pid) ? "TS" : "";
 const inlineStatusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
-                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: 11px; font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0;"><span style="font-size: 13px; font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: 8px; font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
+                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: 11px; font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span style="font-size: 13px; font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: 8px; font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
                 
                 // Core Matchup UI Variables
                 let teamMatch = secondaryText.match(/(?:vs|@)\s*([A-Z]{2,3})/i);
@@ -3216,18 +3315,16 @@ const pData = { pid: pid, pos: pos, realPos: realPos, name: name, lastName: last
             // (Leaving all your Lineup/IR/Taxi logic exactly as it is here...)
 function buildInactiveRow(p) {
     const btnHtml = p.locked ? `<button class="move-handle-btn" style="border-style:dashed; cursor:not-allowed; opacity:0.5;" title="${p.lockMsg}">🔒</button>` : `<button class="move-handle-btn" style="border-style:dashed;">${p.status}</button>`;
-    
     return buildUniversalRow(
         { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
         {
+            compact: true,
             forcedStatus: p.status,
-            isLocked: p.locked,
-            lockMsg: p.lockMsg,
             leftContent: `<div class="move-btn-wrapper">${btnHtml}</div>`,
-            subText: p.locked && p.lockMsg ? p.lockMsg : p.sec,
-            subTextColor: p.locked ? '#ef4444' : 'var(--text-dim)',
-            rightContent: `<span style="font-size: 11px; font-weight: 800; color: var(--text-main);">0.0 PROJ</span>`,
-            badgeContainerStyle: 'background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px;',
+            pill: `<span style="color:${p.locked ? '#ef4444' : '#fff'};">${p.locked && p.lockMsg ? p.lockMsg : schedPillHtml(p.sec)}</span>`,
+            topRight: projTopHtml('0.0'),
+            bottomRight: rankAvgHtml(p.pid, p.pos),
+            rowStyle: 'padding:5px 6px !important; margin-bottom:3px !important;' + (p.locked ? ' opacity:0.6; filter:grayscale(0.5);' : ''),
             extraAttributes: `data-locked="${p.locked ? 'true' : 'false'}" data-lockmsg="${p.lockMsg}"`
         }
     );
@@ -4040,14 +4137,22 @@ function buildSwapRow(p) {
                 </div>
             </div>`;
 
+        let cPA = '';
+        if (opp && pointsAllowedMap[opp]?.[p.realPos]) {
+            const cRank = pointsAllowedRankMap[p.realPos] ? pointsAllowedRankMap[p.realPos][opp] : 0;
+            const cCls = (cRank >= 24) ? 'matchup-easy' : (cRank <= 9) ? 'matchup-tough' : 'matchup-neutral';
+            cPA = `<span class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${p.realPos}" style="cursor:pointer; margin:0; display:inline-block; font-size:9px; padding:1px 5px; border-radius:4px; line-height:1.2;">${Math.round(parseFloat(pointsAllowedMap[opp][p.realPos]))} PA (#${cRank})</span>`;
+        }
         return buildUniversalRow(
             { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
             {
+                compact: true,
                 isSwapView: true,
-                subText: p.sec,
-                subBadge: badge,
-                rightContent: rightDataHtml,
-                badgeContainerStyle: 'background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 8px;'
+                noPhotoTap: true,
+                pill: `<span>${schedPillHtml(p.sec)}</span>${cPA}`,
+                topRight: projTopHtml(p.proj.toFixed(1)),
+                bottomRight: rankAvgHtml(p.pid, p.pos),
+                rowStyle: 'padding:5px 6px !important; margin-bottom:3px !important; transform:none !important; cursor:pointer;'
             }
         );
     }
@@ -4128,6 +4233,24 @@ function contractRankFor(pos, salNum) {
     for (const e of arr) { if (e.sal > salNum + 1e-9) r++; else break; }
     return r;
 }
+function schedPillHtml(sec) {
+    const t0 = sec || '';
+    const o = t0.match(/(vs|@|at)\s*([A-Z]{2,3})/i);
+    const d = t0.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
+    const t = t0.match(/(\d+)(?::\d+)?\s*(a\.m\.|p\.m\.)/i);
+    const when = [d ? d[1].charAt(0).toUpperCase() + d[1].slice(1).toLowerCase() : '', t ? `${t[1]} ${t[2].toLowerCase().includes('p') ? 'PM' : 'AM'}` : ''].join(' ').trim();
+    const opp = o ? `${/^vs$/i.test(o[1]) ? 'vs ' : '@'}${o[2].toUpperCase()}` : '';
+    return [opp, when].filter(Boolean).join(' · ') || t0 || '-';
+}
+function rankAvgHtml(pid, pos) {
+    const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0';
+    const r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
+    return `<span style="font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${pos}${r}</span> ${avg} AVG</span>`;
+}
+function projTopHtml(v) {
+    return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:13px; font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;">${v} PROJ</span>`;
+}
+
 function contractPillHtml(hit, yrs, guar) {
     return `<span style="color:#f59e0b;">$${parseFloat(hit || 0).toFixed(1)}m</span><span style="color:var(--text-dim);">HIT</span><span style="color:var(--text-dim);">·</span><span>${yrs}YR</span><span style="color:var(--text-dim);">·</span><span>${guar} <span style="color:var(--text-dim);">GUAR</span></span>`;
 }
@@ -4216,9 +4339,9 @@ function buildCompactUniversalRow(data, opts) {
     const colors = (typeof NFL_TEAM_COLORS !== 'undefined' && NFL_TEAM_COLORS[team]) || ['#3b82f6', '#1e293b'];
     const pill = opts.pill ? `<div style="display:flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:6px; background:linear-gradient(135deg, ${colors[0]}35, ${colors[1]}15); border:1px solid ${colors[0]}50; white-space:nowrap; flex-shrink:0; box-sizing:border-box; font-size:10px; font-weight:900; color:#fff;">${opts.pill}</div>` : '';
     hydrateDynRanks();
-    return `<div class="player-row pos-border-${posL} ${opts.extraClasses || ''}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
+    return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row pos-border-${posL} ${opts.extraClasses || ''}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
                 ${opts.leftContent ? `<div style="display:flex; align-items:center; flex-shrink:0; margin-right:8px;">${opts.leftContent}</div>` : ''}
-        <div class="player-img-wrapper" style="width:30px; height:30px; flex-shrink:0; margin-right:8px;">
+        <div class="player-img-wrapper" style="width:30px; height:30px; flex-shrink:0; margin-right:8px;${(opts.isSwapView || opts.noPhotoTap) ? ' width:32px !important; height:32px !important;' : ''}${opts.noPhotoTap ? ' pointer-events:none;' : ''}">
             <div class="player-circle" style="width:100%; height:100%; position:relative; overflow:hidden;">
                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
                 <img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'" style="width:100%; height:100%; object-fit:cover; position:relative; z-index:2;">
@@ -4600,7 +4723,7 @@ $(document).on('click touchend', '.move-handle-btn', function(e) {
         let sb = rStat ? `<span class="status-badge-overlay status-${rStat.toLowerCase()}">${rStat}</span>` : "";
         const sec = activePlayerRow.find('.matchup-opp-text').text() || "";
         const badge = activePlayerRow.find('.matchup-pts').parent().html() || "";
-const proj = row.find('.data-badge').first().text() || "0.0 PROJ";
+const proj = activePlayerRow.find('.data-badge').first().text() || "0.0 PROJ";
         const hasInjury = activePlayerRow.find('.injury-badge').length > 0;
 
         $('#menu-player-info-container').html(`<div class="swap-item active-player-preview preview-action-btn" data-action-pid="${pid}"><div class="player-img-wrapper"><img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" class="swap-img"><img class="team-logo-overlay" src="${getNFLLogoUrl(team)}"><span class="pos-badge-overlay pos-${pos.toLowerCase()}">${pos}</span>${sb}</div><div class="swap-info"><div class="swap-name">${playerName}</div><div class="matchup-stack"><div class="matchup-opp-text">${sec}</div>${badge}</div></div><div class="header-right-meta"><span class="data-badge projection-style">${proj}</span><div class="action-tag">${isStarter ? "Tap to Bench" : (isIR || isTS) ? "Deactivated" : "Tap to Start"}</div></div></div>`);
@@ -5057,6 +5180,7 @@ let isConfirming = false;
     $(document).on('click touchend', '.preview-action-btn', function(e) { if (e.type === 'touchend' && touchMoved) return; const checkbox = currentDoc.querySelector(`input[value="${$(this).data('action-pid')}"]`); if (checkbox) { checkbox.checked = !checkbox.checked; hideMenu(); setTimeout(renderActiveTab, 50); } });
         $(document).on('click touchend', '.swap-item:not(.active-player-preview)', function(e) {
         if (e.type === 'touchend' && touchMoved) return;
+        if ($(e.target).closest('.proj-popup-trigger, .pa-breakdown-trigger').length) return;
         if (e.type === 'touchend') e.preventDefault();
         const tPid = $(this).data('pid');
         const tCb = currentDoc.querySelector(`input[value="${tPid}"]`);
@@ -5635,7 +5759,7 @@ $(document).on('touchmove', '.settings-content-area', function(e) {
         e.stopPropagation(); // Stops the tap from reaching the contract accordion
         const row = $(this).closest('.player-row');
 // Handle direct trigger (transaction chips)
-if ($(this).hasClass('player-modal-trigger') && !row.length) {
+if ($(this).hasClass('player-modal-trigger') && (!row.length || $(this).hasClass('trade-chip'))) {
     const pid = $(this).data('pid');
     if (!pid) return;
     // Build a minimal synthetic row context. Prefer explicit data-name/data-pos when present
@@ -6832,7 +6956,7 @@ const res = await fetch(`${MFL_ORIGIN}/${year}/import`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString()
+    body: apiData.toString()
 });
             
             const responseText = await res.text();
@@ -7813,10 +7937,10 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: p.salary
                         ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>`
-                        : `<b style="font-size:15px; font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">PROJ</small>`,
+                        : `<span class="proj-popup-trigger" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:15px; font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b> <small style="font-size:8px; font-weight:800; color:var(--text-dim);">PROJ</small></span>`,
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
-                                                : `<span style="font-size:9px; white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span></span>`,
+                                                : `<span style="font-size:9px; white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
                     ownerHtml: p.ownerFid ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png" class="team-popup-trigger" data-fid="${p.ownerFid}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0; cursor:pointer;">` : '',
                     rightContent: buildPlayerRightHtml(p, isFAView),
                     leftContent: p._actionBtn || '',
@@ -9073,7 +9197,7 @@ applyTeamTheme(fid, true);
 } else {
             applyTeamTheme(fid, false);
             $('#active-team-switcher-btn').hide();
-                       $('#tab-header-custom').remove();
+            $('#tab-header-custom').remove();
 var customHtml = '';
 if (tabId === 'tab-players') {
                 let faCountdownHtml = '';
@@ -9275,8 +9399,30 @@ try {
         // Track selected assets
         let mySelected = new Set([...(targetPid ? [String(targetPid)] : []), ...presetGive.map(String)]);
         let theirSelected = new Set(presetReceive.map(String));
+function buildTradePlayerRow(p, isSelected, side) {
+    const sal = parseFloat(String(p.salary || '0').replace(/[^0-9.]/g, '')) || 0;
+    const yrs = parseInt(p.years) || 1;
+    const gPct = parseFloat(String(p.guar || '0').replace(/[^0-9.]/g, '')) / 100 || 0;
+    const capHit = (sal * gPct * yrs).toFixed(1);
+    const addBtn = `<button class="trade-add-btn" data-pid="${p.pid}" data-side="${side}" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:14px; font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">${isSelected ? '✓' : '+'}</button>`;
+    return buildUniversalRow(
+        { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
+        {
+            compact: true,
+            noPhotoTap: true,
+            extraClasses: 'trade-chip player-modal-trigger',
+            extraAttributes: `data-side="${side}" data-name="${String(p.name).replace(/"/g, '&quot;')}" data-pos="${p.pos}" data-team="${p.team}"`,
+            pill: p.salary ? contractPillHtml(capHit, yrs, p.guar || '0%') : '',
+            topRight: p.salary ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>` : '',
+            bottomRight: p.salary ? rankLineHtml(p.pid, p.pos, sal) : '',
+            rightContent: addBtn,
+            rowStyle: `padding:5px 6px !important; margin-bottom:3px !important; cursor:pointer; ${isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : ''}`
+        }
+    );
+}
 function buildPlayerChip(p, selected, side) {
     const isSelected = selected.has(String(p.pid));
+    if (!p.isPick) return buildTradePlayerRow(p, isSelected, side);
     const injHtml = p.isPick ? '' : getInjuryHtml(p.pid);
     const rStat = p.isPick ? '' : (irPids.has(String(p.pid)) ? "IR" : taxiPids.has(String(p.pid)) ? "TS" : "");
     const displayName = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
@@ -13439,7 +13585,7 @@ async function fetchFranchises() {
             const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`);
             const data = await res.json();
 data.league.franchises.franchise.forEach(f => {
-    leagueFranchises[f.id] = f.name;
+    leagueFranchises[f.id] = (f.name && String(f.name).trim()) ? f.name : ('Team ' + (parseInt(f.id, 10) || f.id));
     if (f.id === myFid) window._myOwnerName = (f.owner_name || '').split(',')[0].trim();
 });
 buildInlineTeamSwitcher();
@@ -14511,6 +14657,57 @@ $(document).on('click', '.player-mode-btn', function() {
     offseasonMode = $(this).data('mode') === 'offseason';
     loadPlayersData('free-agents');
 });
+// --- PROJECTION POPUP ---
+    $(document).off('click touchend', '.proj-popup-trigger').on('click touchend', '.proj-popup-trigger', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation(); e.stopImmediatePropagation();
+        const $t = $(this);
+        const $row = $t.closest('[data-pid]');
+        const pid = String($row.data('pid') || '');
+        if (!pid) return;
+        const proj = parseFloat($t.data('proj')) || 0;
+        const name = ($row.find('.full-name').first().text() || $row.data('pname') || $row.find('.player-name-slot, .swap-name').first().text() || '').trim() || 'Player';
+        const rowText = $row.text().replace(/\s+/g, ' ');
+        const oppM = rowText.match(/(vs|@)\s*([A-Z]{2,3})\b/);
+        const opp = oppM ? oppM[2].toUpperCase() : '';
+        const pos = ($row.find('[class*="pos-text-"]').first().text() || '').trim().toUpperCase();
+        const st = playerSeason[pid];
+        const avg = playerAverages[pid] || (st ? st.avg : 0);
+        const diff = avg ? proj - avg : null;
+        const stat = (label, val, color) => `<div style="flex:1; min-width:0; background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:10px; padding:10px 6px; text-align:center;"><div style="font-size:16px; font-weight:900; color:${color || '#fff'}; font-variant-numeric:tabular-nums;">${val}</div><div style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px;">${label}</div></div>`;
+        let matchup = '';
+        if (opp) {
+            const paPos = pos === 'DT' || pos === 'DE' ? pos : pos;
+            const pts = pointsAllowedMap[opp] && pointsAllowedMap[opp][paPos];
+            const rk = pointsAllowedRankMap[paPos] ? pointsAllowedRankMap[paPos][opp] : 0;
+            const cls = rk >= 24 ? '#22c55e' : (rk && rk <= 9) ? '#ef4444' : '#f59e0b';
+            const verdict = rk >= 24 ? 'Favorable' : (rk && rk <= 9) ? 'Tough' : 'Neutral';
+            matchup = `<div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:10px; padding:10px 12px;"><img src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'" style="width:26px; height:26px; object-fit:contain;"><div style="flex:1; min-width:0;"><div style="font-size:12px; font-weight:900; color:#fff;">${oppM[1].toLowerCase() === 'vs' ? 'vs' : '@'} ${opp}</div>${pts && rk ? `<div style="font-size:10px; font-weight:800; color:var(--text-dim);">Allows ${Math.round(parseFloat(pts))} pts to ${paPos} (#${rk})</div>` : ''}</div>${pts && rk ? `<span style="font-size:10px; font-weight:900; color:${cls};">${verdict}</span>` : ''}</div>`;
+        }
+        $('#proj-popup-overlay').remove();
+        const html = `<div id="proj-popup-overlay" style="position:fixed; inset:0; z-index:100001; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; padding:16px;">
+            <div style="width:100%; max-width:340px; background:var(--card-bg, #12161f); border:1px solid var(--card-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.display='none'" style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#000;">
+                    <div style="flex:1; min-width:0;"><div style="font-size:14px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div><div style="font-size:10px; font-weight:800; color:var(--text-dim);">${pos}${playerRanks[pid] ? ' #' + playerRanks[pid] : ''}</div></div>
+                    <button id="proj-popup-close" style="background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; padding:4px 8px;">✕</button>
+                </div>
+                <div style="text-align:center;"><div style="font-size:38px; font-weight:900; color:var(--accent-teal); line-height:1; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</div><div style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:1px; margin-top:4px;">PROJECTED POINTS</div></div>
+                <div style="display:flex; gap:8px;">
+                    ${stat('Season AVG', avg ? avg.toFixed(1) : '–')}
+                    ${stat('vs AVG', diff === null ? '–' : (diff >= 0 ? '+' : '') + diff.toFixed(1), diff === null ? '#fff' : diff >= 0 ? '#22c55e' : '#ef4444')}
+                    ${stat('Season PTS', st ? st.pts.toFixed(1) : '–')}
+                    ${stat('GP', st ? st.gp : '–')}
+                </div>
+                ${matchup}
+            </div></div>`;
+        $('body').append(html);
+    });
+    $(document).on('click touchend', '#proj-popup-overlay', function(e) {
+        if (e.type === 'touchend' && touchMoved) return;
+        if (e.target.id === 'proj-popup-overlay' || $(e.target).closest('#proj-popup-close').length) { e.preventDefault(); $('#proj-popup-overlay').remove(); }
+    });
 // --- POINTS ALLOWED CLICK LISTENER (GROUPED VERSION) ---
     $(document).off('click touchend', '.pa-breakdown-trigger').on('click touchend', '.pa-breakdown-trigger', async function(e) {
         if (e.type === 'touchend') e.preventDefault();
@@ -14538,7 +14735,7 @@ $(document).on('click', '.player-mode-btn', function() {
         $('#pa-breakdown-modal').css('display', 'flex').hide().fadeIn(200);
 
         try {
-            const res = await fetch(`${MFL_ORIGIN}/2025/options?L=${lid}&O=243&TEAM=${team}&POS=${pos}`, { cache: 'no-store' });
+            const res = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=243&TEAM=${team}&POS=${pos}`, { cache: 'no-store' });
             const html = await res.text();
             const doc = new DOMParser().parseFromString(html, 'text/html');
             
@@ -15357,7 +15554,7 @@ $(document).on('click', '.logo-style-btn', function() {
 function checkLoginStatus() {
     const isLoggedOut = $('a[href*="login?L="], a[href$="/login"]').length > 0;
     if (isLoggedOut) {
-        const leagueLogoUrl = LLD.logoUrl;
+        const leagueLogoUrl = LLD.logoUrl || lldLeagueLogoPlaceholder();
         const loginHtml = `
 <div id="auth-overlay" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.95);">
     <div class="auth-box">
@@ -15487,7 +15684,7 @@ checkLoginStatus();
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 fetchFranchises()
-    .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchLeagueSalaryData(), loadResignState()]))
+    .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()]))
     .then(() => checkCompletedAuctions())
     .then(() => {
         applyTeamTheme(myFid, true);
