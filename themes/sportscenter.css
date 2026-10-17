@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;600;700&display=swap');
+/* ==========================================================
+   THEME: 90S SPORTS DESK  (SportsCenter-style; overrides only)
+   Deep blue, red top bar, yellow numbers, condensed italic Oswald labels, Anton scores.
+========================================================== */
+html:has(body.theme-sportscenter) { background-color: #0a1330 !important; }
+
+body.theme-sportscenter,
+body.theme-sportscenter#body_home {
+    --page-bg: #0a1330;
+    --card-bg: #12214f;
+    --card-border: #2a4590;
+    --card-hover: #1a2f6e;
+    --text-dim: #9fb4e8;
+    --accent-blue: #e31837;
+    --accent-teal: #ffd200;
+    --pos-qb: #ff4f6a; --pos-rb: #3fe0c5; --pos-wr: #6cb2ff; --pos-te: #ffc46b;
+    background-color: #0a1330 !important;
+    background-image: none !important;
+    font-family: "Oswald", "Barlow Condensed", sans-serif;
+}
+body.theme-sportscenter .app-container,
+body.theme-sportscenter .main-page-wrapper { background-color: transparent; background-image: none; }
+body.theme-sportscenter .app-header { background: #08102a; border-top: 4px solid #e31837; border-bottom: 1px solid #2a4590; }
+
+body.theme-sportscenter .tab-btn,
+body.theme-sportscenter .sub-tab-btn,
+body.theme-sportscenter .section-header,
+body.theme-sportscenter button { font-family: "Oswald", sans-serif; font-weight: 600; letter-spacing: .06em; }
+body.theme-sportscenter .tab-btn { font-style: italic; }
+body.theme-sportscenter .tab-btn.active { color: #fff; border-bottom-color: #e31837; }
+body.theme-sportscenter .sub-tab-btn { border-radius: 4px; background: #12214f; border: 1px solid #2a4590; font-style: italic; }
+body.theme-sportscenter .sub-tab-btn.active { background: #e31837; color: #fff; border-color: #fff; border-radius: 4px; border-bottom: 1px solid #fff; }
+
+body.theme-sportscenter .player-row {
+    border: 1px solid #2a4590 !important;
+    border-left: 4px solid #e31837 !important;
+    border-radius: 4px !important;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.18);
+}
+body.theme-sportscenter .player-row .full-name,
+body.theme-sportscenter .player-row .short-name { font-style: italic; text-transform: uppercase; font-weight: 700; letter-spacing: .02em; }
+@media (hover: hover) {
+    body.theme-sportscenter .player-row:hover { border-color: #ffd200 !important; border-left-color: #e31837 !important; transform: none; }
+}
+body.theme-sportscenter .section-header { color: #fff; border-left: 4px solid #e31837; padding-left: 8px; font-style: italic; text-transform: uppercase; letter-spacing: 1.2px; }
+/* big numbers get the Anton scoreboard face */
+body.theme-sportscenter [class*="score"], body.theme-sportscenter [class*="proj"], body.theme-sportscenter [class*="points"] {
+    font-family: "Anton", sans-serif; font-weight: 400; letter-spacing: .01em;
+}
