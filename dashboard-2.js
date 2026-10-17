@@ -16,6 +16,39 @@ const LLD = Object.assign({
     features: { rules: true }
 }, window.LLD_CONFIG || {});
 const MFL_ORIGIN = LLD.origin;
+// ===== STYLE ENGINE: base dashboard.css + optional small theme files (themes/<name>.css) + header mode =====
+const LLD_SCRIPT_BASE = (() => {
+    try {
+        const el = document.currentScript || [...document.scripts].reverse().find(x => /llddynasty@[^/]+\/dashboard/.test(x.src));
+        return el && el.src ? el.src.replace(/\/[^\/]*$/, '/') : '';
+    } catch (e) { return ''; }
+})();
+const LLD_STYLES = { classic: 'Classic', sleeper: 'Sleeper' };
+const LLD_HDR_MODES = { auto: 'Auto (shrinks as you scroll)', middle: 'Middle (slim, always on)' };
+function lldGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+function lldSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lldApplyStyle(name) {
+    if (!LLD_STYLES[name]) name = 'classic';
+    lldSet('lld_style', name);
+    document.body.classList.toggle('theme-sleeper', name === 'sleeper');
+    let link = document.getElementById('lld-theme-css');
+    if (name === 'classic') { if (link) link.remove(); }
+    else if (LLD_SCRIPT_BASE) {
+        if (!link) { link = document.createElement('link'); link.id = 'lld-theme-css'; link.rel = 'stylesheet'; document.head.appendChild(link); }
+        link.href = LLD_SCRIPT_BASE + 'themes/' + name + '.css';
+    }
+    if (name !== 'classic') ['--page-bg','--card-bg','--card-border','--card-hover','--text-dim','--accent-blue','--accent-teal'].forEach(k => document.documentElement.style.removeProperty(k));
+    else if (typeof applyTheme === 'function') applyTheme(lldGet('lld_theme', 'midnight'));
+    document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === name));
+}
+function lldApplyHdrMode(mode) {
+    if (!LLD_HDR_MODES[mode]) mode = 'auto';
+    lldSet('lld_hdr', mode);
+    document.body.classList.toggle('hdr-mid', mode === 'middle');
+    if (mode === 'middle') document.body.classList.remove('hdr-s1', 'hdr-s2');
+    document.querySelectorAll('.lld-hdr-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    window.dispatchEvent(new Event('resize'));
+}
 const LLD_DEFAULT_RULES = {
     total: { min: 8, max: 17 },
     rosterLimit: 40,
@@ -2109,13 +2142,13 @@ function applyTeamTheme(targetFid, onTeamTab = false) {
     const savedTheme = THEMES[savedThemeId];
     const root = document.documentElement;
 
-    // Always restore saved theme fully first
-    if (savedTheme) {
+    // Always restore saved theme fully first (the Sleeper style supplies its own colors)
+    if (savedTheme && lldGet('lld_style', 'classic') !== 'sleeper') {
         Object.entries(savedTheme.vars).forEach(([key, val]) => root.style.setProperty(key, val));
     }
 
-    // Only overlay team vars when on team tab
-    if (onTeamTab) {
+    // Only overlay team vars when on team tab (never in the Sleeper style)
+    if (onTeamTab && lldGet('lld_style', 'classic') !== 'sleeper') {
         const teamTheme = TEAM_THEMES[targetFid];
         if (teamTheme) {
             Object.entries(teamTheme).forEach(([key, val]) => root.style.setProperty(key, val));
@@ -7227,7 +7260,16 @@ ${(myFid === '0000') ? `
 
                 <!-- Theme sub-content -->
                 <div class="display-sub-content" data-sub="theme">
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Theme</div>
+                    <style>.lld-style-btn,.lld-hdr-btn{flex:1;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;">
+                        ${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v}</button>`).join('')}
+                    </div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;">
+                        ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
+                    </div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Theme (Classic style)</div>
                     <div style="display:flex; flex-direction:column; gap:6px;">
                         ${['midnight','carbon','navy','charcoal','slate'].map(t => `
                             <button class="theme-option-btn" data-theme="${t}" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; border:1px solid var(--card-border); background:rgba(255,255,255,0.03); cursor:pointer; width:100%; text-align:left;">
@@ -7516,6 +7558,7 @@ carbon: {
 function applyTheme(themeId) {
     const theme = THEMES[themeId];
     if (!theme) return;
+    if (lldGet('lld_style', 'classic') === 'sleeper') { localStorage.setItem('lld_theme', themeId); return; }
     const root = document.documentElement;
     Object.entries(theme.vars).forEach(([key, val]) => {
         root.style.setProperty(key, val);
@@ -15773,6 +15816,7 @@ const result = await applyAuctionContract(pid, commentText);
     let stage = 0, ticking = false; // 0 = full card, 1 = one trophy icon, 2 = name only
 
     function setStage(next) {
+        if (document.body.classList.contains('hdr-mid')) next = 0;
         const before = header.offsetHeight;
         document.body.classList.toggle('hdr-s1', next >= 1);
         document.body.classList.toggle('hdr-s2', next >= 2);
@@ -15787,6 +15831,7 @@ const result = await applyAuctionContract(pid, commentText);
         const y = window.scrollY;
         const room = document.documentElement.scrollHeight - window.innerHeight;
         let next;
+        if (document.body.classList.contains('hdr-mid')) { if (stage !== 0) setStage(0); return; }
         if (room < (stage === 0 ? 520 : 380) || y < 30) next = 0;   // short pages never condense (avoids flicker)
         else if (y < 90)  next = stage === 0 ? 0 : 1;
         else if (y < 150) next = 1;
@@ -15809,6 +15854,10 @@ const result = await applyAuctionContract(pid, commentText);
 })();
 checkLoginStatus();
     buildAdminTools(); 
+lldApplyStyle(lldGet('lld_style', 'classic'));
+lldApplyHdrMode(lldGet('lld_hdr', 'auto'));
+$(document).on('click', '.lld-style-btn', function () { lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); });
+$(document).on('click', '.lld-hdr-btn', function () { lldApplyHdrMode(this.dataset.mode); });
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
