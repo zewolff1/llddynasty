@@ -1,5 +1,5 @@
 /* ==========================================================
-   1. VVARIABLES & GLOBAL SETTINGS
+   1. VARIABLES & GLOBAL SETTINGS
 ========================================================== */
 :root {
     --page-bg: #0f172a;
@@ -2405,8 +2405,6 @@ body.hdr-s2 #switcher-team-name { font-size: 13px !important; max-width: 100%; }
 /* Scroll stage 1 and 2 (from the slim-header change): these hide with the rest of the card */
 body.hdr-s1 .team-stat-chips,
 body.hdr-s1 .team-next { display: none !important; }
-
-
 /* ==========================================================
    8. ULTIMATE MOBILE RESPONSIVENESS FIXES (CORRECTED)
 ========================================================== */
@@ -2634,14 +2632,81 @@ body.hdr-s1 .team-next { display: none !important; }
         margin-top: 3px !important;
         gap: 6px !important;
     }
+
+/* Hide MFL elements by default */
+.myfantasyleague_menu, 
+.pageheader, 
+#hsubmenu, 
+.main_tabmenu,
+.homepagemessage,
+.leaguelogo { /* <-- Added the native logo here */
+    display: none !important;
 }
 
+/* Show them only when admin-mode is active */
+body.admin-mode .myfantasyleague_menu, 
+body.admin-mode .pageheader, 
+body.admin-mode #hsubmenu, 
+body.admin-mode .main_tabmenu,
+body.admin-mode .homepagemessage,
+body.admin-mode .leaguelogo { /* <-- Added it here to reappear */
+    display: block !important;
+}
+
+/* Style for your toggle button */
+#admin-toggle-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: #333;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    opacity: 0.5; /* Semi-transparent so it's not distracting */
+}
+
+#admin-toggle-btn:hover {
+    opacity: 1;
+}
+/* Pagefooter */
+.pagefooter{
+ display:none;
+}
 
 /* ==========================================================
-   9. ADMIN TOGGLE (hide MFL chrome unless admin-mode)
+   EDGE FIX: MFL's white page background showing around the dashboard
 ========================================================== */
-.myfantasyleague_menu, .pageheader, #hsubmenu, .main_tabmenu, .homepagemessage, .leaguelogo { display: none !important; }
-body.admin-mode .myfantasyleague_menu, body.admin-mode .pageheader, body.admin-mode #hsubmenu, body.admin-mode .main_tabmenu, body.admin-mode .homepagemessage, body.admin-mode .leaguelogo { display: block !important; }
-#admin-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px; background: #333; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 9999; font-size: 20px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); opacity: 0.5; }
-#admin-toggle-btn:hover { opacity: 1; }
-.pagefooter { display: none; }
+html, body, body#body_home {
+    background-color: var(--page-bg) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100%;
+}
+html { overflow-x: clip; }
+body#body_home > *:not(.main-page-wrapper):not(script):not(style) { background-color: transparent; }
+.main-page-wrapper, .app-container { margin: 0 !important; }
+
+/* ==========================================================
+   HEADER STYLE "MIDDLE": the slim one-line header, held permanently (never expands or shrinks on scroll)
+   Team picker stays usable (unlike hdr-s1, which is a scroll-to-top bar)
+========================================================== */
+body.hdr-mid #active-team-switcher-btn { padding: 4px 12px !important; }
+body.hdr-mid #active-team-switcher-btn > div:first-child > img { width: 28px !important; height: 28px !important; }
+body.hdr-mid #active-team-switcher-btn > div:first-child > div { display: none !important; }
+body.hdr-mid #switcher-team-name { font-size: 14px !important; max-width: calc(100% - 52px); }
+body.hdr-mid #switcher-subtitle,
+body.hdr-mid .team-record,
+body.hdr-mid .team-award,
+body.hdr-mid .team-stat-chips,
+body.hdr-mid .team-next { display: none !important; }
+body.hdr-mid .team-award-solo { display: inline-flex; }
+body.hdr-mid .team-awards { position: absolute; right: 36px; top: 50%; transform: translateY(-50%); }
+body.hdr-mid #team-info-panel-wrapper { margin-top: 0; }
