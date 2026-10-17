@@ -23,14 +23,14 @@ const LLD_SCRIPT_BASE = (() => {
         return el && el.src ? el.src.replace(/\/[^\/]*$/, '/') : '';
     } catch (e) { return ''; }
 })();
-const LLD_STYLES = { classic: 'Classic', sleeper: 'Sleeper' };
+const LLD_STYLES = { classic: 'Classic', sleeper: 'Sleeper', lego: 'Brick Builder', sportscenter: '90s Sports Desk' };
 const LLD_HDR_MODES = { auto: 'Auto (shrinks as you scroll)', middle: 'Middle (slim, always on)' };
 function lldGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
 function lldSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function lldApplyStyle(name) {
     if (!LLD_STYLES[name]) name = 'classic';
     lldSet('lld_style', name);
-    document.body.classList.toggle('theme-sleeper', name === 'sleeper');
+    Object.keys(LLD_STYLES).forEach(k => document.body.classList.toggle('theme-' + k, k === name));
     let link = document.getElementById('lld-theme-css');
     if (name === 'classic') { if (link) link.remove(); }
     else if (LLD_SCRIPT_BASE) {
@@ -2143,12 +2143,12 @@ function applyTeamTheme(targetFid, onTeamTab = false) {
     const root = document.documentElement;
 
     // Always restore saved theme fully first (the Sleeper style supplies its own colors)
-    if (savedTheme && lldGet('lld_style', 'classic') !== 'sleeper') {
+    if (savedTheme && lldGet('lld_style', 'classic') === 'classic') {
         Object.entries(savedTheme.vars).forEach(([key, val]) => root.style.setProperty(key, val));
     }
 
     // Only overlay team vars when on team tab (never in the Sleeper style)
-    if (onTeamTab && lldGet('lld_style', 'classic') !== 'sleeper') {
+    if (onTeamTab && lldGet('lld_style', 'classic') === 'classic') {
         const teamTheme = TEAM_THEMES[targetFid];
         if (teamTheme) {
             Object.entries(teamTheme).forEach(([key, val]) => root.style.setProperty(key, val));
@@ -7260,9 +7260,9 @@ ${(myFid === '0000') ? `
 
                 <!-- Theme sub-content -->
                 <div class="display-sub-content" data-sub="theme">
-                    <style>.lld-style-btn,.lld-hdr-btn{flex:1;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
+                    <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;">
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v}</button>`).join('')}
                     </div>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
@@ -7558,7 +7558,7 @@ carbon: {
 function applyTheme(themeId) {
     const theme = THEMES[themeId];
     if (!theme) return;
-    if (lldGet('lld_style', 'classic') === 'sleeper') { localStorage.setItem('lld_theme', themeId); return; }
+    if (lldGet('lld_style', 'classic') !== 'classic') { localStorage.setItem('lld_theme', themeId); return; }
     const root = document.documentElement;
     Object.entries(theme.vars).forEach(([key, val]) => {
         root.style.setProperty(key, val);
