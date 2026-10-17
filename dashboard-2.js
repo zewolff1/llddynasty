@@ -81,6 +81,8 @@ const LLD_READY = (async function lldAutoConfig() {
             if (tot) rules.total = tot;
             let pos = st.position || [];
             if (!Array.isArray(pos)) pos = [pos];
+            const spec = pos.filter(p => p && p.name && rng(p.limit)).map(p => Object.assign({ name: String(p.name) }, rng(p.limit)));
+            if (spec.length) { LLD.starterSpec = spec; LLD.starterCount = tot; LLD.slotsDerived = true; }
             const simple = pos.filter(p => p && /^[A-Za-z]+$/.test(p.name || '') && rng(p.limit));
             if (simple.length) {
                 const np = {};
@@ -296,6 +298,35 @@ let rookiePids = new Set();
     const lineupURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
 
     const LINEUP_RULES = LLD.lineupRules || LLD_DEFAULT_RULES;
+    // Starting-slot layout built from MFL's own starter settings (only used when settings were auto-detected)
+    function lldSlotModel() {
+        if (!LLD.slotsDerived || !LLD.starterSpec) return null;
+        if (LLD._slotModel) return LLD._slotModel;
+        const idp = ['DE', 'DT', 'LB', 'CB', 'S'];
+        const labelFor = (el) => (el.includes('QB') && el.some(e => e !== 'QB')) ? 'SFLEX' : (el.every(e => idp.includes(e)) ? 'IDP' : 'FLEX');
+        const core = [], flex = [];
+        let minSum = 0;
+        LLD.starterSpec.forEach(sp => {
+            const parts = sp.name.split('+').map(x => x.trim());
+            minSum += sp.min;
+            for (let i = 0; i < sp.min; i++) {
+                if (parts.length === 1) core.push({ label: parts[0], pos: parts[0], eligible: [parts[0]] });
+                else { const lb = labelFor(parts); flex.push({ label: lb, pos: lb, eligible: parts.slice() }); }
+            }
+        });
+        const total = (LLD.starterCount && LLD.starterCount.max) || minSum;
+        const extra = Math.max(0, total - minSum);
+        if (extra) {
+            const el = new Set();
+            LLD.starterSpec.forEach(sp => { if (sp.max > sp.min) sp.name.split('+').forEach(x => el.add(x.trim())); });
+            if (!el.size) LLD.starterSpec.forEach(sp => sp.name.split('+').forEach(x => el.add(x.trim())));
+            const arr = Array.from(el), lb = labelFor(arr);
+            for (let i = 0; i < extra; i++) flex.push({ label: lb, pos: lb, eligible: arr.slice() });
+        }
+        flex.forEach(f => { LINEUP_RULES.groups[f.label] = f.eligible; });
+        LLD._slotModel = { core, flex: flex.slice(0, 8) };
+        return LLD._slotModel;
+    }
     // Position pills for the roster summary, built from this league's lineup rules
     function lldPosPills() {
         const P = LINEUP_RULES.positions || {};
@@ -3417,6 +3448,14 @@ function buildInactiveRow(p) {
             let benchBuffer = benchPlayers.map(p => p.html).join('');
 
             let starterHtml = ''; const assigned = new Set();
+            const __sm = lldSlotModel();
+            if (__sm) {
+                __sm.core.concat(__sm.flex).forEach(slot => {
+                    const idx = starterPlayers.findIndex(p => slot.eligible.includes(p.realPos) && !assigned.has(p.pid));
+                    if (idx !== -1) { starterHtml += starterPlayers[idx].build(slot.label); assigned.add(starterPlayers[idx].pid); }
+                    else { starterHtml += renderEmptySlot(slot.label); }
+                });
+            } else {
             const coreSlots = [{l:'QB',p:['QB']},{l:'RB',p:['RB']},{l:'RB',p:['RB']},{l:'WR',p:['WR']},{l:'WR',p:['WR']},{l:'TE',p:['TE']},{l:'DL',p:['DL']},{l:'LB',p:['LB']},{l:'DB',p:['DB']}];
             
             coreSlots.forEach(s => {
@@ -3436,6 +3475,7 @@ for (let i = 0; i < 3; i++) {
                 const idx = starterPlayers.findIndex(p => LINEUP_RULES.groups.IDP.includes(p.realPos) && !assigned.has(p.pid));
                 if (idx !== -1) { starterHtml += starterPlayers[idx].build("IDP"); assigned.add(starterPlayers[idx].pid); }
                 else { starterHtml += renderEmptySlot('IDP'); }
+            }
             }
 
 container.append(`<div id="lineup-notifications"></div>
@@ -3737,7 +3777,14 @@ const totalOff = qb + rb + wr + te;
         const flex = Math.min(2, Math.max(0, extraOff - sflex));
         const idpFlex = Math.max(0, (dl + lb + db) - (Math.min(dl,1)+Math.min(lb,1)+Math.min(db,1)));
 
+       const __sm2 = lldSlotModel();
        const stats = [{l:'QB',c:qb,r:1}, {l:'RB',c:rb,r:2}, {l:'WR',c:wr,r:2}, {l:'TE',c:te,r:1}, {l:'SFLEX',c:sflex,r:2}, {l:'FLEX',c:flex,r:2}, {l:'DL',c:dl,r:1}, {l:'LB',c:lb,r:1}, {l:'DB',c:db,r:1}, {l:'IDP',c:idpFlex,r:3}];
+        if (__sm2) {
+            stats.length = 0;
+            const er = {};
+            $('#slots-starters .empty-slot').each(function () { const t = $(this).data('slot-type'); er[t] = (er[t] || 0) + 1; });
+            Object.keys(er).forEach(k => stats.push({ l: k, c: 0, r: er[k] }));
+        }
         let dashboardHtml = "";
 
 if (activeSub === 'roster') {
@@ -3814,7 +3861,7 @@ dashboardHtml = `<div class="roster-dashboard">
                             <div style="display:flex; flex-direction:column; gap:2px;">
                                 ${stats.filter(s => s.c < s.r).map(s => {
                                     const need = s.r - s.c;
-                                    const posName = s.l === 'QB' ? 'QB' : s.l === 'RB' ? 'RB' : s.l === 'WR' ? 'WR' : s.l === 'TE' ? 'TE' : s.l === 'PK' ? 'Kicker' : s.l === 'SFLEX' ? 'Superflex' : s.l === 'FLEX' ? 'Flex' : s.l === 'DL' ? 'DL' : s.l === 'LB' ? 'LB' : s.l === 'DB' ? 'DB' : s.l === 'IDP' ? 'IDP Flex' : s.l;
+                                    const posName = s.l === 'QB' ? 'QB' : s.l === 'RB' ? 'RB' : s.l === 'WR' ? 'WR' : s.l === 'TE' ? 'TE' : s.l === 'PK' ? 'Kicker' : s.l === 'Def' ? 'Defense' : s.l === 'SFLEX' ? 'Superflex' : s.l === 'FLEX' ? 'Flex' : s.l === 'DL' ? 'DL' : s.l === 'LB' ? 'LB' : s.l === 'DB' ? 'DB' : s.l === 'IDP' ? 'IDP Flex' : s.l;
                                     return `<span style="font-size:10px; font-weight:800; color:#f59e0b;">Needs ${need} more ${posName}${need > 1 ? 's' : ''}</span>`;
                                 }).join('')}
                             </div>
@@ -3900,7 +3947,8 @@ window.acceptAllOptimal = function() {
 
     allPlayers.sort((a, b) => b.proj - a.proj);
 
-    const coreSlots = [
+    const __lm = lldSlotModel();
+    const coreSlots = __lm ? __lm.core : [
         { label: 'QB',    eligible: ['QB'] },
         { label: 'RB',    eligible: ['RB'] },
         { label: 'RB',    eligible: ['RB'] },
@@ -3913,7 +3961,7 @@ window.acceptAllOptimal = function() {
         { label: 'DB',    eligible: ['CB', 'S'] },
     ];
 
-      const flexSlots = [
+      const flexSlots = __lm ? __lm.flex : [
         { label: 'SFLEX', eligible: ['QB', 'RB', 'WR', 'TE'] },
         { label: 'SFLEX', eligible: ['QB', 'RB', 'WR', 'TE'] },
         { label: 'FLEX',  eligible: ['RB', 'WR', 'TE'] },
@@ -3995,14 +4043,15 @@ proj: getRowProj(row),
 
     allPlayers.sort((a, b) => b.proj - a.proj);
 
-    const coreSlots = [
+    const __lm = lldSlotModel();
+    const coreSlots = __lm ? __lm.core : [
         { label: 'QB', eligible: ['QB'] }, { label: 'RB', eligible: ['RB'] },
         { label: 'RB', eligible: ['RB'] }, { label: 'WR', eligible: ['WR'] },
        { label: 'WR', eligible: ['WR'] }, { label: 'TE', eligible: ['TE'] }, { label: 'PK', eligible: ['PK'] },
          { label: 'DL', eligible: ['DE','DT'] },
         { label: 'LB', eligible: ['LB'] }, { label: 'DB', eligible: ['CB','S'] }
     ];
-       const flexSlots = [
+       const flexSlots = __lm ? __lm.flex : [
         { label: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { label: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { label: 'FLEX', eligible: ['RB','WR','TE'] },
@@ -4121,7 +4170,8 @@ function calculateSuggestedProjections() {
     });
 
     // Core slots must be filled first by exact position
-    const coreSlots = [
+    const __lm = lldSlotModel();
+    const coreSlots = __lm ? __lm.core : [
         { pos: 'QB',  eligible: ['QB'] },
         { pos: 'RB',  eligible: ['RB'] },
         { pos: 'RB',  eligible: ['RB'] },
@@ -4133,7 +4183,7 @@ function calculateSuggestedProjections() {
         { pos: 'LB',  eligible: ['LB'] },
         { pos: 'DB',  eligible: ['CB','S'] },
     ];
-       const flexSlots = [
+       const flexSlots = __lm ? __lm.flex : [
         { pos: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { pos: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
         { pos: 'FLEX',  eligible: ['RB','WR','TE'] },
