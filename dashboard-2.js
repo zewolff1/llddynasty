@@ -1,4 +1,4 @@
-// ===== LLD CONFIG (per-lleague values come from window.LLD_CONFIG, set by loader.js) =====
+// ===== LLD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
 const LLD = Object.assign({
     leagueId: '',
     origin: (/^https:\/\/www\d+\.myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
@@ -13,6 +13,75 @@ const LLD = Object.assign({
     features: { rules: true }
 }, window.LLD_CONFIG || {});
 const MFL_ORIGIN = LLD.origin;
+const LLD_DEFAULT_RULES = {
+    total: { min: 8, max: 17 },
+    rosterLimit: 40,
+    positions: {
+        'QB': { min: 1, max: 2 }, 'RB': { min: 2, max: 5 },
+        'WR': { min: 2, max: 6 }, 'TE': { min: 1, max: 3 },
+        'DE': { group: 'DL', min: 1, max: 4 }, 'DT': { group: 'DL', min: 1, max: 4 },
+        'LB': { min: 1, max: 4 },
+        'CB': { group: 'DB', min: 1, max: 4 }, 'S':  { group: 'DB', min: 1, max: 4 }
+    },
+    groups: {
+        'OFFENSE_MAX': { pos: ['QB', 'RB', 'WR', 'TE'], max: 10 }, 'IDP_MAX': { pos: ['DE', 'DT', 'LB', 'CB', 'S'], max: 6 },
+        'OFFENSE': ['QB', 'RB', 'WR', 'TE'], 'IDP': ['DE', 'DT', 'LB', 'CB', 'S'],
+        'FLEX': ['RB', 'WR', 'TE'],
+        'SFLEX': ['QB', 'RB', 'WR', 'TE']
+    }
+};
+// ===== AUTO-CONFIG: read league settings from MFL itself. Anything set in window.LLD_CONFIG wins. =====
+const LLD_READY = (async function lldAutoConfig() {
+    try {
+        const cfg = window.LLD_CONFIG || {};
+        const href = window.location.href;
+        const lidA = href.match(/\/home\/(\d+)/)?.[1] || href.match(/[?&]L=(\d+)/)?.[1] || cfg.leagueId || LLD.leagueId;
+        const yrA = href.match(/\/(\d{4})\//)?.[1] || new Date().getFullYear().toString();
+        if (!lidA) return;
+        if (!cfg.leagueId) LLD.leagueId = lidA;
+        // commissioner detection from MFL's own "name: Commissioner (Logout ...)" line
+        if (!cfg.adminFids) {
+            const txt = (document.body && document.body.innerText) || '';
+            if (/:\s*Commissioner\b/.test(txt)) {
+                const f = String(window.franchise_id || '').padStart(4, '0');
+                LLD.adminFids = Array.from(new Set(['0000'].concat(/^\d{4}$/.test(f) ? [f] : [])));
+            }
+        }
+        const ctl = new AbortController();
+        const to = setTimeout(() => ctl.abort(), 5000);
+        const r = await fetch(`${MFL_ORIGIN}/${yrA}/export?TYPE=league&L=${lidA}&JSON=1`, { credentials: 'include', signal: ctl.signal });
+        clearTimeout(to);
+        const L = (await r.json()).league || {};
+        if (!cfg.leagueName && L.name) LLD.leagueName = L.name;
+        if (!cfg.salaryCap && L.salaryCapAmount) {
+            let cap = parseFloat(L.salaryCapAmount);
+            if (cap >= 1e6) cap = cap / 1e6;
+            if (cap > 0) LLD.salaryCap = cap;
+        }
+        if (!cfg.lineupRules) {
+            const rules = JSON.parse(JSON.stringify(LLD_DEFAULT_RULES));
+            const rng = (v) => { const m = String(v || '').match(/(\d+)(?:\s*-\s*(\d+))?/); return m ? { min: +m[1], max: +(m[2] || m[1]) } : null; };
+            const rs = parseInt(L.rosterSize, 10);
+            if (rs > 0) rules.rosterLimit = rs;
+            const st = L.starters || {};
+            const tot = rng(st.count);
+            if (tot) rules.total = tot;
+            let pos = st.position || [];
+            if (!Array.isArray(pos)) pos = [pos];
+            const simple = pos.filter(p => p && /^[A-Za-z]+$/.test(p.name || '') && rng(p.limit));
+            if (simple.length) {
+                const np = {};
+                simple.forEach(p => {
+                    const k = p.name === 'PK' || p.name === 'Def' ? p.name : p.name.toUpperCase();
+                    np[k] = Object.assign({}, rng(p.limit), (rules.positions[k] && rules.positions[k].group) ? { group: rules.positions[k].group } : {});
+                });
+                rules.positions = np;
+            }
+            LLD.lineupRules = rules;
+        }
+    } catch (e) { console.warn('[LLD] auto-config skipped:', e); }
+    window.LLD_RESOLVED = LLD;
+})();
     // --- INSTANT APP ICON OVERRIDE (Must be outside document.ready) ---
 (function forceCustomAppIcon() {
 const lidFromUrl = window.location.href.match(/\/home\/(\d+)/)?.[1] || window.location.href.match(/[?&]L=(\d+)/)?.[1] || LLD.leagueId;
@@ -41,7 +110,7 @@ const myAppIconUrl = `${MFL_ORIGIN}/fflnetdynamic${yearFromUrl}/${lidFromUrl}_le
     document.addEventListener('DOMContentLoaded', injectIcons);
 })();
 
-$(document).ready(function() {
+LLD_READY.then(function () { $(document).ready(function() {
 
 // --- BUILD STAMP ---
 // Manually bump this string every time you push new code to GitHub. A small tag in the
@@ -213,23 +282,7 @@ let rookiePids = new Set();
     const rosterURL = `${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${fid}`;
     const lineupURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
 
-    const LINEUP_RULES = LLD.lineupRules || {
-        total: { min: 8, max: 17 },
-        rosterLimit: 40, 
-        positions: {
-            'QB': { min: 1, max: 2 }, 'RB': { min: 2, max: 5 },
-            'WR': { min: 2, max: 6 }, 'TE': { min: 1, max: 3 },
-            'DE': { group: 'DL', min: 1, max: 4 }, 'DT': { group: 'DL', min: 1, max: 4 },
-            'LB': { min: 1, max: 4 },
-            'CB': { group: 'DB', min: 1, max: 4 }, 'S':  { group: 'DB', min: 1, max: 4 }
-        },
-        groups: {
-'OFFENSE_MAX': { pos: ['QB', 'RB', 'WR', 'TE'], max: 10 },            'IDP_MAX': { pos: ['DE', 'DT', 'LB', 'CB', 'S'], max: 6 },
-'OFFENSE': ['QB', 'RB', 'WR', 'TE'],            'IDP': ['DE', 'DT', 'LB', 'CB', 'S'],
-            'FLEX': ['RB', 'WR', 'TE'],
-            'SFLEX': ['QB', 'RB', 'WR', 'TE']
-        }
-    };
+    const LINEUP_RULES = LLD.lineupRules || LLD_DEFAULT_RULES;
 
 let pointsAllowedMap = {};
 let pointsAllowedRankMap = {}; 
@@ -9130,8 +9183,10 @@ function applyDraftTabVisibility() {
         || (HIDE_DRAFT_TAB === 'offseason' && window.offseasonMode)
         || (HIDE_DRAFT_TAB === 'inseason' && !window.offseasonMode);
     $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-draft'); }).toggle(!hide);
-    if (hide && $('#tab-draft').is(':visible')) {
-        $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-team'); }).trigger('click');
+    if (hide && $('#tab-draft').is(':visible') && !window._draftHideBusy) {
+        window._draftHideBusy = true;
+        try { $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-team'); }).trigger('click'); }
+        finally { window._draftHideBusy = false; }
     }
 }
 window.openMainTab = function(evt, tabId) {
@@ -15691,4 +15746,4 @@ fetchFranchises()
         refreshTeamInfoPanel();
         return loadTeamData();
     });
-});
+}); });
