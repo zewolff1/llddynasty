@@ -2731,9 +2731,11 @@ body.admin-mode .leaguelogo { display: none !important; }
     font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; text-align: left; cursor: pointer;
 }
 .mflm-head i { font-size: 10px; color: var(--text-dim); transition: transform .2s; font-style: normal; }
-.mflm-group.open .mflm-head i { transform: rotate(180deg); color: var(--accent-blue); }
+.mflm-group.open > .mflm-head i { transform: rotate(180deg); color: var(--accent-blue); }
 .mflm-body { display: none; padding: 0 6px 8px; }
-.mflm-group.open .mflm-body { display: block; }
+.mflm-group.open > .mflm-body { display: block; }
+.mflm-sub { background: transparent; border-color: var(--card-border); margin: 6px 0 0; }
+.mflm-sub .mflm-head { font-size: 11px; opacity: .95; }
 .mflm-link {
     display: block; padding: 10px 10px; border-radius: 8px; color: var(--text-main) !important;
     font-size: 12px; font-weight: 700; text-decoration: none !important;
@@ -3020,105 +3022,9 @@ body[class*="theme-nfl_"] .lld-nfl .n-top { background: var(--accent-blue); }
 #lld-field .fp-flex, #lld-field .fp-sflex { --pc: #a855f7; }
 #lld-field .fp-dl, #lld-field .fp-de, #lld-field .fp-dt { --pc: #ec4899; } #lld-field .fp-lb { --pc: #14b8a6; } #lld-field .fp-db, #lld-field .fp-cb, #lld-field .fp-s { --pc: #06b6d4; } #lld-field .fp-idp { --pc: #eab308; }
 
-/* ===================== LIGHT MODE (real colour variables; each theme keeps its own accent and font) ===================== */
-html.lld-light { color-scheme: light; }
-html.lld-light:has(body[class]) { background-color: #f1f3f8 !important; }
-html.lld-light body, html.lld-light body#body_home, html.lld-light body[class*="theme-"], html.lld-light body[class*="theme-"]#body_home {
-    --page-bg: color-mix(in srgb, var(--accent-blue) 6%, #f4f6fa);
-    --card-bg: #ffffff;
-    --card-border: color-mix(in srgb, var(--accent-blue) 16%, #d6dce6);
-    --card-hover: color-mix(in srgb, var(--accent-blue) 7%, #f1f4f8);
-    --text-main: #0f172a;
-    --text-dim: #5b6678;
-    background-color: var(--page-bg) !important; background-image: none !important; color: #0f172a;
-}
-html.lld-light body.theme-classic { --accent-blue: #2563eb; --accent-teal: #0d9488; }
-html.lld-light body[class*="theme-"] .app-header, html.lld-light body[class*="theme-"] .league-tabs, html.lld-light body[class*="theme-"] .tab-btn:not(.active), html.lld-light body[class*="theme-"] .sub-tab-btn:not(.active), html.lld-light body[class*="theme-"] .player-row, html.lld-light body[class*="theme-"] .section-header { background-color: var(--card-bg) !important; background-image: none !important; box-shadow: none; }
-html.lld-light body[class*="theme-"] .app-header { background-image: linear-gradient(90deg, var(--accent-blue) 0 66%, var(--accent-teal) 66% 100%) !important; background-size: 100% 4px !important; background-repeat: no-repeat !important; }
-html.lld-light body[class*="theme-"] .tab-btn:not(.active), html.lld-light body[class*="theme-"] .sub-tab-btn:not(.active), html.lld-light body[class*="theme-"] .player-row, html.lld-light body[class*="theme-"] .player-row *, html.lld-light body[class*="theme-"] .section-header { color: var(--text-main); text-shadow: none; }
-html.lld-light body[class*="theme-"] .tab-btn.active { color: var(--text-main) !important; text-shadow: none; }
-html.lld-light body[class*="theme-"] .sub-tab-btn.active { text-shadow: none; }
-html.lld-light body[class*="theme-"] .app-container { border-color: var(--card-border); background: transparent; }
-html.lld-light .lld-style-btn, html.lld-light .lld-hdr-btn { color: var(--text-main); background: rgba(15,23,42,.04); }
-html.lld-light .lld-slim .s-n, html.lld-light .lld-slim .s-t b { color: var(--text-main); }
-html.lld-light .lld-slim .s-vs { background: rgba(15,23,42,.08); }
-html.lld-light .lld-slim .s-bar { background: rgba(15,23,42,.1); }
-html.lld-light .lld-sbwrap .live-score-prev, html.lld-light .lld-sbwrap .live-score-next { color: var(--text-main); background: rgba(15,23,42,.06); }
-html.lld-light .live-score-prev, html.lld-light .live-score-next { color: var(--text-main) !important; }
-html.lld-light #lld-field-modal .fm-box { color: var(--text-main); }
-/* inline white text and white-tint surfaces written by the scripts */
-html.lld-light :is([style*="color:#fff"], [style*="color: #fff"], [style*="color:white"], [style*="color: white"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:#f8fafc"], [style*="color:#e2e8f0"], [style*="color:#cbd5e1"]):not([style*="background"], #lld-scene *, .lld-arena *, .lld-nfl *, .lld-gazette *, .lld-arcade *, .lld-brick *, .lld-bcast *, .lld-vs *, #lld-field *, .pos-badge-overlay, .pos-badge-overlay *) { color: var(--text-main) !important; }
-html.lld-light :is([style*="background:rgba(255,255,255,0.0"], [style*="background: rgba(255,255,255,0.0"], [style*="background:rgba(255, 255, 255, 0.0"], [style*="background: rgba(255, 255, 255, 0.0"], [style*="background:rgba(255,255,255,.0"], [style*="background:rgba(255,255,255,0.1"]):not(#lld-scene *, .lld-arena *, .lld-nfl *, .lld-brick *) { background: rgba(15,23,42,.05) !important; }
-html.lld-light :is([style*="border"][style*="rgba(255,255,255"], [style*="border"][style*="rgba(255, 255, 255"]):not(#lld-scene *, .lld-arena *, .lld-nfl *, .lld-brick *) { border-color: rgba(15,23,42,.14) !important; }
-html.lld-light .player-row .full-name, html.lld-light .player-row .short-name { color: var(--text-main); }
-
-html.lld-light .pos-group-wrapper.is-minimized .player-circle { border-color: rgba(15,23,42,.14); }
-html.lld-light .player-pos-filter-btn.active, html.lld-light .player-sort-btn.active { color: var(--text-main) !important; }
-html.lld-light .app-header { border-color: rgba(15,23,42,.14); }
-html.lld-light .commish-toggle-btn, html.lld-light .app-header .open-settings-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .commish-toggle-btn, html.lld-light .app-header .open-settings-btn { border-color: rgba(15,23,42,.14); }
-html.lld-light .tab-btn.active { color: var(--text-main); }
-html.lld-light #slots-starters .player-name-slot, html.lld-light #slots-bench .player-name-slot { color: var(--text-main) !important; }
-html.lld-light .dashboard-header-row { border-color: rgba(15,23,42,.14); }
-html.lld-light .lineup-section h3.section-header { color: var(--text-main); }
-html.lld-light .lineup-section h3.section-header { background-color: rgba(15,23,42,.05); }
-html.lld-light .sub-tabs-container { border-color: rgba(15,23,42,.14); }
-html.lld-light .sub-tab-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .sub-tab-btn { border-color: rgba(15,23,42,.14); }
-html.lld-light .sub-tab-btn.active { color: var(--text-main); }
-html.lld-light .dashboard-header-row { border-color: rgba(15,23,42,.14); }
-html.lld-light .dashboard-title { color: var(--text-main); }
-html.lld-light .dashboard-pill { background-color: rgba(15,23,42,.05); }
-html.lld-light .dashboard-pill { border-color: rgba(15,23,42,.14); }
-html.lld-light .clickable-pill:hover { background-color: rgba(15,23,42,.05); }
-html.lld-light .pill-value { color: var(--text-main); }
-html.lld-light .pos-badge-overlay { color: var(--text-main); }
-html.lld-light .matchup-neutral { background-color: rgba(15,23,42,.05); }
-html.lld-light .matchup-neutral { border-color: rgba(15,23,42,.14); }
-html.lld-light 
-.swap-upgrade-btn:active, html.lld-light .suggest-fill-btn:active { background-color: rgba(15,23,42,.05) !important; }
-html.lld-light .tab-btn.active { color: var(--text-main); }
-html.lld-light .player-img-wrapper .status-badge-overlay { color: var(--text-main); }
-html.lld-light .injury-badge { color: var(--text-main); }
-html.lld-light .player-modal-close { background-color: rgba(15,23,42,.05); }
-html.lld-light .player-modal-close { border-color: rgba(15,23,42,.14); }
-html.lld-light .dashboard-title { color: var(--text-main); }
-html.lld-light .dashboard-title { background-color: rgba(15,23,42,.05); }
-html.lld-light #settings-team-logo { border-color: rgba(15,23,42,.14); }
-html.lld-light #settings-team-name { color: var(--text-main); }
-html.lld-light .open-settings-btn { color: var(--text-main); }
-html.lld-light .open-settings-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .open-settings-btn { border-color: rgba(15,23,42,.14); }
-html.lld-light .open-settings-btn:hover { background-color: rgba(15,23,42,.05); }
-html.lld-light .league-name { color: var(--text-main); }
-html.lld-light .app-header .open-settings-btn { color: var(--text-main); }
-html.lld-light .app-header .open-settings-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .app-header .open-settings-btn { border-color: rgba(15,23,42,.14); }
-html.lld-light .app-header .open-settings-btn:hover { background-color: rgba(15,23,42,.05); }
-html.lld-light .league-tabs { border-color: rgba(15,23,42,.14); }
-html.lld-light .tab-btn.active { color: var(--text-main); }
-html.lld-light .standings-header-row { border-color: rgba(15,23,42,.14); }
-html.lld-light .standings-card { background-color: rgba(15,23,42,.05); }
-html.lld-light .standings-card { border-color: rgba(15,23,42,.14); }
-html.lld-light .sc-name { color: var(--text-main); }
-html.lld-light .sc-primary-stat { color: var(--text-main); }
-html.lld-light .mgmt-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .mgmt-btn span { color: var(--text-main); }
-html.lld-light .modal-mgmt-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .modal-mgmt-btn span { color: var(--text-main); }
-html.lld-light .modal-mgmt-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .modal-mgmt-btn span { color: var(--text-main); }
-html.lld-light .modal-mgmt-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .modal-mgmt-btn span { color: var(--text-main); }
-html.lld-light .trade-tag-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .dev-link-btn { background-color: rgba(15,23,42,.05); }
-html.lld-light .custom-alert-title { color: var(--text-main); }
-html.lld-light .custom-btn-cancel { background-color: rgba(15,23,42,.05); }
-html.lld-light .custom-btn-cancel { border-color: rgba(15,23,42,.14); }
-html.lld-light .inline-badge { color: var(--text-main); }
-html.lld-light .ring-text-value { color: var(--text-main); }
-html.lld-light .player-info-panel { border-color: rgba(15,23,42,.14); }
-html.lld-light .panel-value { color: var(--text-main); }
-html.lld-light .team-stat-chip { background-color: rgba(15,23,42,.05); }
-html.lld-light .team-stat-chip { border-color: rgba(15,23,42,.14); }
-html.lld-light .team-next { color: var(--text-main); }
+/* ===================== TICKER BAR ===================== */
+#lld-ticker { display: flex; align-items: stretch; height: 26px; overflow: hidden; background: var(--tk-bg, color-mix(in srgb, var(--accent-blue) 28%, #05070b)); color: var(--tk-fg, #fff); border-top: 2px solid var(--accent-blue); border-bottom: 1px solid rgba(255,255,255,.12); font: 700 11px/26px "Oswald", "Barlow Condensed", system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; position: relative; z-index: 5; }
+#lld-ticker .tk-l { flex: none; font-style: normal; padding: 0 12px 0 10px; background: var(--accent-blue); color: var(--tk-on, #fff); font-weight: 800; letter-spacing: .14em; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); padding-right: 16px; }
+#lld-ticker .tk-w { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+#lld-ticker .tk-t { display: inline-block; animation: lldtick var(--tkdur, 40s) linear infinite; padding-left: 12px; }
+@media (prefers-reduced-motion: reduce) { #lld-ticker .tk-t { animation: none; } }
