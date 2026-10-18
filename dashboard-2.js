@@ -78,7 +78,6 @@ function lldBuildScene(name) {
     if (sc.grid) el.setAttribute('data-fx', 'grid');
     if (sc.yards) el.setAttribute('data-fx', 'yards');
     if (sc.scan) el.setAttribute('data-scan', '1');
-    if (sc.tick || sc.live) el.setAttribute('data-tick', '1');
     const t = document.createElement('div'); t.className = 't';
     const b = document.createElement('b'); b.textContent = sc.g ? (sc.g + '  ' + sc.title + '  ' + sc.g) : sc.title;
     b.style.fontFamily = sc.font || ''; b.style.fontWeight = sc.fw || '';
@@ -118,15 +117,6 @@ function lldBuildScene(name) {
     }
     if (sc.launch) { const lc = document.createElement('span'); lc.className = 'launch'; lc.textContent = sc.launch; el.appendChild(lc); }
     if (sc.fly) { const f = document.createElement('span'); f.className = 'fly'; f.textContent = sc.fly; el.appendChild(f); }
-    if (sc.tick || sc.live) {
-        const tk = document.createElement('div'); tk.className = 'tick';
-        tk.style.setProperty('--tkbg', sc.tickBg || '#000'); tk.style.setProperty('--tkfg', sc.tickFg || '#fff');
-        if (sc.desk) { tk.classList.add('lower'); const em = document.createElement('em'); em.textContent = 'SCORES'; tk.appendChild(em); }
-        tk.appendChild(document.createElement('span'));
-        el.appendChild(tk);
-        window._lldTickFallback = sc.tick || [];
-        lldFillTicker(sc.live ? null : sc.tick);
-    }
     if (sc.lights) {
         const L = document.createElement('div'); L.className = 'lights';
         const cols = ['#ff3b3b', '#3bd16f', '#ffd24a', '#4aa8ff'];
@@ -148,7 +138,7 @@ function lldRotateRail() {
 function lldSetTicker(items) {
     window._lldItems = items || [];
     lldRotateRail();
-    const sp = document.querySelector('#lld-scene .tick span');
+    const sp = document.querySelector('#lld-ticker span.tk-t');
     if (!sp || !items || !items.length) return;
     const txt = items.join('   ★   ') + '   ★   ';
     sp.textContent = txt + txt;
@@ -208,6 +198,38 @@ async function lldFillTicker(staticItems) {
     lldSetTicker(items.length ? items : (window._lldTickFallback && window._lldTickFallback.length ? window._lldTickFallback : ['WELCOME TO THE LEAGUE', 'SCORES AND TRANSACTIONS WILL SHOW HERE']));
 }
 
+// ===== TICKER BAR (under the header, every style) =====
+const LLD_TICK_WORD = { classic: 'LIVE', sleeper: 'FEED', lego: 'BRICKS', sportscenter: 'SCORES', arcade: 'HI-SCORE', leather: 'DISPATCH', madden: 'FRANCHISE', stadium: 'LIVE' };
+function lldTickOn(name) { const v = lldGet('lld_tick', ''); return v ? v === 'on' : name !== 'classic'; }
+function lldBuildTicker(name) {
+    const old = document.getElementById('lld-ticker'); if (old) old.remove();
+    if (!lldTickOn(name)) return;
+    const header = document.querySelector('.app-header'); if (!header) return;
+    const sc = (LLD_STYLES[name] || {}).scene || {};
+    const el = document.createElement('div'); el.id = 'lld-ticker';
+    const word = LLD_TICK_WORD[name] || (/^season_/.test(name) ? 'HOLIDAY' : /^nfl_/.test(name) ? 'GAME DAY' : /^lg_/.test(name) ? 'LEAGUE' : 'LIVE');
+    el.innerHTML = '<em class="tk-l"></em><span class="tk-w"><span class="tk-t"></span></span>';
+    el.querySelector('.tk-l').textContent = word;
+    if (sc.tickBg) { el.style.setProperty('--tk-bg', sc.tickBg); el.style.setProperty('--tk-on', sc.tickFg || '#fff'); }
+    else {
+        let on = '#fff';
+        try {
+            const hex = getComputedStyle(document.body).getPropertyValue('--accent-blue').trim();
+            const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+            if (m) { const n = parseInt(m[1], 16); const L = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)); on = L > 150 ? '#10141c' : '#fff'; }
+        } catch (e) {}
+        el.style.setProperty('--tk-on', on);
+    }
+    header.insertAdjacentElement('afterend', el);
+    window._lldTickFallback = sc.tick || [];
+    lldFillTicker(sc.tick || null);
+}
+function lldApplyTick(v) {
+    lldSet('lld_tick', v === 'off' ? 'off' : 'on');
+    document.querySelectorAll('.lld-tick-btn').forEach(b => b.classList.toggle('on', b.dataset.v === lldGet('lld_tick', 'on')));
+    lldBuildTicker(lldGet('lld_style', 'classic'));
+}
+$(document).on('click', '.lld-tick-btn', function () { lldApplyTick(this.dataset.v); });
 function lldApplyStyle(name) {
     if (!LLD_STYLES[name]) name = 'classic';
     lldSet('lld_style', name);
@@ -232,20 +254,11 @@ function lldApplyStyle(name) {
     else if (typeof applyTheme === 'function') applyTheme(lldGet('lld_theme', 'midnight'));
     document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === name));
     lldBuildScene(name);
+    lldBuildTicker(name);
     window.LLD_STYLE_DEBUG = { name, base: LLD_SCRIPT_BASE, href: (document.getElementById('lld-theme-css') || {}).href || '' };
 }
 
-// ===== LIGHT / DARK MODE (per device) =====
-const LLD_MODES = { dark: 'Dark', light: 'Light', auto: 'Auto' };
-function lldApplyMode(mode) {
-    if (!LLD_MODES[mode]) mode = 'dark';
-    lldSet('lld_mode', mode);
-    let light = mode === 'light';
-    try { if (mode === 'auto') light = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
-    document.documentElement.classList.toggle('lld-light', light);
-    document.querySelectorAll('.lld-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
-}
-try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (lldGet('lld_mode', 'dark') === 'auto') lldApplyMode('auto'); }); } catch (e) {}
+try { document.documentElement.classList.remove('lld-light'); } catch (e) {}
 function lldApplySb(v) {
     lldSet('lld_sb', v === 'default' ? 'default' : 'theme');
     document.querySelectorAll('.lld-sb-btn').forEach(b => b.classList.toggle('on', b.dataset.v === lldGet('lld_sb', 'theme')));
@@ -298,7 +311,6 @@ function lldOpenField() {
 $(document).on('click', '.lld-fv-open', lldOpenField);
 $(document).on('click', '#lld-field-modal .fm-x', lldCloseField);
 $(document).on('click', '#lld-field-modal', function (e) { if (e.target === this) lldCloseField(); });
-$(document).on('click', '.lld-mode-btn', function () { lldApplyMode(this.dataset.mode); });
 $(document).on('click', '.lld-sb-btn', function () { lldApplySb(this.dataset.v); });
 $(document).on('click', '#lld-field .f-p', function () {
     const r = document.querySelectorAll('#slots-starters > .player-row')[+this.dataset.i];
@@ -2645,6 +2657,50 @@ function lldCollectMflMenu() {
     });
     return groups;
 }
+// ----- Expand the MFL "Setup" page into groups inside the MFL Menu -----
+function lldParseSetupPage(html, pageUrl) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script,style,noscript,.myfantasyleague_menu,#hsubmenu,.main_tabmenu,header,footer,nav').forEach(n => n.remove());
+    const clean = t => (t || '').replace(/\s+/g, ' ').trim();
+    const titleCase = t => (t === t.toUpperCase() && /[A-Z]/.test(t)) ? t.toLowerCase().replace(/(^|[\s/(-])([a-z])/g, (m, a, b) => a + b.toUpperCase()) : t;
+    const groups = []; let cur = null;
+    const headLike = el => {
+        if (/^H[1-6]$/.test(el.tagName)) return true;
+        if (el.tagName === 'A' || el.querySelector('a, ul, ol, table, div, p, li')) return false;
+        return /(head|title|banner|caption)/i.test(typeof el.className === 'string' ? el.className : '');
+    };
+    doc.body.querySelectorAll('*').forEach(el => {
+        if (el.tagName === 'A') {
+            const h = el.getAttribute('href') || '';
+            const label = clean(el.textContent);
+            if (!cur || !label || /^(javascript:|#|mailto:)/i.test(h.trim())) return;
+            let url; try { url = new URL(h, pageUrl).href; } catch (e) { return; }
+            if (!cur.links.some(l => l.href === url)) cur.links.push({ label, href: url });
+            return;
+        }
+        if (headLike(el)) {
+            const t = clean(el.textContent);
+            if (t.length >= 3 && t.length <= 60 && !(cur && cur.label === titleCase(t))) { cur = { label: titleCase(t), links: [] }; groups.push(cur); }
+        }
+    });
+    return groups.filter(g => g.links.length && !/recently used/i.test(g.label));
+}
+window.lldParseSetupPage = lldParseSetupPage;
+async function lldLoadSetupInto(group) {
+    const body = group.querySelector(':scope > .mflm-body');
+    const href = group.dataset.href;
+    if (!body || group.dataset.loaded) return;
+    group.dataset.loaded = '1';
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    try {
+        const r = await fetch(href, { credentials: 'include' });
+        const subs = lldParseSetupPage(await r.text(), href);
+        body.innerHTML = subs.map(g => `<div class="mflm-group mflm-sub"><button class="mflm-head" type="button">${esc(g.label)}<i>▾</i></button><div class="mflm-body">${g.links.map(l => `<a class="mflm-link" href="${esc(l.href)}">${esc(l.label)}</a>`).join('')}</div></div>`).join('') + `<a class="mflm-link" href="${esc(href)}">Open the full Setup page ›</a>`;
+    } catch (e) {
+        body.innerHTML = `<a class="mflm-link" href="${esc(href)}">Open the Setup page ›</a>`;
+    }
+}
+$(document).on('click', '.mflm-lazy > .mflm-head', function () { lldLoadSetupInto(this.parentNode); });
 function renderMflMenu() {
     const el = document.getElementById('mflm-list');
     if (!el) return;
@@ -2658,9 +2714,13 @@ function renderMflMenu() {
     ] }];
     groups = groups.map(g => (g.links && g.links.length === 1 && g.links[0].label.toLowerCase() === g.label.toLowerCase()) ? { label: g.label, href: g.links[0].href } : g);
     const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    el.innerHTML = groups.map(g => g.links
-        ? `<div class="mflm-group"><button class="mflm-head" type="button">${esc(g.label)}<i class="fa-solid fa-chevron-down">▾</i></button><div class="mflm-body">${g.links.map(l => `<a class="mflm-link" href="${esc(l.href)}">${esc(l.label)}</a>`).join('')}</div></div>`
-        : `<div class="mflm-group"><a class="mflm-head" href="${esc(g.href)}">${esc(g.label)}<i>›</i></a></div>`).join('');
+    const isSetup = l => /^(commissioner )?setup$/i.test(String(l.label).trim()) && l.href;
+    const lazy = (label, href, inner) => `<div class="mflm-group mflm-lazy${inner ? ' mflm-sub' : ''}" data-href="${esc(href)}"><button class="mflm-head" type="button">${esc(label)}<i>▾</i></button><div class="mflm-body"><div class="mflm-note">Loading setup options…</div></div></div>`;
+    el.innerHTML = groups.map(g => {
+        if (!g.links && isSetup({ label: g.label, href: g.href })) return lazy(g.label, g.href, false);
+        if (!g.links) return `<div class="mflm-group"><a class="mflm-head" href="${esc(g.href)}">${esc(g.label)}<i>›</i></a></div>`;
+        return `<div class="mflm-group"><button class="mflm-head" type="button">${esc(g.label)}<i>▾</i></button><div class="mflm-body">${g.links.map(l => isSetup(l) ? lazy(l.label, l.href, true) : `<a class="mflm-link" href="${esc(l.href)}">${esc(l.label)}</a>`).join('')}</div></div>`;
+    }).join('');
 }
 $(document).on('click', '.mflm-head', function (e) {
     if (this.tagName === 'A') return;
@@ -7593,9 +7653,10 @@ ${(myFid === '0000') ? `
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
                     </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Light / Dark</div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
-                        ${Object.entries(LLD_MODES).map(([k, v]) => `<button class="lld-hdr-btn lld-mode-btn ${lldGet('lld_mode','dark')===k?'on':''}" data-mode="${k}">${v}</button>`).join('')}
+                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldGet('lld_style','classic'))?'on':''}" data-v="on">On</button>
+                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldGet('lld_style','classic'))?'':'on'}" data-v="off">Off</button>
                     </div>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Scoreboard</div>
                     <div style="display:flex; gap:6px; margin-bottom:6px;">
@@ -16230,7 +16291,6 @@ checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
 lldApplyHdrMode(lldGet('lld_hdr', 'auto'));
-lldApplyMode(lldGet('lld_mode', 'dark'));
 $(document).on('click', '.lld-style-btn', function () { lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn', function () { lldApplyHdrMode(this.dataset.mode); });
 loadSavedTheme();
