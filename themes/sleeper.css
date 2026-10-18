@@ -58,3 +58,6 @@ body.theme-sleeper input,
 body.theme-sleeper select { border-radius: 10px; }
 
 /* Team colors are never applied in this style (JS also skips them) */
+
+/* ---- GEN-BG ---- */
+body.theme-sleeper, body.theme-sleeper#body_home { background-image: linear-gradient(180deg, #11161f 0, #0b0e14 340px) !important; background-size: auto !important; background-attachment: scroll !important; background-repeat: repeat !important; }
