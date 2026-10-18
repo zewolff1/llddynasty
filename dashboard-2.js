@@ -23,24 +23,289 @@ const LLD_SCRIPT_BASE = (() => {
         return el && el.src ? el.src.replace(/\/[^\/]*$/, '/') : '';
     } catch (e) { return ''; }
 })();
-const LLD_STYLES = { classic: 'Classic', sleeper: 'Sleeper', lego: 'Brick Builder', sportscenter: '90s Sports Desk' };
+const LLD_STYLES = {
+    "classic": { name: "Classic", group: "Base", file: "", fonts: "", scene: null },
+    "sleeper": { name: "Sleeper", group: "Full themes", file: "sleeper", fonts: "", scene: {"title": "LEAGUE", "sub": "Week hub", "bg": "linear-gradient(180deg, #11161f 0%, #0b0e14 100%)", "font": "\"Inter\", sans-serif", "fw": 800, "none": true} },
+    "lego": { name: "Brick Builder", group: "Full themes", file: "lego", fonts: "family=Fredoka:wght@500;600;700&family=Lilita+One", scene: {"title": "BRICK LEAGUE", "sub": "Build your dynasty", "bricks": ["#e11d48", "#f5cd2f", "#2f7de9", "#1f9e4a"], "bg": "linear-gradient(180deg, #2f7de9 0%, #1b4fa8 100%)", "font": "\"Lilita One\", sans-serif", "fw": 400} },
+    "sportscenter": { name: "90s Sports Desk", group: "Full themes", file: "sportscenter", fonts: "family=Anton&family=Oswald:wght@500;600;700", scene: {"title": "DYNASTY TONIGHT", "sub": "Scores and moves", "stripes": ["#e31837", "#ffffff"], "live": true, "tickBg": "#e31837", "tickFg": "#ffffff", "bg": "linear-gradient(180deg, #1d44c4 0%, #0a1330 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "italic": true} },
+    "arcade": { name: "Gridiron Arcade", group: "Full themes", file: "more", fonts: "family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&family=Press+Start+2P", scene: {"title": "FRANCHISE MODE", "sub": "Insert coin", "grid": true, "scan": true, "bg": "linear-gradient(180deg, #1a222d 0%, #0b0f14 100%)", "font": "\"Teko\", sans-serif", "fw": 700, "spaced": true} },
+    "leather": { name: "Leatherheads", group: "Full themes", file: "more", fonts: "family=Playfair+Display:ital,wght@0,700;0,900;1,700", scene: {"title": "THE GAZETTE", "sub": "Vol. V", "tick": ["WIRE: LEAGUE WEEK UNDER WAY", "LINEUPS LOCK AT KICKOFF", "FRANCHISE NEWS TO FOLLOW"], "tickBg": "#120d0a", "tickFg": "#d9b25f", "bg": "linear-gradient(180deg, #3a2b1f 0%, #1c1612 100%)", "font": "\"Playfair Display\", Georgia, serif", "fw": 900} },
+    "madden": { name: "2000s Madden", group: "Full themes", file: "more", fonts: "family=Barlow+Condensed:ital,wght@1,700;1,800&family=Orbitron:wght@700;800", scene: {"title": "FRANCHISE MODE", "sub": "Game day", "scan": true, "live": true, "tickBg": "#ff9a1f", "tickFg": "#0a0f1a", "bg": "linear-gradient(180deg, #1b2336 0%, #0a0f1a 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 800, "italic": true} },
+    "stadium": { name: "Stadium", group: "Full themes", file: "more", fonts: "family=Oswald:wght@500;600;700&family=Share+Tech+Mono", scene: {"title": "GAME DAY", "sub": "Under the lights", "stars": true, "starsY": 22, "yards": true, "lights": true, "bg": "radial-gradient(60% 80% at 8% 0%, rgba(255,240,200,.55), transparent 70%), radial-gradient(60% 80% at 92% 0%, rgba(255,240,200,.55), transparent 70%), linear-gradient(180deg, #0a1426 0 34%, #1f6b3a 34% 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "nfl_jets": { name: "Jets", group: "NFL teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"title": "JETS", "sub": "Game day", "stripes": ["#1fa06e", "#e8f2ec"], "bg": "linear-gradient(180deg, #0f2a20 0%, #07140f 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "nfl_packers": { name: "Packers", group: "NFL teams", file: "more", fonts: "family=Roboto+Slab:wght@600;800", scene: {"title": "PACKERS", "sub": "Game day", "stripes": ["#ffb612", "#f2e6c0"], "bg": "linear-gradient(180deg, #1a2a25 0%, #0d1613 100%)", "font": "\"Roboto Slab\", sans-serif", "fw": 800, "spaced": true, "g": "🏈"} },
+    "nfl_cowboys": { name: "Cowboys", group: "NFL teams", file: "more", fonts: "family=Oswald:wght@500;600;700", scene: {"title": "COWBOYS", "sub": "Game day", "stripes": ["#3d72e0", "#b4bcc4"], "bg": "linear-gradient(180deg, #111c33 0%, #09111f 100%)", "font": "\"Oswald\", sans-serif", "fw": 600, "spaced": true, "g": "🏈"} },
+    "nfl_giants": { name: "Giants", group: "NFL teams", file: "more", fonts: "family=Barlow+Semi+Condensed:wght@600;700", scene: {"title": "GIANTS", "sub": "Game day", "stripes": ["#3a63d6", "#e0314b"], "bg": "linear-gradient(180deg, #101a4a 0%, #091033 100%)", "font": "\"Barlow Semi Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "nfl_bucs": { name: "Buccaneers", group: "NFL teams", file: "more", fonts: "family=Bebas+Neue", scene: {"title": "BUCCANEERS", "sub": "Game day", "stripes": ["#e4261f", "#ff7900"], "bg": "linear-gradient(180deg, #231d1a 0%, #14100e 100%)", "font": "\"Bebas Neue\", sans-serif", "fw": 400, "spaced": true, "g": "🏈"} },
+    "nfl_panthers": { name: "Panthers", group: "NFL teams", file: "more", fonts: "family=Rajdhani:wght@600;700", scene: {"title": "PANTHERS", "sub": "Game day", "stripes": ["#0a9be0", "#bfc0bf"], "bg": "linear-gradient(180deg, #131c27 0%, #090e14 100%)", "font": "\"Rajdhani\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "nfl_dolphins": { name: "Dolphins", group: "NFL teams", file: "more", fonts: "family=Montserrat:wght@600;800", scene: {"title": "DOLPHINS", "sub": "Game day", "stripes": ["#14b0ba", "#fc4c02"], "bg": "linear-gradient(180deg, #0d2a34 0%, #06161c 100%)", "font": "\"Montserrat\", sans-serif", "fw": 800, "spaced": true, "g": "🏈"} },
+    "nfl_eagles": { name: "Eagles", group: "NFL teams", file: "more", fonts: "family=Saira+Condensed:wght@600;700", scene: {"title": "EAGLES", "sub": "Game day", "stripes": ["#0fa3ab", "#69be28"], "bg": "linear-gradient(180deg, #0c2a2d 0%, #051214 100%)", "font": "\"Saira Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "season_fall": { name: "Fall", group: "Seasonal", file: "more", fonts: "family=Bitter:wght@600;800", scene: {"title": "FALL FOOTBALL", "sub": "Sweater weather", "bg": "linear-gradient(180deg, #8a4214 0%, #4a230c 100%)", "font": "\"Bitter\", Georgia, serif", "fw": 800, "g": "🍁"} },
+    "season_halloween": { name: "Halloween", group: "Seasonal", file: "more", fonts: "family=Metamorphous", scene: {"title": "HAPPY HALLOWEEN", "sub": "Spooky season", "moon": true, "bg": "linear-gradient(180deg, #3a1d5e 0%, #1a0f2b 100%)", "font": "\"Metamorphous\", Georgia, serif", "fw": 400, "g": "👻"} },
+    "season_thanksgiving": { name: "Thanksgiving", group: "Seasonal", file: "more", fonts: "family=Libre+Baskerville:wght@700", scene: {"title": "THANKSGIVING WEEK", "sub": "Football, family, leftovers", "bg": "linear-gradient(180deg, #7a2f2f 0%, #46211f 100%)", "font": "\"Libre Baskerville\", Georgia, serif", "fw": 700, "g": "🍂"} },
+    "season_christmas": { name: "Christmas", group: "Seasonal", file: "more", fonts: "family=Cinzel:wght@600;700", scene: {"title": "MERRY CHRISTMAS", "sub": "Gridiron holiday edition", "lights": true, "bg": "linear-gradient(180deg, #14452b 0%, #0d2a1b 100%)", "font": "\"Cinzel\", Georgia, serif", "fw": 700, "g": "❄"} },
+    "lg_taylor": { name: "NJ Taylor Hams", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Jersey pride", "title": "NJ TAYLOR HAMS", "bg": "linear-gradient(180deg, #0c6a97 0%, #0a1d2a 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🥓"} },
+    "lg_philly": { name: "Philly Pork Rolls", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Brotherly roll", "title": "PHILLY PORK ROLLS", "bg": "linear-gradient(180deg, #8c1b1e 0%, #220d13 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🥖"} },
+    "lg_budz": { name: "Best Budz", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Good vibes only", "title": "BEST BUDZ", "bg": "linear-gradient(180deg, #187e40 0%, #0c2019 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🌿"} },
+    "lg_discovery": { name: "Cape Canaveral Discovery", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"stars": true, "sub": "Launch window open", "title": "CAPE CANAVERAL DISCOVERY", "bg": "linear-gradient(180deg, #15348c 0%, #0b1228 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🚀"} },
+    "lg_bandits": { name: "LA Bandits", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"stripes": ["#7c3aed", "#facc15"], "sub": "Steal the week", "title": "LA BANDITS", "bg": "linear-gradient(180deg, #502899 0%, #17102b 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🦝"} },
+    "lg_juicebox": { name: "Juicebox", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Pierce the straw", "title": "JUICEBOX", "bg": "linear-gradient(180deg, #9e4b14 0%, #261711 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🧃"} },
+    "lg_wilson": { name: "New York Wilson", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"stripes": ["#2563eb", "#fb923c"], "sub": "Stranded on top", "title": "NEW YORK WILSON", "bg": "linear-gradient(180deg, #1a4198 0%, #0c152a 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🏐"} },
+    "lg_oceans": { name: "Pacific Oceans", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Deep end", "title": "PACIFIC OCEANS", "bg": "linear-gradient(180deg, #085e74 0%, #091a23 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🫧"} },
+    "lg_ghosts": { name: "Ghosts", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Boo", "title": "GHOSTS", "bg": "linear-gradient(180deg, #5a3d9f 0%, #19142c 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "👻"} },
+    "lg_pioneers": { name: "Colorado Pioneers", group: "League teams", file: "more", fonts: "family=Barlow+Condensed:wght@600;700", scene: {"sub": "Westward", "title": "COLORADO PIONEERS", "bg": "linear-gradient(180deg, #73370c 0%, #1e130f 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "❄"} }
+};
 const LLD_HDR_MODES = { auto: 'Auto (shrinks as you scroll)', middle: 'Middle (slim, always on)' };
 function lldGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
 function lldSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+// ===== HEADER SCENES + TICKER =====
+function lldBuildScene(name) {
+    const old = document.getElementById('lld-scene');
+    if (old) old.remove();
+    document.querySelectorAll('.header-top-row.has-scene').forEach(r => r.classList.remove('has-scene'));
+    if (window._lldRailTimer) { clearInterval(window._lldRailTimer); window._lldRailTimer = null; }
+    const sc = (LLD_STYLES[name] || {}).scene;
+    const header = document.querySelector('.app-header');
+    if (!sc || sc.none || !header) return;
+    const el = document.createElement('div');
+    el.id = 'lld-scene';
+    el.style.background = sc.bg;
+    if (sc.spaced) el.classList.add('spaced');
+    if (sc.italic) el.classList.add('italic');
+    if (sc.snow) el.setAttribute('data-snow', '1');
+    if (sc.moon) el.setAttribute('data-moon', '1');
+    if (sc.stripes) { el.setAttribute('data-fx', 'stripes'); el.style.setProperty('--s1', sc.stripes[0]); el.style.setProperty('--s2', sc.stripes[1]); }
+    if (sc.grid) el.setAttribute('data-fx', 'grid');
+    if (sc.yards) el.setAttribute('data-fx', 'yards');
+    if (sc.scan) el.setAttribute('data-scan', '1');
+    if (sc.tick || sc.live) el.setAttribute('data-tick', '1');
+    const t = document.createElement('div'); t.className = 't';
+    const b = document.createElement('b'); b.textContent = sc.g ? (sc.g + '  ' + sc.title + '  ' + sc.g) : sc.title;
+    b.style.fontFamily = sc.font || ''; b.style.fontWeight = sc.fw || '';
+    const i = document.createElement('i'); i.textContent = LLD.leagueName ? (LLD.leagueName + ' · ' + sc.sub) : sc.sub;
+    t.appendChild(b); t.appendChild(i); el.appendChild(t);
+    if (sc.desk) {
+        el.classList.add('desk');
+        const now = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        el.insertAdjacentHTML('beforeend', `<div class="d-badge"><span class="d-time">${now()}</span><b>LIVE</b><i>SC</i></div><div class="d-rail"><span class="d-h"></span><span class="d-h"></span><span class="d-h"></span></div>`);
+        const bb = el.querySelector('.t b'); if (bb) bb.textContent = sc.title;
+        window._lldRailTimer = setInterval(() => {
+            const tm = document.querySelector('#lld-scene .d-time');
+            if (!tm) { clearInterval(window._lldRailTimer); return; }
+            tm.textContent = now();
+            lldRotateRail();
+        }, 3000);
+    }
+    const r = (a, z) => a + Math.random() * (z - a);
+    for (let n = 0; n < (sc.count || 0); n++) {
+        const sp = document.createElement('span'); sp.className = 'p';
+        let d = r(6, 11);
+        if (sc.bricks) { sp.className = 'p brick'; sp.style.setProperty('--c', sc.bricks[n % sc.bricks.length]); d = r(5, 9); }
+        else sp.textContent = sc.glyphs[n % sc.glyphs.length];
+        if (sc.rise) sp.className += ' rise';
+        sp.style.setProperty('--x', r(0, 94).toFixed(1) + '%');
+        sp.style.setProperty('--s', r(12, 20).toFixed(0) + 'px');
+        sp.style.setProperty('--d', d.toFixed(1) + 's');
+        sp.style.setProperty('--delay', (-r(0, d)).toFixed(1) + 's');
+        sp.style.setProperty('--dx', r(-34, 34).toFixed(0) + 'px');
+        sp.style.setProperty('--rot', (sc.bricks ? r(-40, 40) : r(-300, 300)).toFixed(0) + 'deg');
+        el.appendChild(sp);
+    }
+    if (sc.stars) for (let q = 0; q < 26; q++) {
+        const st = document.createElement('span'); st.className = 'star';
+        st.style.setProperty('--x', r(0, 98).toFixed(1) + '%'); st.style.setProperty('--y', r(2, sc.starsY || 70).toFixed(0) + 'px'); st.style.setProperty('--delay', (-r(0, 2)).toFixed(2) + 's');
+        el.appendChild(st);
+    }
+    if (sc.launch) { const lc = document.createElement('span'); lc.className = 'launch'; lc.textContent = sc.launch; el.appendChild(lc); }
+    if (sc.fly) { const f = document.createElement('span'); f.className = 'fly'; f.textContent = sc.fly; el.appendChild(f); }
+    if (sc.tick || sc.live) {
+        const tk = document.createElement('div'); tk.className = 'tick';
+        tk.style.setProperty('--tkbg', sc.tickBg || '#000'); tk.style.setProperty('--tkfg', sc.tickFg || '#fff');
+        if (sc.desk) { tk.classList.add('lower'); const em = document.createElement('em'); em.textContent = 'SCORES'; tk.appendChild(em); }
+        tk.appendChild(document.createElement('span'));
+        el.appendChild(tk);
+        window._lldTickFallback = sc.tick || [];
+        lldFillTicker(sc.live ? null : sc.tick);
+    }
+    if (sc.lights) {
+        const L = document.createElement('div'); L.className = 'lights';
+        const cols = ['#ff3b3b', '#3bd16f', '#ffd24a', '#4aa8ff'];
+        for (let k = 0; k < 14; k++) { const bu = document.createElement('span'); bu.className = 'bulb'; bu.style.setProperty('--c', cols[k % 4]); bu.style.setProperty('--dl', (k * 0.18).toFixed(2) + 's'); L.appendChild(bu); }
+        el.appendChild(L);
+    }
+    const row = header.querySelector('.header-top-row');
+    if (row) { row.classList.add('has-scene'); row.insertBefore(el, row.firstChild); }
+    else header.parentNode.insertBefore(el, header);
+}
+let _lldRailIdx = 0;
+function lldRotateRail() {
+    const hs = document.querySelectorAll('#lld-scene .d-h');
+    const items = window._lldItems || [];
+    if (!hs.length || !items.length) return;
+    hs.forEach((h, i) => { h.textContent = String(items[(_lldRailIdx + i) % items.length] || '').replace(/^(SCORE|TRADE ALERT): /, '').slice(0, 34); });
+    _lldRailIdx = (_lldRailIdx + 1) % items.length;
+}
+function lldSetTicker(items) {
+    window._lldItems = items || [];
+    lldRotateRail();
+    const sp = document.querySelector('#lld-scene .tick span');
+    if (!sp || !items || !items.length) return;
+    const txt = items.join('   ★   ') + '   ★   ';
+    sp.textContent = txt + txt;
+    sp.style.setProperty('--tkdur', Math.max(24, Math.round(txt.length * 0.32)) + 's');
+    sp.style.animationDuration = Math.max(24, Math.round(txt.length * 0.32)) + 's';
+}
+// Live ticker: this week's scores + the latest league transactions, straight from MFL
+async function lldFillTicker(staticItems) {
+    if (staticItems) { lldSetTicker(staticItems); return; }
+    lldSetTicker(['LOADING SCORES AND MOVES…']);
+    const items = [];
+    const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
+    const nm = f => (leagueFranchises && leagueFranchises[String(f).padStart(4, '0')]) || ('Team ' + f);
+    const short = f => { const n = nm(f); return n.length > 18 ? n.slice(0, 17).trim() + '.' : n; };
+    try {
+        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const d = await r.json();
+        let raw = d?.liveScoring?.matchup || d?.matchup;
+        if (!raw) { const flat = asArr(d?.liveScoring?.franchise || d?.franchise); raw = []; for (let i = 0; i < flat.length; i += 2) if (flat[i + 1]) raw.push({ franchise: [flat[i], flat[i + 1]] }); }
+        const wk = d?.liveScoring?.week || '';
+        asArr(raw).forEach(m => {
+            const f = asArr(m.franchise);
+            if (f.length < 2) return;
+            const a = parseFloat(f[0].score) || 0, b = parseFloat(f[1].score) || 0;
+            const lead = a >= b ? [f[0], a, f[1], b] : [f[1], b, f[0], a];
+            items.push(`${(a + b) > 0 ? 'SCORE' : 'MATCHUP'}: ${short(lead[0].id)} ${lead[1].toFixed(1)}, ${short(lead[2].id)} ${lead[3].toFixed(1)}`);
+        });
+        if (wk) items.unshift(`WEEK ${wk} SCOREBOARD`);
+    } catch (e) {}
+    try {
+        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=transactions&L=${lid}&COUNT=12&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const d = await r.json();
+        const tx = asArr(d?.transactions?.transaction).slice(0, 8);
+        const ids = new Set();
+        tx.forEach(t => String(t.transaction || '').split(/[|,]/).forEach(x => { if (/^\d{3,6}$/.test(x)) ids.add(x); }));
+        let names = {};
+        if (ids.size) {
+            try {
+                const pr = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=players&L=${lid}&PLAYERS=${[...ids].join(',')}&JSON=1`, { credentials: 'include' });
+                const pd = await pr.json();
+                asArr(pd?.players?.player).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); names[p.id] = n.length > 1 ? n[1] + ' ' + n[0] : n[0]; });
+            } catch (e) {}
+        }
+        const pn = id => names[id] || ('#' + id);
+        tx.forEach(t => {
+            const ty = String(t.type || '').toUpperCase();
+            if (ty === 'TRADE') items.push(`TRADE ALERT: ${short(t.franchise)} AND ${short(t.franchise2)} MAKE A DEAL`);
+            else if (/FREE_AGENT|WAIVER|BBID/.test(ty)) {
+                const parts = String(t.transaction || '').split('|');
+                const add = (parts[0] || '').split(',').filter(Boolean)[0];
+                const drop = (parts[1] || '').split(',').filter(Boolean)[0];
+                if (add) items.push(`${short(t.franchise)} ADD ${pn(add).toUpperCase()}${drop ? ', DROP ' + pn(drop).toUpperCase() : ''}`);
+                else if (drop) items.push(`${short(t.franchise)} CUT ${pn(drop).toUpperCase()}`);
+            }
+        });
+    } catch (e) {}
+    lldSetTicker(items.length ? items : (window._lldTickFallback && window._lldTickFallback.length ? window._lldTickFallback : ['WELCOME TO THE LEAGUE', 'SCORES AND TRANSACTIONS WILL SHOW HERE']));
+}
+
 function lldApplyStyle(name) {
     if (!LLD_STYLES[name]) name = 'classic';
     lldSet('lld_style', name);
     Object.keys(LLD_STYLES).forEach(k => document.body.classList.toggle('theme-' + k, k === name));
+    const def = LLD_STYLES[name];
     let link = document.getElementById('lld-theme-css');
-    if (name === 'classic') { if (link) link.remove(); }
+    let fonts = document.getElementById('lld-theme-fonts');
+    if (name === 'classic') { if (link) link.remove(); if (fonts) fonts.remove(); }
     else if (LLD_SCRIPT_BASE) {
+        const href = LLD_SCRIPT_BASE + 'themes/' + def.file + '.css';
         if (!link) { link = document.createElement('link'); link.id = 'lld-theme-css'; link.rel = 'stylesheet'; document.head.appendChild(link); }
-        link.href = LLD_SCRIPT_BASE + 'themes/' + name + '.css';
+        if (link.href !== href) {
+            link.onerror = () => { document.body.classList.remove('theme-' + name); alert('Could not load ' + href + '\n\nThe theme file is missing from the commit your footer points to. Upload themes/' + def.file + '.css, get the new commit hash, and update the hash in your footer.'); };
+            link.href = href;
+        }
+        if (def.fonts) {
+            if (!fonts) { fonts = document.createElement('link'); fonts.id = 'lld-theme-fonts'; fonts.rel = 'stylesheet'; document.head.appendChild(fonts); }
+            fonts.href = 'https://fonts.googleapis.com/css2?' + def.fonts + '&display=swap';
+        } else if (fonts) fonts.remove();
     }
     if (name !== 'classic') ['--page-bg','--card-bg','--card-border','--card-hover','--text-dim','--accent-blue','--accent-teal'].forEach(k => document.documentElement.style.removeProperty(k));
     else if (typeof applyTheme === 'function') applyTheme(lldGet('lld_theme', 'midnight'));
     document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === name));
+    lldBuildScene(name);
+    window.LLD_STYLE_DEBUG = { name, base: LLD_SCRIPT_BASE, href: (document.getElementById('lld-theme-css') || {}).href || '' };
 }
+
+// ===== LIGHT / DARK MODE (per device) =====
+const LLD_MODES = { dark: 'Dark', light: 'Light', auto: 'Auto' };
+function lldApplyMode(mode) {
+    if (!LLD_MODES[mode]) mode = 'dark';
+    lldSet('lld_mode', mode);
+    let light = mode === 'light';
+    try { if (mode === 'auto') light = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+    document.documentElement.classList.toggle('lld-light', light);
+    document.querySelectorAll('.lld-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+}
+try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (lldGet('lld_mode', 'dark') === 'auto') lldApplyMode('auto'); }); } catch (e) {}
+function lldApplySb(v) {
+    lldSet('lld_sb', v === 'default' ? 'default' : 'theme');
+    document.querySelectorAll('.lld-sb-btn').forEach(b => b.classList.toggle('on', b.dataset.v === lldGet('lld_sb', 'theme')));
+    if (typeof renderLiveScoreCard === 'function' && document.querySelector('#scores-content-container .live-score-tab')) { try { renderLiveScoreCard(); } catch (e) {} }
+}
+// ===== FOOTBALL FIELD LINEUP =====
+const LLD_FIELD_XY = {
+    QB: [[50, 67]], RB: [[38, 78], [62, 78], [50, 90]], WR: [[8, 56], [92, 56], [24, 62], [76, 62]], TE: [[68, 56], [32, 56]],
+    SFLEX: [[20, 71], [80, 71]], FLEX: [[14, 86], [86, 86], [50, 92]],
+    DL: [[28, 42], [43, 42], [57, 42], [72, 42]], DE: [[28, 42], [72, 42]], DT: [[43, 42], [57, 42]],
+    LB: [[30, 33], [50, 33], [70, 33]], CB: [[8, 24], [92, 24]], S: [[32, 14], [68, 14]],
+    DB: [[8, 24], [92, 24], [32, 14], [68, 14]], IDP: [[50, 24], [22, 20], [78, 20]], PK: [[88, 95]], K: [[88, 95]]
+};
+function lldBuildField() {
+    const host = document.getElementById('lld-field');
+    if (!host) return;
+    const rows = Array.from(document.querySelectorAll('#slots-starters > .player-row'));
+    const cnt = {}; let ex = 0, tiles = '';
+    const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    rows.forEach((r, i) => {
+        let lab = ((r.querySelector('.move-handle-btn') || {}).textContent || '').trim().toUpperCase();
+        if (!/^[A-Z]{1,5}$/.test(lab)) lab = String(r.dataset.ppos || r.dataset.slotType || '').toUpperCase();
+        const empty = r.classList.contains('empty-slot');
+        const n = cnt[lab] = (cnt[lab] || 0) + 1;
+        let xy = (LLD_FIELD_XY[lab] || [])[n - 1];
+        if (!xy) { xy = [14 + (ex % 6) * 14.4, 48.5 + Math.floor(ex / 6) * 5]; ex++; }
+        const img = r.querySelector('img.player-img');
+        const nm = empty ? 'Empty' : ((r.querySelector('.short-name') || {}).textContent || r.dataset.pname || '').trim();
+        const cls = (lab.toLowerCase().match(/^[a-z]+$/) ? ' fp-' + lab.toLowerCase() : '');
+        tiles += `<button type="button" class="f-p${empty ? ' empty' : ''}${cls}" data-i="${i}" style="left:${xy[0]}%;top:${xy[1]}%"><span class="f-c">${empty ? '<u>+</u>' : (img ? `<img src="${esc(img.getAttribute('src'))}" onerror="this.style.opacity=0">` : '')}<em>${esc(lab)}</em></span><span class="f-n">${esc(nm)}</span></button>`;
+    });
+    host.innerHTML = `<div class="f-turf"><div class="f-ez top"><span>DEFENSE</span></div><div class="f-los"><span>LINE OF SCRIMMAGE</span></div><div class="f-ez bot"><span>OFFENSE</span></div></div>${tiles}`;
+}
+function lldInitField() {
+    const sec = document.querySelector('.lineup-section[data-section="starters"]');
+    if (!sec || sec.querySelector('.lld-lvtog')) return;
+    sec.insertAdjacentHTML('afterbegin', '<div class="lld-lvtog"><span>Starting lineup</span><button type="button" class="lld-fv-open">View on field</button></div>');
+}
+function lldCloseField() { const m = document.getElementById('lld-field-modal'); if (m) m.classList.remove('open'); }
+function lldOpenField() {
+    let m = document.getElementById('lld-field-modal');
+    if (!m) {
+        m = document.createElement('div'); m.id = 'lld-field-modal';
+        m.innerHTML = '<div class="fm-box"><div class="fm-head"><b>Lineup on the field</b><button type="button" class="fm-x">\u2715</button></div><div id="lld-field" class="lld-field"></div><div class="fm-foot">Tap a player to move or swap him</div></div>';
+        document.body.appendChild(m);
+    }
+    m.classList.add('open');
+    lldBuildField();
+}
+$(document).on('click', '.lld-fv-open', lldOpenField);
+$(document).on('click', '#lld-field-modal .fm-x', lldCloseField);
+$(document).on('click', '#lld-field-modal', function (e) { if (e.target === this) lldCloseField(); });
+$(document).on('click', '.lld-mode-btn', function () { lldApplyMode(this.dataset.mode); });
+$(document).on('click', '.lld-sb-btn', function () { lldApplySb(this.dataset.v); });
+$(document).on('click', '#lld-field .f-p', function () {
+    const r = document.querySelectorAll('#slots-starters > .player-row')[+this.dataset.i];
+    const b = r && r.querySelector('.move-handle-btn');
+    lldCloseField();
+    if (b) $(b).trigger('click');
+});
 function lldApplyHdrMode(mode) {
     if (!LLD_HDR_MODES[mode]) mode = 'auto';
     lldSet('lld_hdr', mode);
@@ -2343,10 +2608,64 @@ $(document).on('click', '.settings-tab-btn', function() {
     $(this).addClass('active');
     $('.settings-tab-content').hide();
     $('#' + $(this).data('target')).show();
+    if ($(this).data('target') === 'tab-mflmenu') renderMflMenu();
     if ($(this).data('target') === 'tab-style') {
         renderFontGrid(currentFontCategory);
         setTimeout(applyStylePreview, 100);
     }
+});
+
+// ===== MFL MENU: read MFL's (hidden) navigation and rebuild it in the dashboard's own look =====
+function lldCollectMflMenu() {
+    const clean = t => (t || '').replace(/\s+/g, ' ').trim();
+    const ok = a => a && a.getAttribute('href') && !/^(javascript:|#|mailto:)/i.test(a.getAttribute('href').trim());
+    const roots = document.querySelectorAll('.myfantasyleague_menu, #hsubmenu, .main_tabmenu');
+    const groups = [], seen = new Set();
+    const add = (label, a, kids) => {
+        label = clean(label);
+        if (!label || /^(toggle|menu)$/i.test(label)) return;
+        const links = kids.filter(ok).map(k => ({ label: clean(k.textContent), href: k.href })).filter(l => l.label && !seen.has(label + '|' + l.href));
+        links.forEach(l => seen.add(label + '|' + l.href));
+        if (links.length) groups.push({ label, links });
+        else if (ok(a)) groups.push({ label, href: a.href });
+    };
+    roots.forEach(root => {
+        const top = root.querySelector('ul');
+        const items = top ? [...top.children].filter(el => el.tagName === 'LI') : [];
+        if (items.length) {
+            items.forEach(li => {
+                const own = [...li.children].find(c => c.tagName === 'A') || li.querySelector('a');
+                const kids = [...li.querySelectorAll('ul a')];
+                add(own ? own.textContent : li.firstChild && li.firstChild.textContent, own, kids);
+            });
+        } else {
+            const flat = [...root.querySelectorAll('a')];
+            if (flat.length) add(root.id === 'hsubmenu' ? 'More' : 'Menu', null, flat);
+        }
+    });
+    return groups;
+}
+function renderMflMenu() {
+    const el = document.getElementById('mflm-list');
+    if (!el) return;
+    let groups = [];
+    try { groups = lldCollectMflMenu(); } catch (e) { console.warn('MFL menu read failed', e); }
+    const base = `${MFL_ORIGIN}/${year}`;
+    if (!groups.length) groups = [{ label: 'League', links: [
+        { label: 'Home', href: `${base}/home/${lid}` },
+        { label: 'Standings', href: `${base}/standings?L=${lid}` },
+        { label: 'Schedule', href: `${base}/schedule?L=${lid}` }
+    ] }];
+    groups = groups.map(g => (g.links && g.links.length === 1 && g.links[0].label.toLowerCase() === g.label.toLowerCase()) ? { label: g.label, href: g.links[0].href } : g);
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    el.innerHTML = groups.map(g => g.links
+        ? `<div class="mflm-group"><button class="mflm-head" type="button">${esc(g.label)}<i class="fa-solid fa-chevron-down">▾</i></button><div class="mflm-body">${g.links.map(l => `<a class="mflm-link" href="${esc(l.href)}">${esc(l.label)}</a>`).join('')}</div></div>`
+        : `<div class="mflm-group"><a class="mflm-head" href="${esc(g.href)}">${esc(g.label)}<i>›</i></a></div>`).join('');
+}
+$(document).on('click', '.mflm-head', function (e) {
+    if (this.tagName === 'A') return;
+    e.preventDefault();
+    $(this).closest('.mflm-group').toggleClass('open');
 });
 
 // Display sub-tabs
@@ -3538,6 +3857,7 @@ container.append(`<div id="lineup-notifications"></div>
                     </h3>
                     <div class="roster-grid">${taxiBuffer || '<div class="empty-inactive-text">No players on Taxi Squad</div>'}</div>
                 </div>`);
+        try { lldInitField(); } catch (e) {}
         } else {
             // NEW: Append Picks to Roster view
             let rosterBuffer = buildGroupedHTML(rosterPlayers, activeSub);
@@ -7200,6 +7520,7 @@ $('body').append(`
             <button class="settings-tab-btn active" data-target="tab-team-set">Team Settings</button>
             <button class="settings-tab-btn" data-target="tab-display">Display</button>
             <button class="settings-tab-btn" data-target="tab-style">Style</button>
+            <button class="settings-tab-btn" data-target="tab-mflmenu">MFL Menu</button>
             ${(myFid === '0000') ? `<button class="settings-tab-btn" data-target="tab-dev">Dev Tools</button>` : ''}
         </div>
 
@@ -7247,6 +7568,12 @@ ${(myFid === '0000') ? `
                 </div>
             </div>
 
+            <!-- MFL MENU TAB -->
+            <div id="tab-mflmenu" class="settings-tab-content" style="display:none;">
+                <div class="mflm-note">MFL's own site menus, collected here so they stay out of the way. Tap a heading to open it.</div>
+                <div id="mflm-list"></div>
+            </div>
+
             <!-- DISPLAY TAB -->
             <div id="tab-display" class="settings-tab-content" style="display:none;">
 
@@ -7255,30 +7582,28 @@ ${(myFid === '0000') ? `
                     <button class="display-sub-tab active" data-sub="theme" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Theme</button>
                     <button class="display-sub-tab" data-sub="logos" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Logos</button>
                     <button class="display-sub-tab" data-sub="textsize" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Text</button>
-                    <button class="display-sub-tab" data-sub="background" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Background</button>
                 </div>
 
                 <!-- Theme sub-content -->
                 <div class="display-sub-content" data-sub="theme">
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
-                        ${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v}</button>`).join('')}
-                    </div>
+                    ${['Base','Full themes','NFL teams','Seasonal','League teams'].map(g => `<div style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:.5px; margin:2px 0 6px; opacity:.8;">${g === 'Base' ? '' : g}</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">${Object.entries(LLD_STYLES).filter(([k, v]) => v.group === g).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}</div>`).join('')}
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
                     </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Theme (Classic style)</div>
-                    <div style="display:flex; flex-direction:column; gap:6px;">
-                        ${['midnight','carbon','navy','charcoal','slate'].map(t => `
-                            <button class="theme-option-btn" data-theme="${t}" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; border:1px solid var(--card-border); background:rgba(255,255,255,0.03); cursor:pointer; width:100%; text-align:left;">
-                                <span style="font-size:12px; font-weight:900; color:#fff; text-transform:capitalize;">${t}</span>
-                                <span class="theme-active-label" style="display:none; font-size:9px; font-weight:900; color:var(--accent-blue); margin-left:auto; text-transform:uppercase;">Active</span>
-                            </button>
-                        `).join('')}
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Light / Dark</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;">
+                        ${Object.entries(LLD_MODES).map(([k, v]) => `<button class="lld-hdr-btn lld-mode-btn ${lldGet('lld_mode','dark')===k?'on':''}" data-mode="${k}">${v}</button>`).join('')}
                     </div>
-                </div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Scoreboard</div>
+                    <div style="display:flex; gap:6px; margin-bottom:6px;">
+                        <button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')==='theme'?'on':''}" data-v="theme">Match theme</button>
+                        <button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')==='default'?'on':''}" data-v="default">Default</button>
+                    </div>
+                    <div style="font-size:10px; color:var(--text-dim); margin-bottom:16px;">Default keeps the standard scoreboard while the rest of the theme stays.</div>
+                    </div>
 
                 <!-- Logos sub-content -->
                 <div class="display-sub-content" data-sub="logos" style="display:none;">
@@ -7312,28 +7637,7 @@ ${(myFid === '0000') ? `
                     <div style="font-size:10px; color:var(--text-dim); margin-top:10px; line-height:1.5;">Scales everything on the page — text, buttons, and spacing.</div>
                 </div>
 
-                <!-- Background sub-content -->
-                <div class="display-sub-content" data-sub="background" style="display:none;">
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Page Background</div>
-                    <button class="bg-style-btn" data-style="solid" style="padding:6px 12px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff; margin-bottom:14px;">Solid Color</button>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Dark</div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-                        ${['bgblack2.jpg','bgblack3.png','bgblack4.png','bgblack5.jpg','blackbg1.png'].map(f => {
-                            const url = `https://github.com/zewolff1/llddynasty/blob/main/bgimages/black/${f}?raw=true`;
-                            const isActive = localStorage.getItem('lld_bg_url') === url;
-                            return `<div class="bg-thumb-btn" data-url="${url}" style="width:64px; height:40px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid ${isActive ? 'var(--accent-blue)' : 'transparent'}; flex-shrink:0;"><img src="${url}" style="width:100%; height:100%; object-fit:cover;"></div>`;
-                        }).join('')}
-                    </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Color</div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        ${['colorblue1.png','colorbrown1.jpg','colorbrown2.jpg'].map(f => {
-                            const url = `https://github.com/zewolff1/llddynasty/blob/main/bgimages/color/${f}?raw=true`;
-                            const isActive = localStorage.getItem('lld_bg_url') === url;
-                            return `<div class="bg-thumb-btn" data-url="${url}" style="width:64px; height:40px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid ${isActive ? 'var(--accent-blue)' : 'transparent'}; flex-shrink:0;"><img src="${url}" style="width:100%; height:100%; object-fit:cover;"></div>`;
-                        }).join('')}
-                    </div>
                 </div>
-            </div>
 
             <!-- STYLE TAB -->
             <div id="tab-style" class="settings-tab-content" style="display:none;">
@@ -7576,6 +7880,8 @@ function loadSavedTheme() {
 }
 
 function loadSavedBgStyle() {
+    try { localStorage.removeItem('lld_bg_url'); } catch (e) {}
+    return;
     const savedUrl = localStorage.getItem('lld_bg_url');
     if (savedUrl) {
         document.documentElement.style.setProperty('--page-bg-image', `url(${savedUrl})`);
@@ -12119,7 +12425,74 @@ const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
+const LLD_SB_KIND = { sleeper: 'slim', lego: 'brick', sportscenter: 'nfl', arcade: 'arcade', leather: 'gazette', madden: 'bcast', stadium: 'arena' };
+const LLD_SB_TAG = { season_fall: 'Harvest Matchup', season_halloween: 'Trick Or Treat Tilt', season_thanksgiving: 'Turkey Day Tilt', season_christmas: 'Holiday Showdown' };
+function lldSbKind(sty) {
+    if (!sty || sty === 'classic') return null;
+    if (LLD_SB_KIND[sty]) return LLD_SB_KIND[sty];
+    return /^nfl_/.test(sty) ? 'nfl' : 'vs';
+}
 function buildScoreHeaderHtml3(o) {
+    const sty = lldGet('lld_style', 'classic');
+    const kind = lldGet('lld_sb', 'theme') === 'default' ? null : lldSbKind(sty);
+    if (kind) return lldScoreboardThemed(o, sty, kind);
+    return buildScoreHeaderHtml3Base(o);
+}
+window.lldSbKind = lldSbKind;
+function lldScoreboardThemed(o, sty, kind) {
+    kind = kind || lldSbKind(sty) || 'arena';
+    const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, tc1, tc2 } = o;
+    const a = Math.round(wp.p1 * 100), b = 100 - a;
+    const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const nav = (inner) => `<div class="lld-sbwrap"><button class="live-score-prev">‹</button><div class="lld-sbmain">${inner}<button class="scores-preview-btn">Preview</button></div><button class="live-score-next">›</button></div>`;
+    const logo = (t, cls) => `<img class="${cls}" src="${esc(t.logo)}" onerror="this.style.visibility='hidden'">`;
+    const px = v => (v == null || isNaN(v)) ? '--' : Number(v).toFixed(1);
+    const dashes = t => { const n = Math.max(0, Math.min(3, parseInt(t.yetToPlay, 10) || 0)); return `<span class="n-dash">${[0, 1, 2].map(k => `<i class="${k < n ? 'on' : ''}"></i>`).join('')}</span>`; };
+    if (kind === 'nfl') {
+        const wkn = window._liveScoreActiveWeek || '';
+        const side = (t, tc, cls) => `<div class="n-t ${cls}" style="--tc:${tc}">${cls === 'l' ? logo(t, 'n-logo') : ''}<div class="n-num"><b>${Math.round(t.score)}</b><small>${(t.score % 1).toFixed(1).slice(1)}</small>${dashes(t)}</div>${cls === 'r' ? logo(t, 'n-logo') : ''}</div>`;
+        return nav(`<div class="lld-nfl">${side(t1, tc1, 'l')}<div class="n-mid"><div class="n-top">${a}% · ${b}%</div><div class="n-pill"><em>${wkn ? 'WK ' + esc(wkn) : 'LIVE'}</em><b>${px(t1Proj)}</b><u>–</u><b>${px(t2Proj)}</b></div></div>${side(t2, tc2, 'r')}</div><div class="n-names"><span>${esc(t1.name || '')}</span><span>${esc(t2.name || '')}</span></div>`);
+    }
+    if (kind === 'gazette') {
+        const lead = t1.score >= t2.score ? [t1, t2] : [t2, t1];
+        const wkn = window._liveScoreActiveWeek || '';
+        const diff = Math.abs(t1.score - t2.score);
+        const head = (t1.score + t2.score) === 0 ? 'Teams Take The Field' : (diff < 5 ? `${esc(lead[0].name)} Edge ${esc(lead[1].name)} In Tight Tilt` : `${esc(lead[0].name)} Top ${esc(lead[1].name)}`);
+        const line = (t, yts, proj) => `<tr><td class="g-n">${esc(t.name || '')}<small>${esc(yts || '')}</small></td><td class="g-s">${t.score.toFixed(2)}</td><td class="g-p">${px(proj)}</td></tr>`;
+        return nav(`<div class="lld-gazette"><div class="g-mast"><span>Vol. V</span><b>The League Gazette</b><span>${wkn ? 'Week ' + esc(wkn) : 'Sunday Edition'}</span></div><div class="g-rule"></div><div class="g-head">${head}</div><div class="g-sub">${diff.toFixed(2)} points separate the clubs · Odds ${a} to ${b}</div><table class="g-box"><tr><th>Club</th><th>Score</th><th>Proj.</th></tr>${line(t1, yts1, t1Proj)}${line(t2, yts2, t2Proj)}</table></div>`);
+    }
+    const wk0 = window._liveScoreActiveWeek || '';
+    const win1 = t1.score >= t2.score;
+    if (kind === 'slim') {
+        const r = (t, tc, proj, cls) => `<div class="s-t ${cls}" style="--tc:${tc}">${cls === 'l' ? logo(t, 's-logo') : ''}<div class="s-n">${esc(t.name || '')}<small>${px(proj)} proj</small></div><b>${t.score.toFixed(1)}</b>${cls === 'r' ? logo(t, 's-logo') : ''}</div>`;
+        return nav(`<div class="lld-slim"><div class="s-row">${r(t1, tc1, t1Proj, 'l')}<span class="s-vs">${wk0 ? 'WK ' + esc(wk0) : 'VS'}</span>${r(t2, tc2, t2Proj, 'r')}</div><div class="s-bar"><i style="width:${a}%;background:${tc1}"></i><i style="width:${b}%;background:${tc2}"></i></div><div class="s-foot"><span>${a}%</span><span>Win probability</span><span>${b}%</span></div></div>`);
+    }
+    if (kind === 'brick') {
+        const row = (t, tc, proj, win) => `<div class="b-brick ${win ? 'win' : ''}" style="--tc:${tc}"><div class="b-studs">${'<i></i>'.repeat(6)}</div><div class="b-in">${logo(t, 'b-logo')}<span class="b-n">${esc(t.name || '')}<small>${px(proj)} proj</small></span><b>${t.score.toFixed(1)}</b></div></div>`;
+        const segs = 16, on = Math.round(a / 100 * segs);
+        const bar = Array.from({ length: segs }, (_, i) => `<i style="background:${i < on ? tc1 : tc2}"></i>`).join('');
+        return nav(`<div class="lld-brick">${row(t1, tc1, t1Proj, win1)}<div class="b-vs"><span>${wk0 ? 'WEEK ' + esc(wk0) : 'VS'}</span></div>${row(t2, tc2, t2Proj, !win1)}<div class="b-bar">${bar}</div><div class="b-foot">${a}% – ${b}% to win</div></div>`);
+    }
+    if (kind === 'arcade') {
+        return nav(`<div class="lld-arcade"><div class="r-top"><span>P1</span><em>${wk0 ? 'WEEK ' + esc(wk0) : 'ROUND 1'}</em><span>P2</span></div><div class="r-hp"><div class="r-bar l"><i style="width:${a}%"></i></div><div class="r-ko">VS</div><div class="r-bar r"><i style="width:${b}%"></i></div></div><div class="r-names"><span>${esc(t1.name || '')}</span><span>${esc(t2.name || '')}</span></div><div class="r-sc"><b class="${win1 ? 'win' : ''}">${t1.score.toFixed(1)}</b><b class="${win1 ? '' : 'win'}">${t2.score.toFixed(1)}</b></div><div class="r-foot"><span>PROJ ${px(t1Proj)}</span><em>${win1 ? 'P1 LEADS' : 'P2 LEADS'}</em><span>PROJ ${px(t2Proj)}</span></div></div>`);
+    }
+    if (kind === 'bcast') {
+        const tr = (t, tc, proj, pct, win) => `<tr class="${win ? 'win' : ''}" style="--tc:${tc}"><td class="m-n">${logo(t, 'm-logo')}${esc(t.name || '')}</td><td>${px(proj)}</td><td>${pct}%</td><td class="m-s">${t.score.toFixed(1)}</td></tr>`;
+        return nav(`<div class="lld-bcast"><div class="m-head"><b>${wk0 ? 'WEEK ' + esc(wk0) : 'LIVE'}</b><span>FANTASY BOX SCORE</span></div><table><thead><tr><th></th><th>PROJ</th><th>WIN</th><th>PTS</th></tr></thead><tbody>${tr(t1, tc1, t1Proj, a, win1)}${tr(t2, tc2, t2Proj, b, !win1)}</tbody></table></div>`);
+    }
+    if (kind === 'vs') {
+        const tag = LLD_SB_TAG[sty] || (((LLD_STYLES[sty] || {}).scene || {}).sub) || 'Matchup';
+        const side = (t, proj, cls) => `<div class="v-side ${cls}">${logo(t, 'v-logo')}<span>${esc(t.name || '')}</span><b>${t.score.toFixed(1)}</b><small>${px(proj)} proj</small></div>`;
+        return nav(`<div class="lld-vs" style="--c1:${tc1};--c2:${tc2}"><div class="v-tag">${esc(tag)}${wk0 ? ' · Wk ' + esc(wk0) : ''}</div><div class="v-split">${side(t1, t1Proj, 'l')}<div class="v-x">VS</div>${side(t2, t2Proj, 'r')}</div><div class="v-bar"><i style="width:${a}%"></i></div><div class="v-foot"><span>${a}%</span><span>${b}%</span></div></div>`);
+    }
+    const wk = window._liveScoreActiveWeek || '';
+    const row = (t, tc, win, proj, yts) => `<div class="a-row ${win ? 'win' : ''}" style="--tc:${tc}"><img class="a-logo" src="${esc(t.logo)}" onerror="this.style.visibility='hidden'"><div class="a-name">${esc(t.name || '')}<small>${esc(yts || '')}</small></div><div class="a-pts led">${t.score.toFixed(2)}</div><div class="a-pr led">${px(proj)}</div></div>`;
+    const segs = 20, onA = Math.round(a / 100 * segs);
+    const meter = Array.from({ length: segs }, (_, i) => `<i style="background:${i < onA ? tc1 : tc2}"></i>`).join('');
+    return nav(`<div class="lld-arena"><div class="a-truss">${Array.from({ length: 8 }, () => '<b></b>').join('')}</div><div class="a-frame"><div class="a-banner"><span>${esc(LLD.leagueName || 'STADIUM')}</span><span>${wk ? 'WEEK ' + esc(wk) : 'LIVE'}</span></div><div class="a-board"><div class="a-cols"><span>TEAM</span><span>PTS</span><span>PROJ</span></div>${row(t1, tc1, t1.score > t2.score, t1Proj, yts1)}${row(t2, tc2, t2.score > t1.score, t2Proj, yts2)}<div class="a-meter"><span>${a}%</span><div class="a-segs">${meter}</div><span>${b}%</span></div></div></div><div class="a-posts"><i></i><i></i></div></div>`);
+}
+window.lldScoreboardThemed = lldScoreboardThemed;
+function buildScoreHeaderHtml3Base(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
     const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
     const card = (t, side, c, yts, proj, tc, pct, other) => {
@@ -12156,6 +12529,7 @@ function buildScoreHeaderHtml3(o) {
         <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
 }
+window.buildScoreHeaderHtml3Base = buildScoreHeaderHtml3Base;
 // ---------- SCOREBOARD: PAIRED (Sleeper-style) PLAYER ROWS ----------
 function lsSlotLabel(a, b) {
     const pa = a ? recapNormPos(a) : '', pb = b ? recapNormPos(b) : '';
@@ -15856,12 +16230,14 @@ checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
 lldApplyHdrMode(lldGet('lld_hdr', 'auto'));
+lldApplyMode(lldGet('lld_mode', 'dark'));
 $(document).on('click', '.lld-style-btn', function () { lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn', function () { lldApplyHdrMode(this.dataset.mode); });
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 fetchFranchises()
+    .then(() => { const st = LLD_STYLES[lldGet('lld_style', 'classic')]; if (st && st.scene && st.scene.live) lldFillTicker(null); })
     .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()]))
     .then(() => checkCompletedAuctions())
     .then(() => {
