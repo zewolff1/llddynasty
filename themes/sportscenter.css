@@ -48,3 +48,7 @@ body.theme-sportscenter .section-header { color: #fff; border-left: 4px solid #e
 body.theme-sportscenter [class*="score"], body.theme-sportscenter [class*="proj"], body.theme-sportscenter [class*="points"] {
     font-family: "Anton", sans-serif; font-weight: 400; letter-spacing: .01em;
 }
+
+/* ---- GEN-BG ---- */
+body.theme-sportscenter, body.theme-sportscenter#body_home { background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 46px), linear-gradient(180deg, #112a78 0, #0a1330 320px) !important; background-size: auto !important; background-attachment: scroll !important; background-repeat: repeat !important; background-color: #0a1330 !important; }
+html:has(body.theme-sportscenter) { background-color: #0a1330 !important; }
