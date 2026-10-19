@@ -1,4 +1,4 @@
-// ===== LLFD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
+// ===== LLD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
 const LLD = Object.assign({
     leagueId: '',
     origin: (/^https:\/\/www\d+\.myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
@@ -13022,6 +13022,35 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
         console.log('[scores-debug] playerInfoMap total pids found:', Object.keys(playerInfoMap).length);
         console.log('[scores-debug] playerInfoMap sample entries:', infoSampleKeys.map(k => ({ pid: k, ...playerInfoMap[k] })));
 
+        // The weekly page doesn't list every player (e.g. other owners' lineups, or players it can't see),
+        // so any id it missed is looked up by id from MFL's players export instead of showing as a bare number.
+        try {
+            const missing = new Set();
+            liveMatchupsRaw.forEach(m => {
+                [].concat(m.franchise || []).forEach(f => {
+                    let pl = f && (f.player ?? f.players ?? f.player_score ?? f.playerScore ?? []);
+                    if (pl && !Array.isArray(pl) && typeof pl === 'object' && pl.player) pl = pl.player;
+                    [].concat(pl || []).forEach(p => { const id = String(p && (p.id ?? p.player_id ?? p.pid) || ''); if (id && !(playerInfoMap[id] && playerInfoMap[id].name)) missing.add(id); });
+                });
+            });
+            const ids = [...missing];
+            for (let i = 0; i < ids.length; i += 60) {
+                const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=players&L=${lid}&PLAYERS=${ids.slice(i, i + 60).join(',')}&JSON=1`, { credentials: 'include' });
+                const d = await r.json();
+                [].concat(d?.players?.player || []).forEach(pp => {
+                    const parts = String(pp.name || '').split(',').map(x => x.trim());
+                    const last = parts[0] || '', first = parts[1] || '';
+                    const prev = playerInfoMap[pp.id] || {};
+                    playerInfoMap[pp.id] = Object.assign({}, prev, {
+                        name: first ? first.charAt(0) + '. ' + last : last,
+                        pos: pp.position || prev.pos || '',
+                        realPos: pp.position || prev.realPos || '',
+                        team: pp.team || prev.team || 'NFL'
+                    });
+                });
+            }
+        } catch (e) { console.warn('Could not look up missing player names', e); }
+
         const matchups = liveMatchupsRaw.map(m => {
             let franchises = m.franchise;
             if (!Array.isArray(franchises)) franchises = [franchises];
@@ -13053,7 +13082,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
                         score: pScore,
                         gsr: gsrRaw !== null ? parseInt(gsrRaw) : null,
                         rawStatus: rawStatus,
-                        isStarter: info.isStarter !== undefined ? info.isStarter : true,
+                        isStarter: info.isStarter !== undefined ? info.isStarter : !/non.?starter|bench/i.test(String(rawStatus || '')),
                         slotIndex: info.slotIndex !== undefined ? info.slotIndex : 999,
                         opp: info.opp || ''
                     };
