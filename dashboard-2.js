@@ -236,6 +236,38 @@ function lldApplySb(v) {
     if (typeof renderLiveScoreCard === 'function' && document.querySelector('#scores-content-container .live-score-tab')) { try { renderLiveScoreCard(); } catch (e) {} }
 }
 
+// ===== HIDE THE NATIVE MFL PAGE (header, footer, content strips) =====
+// Keeps only the dashboard and its popups. Everything else on the MFL page is hidden (still in the DOM, so scripts that read it keep working).
+// Add ?lld_native=1 to the page address to see the MFL page again.
+function lldIsolateNative() {
+    try {
+        if (/[?&]lld_native=1/.test(location.search) || document.body.classList.contains('admin-mode')) {
+            document.querySelectorAll('.lld-native-hide, .lld-chain').forEach(x => x.classList.remove('lld-native-hide', 'lld-chain'));
+            return;
+        }
+        const w = document.querySelector('.main-page-wrapper'); if (!w || !document.body) return;
+        const keep = el => {
+            if (/^(SCRIPT|STYLE|LINK|META|NOSCRIPT)$/.test(el.tagName)) return true;
+            const id = el.id || '', cls = String(el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className || '');
+            if (/^(lld-|toast-container|lineup-submit-float|player-context-menu|matchup-preview-modal)/.test(id) || /-modal$/.test(id) || /(backdrop|modal|overlay|lld-)/.test(cls)) return true;
+            return getComputedStyle(el).position === 'fixed';
+        };
+        let n = w, first = true;
+        while (n && n !== document.body) {
+            if (!first) n.classList.add('lld-chain');
+            first = false;
+            const p = n.parentElement; if (!p) break;
+            Array.from(p.children).forEach(s => { if (s !== n && !keep(s)) s.classList.add('lld-native-hide'); });
+            n = p;
+        }
+        document.body.classList.add('lld-native-clean');
+    } catch (e) { console.warn('lldIsolateNative', e); }
+}
+lldIsolateNative();
+window.addEventListener('load', lldIsolateNative);
+setTimeout(lldIsolateNative, 1500); setTimeout(lldIsolateNative, 4000);
+(function () { let t = null; try { new MutationObserver(function () { clearTimeout(t); t = setTimeout(lldIsolateNative, 300); }).observe(document.body, { childList: true }); new MutationObserver(function () { clearTimeout(t); t = setTimeout(lldIsolateNative, 100); }).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) {} })();
+
 // ===== FOOTBALL FIELD LINEUP =====
 const LLD_FIELD_XY = {
     QB: [[50, 67]], RB: [[38, 78], [62, 78], [50, 90]], WR: [[8, 56], [92, 56], [24, 62], [76, 62]], TE: [[68, 56], [32, 56]],
