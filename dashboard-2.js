@@ -127,11 +127,17 @@ async function lldFillTicker(staticItems) {
     lldSetTicker(['LOADING SCORES AND MOVES…']);
     const items = [];
     const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
-    const nm = f => (leagueFranchises && leagueFranchises[String(f).padStart(4, '0')]) || ('Team ' + f);
+    // The ticker can start before the team list exists (it is declared further down the file), so it keeps its own copy of the names
+    if (!window._lldTickNames) {
+        window._lldTickNames = {};
+        const ld = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`);
+        [].concat(ld?.league?.franchises?.franchise || []).forEach(f => { if (f && f.id) window._lldTickNames[String(f.id).padStart(4, '0')] = (f.name && String(f.name).trim()) || ('Team ' + (parseInt(f.id, 10) || f.id)); });
+        if (!Object.keys(window._lldTickNames).length) window._lldTickNames = null;
+    }
+    const nm = f => { const id = String(f).padStart(4, '0'); return (window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id)); };
     const short = f => { const n = nm(f); return n.length > 18 ? n.slice(0, 17).trim() + '.' : n; };
     try {
-        const d = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&JSON=1`) || {};
-        await lldEnsureFranchiseNames();
+        const d = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=&JSON=1`) || {};
         let raw = d?.liveScoring?.matchup || d?.matchup;
         if (!raw) { const flat = asArr(d?.liveScoring?.franchise || d?.franchise); raw = []; for (let i = 0; i < flat.length; i += 2) if (flat[i + 1]) raw.push({ franchise: [flat[i], flat[i + 1]] }); }
         const wk = d?.liveScoring?.week || '';
@@ -143,7 +149,7 @@ async function lldFillTicker(staticItems) {
             items.push(`${(a + b) > 0 ? 'SCORE' : 'MATCHUP'}: ${short(lead[0].id)} ${lead[1].toFixed(1)}, ${short(lead[2].id)} ${lead[3].toFixed(1)}`);
         });
         if (wk) items.unshift(`WEEK ${wk} SCOREBOARD`);
-    } catch (e) {}
+    } catch (e) { console.warn('ticker scores', e); }
     try {
         const d = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=transactions&L=${lid}&COUNT=12&JSON=1`) || {};
         const tx = asArr(d?.transactions?.transaction).slice(0, 8);
@@ -169,7 +175,7 @@ async function lldFillTicker(staticItems) {
                 else if (drop) items.push(`${short(t.franchise)} CUT ${pn(drop).toUpperCase()}`);
             }
         });
-    } catch (e) {}
+    } catch (e) { console.warn('ticker moves', e); }
     lldSetTicker(items.length ? items : (window._lldTickFallback && window._lldTickFallback.length ? window._lldTickFallback : ['WELCOME TO THE LEAGUE', 'SCORES AND TRANSACTIONS WILL SHOW HERE']));
 }
 
@@ -16442,7 +16448,7 @@ loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 fetchFranchises()
-    .then(() => { const st = LLD_STYLES[lldGet('lld_style', 'classic')]; if (st && st.scene && st.scene.live) lldFillTicker(null); })
+    .then(() => { const st = LLD_STYLES[lldGet('lld_style', 'classic')]; if (document.getElementById('lld-ticker')) lldFillTicker(null); })
     .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()]))
     .then(() => checkCompletedAuctions())
     .then(() => {
