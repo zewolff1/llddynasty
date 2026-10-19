@@ -114,6 +114,13 @@ function lldSetTicker(items) {
     sp.style.setProperty('--tkdur', Math.max(24, Math.round(txt.length * 0.32)) + 's');
     sp.style.animationDuration = Math.max(24, Math.round(txt.length * 0.32)) + 's';
 }
+async function lldTickJson(url) {
+    for (let a = 0; a < 3; a++) {
+        if (a) await new Promise(r => setTimeout(r, 900 * a));
+        try { const r = await fetch(url, { credentials: 'include', cache: 'no-store' }); return JSON.parse(await r.text()); } catch (e) {}
+    }
+    return null;
+}
 // Live ticker: this week's scores + the latest league transactions, straight from MFL
 async function lldFillTicker(staticItems) {
     if (staticItems) { lldSetTicker(staticItems); return; }
@@ -123,8 +130,8 @@ async function lldFillTicker(staticItems) {
     const nm = f => (leagueFranchises && leagueFranchises[String(f).padStart(4, '0')]) || ('Team ' + f);
     const short = f => { const n = nm(f); return n.length > 18 ? n.slice(0, 17).trim() + '.' : n; };
     try {
-        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
-        const d = await r.json();
+        const d = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&JSON=1`) || {};
+        await lldEnsureFranchiseNames();
         let raw = d?.liveScoring?.matchup || d?.matchup;
         if (!raw) { const flat = asArr(d?.liveScoring?.franchise || d?.franchise); raw = []; for (let i = 0; i < flat.length; i += 2) if (flat[i + 1]) raw.push({ franchise: [flat[i], flat[i + 1]] }); }
         const wk = d?.liveScoring?.week || '';
@@ -138,8 +145,7 @@ async function lldFillTicker(staticItems) {
         if (wk) items.unshift(`WEEK ${wk} SCOREBOARD`);
     } catch (e) {}
     try {
-        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=transactions&L=${lid}&COUNT=12&JSON=1`, { credentials: 'include', cache: 'no-store' });
-        const d = await r.json();
+        const d = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=transactions&L=${lid}&COUNT=12&JSON=1`) || {};
         const tx = asArr(d?.transactions?.transaction).slice(0, 8);
         const ids = new Set();
         tx.forEach(t => String(t.transaction || '').split(/[|,]/).forEach(x => { if (/^\d{3,6}$/.test(x)) ids.add(x); }));
@@ -193,7 +199,7 @@ function lldBuildTicker(name) {
     const tabsBar = header.querySelector('.league-tabs');
     if (tabsBar) tabsBar.insertAdjacentElement('beforebegin', el); else header.insertAdjacentElement('afterend', el);
     window._lldTickFallback = sc.tick || [];
-    lldFillTicker(sc.tick || null);
+    lldFillTicker(null); // always live; the theme's own lines are only the fallback if MFL can't be reached
 }
 function lldApplyTick(v) {
     lldSet('lld_tick', v === 'off' ? 'off' : 'on');
