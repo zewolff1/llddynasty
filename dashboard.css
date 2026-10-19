@@ -3215,3 +3215,18 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 /* Settings -> Display: clear selected + pressed states */
 .lld-hdr-btn.on, .lld-style-btn.on { background: color-mix(in srgb, var(--accent-blue) 30%, transparent) !important; border: 2px solid var(--accent-blue) !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-blue) 25%, transparent); }
 .lld-hdr-btn:active, .lld-style-btn:active, .lld-sbchip:active { transform: scale(.96); filter: brightness(1.25); }
+
+/* Stadium scoreboard: teams side by side (left | right) so they line up across the board */
+.lld-arena .a-split { display: grid; grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr); align-items: stretch; padding: 4px 0 10px; }
+.lld-arena .a-side { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 6px 4px; min-width: 0; }
+.lld-arena .a-side .a-logo { width: 34px; height: 34px; }
+.lld-arena .a-side .a-name { max-width: 100%; font-size: 11px; }
+.lld-arena .a-side .a-pts { font-size: 34px; padding: 0; text-align: center; }
+.lld-arena .a-side .a-pr { font-size: 12px; padding: 0; text-align: center; }
+.lld-arena .a-side.win .a-pts { --led: #5dff8a; }
+.lld-arena .a-yts { font-size: 8px; letter-spacing: .16em; color: #7b8494; text-transform: uppercase; }
+.lld-arena .a-vs { display: flex; align-items: center; justify-content: center; border-left: 1px solid #1d2430; border-right: 1px solid #1d2430; }
+.lld-arena .a-vs span { writing-mode: vertical-rl; font-size: 10px; letter-spacing: .3em; color: #7b8494; }
+.lld-arena .a-side .a-pts { font-size: 22px; letter-spacing: -.02em; white-space: nowrap; max-width: 100%; }
+.lld-arena .a-side .a-pr { font-size: 10px; white-space: nowrap; }
+.lld-arena .a-side .a-name { font-size: 10px; letter-spacing: .04em; }
