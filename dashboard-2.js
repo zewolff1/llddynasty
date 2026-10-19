@@ -13058,6 +13058,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
             }
         } catch (e) { console.warn('Could not look up missing player names', e); }
 
+        await lldEnsureFranchiseNames();
         const matchups = liveMatchupsRaw.map(m => {
             let franchises = m.franchise;
             if (!Array.isArray(franchises)) franchises = [franchises];
@@ -13097,7 +13098,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
 
                 return {
                     fid: fid2,
-                    name: leagueFranchises[fid2] || fid2,
+                    name: leagueFranchises[fid2] || ('Team ' + (parseInt(fid2, 10) || fid2)),
                     logo: getFranchiseLogoUrl(fid2),
                     score: parseFloat(f.score) || 0,
                     yetToPlay: parseInt(f.playersYetToPlay ?? f.players_yet_to_play ?? f.playersYtp ?? 0) || 0,
@@ -14301,11 +14302,34 @@ async function fetchLeagueSalaryData() {
         });
     } catch (err) { console.error("Failed to fetch league salary data", err); }
 }
+// Makes sure team names are loaded (retrying if MFL answers with a non-JSON busy page); safe to call repeatedly
+async function lldEnsureFranchiseNames() {
+    if (Object.keys(leagueFranchises).length >= 2) return;
+    if (window._lldNamesP) return window._lldNamesP;
+    window._lldNamesP = (async () => {
+        for (let a = 0; a < 4; a++) {
+            if (a) await new Promise(r => setTimeout(r, 800 * a));
+            try {
+                const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+                const d = JSON.parse(await res.text());
+                const list = [].concat(d?.league?.franchises?.franchise || []);
+                list.forEach(f => {
+                    if (!f || !f.id) return;
+                    const id = String(f.id).padStart(4, '0');
+                    if (!leagueFranchises[id]) leagueFranchises[id] = (f.name && String(f.name).trim()) ? f.name : ('Team ' + (parseInt(id, 10) || id));
+                });
+                if (list.length) return;
+            } catch (e) {}
+        }
+    })().finally(() => { window._lldNamesP = null; });
+    return window._lldNamesP;
+}
 async function fetchFranchises() {
         try {
-            const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`);
+            await lldEnsureFranchiseNames();
+            const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`, { credentials: 'include' });
             const data = await res.json();
-data.league.franchises.franchise.forEach(f => {
+[].concat(data.league.franchises.franchise).forEach(f => {
     leagueFranchises[f.id] = (f.name && String(f.name).trim()) ? f.name : ('Team ' + (parseInt(f.id, 10) || f.id));
     if (f.id === myFid) window._myOwnerName = (f.owner_name || '').split(',')[0].trim();
 });
