@@ -2714,8 +2714,30 @@ function renderMflMenu() {
         const a = [...document.querySelectorAll('.myfantasyleague_menu a, #hsubmenu a, .main_tabmenu a')].find(x => /^(commissioner )?setup$/i.test((x.textContent || '').trim()) && x.href && !/^javascript:/i.test(x.getAttribute('href')));
         if (a) href = a.href;
     } catch (e) {}
-    el.innerHTML = `<a class="mflm-setup-btn" href="${href}">Open MFL Setup <i>›</i></a>`;
+    el.innerHTML = `<a class="mflm-setup-btn" href="${href}">Open MFL Setup <i>›</i></a><button type="button" class="mflm-setup-btn mflm-menu-btn" id="lld-open-mfl-menu">Open MFL Menu <i>▾</i></button>`;
 }
+// Opens MFL's own top menu (the real elements, so its dropdowns keep working) in a panel over the dashboard
+function lldToggleMflMenu(show) {
+    let ov = document.getElementById('lld-mfl-menu-overlay');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'lld-mfl-menu-overlay';
+        ov.innerHTML = '<div class="lld-mm-bar"><span>MFL Menu</span><button type="button" id="lld-mm-close">Close ✕</button></div><div class="lld-mm-body"></div>';
+        document.body.appendChild(ov);
+    }
+    const body = ov.querySelector('.lld-mm-body');
+    if (show) {
+        document.querySelectorAll('.myfantasyleague_menu, .pageheader, #hsubmenu, .main_tabmenu').forEach(m => { if (!ov.contains(m)) body.appendChild(m); });
+        if (!body.children.length) body.innerHTML = '<div style="padding:16px">MFL\'s menu was not found on this page.</div>';
+    }
+    ov.classList.toggle('open', !!show);
+}
+$(document).on('click', '#lld-open-mfl-menu', function () {
+    $('#team-settings-modal').fadeOut(150);
+    document.body.style.overflow = ''; document.documentElement.style.overflow = '';
+    lldToggleMflMenu(true);
+});
+$(document).on('click', '#lld-mm-close', function () { lldToggleMflMenu(false); });
 $(document).on('click', '.mflm-head', function (e) {
     if (this.tagName === 'A') return;
     e.preventDefault();
