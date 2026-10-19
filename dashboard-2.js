@@ -12973,15 +12973,22 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
         const liveUrl = activeWeek !== null
             ? `${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=${activeWeek}&DETAILS=1&JSON=1`
             : `${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=&DETAILS=1&JSON=1`;
-        const liveRes = await fetch(liveUrl, { credentials: 'include', cache: 'no-store' });
-        const liveRawText = await liveRes.text();
-
-        let liveData;
-        try {
-            liveData = JSON.parse(liveRawText);
-        } catch (parseErr) {
+        // MFL sometimes answers with an HTML page (rate limit / busy) instead of JSON when several requests land
+        // at once, so a non-JSON answer is retried a few times before giving up.
+        let liveData = null, liveRawText = '';
+        for (let attempt = 0; attempt < 4 && !liveData; attempt++) {
+            if (attempt) await new Promise(r => setTimeout(r, 900 * attempt));
+            try {
+                const liveRes = await fetch(liveUrl, { credentials: 'include', cache: 'no-store' });
+                liveRawText = await liveRes.text();
+                liveData = JSON.parse(liveRawText);
+            } catch (parseErr) { liveData = null; }
+        }
+        if (!liveData) {
             console.error('liveScoring did not return JSON. Raw response:', liveRawText.slice(0, 300));
-            container.html('<div style="text-align:center; padding: 20px; color: var(--text-dim);">Not logged in or live scoring unavailable right now.</div>');
+            if (window._liveScoreMatchups && window._liveScoreMatchups.length) return; // keep showing the last good scores
+            const looksLoggedOut = /log\s?in|sign\s?in|password/i.test(liveRawText);
+            container.html(`<div style="text-align:center; padding: 20px; color: var(--text-dim);">${looksLoggedOut ? 'Not logged in.' : 'MFL is busy or live scoring is unavailable right now.'}<br><button type="button" id="lld-live-retry" style="margin-top:10px; padding:8px 14px; border-radius:8px; border:1px solid var(--card-border); background:var(--accent-blue); color:#fff; font-weight:900; font-size:11px;">Try again</button></div>`);
             return;
         }
 
@@ -16414,3 +16421,25 @@ fetchFranchises()
         return loadTeamData();
     });
 }); });
+
+$(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._liveScoreActiveWeek ?? null); });
+
+// ===== LOGO FALLBACK: a league copied from another one has no uploaded franchise logos yet, so a missing
+// logo falls back to the same franchise's logo in the source league (config: logoFallback {league, origin}) =====
+(function () {
+    const fb = Object.assign({ league: '63085', origin: 'https://www45.myfantasyleague.com' }, LLD.logoFallback || {});
+    if (!fb.league || String(fb.league) === String(lid)) return;
+    window.addEventListener('error', function (e) {
+        const img = e.target;
+        if (!img || img.tagName !== 'IMG' || img.dataset.lldfb) return;
+        const m = String(img.currentSrc || img.src).match(/\/fflnetdynamic(\d{4})\/\d+_franchise_logo(\d+)\.(\w+)/);
+        if (!m) return;
+        img.dataset.lldfb = '1';
+        e.stopImmediatePropagation(); // keep the placeholder handler for if this fallback fails too
+        img.src = `${fb.origin}/fflnetdynamic${m[1]}/${fb.league}_franchise_logo${m[2]}.${m[3]}`;
+    }, true);
+    window.addEventListener('load', function (e) {
+        const img = e.target;
+        if (img && img.tagName === 'IMG' && img.dataset && img.dataset.lldfb && img.style.display === 'none') img.style.display = '';
+    }, true);
+})();
