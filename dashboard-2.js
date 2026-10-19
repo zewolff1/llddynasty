@@ -198,6 +198,13 @@ async function lldFillTicker(staticItems) {
             }
         });
     } catch (e) { console.warn('ticker moves', e); }
+    // MFL's RSS feed adds league news (message board topics, standings and last week's results) as extra lines
+    try {
+        const rr = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=rss&L=${lid}`, { credentials: 'include', cache: 'no-store' });
+        const xml = new DOMParser().parseFromString(await rr.text(), 'text/xml');
+        const extra = [...xml.querySelectorAll('item > title')].map(n => n.textContent.replace(/\s+/g, ' ').trim()).filter(t => t && t.length < 110).slice(0, 6);
+        extra.forEach(t => items.push(t.toUpperCase()));
+    } catch (e) { console.warn('ticker rss', e); }
     lldSetTicker(items.length ? items : (window._lldTickFallback && window._lldTickFallback.length ? window._lldTickFallback : ['WELCOME TO THE LEAGUE', 'SCORES AND TRANSACTIONS WILL SHOW HERE']));
 }
 
@@ -12662,10 +12669,10 @@ function lldScoreboardThemed(o, sty, kind) {
         return nav(`<div class="lld-vs" style="--c1:${tc1};--c2:${tc2}"><div class="v-tag">${esc(tag)}${wk0 ? ' · Wk ' + esc(wk0) : ''}</div><div class="v-split">${side(t1, t1Proj, 'l')}<div class="v-x">VS</div>${side(t2, t2Proj, 'r')}</div><div class="v-bar"><i style="width:${a}%"></i></div><div class="v-foot"><span>${a}%</span><span>${b}%</span></div></div>`);
     }
     const wk = window._liveScoreActiveWeek || '';
-    const row = (t, tc, win, proj, yts) => `<div class="a-row ${win ? 'win' : ''}" style="--tc:${tc}"><img class="a-logo" src="${esc(t.logo)}" onerror="this.style.visibility='hidden'"><div class="a-name">${esc(t.name || '')}<small>${esc(yts || '')}</small></div><div class="a-pts led">${t.score.toFixed(2)}</div><div class="a-pr led">${px(proj)}</div></div>`;
+    const side = (t, tc, win, proj, yts, cls) => `<div class="a-side ${cls} ${win ? 'win' : ''}" style="--tc:${tc}"><img class="a-logo" src="${esc(t.logo)}" onerror="this.style.visibility='hidden'"><div class="a-name">${esc(t.name || '')}</div><div class="a-pts led">${t.score.toFixed(2)}</div><div class="a-pr led">${px(proj)} PROJ</div><small class="a-yts">${esc(yts || '')}</small></div>`;
     const segs = 20, onA = Math.round(a / 100 * segs);
     const meter = Array.from({ length: segs }, (_, i) => `<i style="background:${i < onA ? tc1 : tc2}"></i>`).join('');
-    return nav(`<div class="lld-arena"><div class="a-truss">${Array.from({ length: 8 }, () => '<b></b>').join('')}</div><div class="a-frame"><div class="a-banner"><span>${esc(LLD.leagueName || 'STADIUM')}</span><span>${wk ? 'WEEK ' + esc(wk) : 'LIVE'}</span></div><div class="a-board"><div class="a-cols"><span>TEAM</span><span>PTS</span><span>PROJ</span></div>${row(t1, tc1, t1.score > t2.score, t1Proj, yts1)}${row(t2, tc2, t2.score > t1.score, t2Proj, yts2)}<div class="a-meter"><span>${a}%</span><div class="a-segs">${meter}</div><span>${b}%</span></div></div></div><div class="a-posts"><i></i><i></i></div></div>`);
+    return nav(`<div class="lld-arena"><div class="a-truss">${Array.from({ length: 8 }, () => '<b></b>').join('')}</div><div class="a-frame"><div class="a-banner"><span>${esc(LLD.leagueName || 'STADIUM')}</span><span>${wk ? 'WEEK ' + esc(wk) : 'LIVE'}</span></div><div class="a-board"><div class="a-split">${side(t1, tc1, t1.score > t2.score, t1Proj, yts1, 'l')}<div class="a-vs"><span>VS</span></div>${side(t2, tc2, t2.score > t1.score, t2Proj, yts2, 'r')}</div><div class="a-meter"><span>${a}%</span><div class="a-segs">${meter}</div><span>${b}%</span></div></div></div><div class="a-posts"><i></i><i></i></div></div>`);
 }
 window.lldScoreboardThemed = lldScoreboardThemed;
 window.buildPairedRosterHtml = function () { return buildPairedRosterHtml.apply(null, arguments); };
@@ -12810,10 +12817,10 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
        const leagueMedian = computeMedianFromTeams(getUniqueTeamsFromMatchups(matchups));
      // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
     // past weeks don't have an in-progress game to poll.
-    const isLiveWeek = window._liveScoreActiveWeek === window._liveScoreCurrentWeek;
+    const isLiveWeek = String(window._liveScoreActiveWeek) === String(window._liveScoreCurrentWeek);
        const [sharedProjMap, liveDetails, nflSchedule] = await Promise.all([
         fetchWeekProjectedScoresMap(window._liveScoreActiveWeek),
-        isLiveWeek ? fetchLiveScoringDetails(t1.fid) : Promise.resolve({ gameInfo: {}, stats: {} }),
+        isLiveWeek ? Promise.all([fetchLiveScoringDetails(t1.fid), fetchLiveScoringDetails(t2.fid)]).then(([x, y]) => ({ gameInfo: Object.assign({}, y.gameInfo, x.gameInfo), stats: Object.assign({}, y.stats, x.stats) })) : Promise.resolve({ gameInfo: {}, stats: {} }),
         fetchNflScheduleForWeek(window._liveScoreActiveWeek)
     ]);
     window._liveScoreNflSchedule = nflSchedule;
@@ -16487,7 +16494,6 @@ fetchFranchises()
         refreshTeamInfoPanel();
         return loadTeamData();
     });
-}); });
 
 $(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._liveScoreActiveWeek ?? null); });
 
@@ -16517,3 +16523,4 @@ $(document).on('click', '.lld-sbopt-toggle', function () {
     chips.prop('hidden', !open);
     lldSet('lld_sbopen', open ? '1' : '0');
 });
+}); });
