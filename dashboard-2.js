@@ -1,7 +1,7 @@
 // ===== LLD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
 const LLD = Object.assign({
     leagueId: '',
-    origin: (/^https:\/\/www\d+\.myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
+    origin: (/^https:\/\/([a-z0-9-]+\.)?myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
     salaryCap: 200,
     adminFids: ['0000'],
     defendingChampFid: null,
@@ -26,18 +26,35 @@ const LLD_SCRIPT_BASE = (() => {
 const LLD_STYLES = {
     "classic": { name: "Classic", group: "Base", file: "", fonts: "", scene: null },
     "sleeper": { name: "Sleeper", group: "Full themes", file: "sleeper", fonts: "", scene: {"title": "LEAGUE", "sub": "Week hub", "bg": "linear-gradient(180deg, #11161f 0%, #0b0e14 100%)", "font": "\"Inter\", sans-serif", "fw": 800, "none": true} },
-    "lego": { name: "Brick Builder", group: "Full themes", file: "lego", fonts: "family=Fredoka:wght@500;600;700&family=Lilita+One", scene: {"title": "BRICK LEAGUE", "sub": "Build your dynasty", "bricks": ["#e11d48", "#f5cd2f", "#2f7de9", "#1f9e4a"], "bg": "linear-gradient(180deg, #2f7de9 0%, #1b4fa8 100%)", "font": "\"Lilita One\", sans-serif", "fw": 400} },
+    "lego": { name: "Brick Builder", group: "Full themes", file: "lego", fonts: "family=Fredoka:wght@500;600;700&family=Lilita+One", scene: {"title": "BRICK LEAGUE", "sub": "Build your dynasty", "bricks": ["#c4425e", "#e6c452", "#3f77c4", "#2f8a55"], "bg": "linear-gradient(180deg, #3f77c4 0%, #1d427e 100%)", "font": "\"Lilita One\", sans-serif", "fw": 400} },
     "sportscenter": { name: "90s Sports Desk", group: "Full themes", file: "sportscenter", fonts: "family=Anton&family=Oswald:wght@500;600;700", scene: {"title": "DYNASTY TONIGHT", "sub": "Scores and moves", "stripes": ["#e31837", "#ffffff"], "live": true, "tickBg": "#e31837", "tickFg": "#ffffff", "bg": "linear-gradient(180deg, #1d44c4 0%, #0a1330 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "italic": true} },
     "arcade": { name: "Gridiron Arcade", group: "Full themes", file: "more", fonts: "family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&family=Press+Start+2P", scene: {"title": "FRANCHISE MODE", "sub": "Insert coin", "grid": true, "scan": true, "bg": "linear-gradient(180deg, #1a222d 0%, #0b0f14 100%)", "font": "\"Teko\", sans-serif", "fw": 700, "spaced": true} },
     "leather": { name: "Leatherheads", group: "Full themes", file: "more", fonts: "family=Playfair+Display:ital,wght@0,700;0,900;1,700", scene: {"title": "THE GAZETTE", "sub": "Vol. V", "tick": ["WIRE: LEAGUE WEEK UNDER WAY", "LINEUPS LOCK AT KICKOFF", "FRANCHISE NEWS TO FOLLOW"], "tickBg": "#120d0a", "tickFg": "#d9b25f", "bg": "linear-gradient(180deg, #3a2b1f 0%, #1c1612 100%)", "font": "\"Playfair Display\", Georgia, serif", "fw": 900} },
-    "madden": { name: "2000s Madden", group: "Full themes", file: "more", fonts: "family=Barlow+Condensed:ital,wght@1,700;1,800&family=Orbitron:wght@700;800", scene: {"title": "FRANCHISE MODE", "sub": "Game day", "scan": true, "live": true, "tickBg": "#ff9a1f", "tickFg": "#0a0f1a", "bg": "linear-gradient(180deg, #1b2336 0%, #0a0f1a 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 800, "italic": true} },
     "stadium": { name: "Stadium", group: "Full themes", file: "more", fonts: "family=Oswald:wght@500;600;700&family=Share+Tech+Mono", scene: {"title": "GAME DAY", "sub": "Under the lights", "stars": true, "starsY": 22, "yards": true, "lights": true, "bg": "radial-gradient(60% 80% at 8% 0%, rgba(255,240,200,.55), transparent 70%), radial-gradient(60% 80% at 92% 0%, rgba(255,240,200,.55), transparent 70%), linear-gradient(180deg, #0a1426 0 34%, #1f6b3a 34% 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
-    "night": { name: "Night Watch", group: "Full themes", file: "more", fonts: "family=Bebas+Neue&family=Barlow+Condensed:wght@600;700", scene: {"title": "NIGHT WATCH", "sub": "Dark city, Sunday night", "bg": "radial-gradient(circle at 82% 26%, rgba(245,196,0,.95) 0 8px, rgba(245,196,0,.4) 9px 22px, rgba(245,196,0,.12) 23px 46px, transparent 70px), linear-gradient(#050608,#050608) 2% 100%/9% 38% no-repeat, linear-gradient(#050608,#050608) 12% 100%/7% 55% no-repeat, linear-gradient(#050608,#050608) 20% 100%/10% 30% no-repeat, linear-gradient(#050608,#050608) 31% 100%/6% 62% no-repeat, linear-gradient(#050608,#050608) 38% 100%/9% 42% no-repeat, linear-gradient(#050608,#050608) 48% 100%/8% 26% no-repeat, linear-gradient(#050608,#050608) 57% 100%/10% 50% no-repeat, linear-gradient(#050608,#050608) 68% 100%/7% 34% no-repeat, linear-gradient(#050608,#050608) 76% 100%/9% 58% no-repeat, linear-gradient(#050608,#050608) 86% 100%/6% 36% no-repeat, linear-gradient(#050608,#050608) 93% 100%/7% 46% no-repeat, linear-gradient(180deg, #181c26 0%, #07080b 100%)", "font": "\"Bebas Neue\", sans-serif", "fw": 400, "spaced": true} },
     "season_fall": { name: "Fall", group: "Seasonal", file: "more", fonts: "family=Bitter:wght@600;800", scene: {"title": "FALL FOOTBALL", "sub": "Sweater weather", "bg": "linear-gradient(180deg, #8a4214 0%, #4a230c 100%)", "font": "\"Bitter\", Georgia, serif", "fw": 800, "g": "🍁"} },
     "season_halloween": { name: "Halloween", group: "Seasonal", file: "more", fonts: "family=Metamorphous", scene: {"title": "HAPPY HALLOWEEN", "sub": "Spooky season", "moon": true, "bg": "linear-gradient(180deg, #3a1d5e 0%, #1a0f2b 100%)", "font": "\"Metamorphous\", Georgia, serif", "fw": 400, "g": "👻"} },
     "season_thanksgiving": { name: "Thanksgiving", group: "Seasonal", file: "more", fonts: "family=Libre+Baskerville:wght@700", scene: {"title": "THANKSGIVING WEEK", "sub": "Football, family, leftovers", "bg": "linear-gradient(180deg, #7a2f2f 0%, #46211f 100%)", "font": "\"Libre Baskerville\", Georgia, serif", "fw": 700, "g": "🍂"} },
     "season_christmas": { name: "Christmas", group: "Seasonal", file: "more", fonts: "family=Cinzel:wght@600;700", scene: {"title": "MERRY CHRISTMAS", "sub": "Gridiron holiday edition", "lights": true, "bg": "linear-gradient(180deg, #14452b 0%, #0d2a1b 100%)", "font": "\"Cinzel\", Georgia, serif", "fw": 700, "g": "❄"} },
 };
+// ===== SEASONAL (auto): one seasonal look at a time, chosen by today's date =====
+// Outside every window the style falls back to the last regular theme that was picked.
+function lldSeasonNow(d) {
+    d = d || new Date();
+    const m = d.getMonth() + 1, day = d.getDate(), md = m * 100 + day;
+    if (md >= 1024 && md <= 1101) return 'season_halloween';
+    if (md >= 1115 && md <= 1201) return 'season_thanksgiving';
+    if (md >= 1202 && md <= 1231) return 'season_christmas';
+    if (md >= 901 && md <= 1114) return 'season_fall';
+    return null;
+}
+function lldEffStyle() {
+    const raw = lldGet('lld_style', 'classic');
+    if (raw !== 'seasonal') return LLD_STYLES[raw] ? raw : 'classic';
+    const s = lldSeasonNow();
+    if (s) return s;
+    const base = lldGet('lld_style_base', 'classic');
+    return (LLD_STYLES[base] && !/^season/.test(base)) ? base : 'classic';
+}
 const LLD_HDR_MODES = { auto: 'Auto (shrinks as you scroll)', middle: 'Middle (slim, always on)' };
 function lldGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
 function lldSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -60,15 +77,18 @@ function lldBuildScene(name) {
     if (sc.yards) el.setAttribute('data-fx', 'yards');
     if (sc.scan) el.setAttribute('data-scan', '1');
     const t = document.createElement('div'); t.className = 't';
-    const b = document.createElement('b'); b.textContent = sc.title;
+    // the league's own name leads; the theme's phrase becomes the small line under it
+    const leagueTitle = LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || sc.title;
+    el.setAttribute('data-title', leagueTitle);
+    const b = document.createElement('b'); b.textContent = leagueTitle;
     b.style.fontFamily = sc.font || ''; b.style.fontWeight = sc.fw || '';
-    const i = document.createElement('i'); i.textContent = LLD.leagueName ? (LLD.leagueName + ' · ' + sc.sub) : sc.sub;
+    const i = document.createElement('i'); i.textContent = sc.title + ' \u00B7 ' + sc.sub;
     t.appendChild(b); t.appendChild(i); el.appendChild(t);
     if (sc.desk) {
         el.classList.add('desk');
         const now = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         el.insertAdjacentHTML('beforeend', `<div class="d-badge"><span class="d-time">${now()}</span><b>LIVE</b><i>SC</i></div><div class="d-rail"><span class="d-h"></span><span class="d-h"></span><span class="d-h"></span></div>`);
-        const bb = el.querySelector('.t b'); if (bb) bb.textContent = sc.title;
+        const bb = el.querySelector('.t b'); if (bb) bb.textContent = leagueTitle;
         window._lldRailTimer = setInterval(() => {
             const tm = document.querySelector('#lld-scene .d-time');
             if (!tm) { clearInterval(window._lldRailTimer); return; }
@@ -108,7 +128,7 @@ function lldSetTicker(items) {
     lldRotateRail();
     const sp = document.querySelector('#lld-ticker span.tk-t');
     if (!sp || !items || !items.length) return;
-    const sep = '   ' + (LLD_TICK_SEP[lldGet('lld_style', 'classic')] || '\u2605') + '   ';
+    const sep = '   ' + (LLD_TICK_SEP[lldEffStyle()] || '\u2605') + '   ';
     const txt = items.join(sep) + sep;
     sp.textContent = txt + txt;
     sp.style.setProperty('--tkdur', Math.max(24, Math.round(txt.length * 0.32)) + 's');
@@ -128,12 +148,14 @@ async function lldFillTicker(staticItems) {
     const items = [];
     const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
     // The ticker can start before the team list exists (it is declared further down the file), so it keeps its own copy of the names
+    try {
     if (!window._lldTickNames) {
         window._lldTickNames = {};
         const ld = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`);
         [].concat(ld?.league?.franchises?.franchise || []).forEach(f => { if (f && f.id) window._lldTickNames[String(f.id).padStart(4, '0')] = (f.name && String(f.name).trim()) || ('Team ' + (parseInt(f.id, 10) || f.id)); });
         if (!Object.keys(window._lldTickNames).length) window._lldTickNames = null;
     }
+    } catch (e) { window._lldTickNames = null; }
     const nm = f => { const id = String(f).padStart(4, '0'); return (window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id)); };
     const short = f => { const n = nm(f); return n.length > 18 ? n.slice(0, 17).trim() + '.' : n; };
     try {
@@ -210,12 +232,16 @@ function lldBuildTicker(name) {
 function lldApplyTick(v) {
     lldSet('lld_tick', v === 'off' ? 'off' : 'on');
     document.querySelectorAll('.lld-tick-btn').forEach(b => b.classList.toggle('on', b.dataset.v === lldGet('lld_tick', 'on')));
-    lldBuildTicker(lldGet('lld_style', 'classic'));
+    lldBuildTicker(lldEffStyle());
 }
 $(document).on('click', '.lld-tick-btn', function () { lldApplyTick(this.dataset.v); });
 function lldApplyStyle(name) {
-    if (!LLD_STYLES[name]) name = 'classic';
+    if (name !== 'seasonal' && !LLD_STYLES[name]) name = 'classic';
+    if (/^season_/.test(name)) name = 'seasonal'; // an old saved single holiday theme now follows the calendar
     lldSet('lld_style', name);
+    if (name !== 'seasonal') lldSet('lld_style_base', name);
+    const rawName = name;
+    if (name === 'seasonal') name = lldEffStyle();
     Object.keys(LLD_STYLES).forEach(k => document.body.classList.toggle('theme-' + k, k === name));
     const def = LLD_STYLES[name];
     let link = document.getElementById('lld-theme-css');
@@ -235,7 +261,7 @@ function lldApplyStyle(name) {
     }
     if (name !== 'classic') ['--page-bg','--card-bg','--card-border','--card-hover','--text-dim','--accent-blue','--accent-teal'].forEach(k => document.documentElement.style.removeProperty(k));
     else if (typeof applyTheme === 'function') applyTheme(lldGet('lld_theme', 'midnight'));
-    document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === name));
+    document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === rawName));
     lldBuildScene(name);
     lldBuildTicker(name);
     window.LLD_STYLE_DEBUG = { name, base: LLD_SCRIPT_BASE, href: (document.getElementById('lld-theme-css') || {}).href || '' };
@@ -339,7 +365,7 @@ function lldApplyHdrMode(mode) {
     lldSet('lld_hdr', mode);
     document.body.classList.toggle('hdr-mid', mode === 'middle');
     if (mode === 'middle') document.body.classList.remove('hdr-s1', 'hdr-s2');
-    document.querySelectorAll('.lld-hdr-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    document.querySelectorAll('.lld-hdr-btn[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
     window.dispatchEvent(new Event('resize'));
 }
 const LLD_DEFAULT_RULES = {
@@ -2436,12 +2462,12 @@ function applyTeamTheme(targetFid, onTeamTab = false) {
     const root = document.documentElement;
 
     // Always restore saved theme fully first (the Sleeper style supplies its own colors)
-    if (savedTheme && lldGet('lld_style', 'classic') === 'classic') {
+    if (savedTheme && lldEffStyle() === 'classic') {
         Object.entries(savedTheme.vars).forEach(([key, val]) => root.style.setProperty(key, val));
     }
 
     // Only overlay team vars when on team tab (never in the Sleeper style)
-    if (onTeamTab && lldGet('lld_style', 'classic') === 'classic') {
+    if (onTeamTab && lldEffStyle() === 'classic') {
         const teamTheme = TEAM_THEMES[targetFid];
         if (teamTheme) {
             Object.entries(teamTheme).forEach(([key, val]) => root.style.setProperty(key, val));
@@ -7676,15 +7702,15 @@ ${(myFid === '0000') ? `
                 <div class="display-sub-content" data-sub="theme">
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    ${['Base','Full themes','NFL teams','Seasonal','League teams'].map(g => `<div style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:.5px; margin:2px 0 6px; opacity:.8;">${g === 'Base' ? '' : g}</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">${Object.entries(LLD_STYLES).filter(([k, v]) => v.group === g).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}</div>`).join('')}
+                    ${['Base','Full themes','Seasonal'].map(g => `<div style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:.5px; margin:2px 0 6px; opacity:.8;">${g === 'Base' ? '' : g}</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">${(g === 'Seasonal' ? `<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal (auto)</button><div style="flex:1 1 100%; font-size:10px; color:var(--text-dim);">Follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>` : Object.entries(LLD_STYLES).filter(([k, v]) => v.group === g).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join(''))}</div>`).join('')}
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
                     </div>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
-                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldGet('lld_style','classic'))?'on':''}" data-v="on">On</button>
-                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldGet('lld_style','classic'))?'':'on'}" data-v="off">Off</button>
+                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
+                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
                     </div>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Scoreboard</div>
                     <div style="display:flex; gap:6px; margin-bottom:6px;">
@@ -7955,7 +7981,7 @@ carbon: {
 function applyTheme(themeId) {
     const theme = THEMES[themeId];
     if (!theme) return;
-    if (lldGet('lld_style', 'classic') !== 'classic') { localStorage.setItem('lld_theme', themeId); return; }
+    if (lldEffStyle() !== 'classic') { localStorage.setItem('lld_theme', themeId); return; }
     const root = document.documentElement;
     Object.entries(theme.vars).forEach(([key, val]) => {
         root.style.setProperty(key, val);
@@ -12557,7 +12583,7 @@ function lldSbKind(sty) {
     return /^nfl_/.test(sty) ? 'nfl' : 'vs';
 }
 function buildScoreHeaderHtml3(o) {
-    const sty = lldGet('lld_style', 'classic');
+    const sty = lldEffStyle();
     const sbv = lldGet('lld_sb', 'theme');
     if (['cbs', 'nbc', 'espn', 'fox'].indexOf(sbv) >= 0 && !document.getElementById('lld-bug-font')) { const l = document.createElement('link'); l.id = 'lld-bug-font'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&display=swap'; document.head.appendChild(l); }
     if (['cbs', 'nbc', 'espn', 'fox'].indexOf(sbv) >= 0) return lldScoreboardThemed(o, sty, sbv);
@@ -12938,7 +12964,11 @@ function buildLiveNowHtml(t1, t2, pm) {
     const tiles = l1.map(p => chip(p, cols[0])).concat(l2.map(p => chip(p, cols[1]))).join('');
     const sortBtn = (key, label) => `<button class="live-sort-btn" data-sort="${key}" style="padding:4px 8px; border-radius:6px; font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:0.4px; cursor:pointer; border:1px solid ${mode === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${mode === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${mode === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
     const total = l1.length + l2.length;
+    const sbCur = lldGet('lld_sb', 'theme'), sbOpen = lldGet('lld_sbopen', '') === '1';
+    const sbChip = (v, l) => `<button type="button" class="lld-sb-btn lld-sbchip ${sbCur === v ? 'on' : ''}" data-v="${v}">${l}</button>`;
+    const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}${sbChip('cbs', 'CBS')}${sbChip('nbc', 'NBC')}${sbChip('espn', 'ESPN')}${sbChip('fox', 'Fox')}</div></div>`;
     return `<div id="live-now-strip" style="margin:0 0 12px;">
+        ${sbBar}
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
             <span style="font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:${total ? '#ef4444' : 'var(--text-dim)'};">${total ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:5px; animation: pulse-blue 1.2s infinite;"></span>Playing now · ${total}` : 'Nobody playing right now'}</span>
             <div style="display:flex; gap:4px;">${sortBtn('slot', 'Lineup')}${sortBtn('live', 'Live first')}${sortBtn('ytp', 'To play')}</div>
@@ -12993,14 +13023,15 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
             try {
                 const liveRes = await fetch(liveUrl, { credentials: 'include', cache: 'no-store' });
                 liveRawText = await liveRes.text();
+                window._lldLiveDiag = 'HTTP ' + liveRes.status + (liveRes.redirected ? ' (redirected to ' + liveRes.url + ')' : '') + ' · ' + liveRawText.replace(/\s+/g, ' ').slice(0, 140);
                 liveData = JSON.parse(liveRawText);
-            } catch (parseErr) { liveData = null; }
+            } catch (parseErr) { liveData = null; if (!window._lldLiveDiag) window._lldLiveDiag = 'fetch failed: ' + (parseErr && parseErr.message); }
         }
         if (!liveData) {
             console.error('liveScoring did not return JSON. Raw response:', liveRawText.slice(0, 300));
             if (window._liveScoreMatchups && window._liveScoreMatchups.length) return; // keep showing the last good scores
             const looksLoggedOut = /log\s?in|sign\s?in|password/i.test(liveRawText);
-            container.html(`<div style="text-align:center; padding: 20px; color: var(--text-dim);">${looksLoggedOut ? 'Not logged in.' : 'MFL is busy or live scoring is unavailable right now.'}<br><button type="button" id="lld-live-retry" style="margin-top:10px; padding:8px 14px; border-radius:8px; border:1px solid var(--card-border); background:var(--accent-blue); color:#fff; font-weight:900; font-size:11px;">Try again</button></div>`);
+            container.html(`<div style="text-align:center; padding: 20px; color: var(--text-dim);">${looksLoggedOut ? 'Not logged in.' : 'MFL is busy or live scoring is unavailable right now.'}<br><div style="margin-top:8px; font-size:9px; opacity:.8; word-break:break-all;">league ${lid} · year ${year} · ${MFL_ORIGIN}<br>${String(window._lldLiveDiag || '').replace(/[<>&]/g, ' ')}</div><button type="button" id="lld-live-retry" style="margin-top:10px; padding:8px 14px; border-radius:8px; border:1px solid var(--card-border); background:var(--accent-blue); color:#fff; font-weight:900; font-size:11px;">Try again</button></div>`);
             return;
         }
 
@@ -16443,12 +16474,12 @@ checkLoginStatus();
 lldApplyStyle(lldGet('lld_style', 'classic'));
 lldApplyHdrMode(lldGet('lld_hdr', 'auto'));
 $(document).on('click', '.lld-style-btn', function () { lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); });
-$(document).on('click', '.lld-hdr-btn', function () { lldApplyHdrMode(this.dataset.mode); });
+$(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 fetchFranchises()
-    .then(() => { const st = LLD_STYLES[lldGet('lld_style', 'classic')]; if (document.getElementById('lld-ticker')) lldFillTicker(null); })
+    .then(() => { const st = LLD_STYLES[lldEffStyle()]; if (document.getElementById('lld-ticker')) lldFillTicker(null); })
     .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()]))
     .then(() => checkCompletedAuctions())
     .then(() => {
@@ -16479,3 +16510,10 @@ $(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._
         if (img && img.tagName === 'IMG' && img.dataset && img.dataset.lldfb && img.style.display === 'none') img.style.display = '';
     }, true);
 })();
+
+$(document).on('click', '.lld-sbopt-toggle', function () {
+    const chips = $(this).siblings('.lld-sbchips');
+    const open = chips.prop('hidden');
+    chips.prop('hidden', !open);
+    lldSet('lld_sbopen', open ? '1' : '0');
+});
