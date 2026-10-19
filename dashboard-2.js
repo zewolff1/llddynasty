@@ -2708,23 +2708,13 @@ $(document).on('click', '.mflm-lazy > .mflm-head', function () { lldLoadSetupInt
 function renderMflMenu() {
     const el = document.getElementById('mflm-list');
     if (!el) return;
-    let groups = [];
-    try { groups = lldCollectMflMenu(); } catch (e) { console.warn('MFL menu read failed', e); }
-    const base = `${MFL_ORIGIN}/${year}`;
-    if (!groups.length) groups = [{ label: 'League', links: [
-        { label: 'Home', href: `${base}/home/${lid}` },
-        { label: 'Standings', href: `${base}/standings?L=${lid}` },
-        { label: 'Schedule', href: `${base}/schedule?L=${lid}` }
-    ] }];
-    groups = groups.map(g => (g.links && g.links.length === 1 && g.links[0].label.toLowerCase() === g.label.toLowerCase()) ? { label: g.label, href: g.links[0].href } : g);
-    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const isSetup = l => /^(commissioner )?setup$/i.test(String(l.label).trim()) && l.href;
-    const lazy = (label, href, inner) => `<div class="mflm-group mflm-lazy${inner ? ' mflm-sub' : ''}" data-href="${esc(href)}"><button class="mflm-head" type="button">${esc(label)}<i>▾</i></button><div class="mflm-body"><div class="mflm-note">Loading setup options…</div></div></div>`;
-    el.innerHTML = groups.map(g => {
-        if (!g.links && isSetup({ label: g.label, href: g.href })) return lazy(g.label, g.href, false);
-        if (!g.links) return `<div class="mflm-group"><a class="mflm-head" href="${esc(g.href)}">${esc(g.label)}<i>›</i></a></div>`;
-        return `<div class="mflm-group"><button class="mflm-head" type="button">${esc(g.label)}<i>▾</i></button><div class="mflm-body">${g.links.map(l => isSetup(l) ? lazy(l.label, l.href, true) : `<a class="mflm-link" href="${esc(l.href)}">${esc(l.label)}</a>`).join('')}</div></div>`;
-    }).join('');
+    // use MFL's own Setup link if its (hidden) menu has one, otherwise the standard setup URL
+    let href = `${MFL_ORIGIN}/${year}/csetup?L=${lid}`;
+    try {
+        const a = [...document.querySelectorAll('.myfantasyleague_menu a, #hsubmenu a, .main_tabmenu a')].find(x => /^(commissioner )?setup$/i.test((x.textContent || '').trim()) && x.href && !/^javascript:/i.test(x.getAttribute('href')));
+        if (a) href = a.href;
+    } catch (e) {}
+    el.innerHTML = `<a class="mflm-setup-btn" href="${href}">Open MFL Setup <i>›</i></a>`;
 }
 $(document).on('click', '.mflm-head', function (e) {
     if (this.tagName === 'A') return;
@@ -7584,7 +7574,7 @@ $('body').append(`
             <button class="settings-tab-btn active" data-target="tab-team-set">Team Settings</button>
             <button class="settings-tab-btn" data-target="tab-display">Display</button>
             <button class="settings-tab-btn" data-target="tab-style">Style</button>
-            <button class="settings-tab-btn" data-target="tab-mflmenu">MFL Menu</button>
+            <button class="settings-tab-btn" data-target="tab-mflmenu">MFL Setup</button>
             ${(myFid === '0000') ? `<button class="settings-tab-btn" data-target="tab-dev">Dev Tools</button>` : ''}
         </div>
 
@@ -7634,7 +7624,7 @@ ${(myFid === '0000') ? `
 
             <!-- MFL MENU TAB -->
             <div id="tab-mflmenu" class="settings-tab-content" style="display:none;">
-                <div class="mflm-note">MFL's own site menus, collected here so they stay out of the way. Tap a heading to open it.</div>
+                <div class="mflm-note">The MFL setup page opens on MFL's own site.</div>
                 <div id="mflm-list"></div>
             </div>
 
