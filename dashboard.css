@@ -2632,6 +2632,7 @@ body.hdr-s1 .team-next { display: none !important; }
         margin-top: 3px !important;
         gap: 6px !important;
     }
+} /* end of the max-width:600px block (this closing brace was missing, which made everything below phone-only) */
 
 /* Hide MFL elements by default */
 .myfantasyleague_menu, 
@@ -3172,3 +3173,7 @@ body.theme-madden .custom-alert-title { background:var(--accent-blue); color:#ff
 .lld-ln .ln-pt { font-size: 8px !important; letter-spacing: 0 !important; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lld-ln .ln-pj { font-size: 7px; font-weight: 800; color: var(--text-dim); white-space: nowrap; }
 .lld-ln .ln-sc { flex: 0 0 auto; font-size: 12px; font-weight: 900; color: #22c55e; font-variant-numeric: tabular-nums; }
+/* ---- HIDE NATIVE MFL PAGE ---- */
+.lld-native-hide { display: none !important; }
+.lld-chain { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; max-width: none !important; float: none !important; }
+body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
