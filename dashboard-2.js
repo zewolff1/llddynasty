@@ -17297,18 +17297,29 @@ const LLDSX = { mode: 'team', idx: { team: 0, league: 0 } };
 function lldSxArr(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
 let _lldSxLast = 0;
 async function lldSxJson(type, extra) {
-    let last = '';
-    for (let a = 0; a < 5; a++) {
-        if (a) await new Promise(r => setTimeout(r, 1200 * a));
+    let last = '', tries = 0;
+    for (let a = 0; a < 8; a++) {
+        if (a) await new Promise(r => setTimeout(r, Math.min(20000, last.indexOf('429') >= 0 ? (window._lldSxRetry || 4000) * a : 1200 * a)));
         // MFL throttles quick bursts, so space our own requests out a little
-        const wait = _lldSxLast + 250 - Date.now(); if (wait > 0) await new Promise(r => setTimeout(r, wait));
+        const wait = _lldSxLast + 400 - Date.now(); if (wait > 0) await new Promise(r => setTimeout(r, wait));
         _lldSxLast = Date.now();
         try {
             const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=${type}&L=${lid}${extra || ''}&JSON=1`, { credentials: 'include', cache: 'no-store' });
-            const t = await r.text(); try { return JSON.parse(t); } catch (e) { last = type + ': non-JSON (HTTP ' + r.status + ') ' + t.slice(0, 80).replace(/\s+/g, ' '); }
+            const t = await r.text();
+            if (r.status === 429) { const ra = parseFloat(r.headers.get('Retry-After')); window._lldSxRetry = ra > 0 ? ra * 1000 : 4000; last = type + ': MFL is busy (HTTP 429)'; $('.lld-sx-loading').first().text('MFL is busy, waiting a moment…'); continue; }
+            try { return JSON.parse(t); } catch (e) { last = type + ': non-JSON (HTTP ' + r.status + ') ' + t.slice(0, 80).replace(/\s+/g, ' '); }
         } catch (e) { last = type + ': ' + e; }
     }
     window._lldSXdiag = last; return null;
+}
+// run fn until ok(result) (throws count as not ok); used for the page helpers that swallow MFL errors
+async function lldSxRetry(fn, ok, tries) {
+    let res; tries = tries || 4;
+    for (let a = 0; a < tries; a++) {
+        if (a) await new Promise(r => setTimeout(r, 3000 * a));
+        try { res = await fn(); if (ok(res)) return res; } catch (e) { res = null; }
+    }
+    return res;
 }
 function lldSxPos(p) { const r = String(p || '').toUpperCase(); if (r === 'DE' || r === 'DT' || r === 'DL') return 'DL'; if (r === 'CB' || r === 'S' || r === 'DB') return 'DB'; if (r === 'K') return 'PK'; return r; }
 function lldSxName(n) { const p = String(n || '').split(',').map(x => x.trim()); return p.length > 1 ? p[1] + ' ' + p[0] : p[0]; }
@@ -17362,7 +17373,7 @@ async function lldStatsLoad(force) {
         });
         prog('Loading box scores…');
         const byWk = {};
-        await lldSxBatch(wks, 2, async wk => { try { byWk[wk] = await fetchRecapWeek(wk, true); } catch (e) { byWk[wk] = []; } });
+        await lldSxBatch(wks, 2, async wk => { byWk[wk] = (await lldSxRetry(() => { delete window._recapWeekCache[wk]; return fetchRecapWeek(wk, true); }, r => r && r.length)) || []; });
         wks.forEach(wk => {
             const teams = {};
             (byWk[wk] || []).forEach(m => {
@@ -17379,7 +17390,7 @@ async function lldStatsLoad(force) {
         prog('Loading projections…');
         const lastWk = D.weeks.length ? D.weeks[D.weeks.length - 1].wk : 0;
         const projWeeks = []; for (let w = 1; w <= D.reg; w++) projWeeks.push(w);
-        await lldSxBatch(projWeeks, 2, async w => { D.proj[w] = await fetchWeekProjectedScoresMap(w); });
+        await lldSxBatch(projWeeks, 2, async w => { D.proj[w] = (await lldSxRetry(() => { delete window._weekProjScoreCache[String(w)]; return fetchWeekProjectedScoresMap(w); }, m => m && Object.keys(m).length, w <= lastWk + 1 ? 3 : 1)) || {}; });
         prog('Loading free agents…');
         try {
             const fa = await lldSxJson('freeAgents'); const ids = [];
