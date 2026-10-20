@@ -142,7 +142,26 @@ async function lldTickJson(url) {
     return null;
 }
 // Live ticker: this week's scores + the latest league transactions, straight from MFL
+// the ticker shows league standings for now (the scores/moves feed is kept below as lldFillTickerFeed)
 async function lldFillTicker(staticItems) {
+    lldSetTicker(['LOADING STANDINGS…']);
+    // year/lid are declared further down the file, so work them out here
+    const yr = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
+    try {
+        const d = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=leagueStandings&L=${lg}&JSON=1`) || {};
+        const fr = [].concat(d?.leagueStandings?.franchise || []);
+        if (!window._lldTickNames) {
+            window._lldTickNames = {};
+            const ld = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=league&L=${lg}&JSON=1`);
+            [].concat(ld?.league?.franchises?.franchise || []).forEach(f => { if (f && f.id) window._lldTickNames[String(f.id).padStart(4, '0')] = (f.name && String(f.name).trim()) || ('Team ' + (parseInt(f.id, 10) || f.id)); });
+        }
+        const nm = f => { const id = String(f).padStart(4, '0'); const n = (window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id)); return n.length > 20 ? n.slice(0, 19).trim() + '.' : n; };
+        const rows = fr.map(f => ({ id: f.id, w: parseInt(f.h2hw, 10) || 0, l: parseInt(f.h2hl, 10) || 0, t: parseInt(f.h2ht, 10) || 0, pf: parseFloat(f.pf) || 0 })).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
+        if (!rows.length) throw new Error('no standings');
+        lldSetTicker(['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. ${nm(r.id).toUpperCase()} ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`)));
+    } catch (e) { console.warn('ticker standings', e); lldSetTicker(['STANDINGS UNAVAILABLE RIGHT NOW']); }
+}
+async function lldFillTickerFeed(staticItems) {
     if (staticItems) { lldSetTicker(staticItems); return; }
     lldSetTicker(['LOADING SCORES AND MOVES…']);
     const items = [];
@@ -285,7 +304,7 @@ function lldChatTxHtml(it, ctx) {
         ? `<div class="cm-tl2">${logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>')}</div><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`
         : `<div class="cm-tm1"><img class="cm-av m" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><div><b>${lldChatEsc(ctx.nm(it.fid))}</b>${/^(add\/drop|waiver|blind bid)/i.test(it.label) ? '' : `<span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`}</div></div>`;
     const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color)).join('')}</div></div>`);
-    return `<div class="cm-tx"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}</div>`;
+    return `<div class="cm-tx"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}${it.offer && it.tid && (it.incoming || it.mine) ? `<div class="cm-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}</div>`;
 }
 function lldChatPostHtml(it, ctx) {
     const who = it.fid ? ctx.nm(it.fid) : '';
@@ -337,16 +356,27 @@ function lldStatsCompute(D) {
     const projOf = (wk, pid) => { const m = D.proj && D.proj[wk]; return m && m[pid] != null ? m[pid] : null; };
     S.hasProj = D.weeks.some(w => D.proj && D.proj[w.wk] && Object.keys(D.proj[w.wk]).length);
     // --- team results
-    S.sc = F.map(() => []); S.opp = F.map(() => []);
-    D.weeks.forEach((wk, wi) => F.forEach((f, i) => { const t = wk.teams[f]; S.sc[i][wi] = t ? t.score : 0; S.opp[i][wi] = t && t.opp != null ? idx[t.opp] : null; }));
-    S.wins = F.map(() => 0); S.losses = F.map(() => 0); S.pf = F.map(() => 0); S.pa = F.map(() => 0); S.ap = F.map(() => 0);
+    S.sc = F.map(() => []); S.opp = F.map(() => []); S.opps = F.map(() => []);
+    // a team can play more than once in a week (double headers): every opponent that week counts as a game
+    D.weeks.forEach((wk, wi) => F.forEach((f, i) => {
+        const t = wk.teams[f]; S.sc[i][wi] = t ? t.score : 0;
+        let os = [];
+        if (D.sched && D.sched[wk.wk] && D.sched[wk.wk].length) D.sched[wk.wk].forEach(m => { if (m[0] === f) os.push(m[1]); else if (m[1] === f) os.push(m[0]); });
+        else if (t) os = (t.opps && t.opps.length ? t.opps : (t.opp != null ? [t.opp] : []));
+        S.opps[i][wi] = os.map(o => idx[o]).filter(o => o != null); S.opp[i][wi] = S.opps[i][wi].length ? S.opps[i][wi][0] : null;
+    }));
+    S.wins = F.map(() => 0); S.losses = F.map(() => 0); S.ties = F.map(() => 0); S.pf = F.map(() => 0); S.pa = F.map(() => 0); S.ap = F.map(() => 0);
     for (let wi = 0; wi < W; wi++) {
         for (let i = 0; i < N; i++) {
-            const o = S.opp[i][wi], s = S.sc[i][wi]; S.pf[i] += s;
-            if (o != null) { const os = S.sc[o][wi]; S.pa[i] += os; if (s > os) S.wins[i]++; else if (s < os) S.losses[i]++; }
+            const s = S.sc[i][wi]; S.pf[i] += s;
+            S.opps[i][wi].forEach(o => { const os = S.sc[o][wi]; S.pa[i] += os; if (s > os) S.wins[i]++; else if (s < os) S.losses[i]++; else S.ties[i]++; });
             for (let j = 0; j < N; j++) if (j !== i) { if (s > S.sc[j][wi]) S.ap[i] += 1; else if (s === S.sc[j][wi]) S.ap[i] += 0.5; }
         }
     }
+    // MFL's own standings are the source of truth for the records
+    S.officialRec = false;
+    if (D.rec) F.forEach((f, i) => { const r = D.rec[f]; if (r && r.w != null && r.l != null) { S.wins[i] = r.w; S.losses[i] = r.l; S.ties[i] = r.t || 0; S.officialRec = true; } });
+    S.gp = F.map((_, i) => S.wins[i] + S.losses[i] + S.ties[i]);
     S.apL = F.map((_, i) => W * (N - 1) - S.ap[i]);
     S.avg = S.pf.map(x => W ? x / W : 0);
     S.leagueAvg = llsMean(S.avg);
@@ -452,7 +482,10 @@ function lldStatsCompute(D) {
         const rest = S.rosW;
         for (let q = 0; q < SIMS; q++) {
             const wv = S.wins.slice(), pfs = S.pf.slice();
-            rest.forEach(w => (D.sched[w] || []).forEach(m => { const a = idx[m[0]], b = idx[m[1]]; if (a == null || b == null) return; const sa = g2(S.projMean[a] + (adj ? adj[a] : 0), S.sdTeam), sb = g2(S.projMean[b] + (adj ? adj[b] : 0), S.sdTeam); pfs[a] += sa; pfs[b] += sb; if (sa > sb) wv[a]++; else wv[b]++; }));
+            rest.forEach(w => {
+                const ws = F.map((_, t) => g2(S.projMean[t] + (adj ? adj[t] : 0), S.sdTeam)), counted = {};
+                (D.sched[w] || []).forEach(m => { const a = idx[m[0]], b = idx[m[1]]; if (a == null || b == null) return; if (ws[a] > ws[b]) wv[a]++; else wv[b]++; if (!counted[a]) { counted[a] = 1; pfs[a] += ws[a]; } if (!counted[b]) { counted[b] = 1; pfs[b] += ws[b]; } });
+            });
             const o = order((a, b) => wv[b] - wv[a] || pfs[b] - pfs[a]);
             o.forEach((t, k) => { if (k < PT) res[t].po++; if (k < BY) res[t].bye++; res[t].rk += k + 1; });
             for (let t = 0; t < N; t++) res[t].w += wv[t];
@@ -461,6 +494,10 @@ function lldStatsCompute(D) {
         return res;
     };
     S.base = S.sim(null);
+    S.totG = F.map((f, i) => S.gp[i] + S.rosW.reduce((a, w) => a + (D.sched[w] || []).filter(m => m[0] === f || m[1] === f).length, 0));
+    const phi = z => { const t = 1 / (1 + .2316419 * Math.abs(z)), d = .3989423 * Math.exp(-z * z / 2), p = d * t * (.3193815 + t * (-.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+    // every remaining game for team i: opponent, both projected scores, chance to win
+    S.projGames = i => { const f = F[i], out = []; S.rosW.forEach(w => (D.sched[w] || []).forEach(m => { if (m[0] !== f && m[1] !== f) return; const o = idx[m[0] === f ? m[1] : m[0]]; if (o == null) return; const a = S.projMean[i], b = S.projMean[o]; out.push({ wk: w, opp: o, a, b, p: phi((a - b) / (S.sdTeam * Math.SQRT2)) }); })); return out; };
     // final-season rank of a player at his position
     S.posFinish = pid => {
         const p = S.pl[pid]; const pos = S.posOf(pid); if (!pos) return null;
@@ -488,14 +525,15 @@ function lldStatsExtend(S) {
             if (llsWouldStart(ent.map(e => ({ pid: e.pid, pos: e.pos, v: e.score })), { pid, pos, v: scoreOf(pid, wi) }, slots)) r.inOpt++;
             if (S.hasProj && llsWouldStart(ent.map(e => ({ pid: e.pid, pos: e.pos, v: projOf(wkNum(wi), e.pid) })), { pid, pos, v: projOf(wkNum(wi), pid) }, slots)) r.projStart++;
         }
-        const list = (base || S.cur[me]).filter(x => x !== pid);
+        const list = (base || S.cur[me]).filter(x => x !== pid), rp = {}, rv = {};
         S.rosW.forEach(wk => {
             const pool = list.map(x => ({ pid: x, pos: S.posOf(x), v: projOf(wk, x) })), c = { pid, pos, v: projOf(wk, pid) };
             const a = llsOpt(pool, slots), b = llsOpt(pool.concat([c]), slots);
-            if (b.has(pid)) r.rosStart++;
+            if (b.has(pid)) { r.rosStart++; pool.forEach(x => { if (a.has(x.pid) && !b.has(x.pid)) { rp[x.pid] = (rp[x.pid] || 0) + 1; rv[x.pid] = (rv[x.pid] || 0) + x.v; } }); }
             const sum = (set, pl) => { let t = 0; pl.forEach(x => { if (set.has(x.pid)) t += x.v; }); return t; };
             r.rosGain += sum(b, pool.concat([c])) - sum(a, pool);
         });
+        const rk = Object.keys(rp).sort((x, y) => rp[y] - rp[x])[0]; if (rk) { r.repl = rk; r.replV = rv[rk] / rp[rk]; r.myV = S.rosW.length ? S.rosW.reduce((t, wk) => t + projOf(wk, pid), 0) / S.rosW.length : 0; }
         r.inOptP = W ? r.inOpt / W : 0; r.projStartP = W ? r.projStart / W : 0; r.rosStartP = r.rn ? r.rosStart / r.rn : 0; r.rosGainWk = r.rn ? r.rosGain / r.rn : 0;
         return r;
     };
@@ -517,8 +555,9 @@ function lldStatsExtend(S) {
     S.netRows = () => {
         const rows = []; let net = 0, saved = 0, cost = 0;
         for (let wi = 0; wi < W; wi++) {
-            const o = S.opp[mi][wi], os = o != null ? S.sc[o][wi] : 0, a = S.wkAct[mi][wi], p = S.wkProj[mi][wi];
-            const ar = a > os, pr = p > os, tag = (o == null || ar === pr) ? '' : (pr && !ar ? 'cost' : 'save');
+            const a = S.wkAct[mi][wi], p = S.wkProj[mi][wi], oo = S.opps[mi][wi].map(o => S.sc[o][wi]);
+            const wa = oo.filter(x => a > x).length, wp = oo.filter(x => p > x).length;
+            const ar = wa > 0 && wa === oo.length, tag = (!oo.length || wa === wp) ? '' : (wp > wa ? 'cost' : 'save');
             net += a - p; if (tag === 'cost') cost++; if (tag === 'save') saved++;
             rows.push({ wk: wkNum(wi), a, p, d: a - p, ar, tag });
         }
@@ -623,7 +662,7 @@ function lldStatsViews(S) {
         const ly = 130 - S.leagueAvg / mx * 110, ex = S.wins[mi] - S.ap[mi] / (N - 1);
         const byeN = D.byes || 2;
         let h = `<div class="tiles">${tile('Record', S.wins[mi] + '-' + S.losses[mi])}${tile('All-Play', f1(S.ap[mi]).replace('.0', '') + '-' + f1(S.apL[mi]).replace('.0', ''), pct(S.ap[mi] / (W * (N - 1))), 'good')}${tile('Power Rank', '#' + (S.power.indexOf(mi) + 1))}${tile('Avg Points', f1(S.avg[mi]), '#' + (S.rankPF.indexOf(mi) + 1) + ' of ' + N, 'good')}${tile('Playoffs', b.po + '%')}${tile('Top-' + byeN + ' Bye', b.bye + '%')}</div>`;
-        h += `<h2>Rest of season</h2><div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk))}${tile('Proj. record', Math.round(b.w) + '-' + (S.reg - Math.round(b.w)))}${tile('Proj. playoffs', b.po + '%')}</div>`;
+        h += `<h2>Rest of season</h2><div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk))}${tile('Proj. record', Math.round(b.w) + '-' + (S.totG[mi] - Math.round(b.w)))}${tile('Proj. playoffs', b.po + '%')}</div>`;
         h += `<h2>Weekly scoring</h2><div class="card"><svg viewBox="0 0 ${tw} 154" width="100%" role="img"><g style="color:var(--text-main)">${bars}</g><line x1="0" x2="${tw}" y1="${ly}" y2="${ly}" stroke="#f59e0b" stroke-dasharray="4 4"/></svg><div class="sub">Bright bars beat the league average. Dashed line: ${f1(S.leagueAvg)} pts.</div></div>`;
         h += `<h2>Luck check</h2><div class="card"><div style="display:flex;justify-content:space-between;font-weight:800"><span>Actual wins</span><span>${S.wins[mi]}</span></div><div style="display:flex;justify-content:space-between;font-weight:800;margin-top:6px"><span>Expected from All-Play</span><span>${f1(S.ap[mi] / (N - 1))}</span></div><div class="sub">${ex > 0.4 ? 'Schedule has helped you a little.' : ex < -0.4 ? 'Schedule has hurt you a little.' : 'Your record matches how you really score.'}</div></div>`;
         return h;
@@ -683,7 +722,7 @@ function lldStatsViews(S) {
     function tOutlook() {
         if (!S.hasRos) return '<div class="sub" style="padding:30px 10px;text-align:center">MFL has not published projections for the remaining weeks yet.</div>';
         const b = S.base[mi];
-        let h = `<div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk), 'now #' + (S.standing.indexOf(mi) + 1))}${tile('Proj. record', Math.round(b.w) + '-' + (S.reg - Math.round(b.w)), 'after ' + S.reg + ' weeks')}${tile('Proj. pts / wk', f1(S.rosLineup(mine)), 'your best lineup')}</div>`;
+        let h = `<div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk), 'now #' + (S.standing.indexOf(mi) + 1))}${tile('Proj. record', Math.round(b.w) + '-' + (S.totG[mi] - Math.round(b.w)), 'after ' + S.reg + ' weeks')}${tile('Proj. pts / wk', f1(S.rosLineup(mine)), 'your best lineup')}</div>`;
         h += '<h2>Your players, rest of season</h2><div class="card scroll"><table><tr><th>Player</th><th>Proj/wk</th><th>Starts</th><th>Finish</th></tr>';
         mine.filter(pid => S.posOf(pid)).sort((a, b) => POS.indexOf(S.posOf(a)) - POS.indexOf(S.posOf(b))).forEach(pid => { const rs = S.rosStarts(mine, pid), avg = llsMean(S.rosW.map(wk => S.rosP(pid, wk))); h += `<tr ${attr(pid)}><td class="tm" style="max-width:130px">${pn(pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(pid))}</span></td><td>${f1(avg)}</td><td>${rs} of ${S.rosW.length}</td><td>#${S.posFinish(pid)} ${llsLbl(S.posOf(pid))}</td></tr>`; });
         return h + `</table></div><div class="sub">Tap a player for the full breakdown. Starts is how many of the ${S.rosW.length} remaining weeks he is projected to be in your lineup. Finish is where his full-season total is projected to rank at his position.</div>`;
@@ -712,9 +751,9 @@ function lldStatsViews(S) {
     }
     function tFA() {
         if (!S.faList.length) return '<div class="sub" style="padding:30px 10px;text-align:center">No free agent data yet.</div>';
-        let h = `<h2>Free agents, fit for your team</h2><div class="card scroll"><table><tr><th>Player</th><th>Best lineup</th>${hasProj ? '<th>Proj. starter</th>' : ''}${S.hasRos ? '<th>Rest of season</th>' : ''}</tr>`;
-        S.faList.slice(0, 25).forEach(x => { const f = x.fit; h += `<tr ${attr(x.pid)}><td class="tm" style="max-width:120px">${pn(x.pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(x.pid))}</span></td><td>${pct(f.inOptP)}</td>${hasProj ? `<td>${pct(f.projStartP)}</td>` : ''}${S.hasRos ? `<td class="${f.rosStartP >= .5 ? 'good' : ''}">${pct(f.rosStartP)}</td>` : ''}</tr>`; });
-        return h + '</table></div><div class="sub"><b>Best lineup</b>: past weeks where he would have been in your best possible lineup. <b>Proj. starter</b>: past weeks he would have been projected to start for you. <b>Rest of season</b>: share of the remaining weeks he is projected to start for you. Tap a player to see everything.</div>';
+        let h = `<h2>Free agents, fit for your team</h2><div class="card scroll"><table><tr><th>Player</th><th>Best lineup</th>${hasProj ? '<th>Proj. starter</th>' : ''}${S.hasRos ? '<th>Rest of season</th><th>Adds/wk</th>' : ''}</tr>`;
+        S.faList.slice(0, 25).forEach(x => { const f = x.fit; h += `<tr ${attr(x.pid)}><td class="tm" style="max-width:120px">${pn(x.pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(x.pid))}</span></td><td>${pct(f.inOptP)}</td>${hasProj ? `<td>${pct(f.projStartP)}</td>` : ''}${S.hasRos ? `<td class="${f.rosStartP >= .5 ? 'good' : ''}">${pct(f.rosStartP)}</td><td class="${f.rosGainWk > .05 ? 'good' : ''}">${f.rosGainWk > .05 ? '+' + f1(f.rosGainWk) : '—'}${f.repl ? `<div class="sub" style="margin:0">for ${esc((D.pinfo[f.repl] || {}).name || '')}</div>` : ''}</td>` : ''}</tr>`; });
+        return h + '</table></div><div class="sub"><b>Best lineup</b>: past weeks where he would have been in your best possible lineup. <b>Proj. starter</b>: past weeks he would have been projected to start for you. <b>Rest of season</b>: share of the remaining weeks he is projected to start for you. <b>Adds/wk</b>: points per week your best lineup gains, which is his projection minus the player he replaces. Tap a player to see everything.</div>';
     }
     // trade lab (interactive; selections live in S._trade)
     function tTrade() {
@@ -733,13 +772,13 @@ function lldStatsViews(S) {
     // ---------- LEAGUE ----------
     function lStandings() {
         let h = '<h2>All-Play standings</h2><div class="card scroll"><table><tr><th>Team</th><th>W-L</th><th>All-Play</th><th>PF</th><th>Luck</th></tr>';
-        S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]).forEach(t => { const l = S.wins[t] - S.ap[t] / (N - 1); h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>${S.wins[t]}-${S.losses[t]}</td><td>${f1(S.ap[t]).replace('.0', '')}-${f1(S.apL[t]).replace('.0', '')}</td><td>${f1(S.pf[t])}</td><td class="${l > .5 ? 'warn' : l < -.5 ? 'bad' : ''}">${l > 0 ? '+' : ''}${l.toFixed(1)}</td></tr>`; });
+        S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]).forEach(t => { const l = S.wins[t] - S.ap[t] / (N - 1); h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>${S.wins[t]}-${S.losses[t]}${S.ties[t] ? '-' + S.ties[t] : ''}</td><td>${f1(S.ap[t]).replace('.0', '')}-${f1(S.apL[t]).replace('.0', '')}</td><td>${f1(S.pf[t])}</td><td class="${l > .5 ? 'warn' : l < -.5 ? 'bad' : ''}">${l > 0 ? '+' : ''}${l.toFixed(1)}</td></tr>`; });
         return h + `</table></div><div class="sub">All-Play is your record if you played every team every week. Luck is actual wins minus expected wins; a positive number means the schedule has been kind.</div><h2>Power rankings</h2><div class="card">${S.power.map((t, i) => `<div class="lead"><span class="r">${i + 1}</span><span class="t">${nm(t)}</span><span class="v">${f1(S.avg[t])}</span></div>`).join('')}</div>`;
     }
     function lPlayoffs() {
         let h = '<h2>Playoff chances</h2><div class="card scroll"><table><tr><th>Team</th><th>Now</th><th style="width:34%">Make it</th><th>Bye</th></tr>';
-        S.order((a, b) => S.base[b].po - S.base[a].po || S.wins[b] - S.wins[a]).forEach(t => { const o = S.base[t]; h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>${S.wins[t]}-${S.losses[t]}</td><td><div style="display:flex;align-items:center;gap:8px">${pbar(o.po / 100, o.po > 66 ? 'var(--accent-teal)' : o.po > 25 ? '#f59e0b' : '#ef4444')}<b style="width:34px;text-align:right">${o.po}%</b></div></td><td>${o.bye}%</td></tr>`; });
-        return h + `</table></div><div class="sub">Based on 2,000 simulations of the remaining regular season. Top ${D.playoffTeams || 6} make the playoffs and the top ${D.byes || 2} get a bye.</div>`;
+        S.order((a, b) => S.base[b].po - S.base[a].po || S.wins[b] - S.wins[a]).forEach(t => { const o = S.base[t]; h += `<tr${t === mi ? ' class="me"' : ''} data-pg="${t}" style="cursor:pointer"><td class="tm">${nm(t)} <span class="sub" style="display:inline">›</span></td><td>${S.wins[t]}-${S.losses[t]}${S.ties[t] ? '-' + S.ties[t] : ''}</td><td><div style="display:flex;align-items:center;gap:8px">${pbar(o.po / 100, o.po > 66 ? 'var(--accent-teal)' : o.po > 25 ? '#f59e0b' : '#ef4444')}<b style="width:34px;text-align:right">${o.po}%</b></div></td><td>${o.bye}%</td></tr>`; });
+        return h + `</table></div><div class="sub">Based on 2,000 simulations of the remaining regular season. Top ${D.playoffTeams || 6} make the playoffs and the top ${D.byes || 2} get a bye. Tap a team to see its projected matchups.</div>`;
     }
     function lPositions() {
         let h = '<h2>Position strength, rank by team</h2><div class="card scroll"><table class="hm"><tr><th>Team</th>' + POS.map(p => `<th>${llsLbl(p)}</th>`).join('') + '</tr>';
@@ -765,14 +804,23 @@ function lldStatsViews(S) {
         o.forEach(t => { h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>${pct(S.eff[t])}</td><td>${pct(S.acc[t])}</td><td>${f1(S.left[t])}/wk</td></tr>`; });
         return h + '</table></div><div class="sub">Efficiency is points scored by your starters divided by the points your best possible lineup would have scored.</div>';
     }
+    function projSheet(t) {
+        const g = S.projGames(t), ew = g.reduce((a, x) => a + x.p, 0), cw = S.wins[t], cl = S.losses[t];
+        let h = `<div class="sub" style="margin:2px 0 8px">Now ${cw}-${cl}${S.ties[t] ? '-' + S.ties[t] : ''}${S.officialRec ? ' (MFL standings)' : ''} · ${g.length} games left · expected ${f1(ew)} more wins, finish about ${Math.round(S.base[t].w)}-${S.totG[t] - Math.round(S.base[t].w)}</div>`;
+        if (!g.length) return h + '<div class="sub">No games left in the regular season.</div>';
+        h += '<div class="card scroll"><table><tr><th>Wk</th><th>Opponent</th><th>Proj</th><th>Win</th></tr>';
+        g.forEach(x => { h += `<tr><td>${x.wk}</td><td class="tm">${nm(x.opp)}</td><td>${f1(x.a)}–${f1(x.b)}</td><td class="${x.p >= .5 ? 'good' : 'bad'}"><b>${Math.round(x.p * 100)}%</b></td></tr>`; });
+        return h + '</table></div><div class="sub">Each team’s projected score is its lineup projection blended with its season average. Win % comes from the gap between the two scores and typical weekly swing.</div>';
+    }
+    S.projSheet = projSheet; S.nmOf = nm;
     function lProjected() {
         let h = '<h2>Projected final standings</h2><div class="card scroll"><table><tr><th>Team</th><th>Now</th><th>Proj. W-L</th><th>Proj. rank</th><th>Make it</th></tr>';
-        S.order((a, b) => S.base[a].rk - S.base[b].rk).forEach(t => { const nowR = S.standing.indexOf(t) + 1, pr = Math.round(S.base[t].rk), d = nowR - pr; h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>#${nowR}</td><td>${Math.round(S.base[t].w)}-${S.reg - Math.round(S.base[t].w)}</td><td>#${pr} <span class="${d > 0 ? 'good' : d < 0 ? 'bad' : ''}" style="font-size:11px">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : ''}</span></td><td>${S.base[t].po}%</td></tr>`; });
-        return h + '</table></div><div class="sub">Simulates the remaining weeks from current records, scoring and projected lineups. Arrows show movement from today’s standing.</div>';
+        S.order((a, b) => S.base[a].rk - S.base[b].rk).forEach(t => { const nowR = S.standing.indexOf(t) + 1, pr = Math.round(S.base[t].rk), d = nowR - pr; h += `<tr${t === mi ? ' class="me"' : ''} data-pg="${t}" style="cursor:pointer"><td class="tm">${nm(t)} <span class="sub" style="display:inline">›</span></td><td>#${nowR}</td><td>${Math.round(S.base[t].w)}-${S.totG[t] - Math.round(S.base[t].w)}</td><td>#${pr} <span class="${d > 0 ? 'good' : d < 0 ? 'bad' : ''}" style="font-size:11px">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : ''}</span></td><td>${S.base[t].po}%</td></tr>`; });
+        return h + '</table></div><div class="sub">Simulates the remaining weeks from current records, scoring and projected lineups. Arrows show movement from today’s standing. Tap a team to see every projected matchup behind its number.</div>';
     }
     return {
         playerHtml,
-        team: [['Overview', tOverview], ['Positions', tPositions], ['Boom / Bust', tBoom], ['Start / Sit', tStartSit], ['Value', tValue], ['Outlook', tOutlook], ['Awards', tAwards], ['Free agents', tFA], ['Trade lab', tTrade]],
+        team: [['Overview', tOverview], ['Positions', tPositions], ['Boom / Bust', tBoom], ['Start / Sit', tStartSit], ['Value', tValue], ['Outlook', tOutlook], ['Awards', tAwards], ['Free agents', tFA]],
         league: [['Standings', lStandings], ['Playoffs', lPlayoffs], ['Positions', lPositions], ['Awards', lAwards], ['Players', lPlayers], ['Lineups', lLineups], ['Projected', lProjected]]
     };
 }
@@ -3238,9 +3286,9 @@ $(document).on('click touchend', '.open-settings-btn', function(e) {
     $('.text-scale-btn').css({ background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', borderColor: 'var(--card-border)' });
     $(`.text-scale-btn[data-scale="${currentScale}"]`).css({ background: 'var(--accent-blue)', color: '#fff', borderColor: 'var(--accent-blue)' });
     $('.settings-tab-content').hide();
-    $('#tab-team-set').show();
+    $('#tab-display').show();
     $('.settings-tab-btn').removeClass('active');
-    $('.settings-tab-btn[data-target="tab-team-set"]').addClass('active');
+    $('.settings-tab-btn[data-target="tab-display"]').addClass('active');
     $('#team-settings-modal').css('display', 'flex').hide().fadeIn(200, function() {
         updateLogoStyleButtons();
     });
@@ -8244,8 +8292,8 @@ $('body').append(`
 
         <!-- TABS -->
         <div class="settings-tabs">
-            <button class="settings-tab-btn active" data-target="tab-team-set">Team Settings</button>
-            <button class="settings-tab-btn" data-target="tab-display">Display</button>
+            <button class="settings-tab-btn active" data-target="tab-display">Display</button>
+            <button class="settings-tab-btn" data-target="tab-team-set">Team Settings</button>
             <button class="settings-tab-btn" data-target="tab-style">Style</button>
             <button class="settings-tab-btn" data-target="tab-mflmenu">MFL Setup</button>
             ${(myFid === '0000') ? `<button class="settings-tab-btn" data-target="tab-dev">Dev Tools</button>` : ''}
@@ -8255,7 +8303,7 @@ $('body').append(`
         <div class="settings-content-area">
 
             <!-- TEAM SETTINGS TAB -->
-            <div id="tab-team-set" class="settings-tab-content">
+            <div id="tab-team-set" class="settings-tab-content" style="display:none;">
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <div style="display:flex; flex-direction:column; gap:4px;">
                         <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Owner Name(s)</label>
@@ -8302,12 +8350,11 @@ ${(myFid === '0000') ? `
             </div>
 
             <!-- DISPLAY TAB -->
-            <div id="tab-display" class="settings-tab-content" style="display:none;">
+            <div id="tab-display" class="settings-tab-content">
 
                 <!-- Display sub-tabs -->
               <div style="display:flex; gap:6px; background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; margin-bottom:14px;">
                     <button class="display-sub-tab active" data-sub="theme" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Theme</button>
-                    <button class="display-sub-tab" data-sub="logos" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Logos</button>
                     <button class="display-sub-tab" data-sub="textsize" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Text</button>
                 </div>
 
@@ -8315,7 +8362,7 @@ ${(myFid === '0000') ? `
                 <div class="display-sub-content" data-sub="theme">
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    ${['Base','Full themes','Seasonal'].map(g => `<div style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:.5px; margin:2px 0 6px; opacity:.8;">${g === 'Base' ? '' : g}</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">${(g === 'Seasonal' ? `<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal (auto)</button><div style="flex:1 1 100%; font-size:10px; color:var(--text-dim);">Follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>` : Object.entries(LLD_STYLES).filter(([k, v]) => v.group === g).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join(''))}</div>`).join('')}
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal (auto)</button></div><div style="font-size:10px; color:var(--text-dim); margin-bottom:14px;">Seasonal (auto) follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
@@ -8325,25 +8372,8 @@ ${(myFid === '0000') ? `
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
                     </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Scoreboard</div>
-                    <div style="display:flex; gap:6px; margin-bottom:6px;">
-                        <button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')==='theme'?'on':''}" data-v="theme">Match theme</button>
-                        <button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')==='default'?'on':''}" data-v="default">Default</button>
-                    </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:10px 0 6px;">TV scorebug</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
-                        ${[['cbs','CBS'],['nbc','NBC'],['espn','ESPN'],['fox','Fox']].map(x => `<button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')===x[0]?'on':''}" data-v="${x[0]}">${x[1]}</button>`).join('')}
-                    </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:10px 0 6px;">Layout (any theme)</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
-                        ${LLD_SB_LAYOUTS.map(x => `<button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')===x[0]?'on':''}" data-v="${x[0]}">${x[1]}</button>`).join('')}
-                        <button class="lld-hdr-btn lld-sbtint-btn ${lldGet('lld_sbtint','')==='1'?'on':''}">Use my theme colors</button>
-                    </div>
-                    <div style="font-size:10px; color:var(--text-dim); margin-bottom:16px;">Default keeps the standard scoreboard while the rest of the theme stays.</div>
-                    </div>
-
                 <!-- Logos sub-content -->
-                <div class="display-sub-content" data-sub="logos" style="display:none;">
+                <div style="margin-top:6px;">
                     <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">NFL Team Logos</div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div style="font-size:12px; font-weight:800; color:#fff;">Modern or Throwback</div>
@@ -8362,6 +8392,8 @@ ${(myFid === '0000') ? `
                     </div>
                     <div id="display-save-status" style="font-size:10px; font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
                 </div>
+
+                    </div>
 
                <!-- Text Size sub-content -->
                 <div class="display-sub-content" data-sub="textsize" style="display:none;">
@@ -9166,7 +9198,32 @@ container.find('#players-loader').remove();
         container.prepend(auctionHtml);
         container.prepend(pendingWaiversHtml);
         container.append(outputHtml);
+        if (isFAView) lldFaFitAnnotate(container);
 }
+function lldFaFitChip(S, pid, pos) {
+    const D = S.D; if (!D.pinfo[pid]) D.pinfo[pid] = { name: '', pos: lldSxPos(pos), team: '' }; else if (!D.pinfo[pid].pos) D.pinfo[pid].pos = lldSxPos(pos);
+    if (!S.posOf(pid)) return '';
+    let f; try { f = S.fit(pid); } catch (e) { return ''; }
+    const rest = S.rosW.length > 0, p = rest ? f.rosStartP : f.inOptP, gain = f.rosGainWk;
+    const col = p >= .5 ? '#22c55e' : p > 0 ? '#f59e0b' : '#94a3b8', pc = Math.round(p * 100) + '%';
+    const nm = f.repl ? ((D.pinfo[f.repl] || {}).name || '').replace(/^(\S)\S*\s+/, '$1. ') : '';
+    return `<span class="lld-fa-fit" style="color:${col}"><b>${pc}</b> of ${rest ? 'weeks' : 'past weeks'} he starts${gain > .05 ? ` · <b>+${gain.toFixed(1)}</b>/wk${nm ? ' over ' + nm : ''}` : (p > 0 ? '' : ' · bench only')}</span>`;
+}
+function lldFaFitAnnotate(container) {
+    const S = window._lldSX && window._lldSX.S;
+    container = container || $('#players-content-container');
+    container.find('.lld-fa-bar').remove();
+    if (!S) { container.prepend('<div class="lld-fa-bar"><button type="button" class="lld-fa-load">📊 Show how each free agent fits my lineup</button></div>'); return; }
+    container.find('.player-row[data-pid]').each(function () {
+        const r = $(this); if (r.find('.lld-fa-fit').length) return;
+        const chip = lldFaFitChip(S, String(r.data('pid')), r.data('ppos')); if (!chip) return;
+        const host = r.find('.player-info').first(); (host.length ? host : r).append(chip);
+    });
+}
+$(document).on('click', '.lld-fa-load', async function () {
+    const b = $(this); b.text('Loading your league data…').prop('disabled', true);
+    try { await lldStatsLoad(); lldFaFitAnnotate(); } catch (e) { b.text('Could not load. Tap to retry').prop('disabled', false); }
+});
 function buildPlayerRightHtml(p, isFAView) {
     if (p.ownerFid) {
         const logoUrl = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png`;
@@ -12352,6 +12409,58 @@ function recapTeamView2(events, selFid) {
         (groups || `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No awards yet.</div>`);
 }
 
+
+// ===== MONTHLY RECAP =====
+// weeks are grouped by the month their Sunday falls in (NFL week 1 starts the Thursday after Labor Day)
+function recapMonthOf(wk) {
+    const y = parseInt(year, 10) || new Date().getFullYear(), d = new Date(y, 8, 1);
+    while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+    d.setDate(d.getDate() + 3 + 7 * (wk - 1) + 3);
+    return { key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), label: d.toLocaleString('en-US', { month: 'long' }) };
+}
+function recapMonths(weeks) {
+    const out = [];
+    weeks.forEach(w => { const m = recapMonthOf(w); let o = out.find(x => x.key === m.key); if (!o) { o = { key: m.key, label: m.label, weeks: [] }; out.push(o); } o.weeks.push(w); });
+    return out;
+}
+function computeMonthSummary(weeks, byWk) {
+    const P = {}, T = {};
+    weeks.forEach(wk => {
+        const seen = new Set();
+        (byWk[wk] || []).forEach(m => {
+            if (!(m.t1.score > 0 || m.t2.score > 0)) return;
+            [m.t1, m.t2].forEach(t => {
+                if (seen.has(t.fid)) return; seen.add(t.fid);
+                const x = T[t.fid] || (T[t.fid] = { fid: t.fid, pf: 0, w: 0, l: 0, gp: 0, best: 0 });
+                x.pf += t.score; x.gp++; if (t.score > x.best) x.best = t.score;
+                t.roster.forEach(p => { if (!p.isStarter) return; const q = P[p.pid] || (P[p.pid] = { p, fid: t.fid, tot: 0, g: 0, hi: 0 }); q.tot += p.score; q.g++; q.hi = Math.max(q.hi, p.score); q.fid = t.fid; });
+            });
+            if (m.t1.score > 0 && m.t2.score > 0) { const a = T[m.t1.fid], b = T[m.t2.fid]; if (m.t1.score > m.t2.score) { a.w++; b.l++; } else if (m.t2.score > m.t1.score) { b.w++; a.l++; } }
+        });
+    });
+    const pl = Object.values(P), tm = Object.values(T);
+    const byTot = (a, b) => b.tot - a.tot || (b.tot / b.g) - (a.tot / a.g);
+    const pos = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'].map(ps => ({ pos: ps, x: pl.filter(q => recapNormPos(q.p) === ps).sort(byTot)[0] })).filter(z => z.x);
+    return { weeks, top: pl.slice().sort(byTot).slice(0, 5), pos, bestGame: pl.slice().sort((a, b) => b.hi - a.hi)[0] || null, teams: tm.slice().sort((a, b) => b.w - a.w || b.pf - a.pf), pfTop: tm.slice().sort((a, b) => b.pf - a.pf) };
+}
+function recapMonthView(M, label, partial) {
+    if (!M.top.length) return '<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">No completed games this month.</div>';
+    const rowFor = (q, tag, accent) => recapPlayerRow(q.p, { accent, tag, sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(q.fid, 14)}<span style="font-size:8px; font-weight:800; color:var(--text-dim); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${lldChatEsc(leagueFranchises[q.fid] || q.fid)}</span></span>`, right: `<div style="font-size:15px; font-weight:900; color:${accent};">${q.tot.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">${q.g} GM · ${(q.tot / q.g).toFixed(1)}/GM</div>` });
+    const out = [];
+    const best = M.top[0];
+    out.push(recapCard(`Player of the Month${partial ? ' · so far' : ''}`, '🏆', rowFor(best, 'POTM', '#f59e0b') + `<div style="font-size:9px; font-weight:800; color:var(--text-dim); margin-top:4px;">Most points while in a starting lineup, ${label}</div>`));
+    out.push(recapCard('Top Five Players', '⭐', M.top.map((q, i) => rowFor(q, '#' + (i + 1), '#22c55e')).join('')));
+    out.push(recapCard('Player of the Month by Position', '🎯', M.pos.map(z => rowFor(z.x, 'BEST ' + z.pos, '#22c55e')).join('')));
+    const tp = M.teams[0], hp = M.pfTop[0];
+    out.push(recapCard('Team of the Month', '👑', `
+        <div style="display:flex; align-items:center; gap:12px;">${recapLogo(tp.fid, 48)}
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;">${recapTeamName(tp.fid, 13)}<span style="font-size:9px; font-weight:700; color:var(--text-dim);">${tp.w}-${tp.l} · ${tp.pf.toFixed(1)} PF · best week ${tp.best.toFixed(1)}</span></div>
+            <span style="font-size:24px; font-weight:900; color:#22c55e;">${tp.w}-${tp.l}</span></div>
+        ${hp.fid !== tp.fid ? `<div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">${recapLogo(hp.fid, 26)}<div style="flex:1; min-width:0;">${recapTeamName(hp.fid, 11)}<div style="font-size:8px; font-weight:900; color:var(--text-dim);">MOST POINTS · ${hp.pf.toFixed(1)}</div></div></div>` : ''}`));
+    out.push(recapCard('Month Standings', '📊', M.teams.map((t, i) => `<div style="display:flex; align-items:center; gap:8px; padding:4px 0;"><span style="width:16px; font-size:10px; font-weight:900; color:var(--text-dim);">${i + 1}</span>${recapTeamChip(t.fid, 20)}<span style="margin-left:auto; font-size:10px; font-weight:900; color:#fff;">${t.w}-${t.l}</span><span style="width:54px; text-align:right; font-size:10px; font-weight:800; color:var(--text-dim);">${t.pf.toFixed(1)}</span></div>`).join('')));
+    return out.join('');
+}
+
 // Every award event for every completed week (loaded once, then cached)
 function getAllRecapEvents() {
     if (window._recapEventsFull) return Promise.resolve(window._recapEventsFull);
@@ -12400,7 +12509,7 @@ async function loadRecapsTab() {
     const container = $('#league-content-container');
     const btnStyle = (on) => `padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${on ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${on ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${on ? '#fff' : 'var(--text-dim)'};`;
     const viewBar = `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">
-        ${[['week', 'Weekly'], ['awards', 'By Award'], ['team', 'By Team']].map(([v, l]) => `<button class="recap-view-btn" data-view="${v}" style="${btnStyle(st.view === v)}">${l}</button>`).join('')}</div>`;
+        ${[['week', 'Weekly'], ['month', 'Monthly'], ['awards', 'By Award'], ['team', 'By Team']].map(([v, l]) => `<button class="recap-view-btn" data-view="${v}" style="${btnStyle(st.view === v)}">${l}</button>`).join('')}</div>`;
     const loading = (txt) => container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">${txt}</div></div>`);
     loading('Loading Recaps...');
 
@@ -12426,6 +12535,20 @@ async function loadRecapsTab() {
                 ${navBtn('recap-wk-next', '›')}
                 ${st.wk === latest ? '<span style="font-size:9px; font-weight:900; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:3px 8px;">Latest</span>' : ''}
             </div>${pickerHtml}${recapWeekView(S)}`;
+        } else if (st.view === 'month') {
+            const months = recapMonths(weeks);
+            let cur = months.find(m => m.key === st.month) || months[months.length - 1];
+            st.month = cur.key;
+            const byWk = {};
+            for (let i = 0; i < cur.weeks.length; i += 3) {
+                loading(`Loading ${cur.label}...`);
+                await Promise.all(cur.weeks.slice(i, i + 3).map(async w => { byWk[w] = await fetchRecapWeek(w, w < latest); }));
+                if (token !== window._recapToken) return;
+            }
+            const M = computeMonthSummary(cur.weeks, byWk);
+            const partial = cur.weeks.indexOf(latest) >= 0 && latest < 18 && recapMonthOf(latest + 1).key === cur.key;
+            const chips = months.map(m => `<div class="recap-mo-opt dashboard-pill stacked-pill" data-mo="${m.key}" style="cursor:pointer; min-width:64px; border-bottom-color:${m.key === cur.key ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${m.key === cur.key ? 1 : 0.7};"><span class="pill-label">${m.weeks.length > 1 ? 'W' + m.weeks[0] + '–' + m.weeks[m.weeks.length - 1] : 'W' + m.weeks[0]}</span><span class="pill-value" style="font-size:12px;">${m.label.slice(0, 3).toUpperCase()}</span></div>`).join('');
+            inner = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; justify-content:${months.length > 4 ? 'flex-start' : 'center'};">${chips}</div>` + recapMonthView(M, cur.label, partial);
         } else {
             const summaries = [];
             for (let w = 1; w <= latest; w += 3) {
@@ -14904,6 +15027,7 @@ async function checkNotifBadge() {
     recapBind('.recap-wk-next', function() { const s = window._recapState; s.wk = (s.wk || 1) + 1; s.pickerOpen = false; });
     recapBind('.recap-wk-pill', function() { window._recapState.pickerOpen = !window._recapState.pickerOpen; });
         recapBind('.recap-wk-opt', function() { window._recapState.wk = parseInt($(this).data('week')); window._recapState.pickerOpen = false; });
+    recapBind('.recap-mo-opt', function() { window._recapState.month = String($(this).data('mo')); });
     recapBind('.recap-team-pill', function() { window._recapState.fid = String($(this).data('fid')).padStart(4, '0'); });
         $(document).off('click', '.recap-team-tile').on('click', '.recap-team-tile', function() {
         const g = document.getElementById('recap-grp-' + $(this).data('award'));
@@ -16141,6 +16265,7 @@ $(document).on('click', '.player-mode-btn', function() {
         $('#pa-modal-title').html(`
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                 ${teamLogoHtml}
+                <b style="font-size:15px; font-weight:900; color:#fff;">${String(team || '').toUpperCase()}</b>
                 <span style="color: var(--text-dim); font-size: 12px; font-weight: 800; text-transform: lowercase;">vs</span>
                 ${posBadgeHtml}
             </div>
@@ -16198,7 +16323,18 @@ $(document).on('click', '.player-mode-btn', function() {
                 }
             });
             
-            let listHtml = '<div style="display:flex; flex-direction:column; gap:8px;">';
+            // how much this defense gives up to the position compared with what the position normally scores against a defense
+            const paVals = Object.keys(pointsAllowedMap).map(t => parseFloat((pointsAllowedMap[t] || {})[safePos])).filter(n => n > 0);
+            const leagueAvgPA = paVals.length ? paVals.reduce((a, b) => a + b, 0) / paVals.length : 0;
+            const teamAvgPA = parseFloat((pointsAllowedMap[team] || {})[safePos]) || 0;
+            const paRank = (pointsAllowedRankMap[safePos] || {})[team] || 0;
+            const dCol = d => d > 0.05 ? '#22c55e' : d < -0.05 ? '#ef4444' : 'var(--text-dim)';
+            const dTxt = d => (d > 0 ? '+' : '') + d.toFixed(1);
+            let listHtml = '<div class="pa-wrap">';
+            if (teamAvgPA && leagueAvgPA) {
+                const dd = teamAvgPA - leagueAvgPA, pc = Math.round(dd / leagueAvgPA * 100);
+                listHtml += `<div class="pa-sum"><div class="pa-sum-top"><span class="pa-sum-v">${teamAvgPA.toFixed(1)}</span><span class="pa-sum-l">allowed per game to ${safePos}s</span><span class="pa-verd" style="color:${dCol(dd)}">${dd > 0.05 ? 'Favorable' : dd < -0.05 ? 'Tough' : 'Average'}</span></div><div class="pa-sum-sub">${safePos}s normally score <b>${leagueAvgPA.toFixed(1)}</b> against a defense · this one gives up <b style="color:${dCol(dd)}">${dTxt(dd)} (${pc > 0 ? '+' : ''}${pc}%)</b>${paRank ? ' · ranked #' + paRank + ' of ' + paVals.length + ' (1 = toughest)' : ''}</div></div>`;
+            }
             let rowCount = 0;
 
             // 1. Build the expandable Week Groups
@@ -16263,17 +16399,15 @@ $(document).on('click', '.player-mode-btn', function() {
                     `;
                 }
 
+                const tot = parseFloat(weekData.total) || 0, dW = leagueAvgPA ? tot - leagueAvgPA : null;
+                const multi = weekData.players.length > 1;
+                const label = weekData.players.length === 1 ? nameTag : (multi ? `<div class="pa-multi"><img src="${getNFLLogoUrl(oppTeamAbbr)}" onerror="this.style.display='none'"><span>${weekData.players.length} ${safePos}s</span></div>` : '');
                 listHtml += `
-                    <div class="pa-week-group" style="background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 6px; overflow: hidden; margin-bottom: 6px;">
-                        <div class="pa-week-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; ${pointerEvent} background: rgba(0,0,0,0.15);">
-                            <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; flex: 1;">
-                                <div style="width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 4px; font-size: 9px; font-weight: 900; color: var(--text-dim); text-transform: uppercase; flex-shrink: 0;">
-                                    W${w}
-                                </div>
-                                ${nameTag}
-                                ${arrowHtml}
-                            </div>
-                            <span style="font-size: 13px; font-weight: 900; color: var(--accent-blue); flex-shrink: 0; margin-left: 10px;">${weekData.total}</span>
+                    <div class="pa-week-group">
+                        <div class="pa-week-header" style="${pointerEvent}">
+                            <span class="pa-wk">W${w}</span>
+                            <div class="pa-who">${label}${arrowHtml}</div>
+                            <div class="pa-pts"><b>${weekData.total}</b>${dW === null ? '' : `<small style="color:${dCol(dW)}">${dTxt(dW)} vs avg</small>`}</div>
                         </div>
                         ${contentHtml}
                     </div>
@@ -16282,7 +16416,7 @@ $(document).on('click', '.player-mode-btn', function() {
 
             // 2. Attach the Overall Summary Rows at the bottom
             if (summaryRows.length > 0) {
-                listHtml += '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1);">';
+                listHtml += '<div class="pa-totals">';
                 summaryRows.forEach(sr => {
                     const isAvg = sr.label.toLowerCase().includes('average');
                     const bg = isAvg ? 'rgba(0, 206, 184, 0.1)' : 'rgba(255,255,255,0.03)';
@@ -16290,9 +16424,8 @@ $(document).on('click', '.player-mode-btn', function() {
                     const textColor = isAvg ? '#00ceb8' : '#fff';
                     
                     listHtml += `
-                        <div style="display: flex; justify-content: space-between; padding: 10px 12px; background: ${bg}; ${border} border-radius: 6px; margin-bottom: 6px;">
-                            <span style="font-size: 11px; font-weight: 800; color: var(--text-dim); text-transform: uppercase;">${sr.label}</span>
-                            <span style="font-size: 13px; font-weight: 900; color: ${textColor};">${sr.pts}</span>
+                        <div class="pa-tot${isAvg ? ' avg' : ''}">
+                            <span>${sr.label}</span><b>${sr.pts}</b>
                         </div>
                     `;
                 });
@@ -17249,6 +17382,10 @@ async function lldChatLoadActivity() {
         const ms = (parseInt(o.timestamp, 10) || 0) * 1000; if (!ms || !a.trim()) return;
         const it = { kind: 'tx', ms, fid: a, fid2: b, label: 'Trade offer · pending', color: '#a855f7', offer: true, cols: [{ label: '', color: '#22c55e', ents: ents(o.will_give_up || o.willGiveUp) }, { label: '', color: '#22c55e', ents: ents(o.will_receive || o.willReceive) }] };
         if (o.comments && String(o.comments).trim()) it.note = String(o.comments).trim();
+        it.tid = String(o.trade_id || o.tradeId || o.id || ''); it.incoming = b === String(myFid).padStart(4, '0');
+        it.mine = a === String(myFid).padStart(4, '0');
+        const ids = x => String(x || '').split(',').map(v => v.trim()).filter(Boolean);
+        it.giveIds = ids(o.will_receive || o.willReceive); it.recvIds = ids(o.will_give_up || o.willGiveUp);
         items.push(it);
     });
     // fix up the trade columns: label each side with who sent it
@@ -17278,6 +17415,25 @@ async function lldChatShowThread(id) {
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
 }
 function lldChatClose() { $('#lld-chat').removeClass('open'); document.body.style.overflow = ''; }
+async function lldChatTradeAct(tid, action, comments) {
+    const params = new URLSearchParams(); params.set('LEAGUE_ID', lid); params.set('TRADE_ID', tid); params.set('ACTION', action); params.set('COMMENTS', comments || '');
+    const res = await fetch(`${MFL_ORIGIN}/${year}/trade_response`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const txt = await res.text(); const m = txt.match(/<error[^>]*>([\s\S]*?)<\/error>/i);
+    if (m) throw new Error(m[1]); if (!res.ok) throw new Error('HTTP ' + res.status);
+}
+$(document).on('click', '#lld-chat .cm-act', async function () {
+    const btn = $(this), box = btn.closest('.cm-acts'), act = btn.data('act'), tid = box.data('tid');
+    const word = { accept: 'Accept', reject: 'Deny', counter: 'Counter', revoke: 'Revoke' }[act];
+    const q = act === 'counter' ? 'This declines the current offer and opens Trade Hub with the same players selected so you can change it. Continue?' : word + ' this trade?';
+    if (!confirm(q)) return;
+    box.find('.cm-act').prop('disabled', true).css('opacity', .5); btn.text('Working…');
+    try {
+        await lldChatTradeAct(tid, act === 'counter' ? 'reject' : act, '');
+        if (act === 'counter') { lldChatClose(); const f = String(box.data('fid')).padStart(4, '0'); const sp = x => String(x || '').split(',').filter(Boolean); await window.loadTradeHub(f, null, sp(box.data('give')), sp(box.data('recv'))); $('.tab-btn[onclick*="tab-league"]').first().click(); return; }
+        box.html('<span class="cm-done">' + { accept: 'Accepted ✓', reject: 'Denied', revoke: 'Revoked' }[act] + '</span>');
+        setTimeout(lldChatShowList, 1200);
+    } catch (e) { alert('MFL: ' + (e.message || 'could not complete that')); box.find('.cm-act').prop('disabled', false).css('opacity', 1); btn.text(word); }
+});
 $(document).on('click', '#lld-chat-btn', function () { lldChatShowList(); });
 $(document).on('click', '#lld-chat .cm-x', lldChatClose);
 $(document).on('click', '#lld-chat .cm-back', function () { lldChatShowList(); });
@@ -17371,6 +17527,12 @@ async function lldStatsLoad(force) {
             const wk = parseInt(w.week, 10); D.sched[wk] = [];
             lldSxArr(w.matchup).forEach(m => { const f = lldSxArr(m.franchise).map(x => String(x.id).padStart(4, '0')); if (f.length >= 2) D.sched[wk].push([f[0], f[1]]); });
         });
+        prog('Loading standings…');
+        try {
+            const st = await lldSxJson('leagueStandings'); D.rec = {};
+            lldSxArr(st && st.leagueStandings && st.leagueStandings.franchise).forEach(f => { const w = parseInt(f.h2hw, 10), l = parseInt(f.h2hl, 10); if (!isNaN(w) && !isNaN(l)) D.rec[String(f.id).padStart(4, '0')] = { w, l, t: parseInt(f.h2ht, 10) || 0 }; });
+            if (!Object.keys(D.rec).length) delete D.rec;
+        } catch (e) { delete D.rec; }
         prog('Loading box scores…');
         const byWk = {};
         await lldSxBatch(wks, 2, async wk => { byWk[wk] = (await lldSxRetry(() => { delete window._recapWeekCache[wk]; return fetchRecapWeek(wk, true); }, r => r && r.length)) || []; });
@@ -17378,7 +17540,7 @@ async function lldStatsLoad(force) {
             const teams = {};
             (byWk[wk] || []).forEach(m => {
                 [[m.t1, m.t2], [m.t2, m.t1]].forEach(([t, o]) => {
-                    teams[t.fid] = { score: t.score, opp: o.fid, roster: t.roster.map(p => { const pos = recapNormPos(p); if (!D.pinfo[p.pid]) D.pinfo[p.pid] = { name: p.name, pos, team: p.team }; return { pid: p.pid, pos, score: p.score, isStarter: p.isStarter }; }) };
+                    (teams[t.fid] = teams[t.fid] || { opps: [] }).opps.push(o.fid); Object.assign(teams[t.fid], { score: t.score, opp: o.fid, roster: t.roster.map(p => { const pos = recapNormPos(p); if (!D.pinfo[p.pid]) D.pinfo[p.pid] = { name: p.name, pos, team: p.team }; return { pid: p.pid, pos, score: p.score, isStarter: p.isStarter }; }) });
                 });
             });
             if (Object.keys(teams).length) D.weeks.push({ wk, teams });
@@ -17443,6 +17605,7 @@ function lldStatsDraw(mode) {
 $(document).on('click', '.lld-stats .sx-chip', function () { const mode = $(this).closest('.lld-stats').data('mode'); LLDSX.idx[mode] = +$(this).data('i'); lldStatsDraw(mode); });
 $(document).on('click', '.lld-sx-retry', function () { window._lldSX = null; lldStatsOpen($(this).closest('.lld-stats').data('mode')); });
 $(document).on('click', '.lld-stats [data-h]', function (e) { if ($(e.target).closest('.sx-pr, select, option, button').length) return; $('#lld-sx-help').remove(); $('body').append(`<div id="lld-sx-help" class="open"><div class="sheet"><b></b><p></p><button class="hx" type="button">Got it</button></div></div>`); $('#lld-sx-help b').text(this.dataset.t); $('#lld-sx-help p').text(this.dataset.h); });
+$(document).on('click', '.lld-stats [data-pg]', function () { const S = window._lldSX && window._lldSX.S; if (!S) return; const t = +this.dataset.pg; $('#lld-sx-help').remove(); $('body').append('<div id="lld-sx-help" class="open"><div class="sheet"><b></b><div class="pgb"></div><button class="hx" type="button">Close</button></div></div>'); $('#lld-sx-help b').text(S.nmOf(t).replace(/&amp;/g, '&') + ' · projected matchups'); $('#lld-sx-help .pgb').html(S.projSheet(t)); });
 $(document).on('click', '#lld-sx-help', function (e) { if (e.target === this || $(e.target).closest('.hx').length) $(this).remove(); });
 // tapping a player opens the normal player popup on its Stats tab
 $(document).on('click', '.sx-pr', function () { setTimeout(() => { $('#tab-btn-sx').trigger('click'); }, 80); });
