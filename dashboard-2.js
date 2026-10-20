@@ -17090,7 +17090,7 @@ $(document).on('click', '.lld-sbopt-toggle', function () {
     lldSet('lld_sbopen', open ? '1' : '0');
 });
 // ===== MESSAGE BOARD (Sleeper-style, read-only) — inside the wrapper so it can use lid/year/myFid/leagueFranchises =====
-const LLD_CHAT_FIDS = ['0001'];
+const LLD_CHAT_FIDS = ['0001', '0000'];
 const LLD_CHAT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#38bdf8;"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>`;
 function lldChatArr(x) { return x == null ? [] : (Array.isArray(x) ? x : [x]); }
 async function lldChatJson(extra) {
@@ -17147,14 +17147,22 @@ async function lldChatLoadActivity() {
     const tx = lldChatArr(txd && txd.transactions && txd.transactions.transaction);
     const baits = lldChatArr(bd && bd.tradeBaits && bd.tradeBaits.tradeBait);
     const ids = new Set();
-    const grab = x => String(x || '').split(/[|,]/).forEach(i => { if (/^\d{3,6}$/.test(i)) ids.add(i); });
+    const grab = x => String(x || '').split(/[|,]/).forEach(i => { const m = String(i).trim().match(/^(\d{3,6})(?:_.*)?$/); if (m) ids.add(m[1]); });
     tx.forEach(t => { grab(t.transaction); grab(t.franchise1_gave_up); grab(t.franchise2_gave_up); }); baits.forEach(b => { grab(b.willGiveUp); });
     const names = {}; const idl = [...ids];
     for (let i = 0; i < idl.length; i += 60) {
         const d = await lldChatJson('TYPE=players&PLAYERS=' + idl.slice(i, i + 60).join(','));
         lldChatArr(d && d.players && d.players.player).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); names[p.id] = (n.length > 1 ? n[1] + ' ' + n[0] : n[0]) + (p.position ? ' (' + p.position + ')' : ''); });
     }
+    const put = p => { const n = String(p.name || '').split(',').map(x => x.trim()); names[p.id] = (n.length > 1 ? n[1] + ' ' + n[0] : n[0]) + (p.position ? ' (' + p.position + ')' : ''); };
+    // anything the batch lookup missed: ask one at a time, then fall back to the full player list
+    let miss = idl.filter(i => !names[i]);
+    for (let k = 0; k < miss.length && k < 40; k++) { const d = await lldChatJson('TYPE=players&PLAYERS=' + miss[k]); lldChatArr(d && d.players && d.players.player).forEach(put); }
+    miss = idl.filter(i => !names[i]);
+    if (miss.length) { const d = await lldChatJson('TYPE=players'); lldChatArr(d && d.players && d.players.player).forEach(p => { if (miss.indexOf(String(p.id)) >= 0) put(p); }); }
+    window._lldChatRaw = { tx: tx.slice(0, 12), missing: idl.filter(i => !names[i]) };
     const pn = id => {
+        id = String(id).replace(/_.*$/, '');
         if (/^DP_/.test(id)) { const q = id.split('_'); return `Round ${parseInt(q[1], 10) + 1} pick ${parseInt(q[2], 10) + 1}`; }
         if (/^FP_/.test(id)) { const q = id.split('_'); return `${q[2]} round ${q[3]} pick`; }
         return names[id] || ('#' + id);
@@ -17164,11 +17172,14 @@ async function lldChatLoadActivity() {
         const ms = (parseInt(t.timestamp, 10) || 0) * 1000, ty = String(t.type || '').toUpperCase();
         if (ty === 'TRADE') return { ms, kind: 'trade', title: 'Trade', lines: [`${nm(t.franchise)} sent ${list(t.franchise1_gave_up) || 'nothing'}`, `${nm(t.franchise2)} sent ${list(t.franchise2_gave_up) || 'nothing'}`] };
         const parts = String(t.transaction || '').split('|'), add = list(parts[0]), drop = list(parts[1]);
-        const verb = /AUCTION/.test(ty) ? 'won' : (/IR/.test(ty) ? 'IR move:' : (/TAXI/.test(ty) ? 'taxi move:' : 'added'));
-        if (!add && !drop) return { ms, kind: 'other', title: ty.replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase()), lines: [nm(t.franchise)] };
-        const lines = []; if (add) lines.push(`${verb} ${add}`); if (drop) lines.push(`dropped ${drop}`);
+        const isIR = /IR/.test(ty), isTX = /TAXI/.test(ty);
+        const verb = /AUCTION/.test(ty) ? 'won' : (isIR ? 'activated' : (isTX ? 'promoted from taxi:' : (/WAIVER|BBID/.test(ty) ? 'claimed' : 'added')));
+        const dverb = isIR ? 'moved to IR' : (isTX ? 'moved to taxi' : 'dropped');
+        if (!add && !drop) return null; // league/system housekeeping with no players (unlock, auto-process…)
+        if (isIR || isTX) return { ms, kind: 'other', title: nm(t.franchise), lines: [(isIR ? 'IR move: ' : 'Taxi move: ') + [add, drop].filter(Boolean).join(', ')] };
+        const lines = []; if (add) lines.push(`${verb} ${add}`); if (drop) lines.push(`${dverb} ${drop}`);
         return { ms, kind: 'add', title: nm(t.franchise), lines };
-    }).filter(x => x.ms).sort((a, b) => a.ms - b.ms);
+    }).filter(x => x && x.ms).sort((a, b) => a.ms - b.ms);
     const block = baits.map(b => ({ fid: b.franchise_id || b.franchise, give: list(b.willGiveUp), want: String(b.inExchangeFor || '').replace(/^\s*$/, '') })).filter(b => b.fid);
     return { items, block };
 }
