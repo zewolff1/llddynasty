@@ -994,7 +994,7 @@ const LLD_READY = (async function lldAutoConfig() {
             let pos = st.position || [];
             if (!Array.isArray(pos)) pos = [pos];
             const spec = pos.filter(p => p && p.name && rng(p.limit)).map(p => Object.assign({ name: String(p.name) }, rng(p.limit)));
-            if (spec.length) { LLD.starterSpec = spec; LLD.starterCount = tot; LLD.slotsDerived = true; }
+            if (spec.length && cfg.deriveSlots !== false && String(lidA) !== '63085') { LLD.starterSpec = spec; LLD.starterCount = tot; LLD.slotsDerived = true; }
             const simple = pos.filter(p => p && /^[A-Za-z]+$/.test(p.name || '') && rng(p.limit));
             if (simple.length) {
                 const np = {};
@@ -5616,6 +5616,13 @@ function getBestBenchOption(slot) {
         const container = document.getElementById('lineup-notifications'); if (!container) return;
         container.innerHTML = ''; const empty = document.querySelectorAll('.player-row.empty-slot').length;
         if (empty > 0) $(container).append(`<div class="lineup-alert alert-error">⚠️ Incomplete: ${empty} Remaining</div>`);
+        // starters projected for 0 (bye, out, inactive…)
+        const zero = [];
+        document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot)').forEach(el => {
+            const m = el.textContent.match(/(-?\d+(?:\.\d+)?)\s*PROJ/i);
+            if (m && parseFloat(m[1]) <= 0) zero.push(el.getAttribute('data-pname') || el.getAttribute('data-pid'));
+        });
+        if (zero.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
     }
 
     function updateSubmitButton() {
