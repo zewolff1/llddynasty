@@ -17295,13 +17295,17 @@ function lldChatInit() {
 // ===== STATS TAB: loads MFL data, then hands it to lldStatsBuild / lldStatsViews (inside the wrapper: needs lid/year/leagueFranchises) =====
 const LLDSX = { mode: 'team', idx: { team: 0, league: 0 } };
 function lldSxArr(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
+let _lldSxLast = 0;
 async function lldSxJson(type, extra) {
     let last = '';
-    for (let a = 0; a < 3; a++) {
-        if (a) await new Promise(r => setTimeout(r, 700 * a));
+    for (let a = 0; a < 5; a++) {
+        if (a) await new Promise(r => setTimeout(r, 1200 * a));
+        // MFL throttles quick bursts, so space our own requests out a little
+        const wait = _lldSxLast + 250 - Date.now(); if (wait > 0) await new Promise(r => setTimeout(r, wait));
+        _lldSxLast = Date.now();
         try {
             const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=${type}&L=${lid}${extra || ''}&JSON=1`, { credentials: 'include', cache: 'no-store' });
-            const t = await r.text(); try { return JSON.parse(t); } catch (e) { last = type + ': non-JSON ' + t.slice(0, 60).replace(/\s+/g, ' '); }
+            const t = await r.text(); try { return JSON.parse(t); } catch (e) { last = type + ': non-JSON (HTTP ' + r.status + ') ' + t.slice(0, 80).replace(/\s+/g, ' '); }
         } catch (e) { last = type + ': ' + e; }
     }
     window._lldSXdiag = last; return null;
@@ -17315,12 +17319,13 @@ async function lldSxPlayers(D, pids) {
         lldSxArr(d && d.players && d.players.player).forEach(p => { D.pinfo[p.id] = { name: lldSxName(p.name), pos: lldSxPos(p.position), team: p.team || '' }; });
     }
 }
-async function lldSxBatch(items, n, fn) { for (let i = 0; i < items.length; i += n) await Promise.all(items.slice(i, i + n).map(fn)); }
+async function lldSxBatch(items, n, fn) { for (let i = 0; i < items.length; i += n) { await Promise.all(items.slice(i, i + n).map(fn)); await new Promise(r => setTimeout(r, 150)); } }
 async function lldStatsLoad(force) {
     if (!force && window._lldSX && Date.now() - window._lldSX.t < 600000) return window._lldSX.S;
     if (window._lldSXp) return window._lldSXp;
     const prog = m => { $('.lld-sx-loading').text(m); };
     window._lldSXp = (async () => {
+        window._lldSXdiag = '';
         const cfg = Object.assign({ reg: 14, playoffTeams: 6, byes: 2, boomPct: 0.25 }, LLD.stats || {});
         await lldEnsureFranchiseNames();
         const fids = Object.keys(leagueFranchises).sort();
@@ -17333,7 +17338,15 @@ async function lldStatsLoad(force) {
             if (L && !(LLD.stats && LLD.stats.playoffTeams)) { const p = n(L.playoffTeams); if (p) D.playoffTeams = p; }
         } catch (e) { }
         prog('Loading schedule…');
-        const all = await fetchAllWeekScores();
+        // one schedule request feeds both the weekly scores and the remaining matchups
+        const sc = await lldSxJson('schedule');
+        const all = {};
+        lldSxArr(sc && sc.schedule && sc.schedule.weeklySchedule).forEach(w => {
+            const wk = parseInt(w.week, 10);
+            lldSxArr(w.matchup).forEach(m => lldSxArr(m.franchise).forEach(f => { const x = parseFloat(f.score); if (!isNaN(x) && x > 0) { (all[wk] = all[wk] || {})[String(f.id).padStart(4, '0')] = x; } }));
+        });
+        if (!sc) throw new Error('schedule unavailable');
+        window._schedScoresCache = window._schedScoresCache || all;
         let wks = Object.keys(all).map(Number).sort((a, b) => a - b);
         // drop the newest week while its games are still being played
         if (wks.length) {
@@ -17343,14 +17356,13 @@ async function lldStatsLoad(force) {
                 if (fr.length && fr.some(f => parseInt(f.gameSecondsRemaining, 10) > 0)) wks = wks.slice(0, -1);
             } catch (e) { }
         }
-        const sc = await lldSxJson('schedule');
         lldSxArr(sc && sc.schedule && sc.schedule.weeklySchedule).forEach(w => {
             const wk = parseInt(w.week, 10); D.sched[wk] = [];
             lldSxArr(w.matchup).forEach(m => { const f = lldSxArr(m.franchise).map(x => String(x.id).padStart(4, '0')); if (f.length >= 2) D.sched[wk].push([f[0], f[1]]); });
         });
         prog('Loading box scores…');
         const byWk = {};
-        await lldSxBatch(wks, 3, async wk => { try { byWk[wk] = await fetchRecapWeek(wk, true); } catch (e) { byWk[wk] = []; } });
+        await lldSxBatch(wks, 2, async wk => { try { byWk[wk] = await fetchRecapWeek(wk, true); } catch (e) { byWk[wk] = []; } });
         wks.forEach(wk => {
             const teams = {};
             (byWk[wk] || []).forEach(m => {
@@ -17367,7 +17379,7 @@ async function lldStatsLoad(force) {
         prog('Loading projections…');
         const lastWk = D.weeks.length ? D.weeks[D.weeks.length - 1].wk : 0;
         const projWeeks = []; for (let w = 1; w <= D.reg; w++) projWeeks.push(w);
-        await lldSxBatch(projWeeks, 4, async w => { D.proj[w] = await fetchWeekProjectedScoresMap(w); });
+        await lldSxBatch(projWeeks, 2, async w => { D.proj[w] = await fetchWeekProjectedScoresMap(w); });
         prog('Loading free agents…');
         try {
             const fa = await lldSxJson('freeAgents'); const ids = [];
@@ -17407,7 +17419,7 @@ async function lldStatsOpen(mode) {
     box.html('<div class="lld-stats" data-mode="' + mode + '"><div class="lld-sx-loading">Loading stats…</div></div>');
     let S;
     try { S = await lldStatsLoad(); }
-    catch (e) { console.warn('stats', e); $('.lld-stats[data-mode="' + mode + '"]').html('<div class="lld-sx-loading">Could not load stats. ' + (window._lldSXdiag ? $('<i>').text(window._lldSXdiag).html() : '') + '<br><button class="lld-sx-retry" type="button">Try again</button></div>'); return; }
+    catch (e) { console.warn('stats', e); $('.lld-stats[data-mode="' + mode + '"]').html('<div class="lld-sx-loading">Could not load stats. ' + $('<i>').text(window._lldSXdiag || (e && e.message) || '').html() + '<br><button class="lld-sx-retry" type="button">Try again</button></div>'); return; }
     lldStatsDraw(mode);
 }
 function lldStatsDraw(mode) {
