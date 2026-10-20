@@ -283,7 +283,7 @@ function lldChatTxHtml(it, ctx) {
     const logos = [it.fid, it.fid2].filter(Boolean);
     const head = logos.length > 1
         ? `<div class="cm-tl2">${logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>')}</div><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`
-        : `<div class="cm-tm1"><img class="cm-av m" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><div><b>${lldChatEsc(ctx.nm(it.fid))}</b><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span></div></div>`;
+        : `<div class="cm-tm1"><img class="cm-av m" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><div><b>${lldChatEsc(ctx.nm(it.fid))}</b>${/^(add\/drop|waiver|blind bid)/i.test(it.label) ? '' : `<span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`}</div></div>`;
     const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color)).join('')}</div></div>`);
     return `<div class="cm-tx"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}</div>`;
 }
@@ -9678,7 +9678,7 @@ const isGrouped = true;
             const contractHtml = p.contract ? `<span style="font-size:7px; font-weight:800; color:#22c55e; line-height:1.3; text-align:left; flex-shrink:0;">$${p.contract.sal}m/yr<br><span style="color:var(--text-dim); font-weight:700;">${p.contract.yrs}yr · ${p.contract.guar}%</span></span>` : '';
             return `
 <div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.28); border-radius:20px; padding:3px 10px 3px 3px; cursor:pointer; min-width:0; max-width:100%;" class="player-modal-trigger" data-pid="${p.pid}" data-team="${teamAbbr}">
-                <div style="width:19px; height:19px; border-radius:50%; overflow:hidden; border:2px solid ${color}40; flex-shrink:0; box-sizing:border-box;">
+                <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid ${color}40; flex-shrink:0; box-sizing:border-box;">
                     <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; display:block;">
                 </div>
                 <span style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${p.parsed.shortName || p.parsed.name}</span>
@@ -9690,8 +9690,8 @@ const isGrouped = true;
 
         const makePickChips = (picks, color) => picks.map(p => `
             <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.28); border-radius:20px; padding:3px 12px 3px 3px;">
-                <div style="width:30px; height:30px; border-radius:50%; background:${color}15; border:2px solid ${color}40; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-sizing:border-box;">
-                    <span style="font-size:10px; font-weight:900; color:${color};">${(p.details.match(/\d+/)?.[0]) || '?'}</span>
+                <div style="width:44px; height:44px; border-radius:50%; background:${color}15; border:2px solid ${color}40; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-sizing:border-box;">
+                    <span style="font-size:14px; font-weight:900; color:${color};">${(p.details.match(/\d+/)?.[0]) || '?'}</span>
                 </div>
                 <div style="display:flex; flex-direction:column; line-height:1.2;">
                     <span style="font-size:11px; font-weight:800; color:#fff;">${p.yearStr} pick</span>
@@ -9783,7 +9783,7 @@ ${g.tradeFids && g.tradeFids.length > 1 ? `
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             ${g.tradeFids.map((f, i) => `
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <img src="${f.teamLogo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${f.fId}" style="width:26px; height:26px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">
+                    <img src="${f.teamLogo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${f.fId}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">
                     <span style="font-size:12px; font-weight:800; color:#fff;" data-team-style="${f.fId}">${f.teamName}</span>
                 </div>
                 ${i < g.tradeFids.length - 1 ? '<span style="font-size:10px; color:var(--text-dim);">⇄</span>' : ''}
@@ -9792,10 +9792,10 @@ ${g.tradeFids && g.tradeFids.length > 1 ? `
         <span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase;">${g.txType}</span>
     </div>
 ` : `
-    <div class="team-popup-trigger" data-fid="${g.fId}" style="cursor:pointer;">${buildLogoWithTrophy(g.fId, 26)}</div>
+    <div class="team-popup-trigger" data-fid="${g.fId}" style="cursor:pointer;">${buildLogoWithTrophy(g.fId, 32)}</div>
     <div style="display:flex; flex-direction:column;">
         <span style="font-size:13px; font-weight:800; color:#fff;" data-team-style="${g.fId}">${g.teamName}</span>
-        <span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase; margin-top:2px;">${g.txType} ${g.isCommish ? '<span style="color:var(--text-dim);">(Commish)</span>' : ''}</span>
+        ${/add\/drop|waiver/i.test(g.txType) && !g.isCommish ? '' : `<span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase; margin-top:2px;">${/add\/drop|waiver/i.test(g.txType) ? '' : g.txType} ${g.isCommish ? '<span style="color:var(--text-dim);">(Commish)</span>' : ''}</span>`}
     </div>
 `}
                 </div>
