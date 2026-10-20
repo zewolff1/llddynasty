@@ -273,15 +273,19 @@ function lldChatShellHtml(title, back, listHtml, openUrl, tab) {
 }
 // feed items (oldest first): {kind:'post', ms, id, subject, fid, preview, replies}
 //   or {kind:'tx', ms, fid, fid2, label, color, cols:[{label, color, ents:[{id,name,pos,team}|{pick}]}]}; block: [{fid, give, want}]
-function lldChatEntHtml(e, ctx) {
-    if (e.pick) { const n = (String(e.pick).match(/\d+/) || ['•'])[0]; return `<div class="cm-pr"><span class="cm-pk">${lldChatEsc(n)}</span><div class="cm-pn"><b>${lldChatEsc(e.pick)}</b><span>Draft pick</span></div></div>`; }
-    return `<div class="cm-pr"><span class="cm-ph"><img src="${lldChatEsc(ctx.pimg(e.id))}" alt="" onerror="this.style.opacity=0"></span><div class="cm-pn"><b>${lldChatEsc(e.name || ('#' + e.id))}</b><span>${lldChatEsc([e.pos, e.team].filter(Boolean).join(' · '))}</span></div></div>`;
+function lldChatEntHtml(e, ctx, color) {
+    if (e.pick) { const n = (String(e.pick).match(/\d+/g) || ['', '•'])[1] || '•'; return `<div class="cm-chip pk"><span class="cm-pk" style="color:${color};background:${color}15;border-color:${color}40">${lldChatEsc(n)}</span><span class="cm-cn"><b>Draft pick</b><span style="color:${color}">${lldChatEsc(String(e.pick).replace(/^\d{4}\s*/, ''))}</span></span></div>`; }
+    const nm = String(e.name || ''), pp = nm.split(' '), sh = pp.length > 1 ? pp[0].charAt(0) + '. ' + pp.slice(1).join(' ') : nm;
+    const pos = String(e.pos || '').toUpperCase(), dp = (pos === 'DE' || pos === 'DT') ? 'DL' : ((pos === 'CB' || pos === 'S') ? 'DB' : pos);
+    return `<div class="cm-chip player-modal-trigger" data-pid="${lldChatEsc(e.id)}" data-name="${lldChatEsc(nm)}" data-pos="${lldChatEsc(dp)}" data-team="${lldChatEsc(e.team || '')}"><span class="cm-ph" style="border-color:${color}40"><img src="${lldChatEsc(ctx.pimg(e.id))}" alt="" onerror="this.style.display='none'"></span><b>${lldChatEsc(sh || ('#' + e.id))}</b>${e.team ? `<img class="cm-nf" src="${lldChatEsc(ctx.nfl(e.team))}" alt="" onerror="this.style.display='none'">` : ''}<span class="pos-text-${lldChatEsc(dp.toLowerCase())} cm-ps">${lldChatEsc(dp)}</span></div>`;
 }
 function lldChatTxHtml(it, ctx) {
     const logos = [it.fid, it.fid2].filter(Boolean);
-    const head = logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>');
-    const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em>${c.ents.map(e => lldChatEntHtml(e, ctx)).join('')}</div>`);
-    return `<div class="cm-tx"><div class="cm-th"><div class="cm-tl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}</div>`;
+    const head = logos.length > 1
+        ? `<div class="cm-tl2">${logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>')}</div><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`
+        : `<div class="cm-tm1"><img class="cm-av m" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><div><b>${lldChatEsc(ctx.nm(it.fid))}</b><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span></div></div>`;
+    const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color)).join('')}</div></div>`);
+    return `<div class="cm-tx"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}</div>`;
 }
 function lldChatPostHtml(it, ctx) {
     const who = it.fid ? ctx.nm(it.fid) : '';
@@ -848,15 +852,27 @@ function lldApplyStyle(name) {
     document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === rawName));
     lldBuildScene(name);
     lldBuildTicker(name);
+    setTimeout(lldRefreshScoreboard, 60);
     window.LLD_STYLE_DEBUG = { name, base: LLD_SCRIPT_BASE, href: (document.getElementById('lld-theme-css') || {}).href || '' };
 }
 
 try { document.documentElement.classList.remove('lld-light'); } catch (e) {}
-function lldApplySb(v) {
-    lldSet('lld_sb', ['default', 'cbs', 'nbc', 'espn', 'fox'].indexOf(v) >= 0 ? v : 'theme');
-    document.querySelectorAll('.lld-sb-btn').forEach(b => b.classList.toggle('on', b.dataset.v === lldGet('lld_sb', 'theme')));
-    if (typeof renderLiveScoreCard === 'function' && document.querySelector('#scores-content-container .live-score-tab')) { try { renderLiveScoreCard(); } catch (e) {} }
+const LLD_SB_LAYOUTS = [['arena', 'Stadium'], ['gazette', 'Newspaper'], ['bcast', 'Broadcast'], ['arcade', 'Arcade'], ['brick', 'Brick'], ['nfl', 'SportsCenter'], ['slim', 'Slim']];
+// the score card lives inside the main wrapper, so it is re-drawn through this hook (set up where renderLiveScoreCard is defined)
+function lldRefreshScoreboard() { try { if (typeof window.lldRerenderScores === 'function' && document.getElementById('live-score-card-inner')) window.lldRerenderScores(); } catch (e) { console.warn('scoreboard refresh', e); } }
+function lldSyncSbButtons() {
+    const cur = lldGet('lld_sb', 'theme'), tint = lldGet('lld_sbtint', '') === '1';
+    document.querySelectorAll('.lld-sb-btn').forEach(b => b.classList.toggle('on', b.dataset.v === cur));
+    document.querySelectorAll('.lld-sbtint-btn').forEach(b => b.classList.toggle('on', tint));
 }
+function lldApplySb(v) {
+    const ok = ['default', 'cbs', 'nbc', 'espn', 'fox'].concat(LLD_SB_LAYOUTS.map(x => x[0]));
+    lldSet('lld_sb', ok.indexOf(v) >= 0 ? v : 'theme');
+    lldSyncSbButtons();
+    lldRefreshScoreboard();
+}
+function lldApplySbTint(on) { lldSet('lld_sbtint', on ? '1' : '0'); lldSyncSbButtons(); lldRefreshScoreboard(); }
+document.addEventListener('click', function (e) { const t = e.target.closest && e.target.closest('.lld-sbtint-btn'); if (t) lldApplySbTint(lldGet('lld_sbtint', '') !== '1'); });
 
 // ===== HIDE THE NATIVE MFL PAGE (header, footer, content strips) =====
 // Keeps only the dashboard and its popups. Everything else on the MFL page is hidden (still in the DOM, so scripts that read it keep working).
@@ -8318,6 +8334,11 @@ ${(myFid === '0000') ? `
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
                         ${[['cbs','CBS'],['nbc','NBC'],['espn','ESPN'],['fox','Fox']].map(x => `<button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')===x[0]?'on':''}" data-v="${x[0]}">${x[1]}</button>`).join('')}
                     </div>
+                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:10px 0 6px;">Layout (any theme)</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                        ${LLD_SB_LAYOUTS.map(x => `<button class="lld-hdr-btn lld-sb-btn ${lldGet('lld_sb','theme')===x[0]?'on':''}" data-v="${x[0]}">${x[1]}</button>`).join('')}
+                        <button class="lld-hdr-btn lld-sbtint-btn ${lldGet('lld_sbtint','')==='1'?'on':''}">Use my theme colors</button>
+                    </div>
                     <div style="font-size:10px; color:var(--text-dim); margin-bottom:16px;">Default keeps the standard scoreboard while the rest of the theme stays.</div>
                     </div>
 
@@ -9654,28 +9675,28 @@ const isGrouped = true;
 
         const makeChips = (players, color) => players.map(p => {
             const teamAbbr = (p.parsed.team || 'NFL').trim().toUpperCase();
-            const contractHtml = p.contract ? `<div style="font-size:7px; font-weight:800; color:#22c55e; margin-top:3px; text-align:center; line-height:1.4;">$${p.contract.sal}m/yr<br><span style="color:var(--text-dim); font-weight:700;">${p.contract.yrs}yr · ${p.contract.guar}%</span></div>` : '';
+            const contractHtml = p.contract ? `<span style="font-size:7px; font-weight:800; color:#22c55e; line-height:1.3; text-align:left; flex-shrink:0;">$${p.contract.sal}m/yr<br><span style="color:var(--text-dim); font-weight:700;">${p.contract.yrs}yr · ${p.contract.guar}%</span></span>` : '';
             return `
-<div style="display:flex; flex-direction:column; align-items:center; gap:4px; width:66px; cursor:pointer;" class="player-modal-trigger" data-pid="${p.pid}" data-team="${teamAbbr}">
-                <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid ${color}40; flex-shrink:0;">
-                    <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
+<div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.28); border-radius:20px; padding:3px 10px 3px 3px; cursor:pointer; min-width:0; max-width:100%;" class="player-modal-trigger" data-pid="${p.pid}" data-team="${teamAbbr}">
+                <div style="width:19px; height:19px; border-radius:50%; overflow:hidden; border:2px solid ${color}40; flex-shrink:0; box-sizing:border-box;">
+                    <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; display:block;">
                 </div>
-                <div style="font-size:8px; font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:64px;">${p.parsed.shortName || p.parsed.name}</div>
-                <div style="display:flex; align-items:center; gap:3px;">
-                    <img src="${getNFLLogoUrl(teamAbbr)}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:10px; height:10px; object-fit:contain;">
-<span class="pos-text-${(p.parsed.pos||'').toLowerCase()}" style="font-size:6px; font-weight:900;">${p.parsed.pos}</span>
-                </div>
+                <span style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${p.parsed.shortName || p.parsed.name}</span>
+                <img src="${getNFLLogoUrl(teamAbbr)}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:10px; height:10px; object-fit:contain; flex-shrink:0;">
+                <span class="pos-text-${(p.parsed.pos||'').toLowerCase()}" style="font-size:9px; font-weight:900; flex-shrink:0;">${p.parsed.pos}</span>
                 ${contractHtml}
             </div>`;
         }).join('');
 
         const makePickChips = (picks, color) => picks.map(p => `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:4px; width:66px;">
-                <div style="width:44px; height:44px; border-radius:50%; background:${color}15; border:2px solid ${color}40; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                    <span style="font-size:14px; font-weight:900; color:${color};">${(p.details.match(/\d+/)?.[0]) || '?'}</span>
+            <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.28); border-radius:20px; padding:3px 12px 3px 3px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:${color}15; border:2px solid ${color}40; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-sizing:border-box;">
+                    <span style="font-size:10px; font-weight:900; color:${color};">${(p.details.match(/\d+/)?.[0]) || '?'}</span>
                 </div>
-                <div style="font-size:8px; font-weight:800; color:#fff; text-align:center; line-height:1.2;">${p.yearStr}</div>
-                <div style="font-size:7px; font-weight:900; color:${color}; text-transform:uppercase;">${p.details}</div>
+                <div style="display:flex; flex-direction:column; line-height:1.2;">
+                    <span style="font-size:11px; font-weight:800; color:#fff;">${p.yearStr} pick</span>
+                    <span style="font-size:7px; font-weight:900; color:${color}; text-transform:uppercase;">${p.details}</span>
+                </div>
             </div>`).join('');
 
         const addPicks = g.allPicks.filter(p => p.targetCol === 'add');
@@ -9754,7 +9775,7 @@ const isGrouped = true;
     }
 
 txEntries.push({ dateObj: parseMflTimestamp(latestTimestamp), html: `
-        <div class="tx-card" data-tx-type="${safeTypeAttr}" style="margin-bottom:12px; background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:8px; padding:12px; box-shadow:0 4px 6px rgba(0,0,0,0.2);">
+        <div class="tx-card" data-tx-type="${safeTypeAttr}" style="margin-bottom:8px; background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:8px; padding:10px; box-shadow:0 4px 6px rgba(0,0,0,0.2);">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
                 <div style="display:flex; align-items:center; gap:10px;">
 ${g.tradeFids && g.tradeFids.length > 1 ? `
@@ -9762,7 +9783,7 @@ ${g.tradeFids && g.tradeFids.length > 1 ? `
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             ${g.tradeFids.map((f, i) => `
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <img src="${f.teamLogo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${f.fId}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">
+                    <img src="${f.teamLogo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${f.fId}" style="width:26px; height:26px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">
                     <span style="font-size:12px; font-weight:800; color:#fff;" data-team-style="${f.fId}">${f.teamName}</span>
                 </div>
                 ${i < g.tradeFids.length - 1 ? '<span style="font-size:10px; color:var(--text-dim);">⇄</span>' : ''}
@@ -9771,16 +9792,16 @@ ${g.tradeFids && g.tradeFids.length > 1 ? `
         <span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase;">${g.txType}</span>
     </div>
 ` : `
-    <div class="team-popup-trigger" data-fid="${g.fId}" style="cursor:pointer;">${buildLogoWithTrophy(g.fId, 32)}</div>
+    <div class="team-popup-trigger" data-fid="${g.fId}" style="cursor:pointer;">${buildLogoWithTrophy(g.fId, 26)}</div>
     <div style="display:flex; flex-direction:column;">
         <span style="font-size:13px; font-weight:800; color:#fff;" data-team-style="${g.fId}">${g.teamName}</span>
         <span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase; margin-top:2px;">${g.txType} ${g.isCommish ? '<span style="color:var(--text-dim);">(Commish)</span>' : ''}</span>
     </div>
 `}
                 </div>
-                <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${latestTimestamp}</span>
+                <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${(String(latestTimestamp).match(/\d{1,2}:\d{2}\s*[ap]\.?m\.?/i) || [latestTimestamp])[0]}</span>
             </div>
-           <div style="display:flex; gap:8px; margin-top:8px; align-items:stretch;">
+           <div style="display:flex; gap:10px; margin-top:10px; align-items:stretch;">
                 ${addedHtml ? `<div style="flex:1; display:flex; flex-direction:column; gap:4px; min-width:0;">${addedHtml}</div>` : ''}
                 ${addedHtml && droppedHtml ? '<div style="width:1px; background:rgba(255,255,255,0.08); flex-shrink:0;"></div>' : ''}
                 ${droppedHtml ? `<div style="flex:1; display:flex; flex-direction:column; gap:4px; min-width:0;">${droppedHtml}</div>` : ''}
@@ -13185,6 +13206,12 @@ function buildScoreHeaderHtml3(o) {
     const sbv = lldGet('lld_sb', 'theme');
     if (['cbs', 'nbc', 'espn', 'fox'].indexOf(sbv) >= 0 && !document.getElementById('lld-bug-font')) { const l = document.createElement('link'); l.id = 'lld-bug-font'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&display=swap'; document.head.appendChild(l); }
     if (['cbs', 'nbc', 'espn', 'fox'].indexOf(sbv) >= 0) return lldScoreboardThemed(o, sty, sbv);
+    if (LLD_SB_LAYOUTS.some(x => x[0] === sbv)) {
+        // any layout, whatever the theme: load its fonts, optionally tint it with the current theme's colors
+        if (!document.getElementById('lld-sb-fonts')) { const l = document.createElement('link'); l.id = 'lld-sb-fonts'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Share+Tech+Mono&family=Anton&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lilita+One&family=Fredoka:wght@500;600;700&family=Press+Start+2P&family=Barlow+Condensed:wght@600;700&family=Orbitron:wght@700&display=swap'; document.head.appendChild(l); }
+        const html = lldScoreboardThemed(o, sty, sbv);
+        return lldGet('lld_sbtint', '') === '1' ? html.replace('class="lld-sbwrap', 'class="lld-sbwrap lld-tint') : html;
+    }
     const kind = sbv === 'default' ? null : lldSbKind(sty);
     if (kind) return lldScoreboardThemed(o, sty, kind);
     return buildScoreHeaderHtml3Base(o);
@@ -13564,7 +13591,7 @@ function buildLiveNowHtml(t1, t2, pm) {
     const total = l1.length + l2.length;
     const sbCur = lldGet('lld_sb', 'theme'), sbOpen = lldGet('lld_sbopen', '') === '1';
     const sbChip = (v, l) => `<button type="button" class="lld-sb-btn lld-sbchip ${sbCur === v ? 'on' : ''}" data-v="${v}">${l}</button>`;
-    const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}${sbChip('cbs', 'CBS')}${sbChip('nbc', 'NBC')}${sbChip('espn', 'ESPN')}${sbChip('fox', 'Fox')}</div></div>`;
+    const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}${sbChip('cbs', 'CBS')}${sbChip('nbc', 'NBC')}${sbChip('espn', 'ESPN')}${sbChip('fox', 'Fox')}</div><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${LLD_SB_LAYOUTS.map(x => sbChip(x[0], x[1])).join('')}<button type="button" class="lld-sbtint-btn lld-sbchip ${lldGet('lld_sbtint', '') === '1' ? 'on' : ''}">Theme colors</button></div></div>`;
     return `<div id="live-now-strip" style="margin:0 0 12px;">
         ${sbBar}
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
@@ -13591,6 +13618,7 @@ renderLiveScoreCard = async function () {
     await _origRenderLiveScoreCard.apply(this, arguments);
     injectLiveNowStrip();
 };
+window.lldRerenderScores = function () { return renderLiveScoreCard(); };
 $(document).off('click.livesort').on('click.livesort', '.live-sort-btn', function (e) {
     e.stopPropagation();
     window._liveScoreSort = String($(this).data('sort'));
@@ -17133,7 +17161,7 @@ async function lldChatJson(extra) {
     window._lldChatDiag = last; return null;
 }
 function lldChatCtx() {
-    return { nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, me: myFid, now: Date.now() };
+    return { nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, nfl: t => getNFLLogoUrl(String(t).toUpperCase()), me: myFid, now: Date.now() };
 }
 function lldChatOpenUrl() { return `${MFL_ORIGIN}/${year}/message_board?L=${lid}`; }
 async function lldChatLoadThreads() {
@@ -17198,14 +17226,14 @@ async function lldChatLoadActivity() {
     };
     const ents = x => String(x || '').split(/[,]/).map(a => a.trim()).filter(Boolean).map(ent).filter(Boolean);
     const strOf = x => ents(x).map(e => e.pick || ((e.name || ('#' + e.id)) + (e.pos ? ' (' + e.pos + ')' : ''))).join(', ');
-    const LBL = { FREE_AGENT: ['Free agent', '#3b82f6'], WAIVER: ['Waiver claim', '#a78bfa'], BBID_WAIVER: ['Blind bid', '#a78bfa'], AUCTION_WON: ['Auction', '#f59e0b'], IR: ['IR move', '#94a3b8'], TAXI: ['Taxi move', '#94a3b8'] };
+    const LBL = { FREE_AGENT: ['Add/Drop', '#22c55e'], WAIVER: ['Waiver', '#22c55e'], BBID_WAIVER: ['Blind bid waiver', '#22c55e'], AUCTION_WON: ['Auction', '#f59e0b'], IR: ['IR move', '#94a3b8'], TAXI: ['Taxi move', '#94a3b8'] };
     const items = [];
     tx.forEach(t => {
         const ms = (parseInt(t.timestamp, 10) || 0) * 1000, ty = String(t.type || '').toUpperCase(); if (!ms) return;
         const f1 = String(t.franchise || '').padStart(4, '0');
         if (ty === 'TRADE') {
             const f2 = String(t.franchise2 || '').padStart(4, '0');
-            items.push({ kind: 'tx', ms, fid: f1, fid2: f2, label: 'Trade', color: '#f59e0b', cols: [{ label: 'Sent', color: '#22c55e', ents: ents(t.franchise1_gave_up) }, { label: 'Sent', color: '#22c55e', ents: ents(t.franchise2_gave_up) }] });
+            items.push({ kind: 'tx', ms, fid: f1, fid2: f2, label: 'Trade', color: '#a855f7', cols: [{ label: 'Sent', color: '#22c55e', ents: ents(t.franchise1_gave_up) }, { label: 'Sent', color: '#22c55e', ents: ents(t.franchise2_gave_up) }] });
             return;
         }
         const parts = String(t.transaction || '').split('|'), add = ents(parts[0]), drop = ents(parts[1]);
@@ -17219,12 +17247,12 @@ async function lldChatLoadActivity() {
     offers.forEach(o => {
         const a = String(o.offeringteam || o.offeringTeam || '').padStart(4, '0'), b = String(o.offeredto || o.offeredTo || '').padStart(4, '0');
         const ms = (parseInt(o.timestamp, 10) || 0) * 1000; if (!ms || !a.trim()) return;
-        const it = { kind: 'tx', ms, fid: a, fid2: b, label: 'Trade offer · pending', color: '#38bdf8', offer: true, cols: [{ label: '', color: '#22c55e', ents: ents(o.will_give_up || o.willGiveUp) }, { label: '', color: '#22c55e', ents: ents(o.will_receive || o.willReceive) }] };
+        const it = { kind: 'tx', ms, fid: a, fid2: b, label: 'Trade offer · pending', color: '#a855f7', offer: true, cols: [{ label: '', color: '#22c55e', ents: ents(o.will_give_up || o.willGiveUp) }, { label: '', color: '#22c55e', ents: ents(o.will_receive || o.willReceive) }] };
         if (o.comments && String(o.comments).trim()) it.note = String(o.comments).trim();
         items.push(it);
     });
     // fix up the trade columns: label each side with who sent it
-    items.forEach(it => { if (it.label === 'Trade' || it.offer) { if (it.offer) { it.cols[0].label = (leagueFranchises[it.fid] || it.fid) + ' gives'; it.cols[1].label = (leagueFranchises[it.fid2] || it.fid2) + ' gives'; } else { it.cols[0].label = 'Sent by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Sent by ' + (leagueFranchises[it.fid2] || it.fid2); } } });
+    items.forEach(it => { if (it.label === 'Trade' || it.offer) { if (it.offer) { it.cols[0].label = 'Offered by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Offered by ' + (leagueFranchises[it.fid2] || it.fid2); } else { it.cols[0].label = 'Traded by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Traded by ' + (leagueFranchises[it.fid2] || it.fid2); } } });
     // message board threads sit in the same feed
     const threads = await lldChatLoadThreads(); window._lldChatThreads = threads;
     threads.slice(0, 25).forEach(t => { if (t.ms) items.push({ kind: 'post', ms: t.ms, id: t.id, subject: t.subject, fid: t.lastFid || t.fid, preview: t.preview, replies: t.replies }); });
