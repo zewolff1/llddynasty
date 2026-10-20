@@ -3301,9 +3301,9 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 .lld-stats tr.me td{background:rgba(59,130,246,.14)}
 .lld-stats td.tm{overflow:hidden;text-overflow:ellipsis}
 .lld-stats .chips button,.lld-stats .tile,.lld-stats .card,.lld-stats .badge,.lld-stats .tm{font-family:inherit}
-.lld-stats .chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.lld-stats .chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 10px}
 .lld-stats .chips::-webkit-scrollbar{display:none}
-.lld-stats .chips button{flex:0 0 auto;padding:8px 14px;border-radius:18px;border:1px solid var(--line);background:none;color:var(--dim);font-weight:700;font-size:12px;font-family:inherit;cursor:pointer}
+.lld-stats .chips button{flex:0 0 auto;padding:7px 12px;border-radius:18px;border:1px solid var(--line);background:none;color:var(--dim);font-weight:700;font-size:12px;font-family:inherit;cursor:pointer}
 .lld-stats .chips button.on{background:var(--card2);color:var(--tx);border-color:var(--blue)}
 .lld-stats h2{margin:18px 0 8px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .lld-stats .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
