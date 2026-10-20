@@ -281,7 +281,7 @@ function lldChatTxHtml(it, ctx) {
     const logos = [it.fid, it.fid2].filter(Boolean);
     const head = logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>');
     const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em>${c.ents.map(e => lldChatEntHtml(e, ctx)).join('')}</div>`);
-    return `<div class="cm-tx"><div class="cm-th"><div class="cm-tl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div></div>`;
+    return `<div class="cm-tx"><div class="cm-th"><div class="cm-tl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}</div>`;
 }
 function lldChatPostHtml(it, ctx) {
     const who = it.fid ? ctx.nm(it.fid) : '';
@@ -17166,16 +17166,18 @@ function lldChatMount() {
 }
 async function lldChatLoadActivity() {
     await lldEnsureFranchiseNames();
-    const [txd, bd] = await Promise.all([
+    const [txd, bd, pd] = await Promise.all([
         lldChatJson('TYPE=transactions&COUNT=40'),
-        lldChatJson('TYPE=tradeBait&INCLUDE_DRAFT_PICKS=1')
+        lldChatJson('TYPE=tradeBait&INCLUDE_DRAFT_PICKS=1'),
+        lldChatJson('TYPE=pendingTrades')
     ]);
+    const offers = lldChatArr(pd && pd.pendingTrades && pd.pendingTrades.pendingTrade);
     const tx = lldChatArr(txd && txd.transactions && txd.transactions.transaction);
     const baits = lldChatArr(bd && bd.tradeBaits && bd.tradeBaits.tradeBait);
     const ids = new Set();
     const pid = i => { const m = String(i).trim().match(/^(\d{3,6})(?:_.*)?$/); return m ? m[1] : null; };
     const grab = x => String(x || '').split(/[|,]/).forEach(i => { const p = pid(i); if (p) ids.add(p); });
-    tx.forEach(t => { grab(t.transaction); grab(t.franchise1_gave_up); grab(t.franchise2_gave_up); }); baits.forEach(b => { grab(b.willGiveUp); });
+    tx.forEach(t => { grab(t.transaction); grab(t.franchise1_gave_up); grab(t.franchise2_gave_up); }); baits.forEach(b => { grab(b.willGiveUp); }); offers.forEach(o => { grab(o.will_give_up || o.willGiveUp); grab(o.will_receive || o.willReceive); });
     const info = {}; const idl = [...ids];
     const put = p => { const n = String(p.name || '').split(',').map(x => x.trim()); info[p.id] = { id: p.id, name: n.length > 1 ? n[1] + ' ' + n[0] : n[0], pos: p.position || '', team: p.team || '' }; };
     for (let i = 0; i < idl.length; i += 60) {
@@ -17207,13 +17209,22 @@ async function lldChatLoadActivity() {
             return;
         }
         const parts = String(t.transaction || '').split('|'), add = ents(parts[0]), drop = ents(parts[1]);
+        if (/IR|TAXI/.test(ty)) return; // roster housekeeping, not shown in the chat
         if (!add.length && !drop.length) return; // league/system housekeeping with no players
         const L = LBL[ty] || [ty.replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase()), '#94a3b8'];
         const move = /IR|TAXI/.test(ty);
         items.push({ kind: 'tx', ms, fid: f1, label: L[0], color: L[1], cols: move ? [{ label: 'Moved', color: '#e2e8f0', ents: add.concat(drop) }] : [{ label: /WAIVER|BBID/.test(ty) ? 'Claimed' : (/AUCTION/.test(ty) ? 'Won' : 'Added'), color: '#22c55e', ents: add }, { label: 'Dropped', color: '#ef4444', ents: drop }] });
     });
+    // pending trade offers (the API only exposes ones involving you; accepted trades appear above as completed trades)
+    offers.forEach(o => {
+        const a = String(o.offeringteam || o.offeringTeam || '').padStart(4, '0'), b = String(o.offeredto || o.offeredTo || '').padStart(4, '0');
+        const ms = (parseInt(o.timestamp, 10) || 0) * 1000; if (!ms || !a.trim()) return;
+        const it = { kind: 'tx', ms, fid: a, fid2: b, label: 'Trade offer · pending', color: '#38bdf8', offer: true, cols: [{ label: '', color: '#22c55e', ents: ents(o.will_give_up || o.willGiveUp) }, { label: '', color: '#22c55e', ents: ents(o.will_receive || o.willReceive) }] };
+        if (o.comments && String(o.comments).trim()) it.note = String(o.comments).trim();
+        items.push(it);
+    });
     // fix up the trade columns: label each side with who sent it
-    items.forEach(it => { if (it.label === 'Trade') { it.cols[0].label = 'Sent by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Sent by ' + (leagueFranchises[it.fid2] || it.fid2); } });
+    items.forEach(it => { if (it.label === 'Trade' || it.offer) { if (it.offer) { it.cols[0].label = (leagueFranchises[it.fid] || it.fid) + ' gives'; it.cols[1].label = (leagueFranchises[it.fid2] || it.fid2) + ' gives'; } else { it.cols[0].label = 'Sent by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Sent by ' + (leagueFranchises[it.fid2] || it.fid2); } } });
     // message board threads sit in the same feed
     const threads = await lldChatLoadThreads(); window._lldChatThreads = threads;
     threads.slice(0, 25).forEach(t => { if (t.ms) items.push({ kind: 'post', ms: t.ms, id: t.id, subject: t.subject, fid: t.lastFid || t.fid, preview: t.preview, replies: t.replies }); });
