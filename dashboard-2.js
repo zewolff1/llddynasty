@@ -266,24 +266,39 @@ function lldChatThreadHtml(thread, posts, ctx) {
     return out;
 }
 function lldChatShellHtml(title, back, listHtml, openUrl, tab) {
-    const tabs = tab ? `<div class="cm-tabs"><button type="button" class="cm-tab${tab === 'board' ? ' on' : ''}" data-tab="board">Board</button><button type="button" class="cm-tab${tab === 'activity' ? ' on' : ''}" data-tab="activity">Activity</button></div>` : '';
+    const tabs = false ? `<div class="cm-tabs"><button type="button" class="cm-tab${tab === 'board' ? ' on' : ''}" data-tab="board">Board</button><button type="button" class="cm-tab${tab === 'activity' ? ' on' : ''}" data-tab="activity">Activity</button></div>` : '';
     return `<div class="cm-top"><button type="button" class="cm-back"${back ? '' : ' style="visibility:hidden"'}>‹</button><div class="cm-title">${lldChatEsc(title)}</div><button type="button" class="cm-x">✕</button></div>${tabs}
 <div class="cm-body">${listHtml}</div>
 <div class="cm-foot"><span>Read-only</span><a href="${lldChatEsc(openUrl)}" target="_blank" rel="noopener">Reply on MFL ↗</a></div>`;
 }
-// items: [{ms, kind:'add'|'trade'|'other', title, lines:[...]}] oldest first; block: [{fid, give, want}]
-function lldChatActivityHtml(items, block, ctx) {
-    const ICON = { add: '＋', trade: '⇄', other: '•' };
+// feed items (oldest first): {kind:'post', ms, id, subject, fid, preview, replies}
+//   or {kind:'tx', ms, fid, fid2, label, color, cols:[{label, color, ents:[{id,name,pos,team}|{pick}]}]}; block: [{fid, give, want}]
+function lldChatEntHtml(e, ctx) {
+    if (e.pick) { const n = (String(e.pick).match(/\d+/) || ['•'])[0]; return `<div class="cm-pr"><span class="cm-pk">${lldChatEsc(n)}</span><div class="cm-pn"><b>${lldChatEsc(e.pick)}</b><span>Draft pick</span></div></div>`; }
+    return `<div class="cm-pr"><span class="cm-ph"><img src="${lldChatEsc(ctx.pimg(e.id))}" alt="" onerror="this.style.opacity=0"></span><div class="cm-pn"><b>${lldChatEsc(e.name || ('#' + e.id))}</b><span>${lldChatEsc([e.pos, e.team].filter(Boolean).join(' · '))}</span></div></div>`;
+}
+function lldChatTxHtml(it, ctx) {
+    const logos = [it.fid, it.fid2].filter(Boolean);
+    const head = logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>');
+    const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em>${c.ents.map(e => lldChatEntHtml(e, ctx)).join('')}</div>`);
+    return `<div class="cm-tx"><div class="cm-th"><div class="cm-tl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div></div>`;
+}
+function lldChatPostHtml(it, ctx) {
+    const who = it.fid ? ctx.nm(it.fid) : '';
+    const prev = lldChatText(it.preview || '').replace(/\s+/g, ' ').slice(0, 140);
+    return `<button type="button" class="cm-row cm-pc" data-tid="${lldChatEsc(it.id)}"><img class="cm-av" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><span class="cm-mid"><span class="cm-who2">${lldChatEsc(who)}<i>${lldChatClock(it.ms)}</i></span><span class="cm-sub">💬 ${lldChatEsc(it.subject || '(no subject)')}</span>${prev ? `<span class="cm-prev">${lldChatEsc(prev)}</span>` : ''}</span>${it.replies ? `<span class="cm-cnt">${it.replies}</span>` : ''}</button>`;
+}
+function lldChatFeedHtml(items, block, ctx) {
     let out = '';
     if (block && block.length) {
-        out += `<div class="cm-block"><button type="button" class="cm-bh">🏷️ On the block now <b>${block.length}</b><span>▾</span></button><div class="cm-bl">${block.map(b => `<div class="cm-bi"><img class="cm-av" src="${lldChatEsc(ctx.av(b.fid))}" alt=""><div><div class="cm-bn">${lldChatEsc(ctx.nm(b.fid))}</div><div class="cm-bg">${lldChatEsc(b.give || 'Players')}</div>${b.want ? `<div class="cm-bw2">Wants: ${lldChatEsc(b.want)}</div>` : ''}</div></div>`).join('')}</div></div>`;
+        out += `<div class="cm-block"><button type="button" class="cm-bh">🏷️ On the block now <b>${block.length}</b><span>▾</span></button><div class="cm-bl">${block.map(b => `<div class="cm-bi"><img class="cm-av" src="${lldChatEsc(ctx.av(b.fid))}" alt=""><div><div class="cm-bn">${lldChatEsc(ctx.nm(b.fid))}</div><div class="cm-bg">${lldChatEsc(b.give || '')}</div>${b.want ? `<div class="cm-bw2">Wants: ${lldChatEsc(b.want)}</div>` : ''}</div></div>`).join('')}</div></div>`;
     }
     if (!items.length) return out + `<div class="cm-empty">No recent activity.</div>`;
     let lastDay = '';
     items.forEach(it => {
         const day = lldChatDay(it.ms, ctx.now);
         if (day !== lastDay) { out += `<div class="cm-day"><span>${lldChatEsc(day)}</span></div>`; lastDay = day; }
-        out += `<div class="cm-card k-${it.kind}"><div class="cm-ci">${ICON[it.kind] || '•'}</div><div class="cm-cb"><div class="cm-ct">${lldChatEsc(it.title)}<i>${lldChatClock(it.ms)}</i></div>${it.lines.map(l => `<div class="cm-cx">${lldChatEsc(l)}</div>`).join('')}</div></div>`;
+        out += it.kind === 'post' ? lldChatPostHtml(it, ctx) : lldChatTxHtml(it, ctx);
     });
     return out;
 }
@@ -761,6 +776,15 @@ function lldStatsBuild(D) { return lldStatsExtend(lldStatsCompute(D)); }
 //LLDSTATS-PURE-END
 
 
+// pull a readable message out of an MFL response (XML <error>, or an HTML page)
+function lldMflError(t) {
+    t = String(t || '');
+    const m = t.match(/<error[^>]*>([\s\S]*?)<\/error>/i);
+    if (m && m[1].trim()) return m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const txt = t.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    const hit = txt.split(/(?<=[.!?])\s+/).find(x => /error|not allowed|cannot|can't|unable|must|exceed|invalid|limit|maximum|only/i.test(x));
+    return (hit || txt).slice(0, 220) || 'Check league rules for this transaction.';
+}
 // ===== TICKER BAR (under the header, every style) =====
 const LLD_TICK_SEP = { lego: '\u25A0', leather: '\u25C6', arcade: '\u25CF', stadium: '\u2022', night: '\u2022', sleeper: '\u00B7' };
 const LLD_TICK_WORD = { classic: 'LIVE', sleeper: 'FEED', lego: 'BRICKS', sportscenter: 'SCORES', arcade: 'HI-SCORE', leather: 'DISPATCH', madden: 'FRANCHISE', stadium: 'LIVE', night: 'ALERT' };
@@ -6236,9 +6260,12 @@ let wasWaiverClaim = false;
                 wasWaiverClaim = true;
             }
 
-            if (responseText.toLowerCase().includes('error')) {
-                const errorMatch = responseText.match(/<error[^>]*>(.*?)<\/error>/i);
-                alert("MFL Rejected: " + (errorMatch ? errorMatch[1] : "Check league rules."));
+            const __isMove = ['activate', 'deactivate', 'swap-ir', 'promote', 'demote', 'swap-ts'].includes(type);
+            // IR/Taxi responses are full HTML pages that can mention "error" in harmless places; only a real <error> tag counts
+            const __rejected = __isMove ? /<error[^>]*>/i.test(responseText) : responseText.toLowerCase().includes('error');
+            if (__rejected) {
+                console.warn('[tx] MFL response for', type, responseText.slice(0, 600));
+                alert("MFL Rejected: " + lldMflError(responseText));
                 btn.text('Error').css({'opacity': '1', 'pointer-events': 'auto', 'background': '#ef4444'});
 } else {
     alert(wasWaiverClaim ? "Player is locked — submitted as a waiver claim (Round 1) instead." : "Transaction successful!");
@@ -7329,7 +7356,7 @@ const res = await fetch(`${MFL_ORIGIN}/${year}/${apiType === 'ir' ? 'ir' : 'taxi
                 const responseText = await res.text();
 if (responseText.match(/<error[^>]*>.*?<\/error>/i)) {
     const errorMatch = responseText.match(/<error[^>]*>(.*?)<\/error>/i);
-    alert(`MFL Rejected the move:\n\n` + (errorMatch ? errorMatch[1] : "Check league rules for this transaction."));
+    alert(`MFL Rejected the move:\n\n` + lldMflError(responseText));
     btn.html(originalText).css({'opacity': '1', 'pointer-events': 'auto'});
     return; 
 }
@@ -17106,7 +17133,7 @@ async function lldChatJson(extra) {
     window._lldChatDiag = last; return null;
 }
 function lldChatCtx() {
-    return { nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), me: myFid, now: Date.now() };
+    return { nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, me: myFid, now: Date.now() };
 }
 function lldChatOpenUrl() { return `${MFL_ORIGIN}/${year}/message_board?L=${lid}`; }
 async function lldChatLoadThreads() {
@@ -17139,7 +17166,6 @@ function lldChatMount() {
 }
 async function lldChatLoadActivity() {
     await lldEnsureFranchiseNames();
-    const nm = f => leagueFranchises[String(f).padStart(4, '0')] || ('Team ' + (parseInt(f, 10) || f));
     const [txd, bd] = await Promise.all([
         lldChatJson('TYPE=transactions&COUNT=40'),
         lldChatJson('TYPE=tradeBait&INCLUDE_DRAFT_PICKS=1')
@@ -17147,57 +17173,62 @@ async function lldChatLoadActivity() {
     const tx = lldChatArr(txd && txd.transactions && txd.transactions.transaction);
     const baits = lldChatArr(bd && bd.tradeBaits && bd.tradeBaits.tradeBait);
     const ids = new Set();
-    const grab = x => String(x || '').split(/[|,]/).forEach(i => { const m = String(i).trim().match(/^(\d{3,6})(?:_.*)?$/); if (m) ids.add(m[1]); });
+    const pid = i => { const m = String(i).trim().match(/^(\d{3,6})(?:_.*)?$/); return m ? m[1] : null; };
+    const grab = x => String(x || '').split(/[|,]/).forEach(i => { const p = pid(i); if (p) ids.add(p); });
     tx.forEach(t => { grab(t.transaction); grab(t.franchise1_gave_up); grab(t.franchise2_gave_up); }); baits.forEach(b => { grab(b.willGiveUp); });
-    const names = {}; const idl = [...ids];
+    const info = {}; const idl = [...ids];
+    const put = p => { const n = String(p.name || '').split(',').map(x => x.trim()); info[p.id] = { id: p.id, name: n.length > 1 ? n[1] + ' ' + n[0] : n[0], pos: p.position || '', team: p.team || '' }; };
     for (let i = 0; i < idl.length; i += 60) {
         const d = await lldChatJson('TYPE=players&PLAYERS=' + idl.slice(i, i + 60).join(','));
-        lldChatArr(d && d.players && d.players.player).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); names[p.id] = (n.length > 1 ? n[1] + ' ' + n[0] : n[0]) + (p.position ? ' (' + p.position + ')' : ''); });
+        lldChatArr(d && d.players && d.players.player).forEach(put);
     }
-    const put = p => { const n = String(p.name || '').split(',').map(x => x.trim()); names[p.id] = (n.length > 1 ? n[1] + ' ' + n[0] : n[0]) + (p.position ? ' (' + p.position + ')' : ''); };
     // anything the batch lookup missed: ask one at a time, then fall back to the full player list
-    let miss = idl.filter(i => !names[i]);
+    let miss = idl.filter(i => !info[i]);
     for (let k = 0; k < miss.length && k < 40; k++) { const d = await lldChatJson('TYPE=players&PLAYERS=' + miss[k]); lldChatArr(d && d.players && d.players.player).forEach(put); }
-    miss = idl.filter(i => !names[i]);
+    miss = idl.filter(i => !info[i]);
     if (miss.length) { const d = await lldChatJson('TYPE=players'); lldChatArr(d && d.players && d.players.player).forEach(p => { if (miss.indexOf(String(p.id)) >= 0) put(p); }); }
-    window._lldChatRaw = { tx: tx.slice(0, 12), missing: idl.filter(i => !names[i]) };
-    const pn = id => {
-        id = String(id).replace(/_.*$/, '');
-        if (/^DP_/.test(id)) { const q = id.split('_'); return `Round ${parseInt(q[1], 10) + 1} pick ${parseInt(q[2], 10) + 1}`; }
-        if (/^FP_/.test(id)) { const q = id.split('_'); return `${q[2]} round ${q[3]} pick`; }
-        return names[id] || ('#' + id);
+    window._lldChatRaw = { tx: tx.slice(0, 12), missing: idl.filter(i => !info[i]) };
+    const ent = id => {
+        id = String(id).trim();
+        if (/^DP_/.test(id)) { const q = id.split('_'); return { pick: `Round ${parseInt(q[1], 10) + 1} pick ${parseInt(q[2], 10) + 1}` }; }
+        if (/^FP_/.test(id)) { const q = id.split('_'); return { pick: `${q[2]} round ${q[3]} pick` }; }
+        const p = pid(id); return p ? (info[p] || { id: p, name: '', pos: '', team: '' }) : null;
     };
-    const list = x => String(x || '').split(',').filter(Boolean).map(pn).join(', ');
-    const items = tx.map(t => {
-        const ms = (parseInt(t.timestamp, 10) || 0) * 1000, ty = String(t.type || '').toUpperCase();
-        if (ty === 'TRADE') return { ms, kind: 'trade', title: 'Trade', lines: [`${nm(t.franchise)} sent ${list(t.franchise1_gave_up) || 'nothing'}`, `${nm(t.franchise2)} sent ${list(t.franchise2_gave_up) || 'nothing'}`] };
-        const parts = String(t.transaction || '').split('|'), add = list(parts[0]), drop = list(parts[1]);
-        const isIR = /IR/.test(ty), isTX = /TAXI/.test(ty);
-        const verb = /AUCTION/.test(ty) ? 'won' : (isIR ? 'activated' : (isTX ? 'promoted from taxi:' : (/WAIVER|BBID/.test(ty) ? 'claimed' : 'added')));
-        const dverb = isIR ? 'moved to IR' : (isTX ? 'moved to taxi' : 'dropped');
-        if (!add && !drop) return null; // league/system housekeeping with no players (unlock, auto-process…)
-        if (isIR || isTX) return { ms, kind: 'other', title: nm(t.franchise), lines: [(isIR ? 'IR move: ' : 'Taxi move: ') + [add, drop].filter(Boolean).join(', ')] };
-        const lines = []; if (add) lines.push(`${verb} ${add}`); if (drop) lines.push(`${dverb} ${drop}`);
-        return { ms, kind: 'add', title: nm(t.franchise), lines };
-    }).filter(x => x && x.ms).sort((a, b) => a.ms - b.ms);
-    const block = baits.map(b => ({ fid: b.franchise_id || b.franchise, give: list(b.willGiveUp), want: String(b.inExchangeFor || '').replace(/^\s*$/, '') })).filter(b => b.fid);
+    const ents = x => String(x || '').split(/[,]/).map(a => a.trim()).filter(Boolean).map(ent).filter(Boolean);
+    const strOf = x => ents(x).map(e => e.pick || ((e.name || ('#' + e.id)) + (e.pos ? ' (' + e.pos + ')' : ''))).join(', ');
+    const LBL = { FREE_AGENT: ['Free agent', '#3b82f6'], WAIVER: ['Waiver claim', '#a78bfa'], BBID_WAIVER: ['Blind bid', '#a78bfa'], AUCTION_WON: ['Auction', '#f59e0b'], IR: ['IR move', '#94a3b8'], TAXI: ['Taxi move', '#94a3b8'] };
+    const items = [];
+    tx.forEach(t => {
+        const ms = (parseInt(t.timestamp, 10) || 0) * 1000, ty = String(t.type || '').toUpperCase(); if (!ms) return;
+        const f1 = String(t.franchise || '').padStart(4, '0');
+        if (ty === 'TRADE') {
+            const f2 = String(t.franchise2 || '').padStart(4, '0');
+            items.push({ kind: 'tx', ms, fid: f1, fid2: f2, label: 'Trade', color: '#f59e0b', cols: [{ label: 'Sent', color: '#22c55e', ents: ents(t.franchise1_gave_up) }, { label: 'Sent', color: '#22c55e', ents: ents(t.franchise2_gave_up) }] });
+            return;
+        }
+        const parts = String(t.transaction || '').split('|'), add = ents(parts[0]), drop = ents(parts[1]);
+        if (!add.length && !drop.length) return; // league/system housekeeping with no players
+        const L = LBL[ty] || [ty.replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase()), '#94a3b8'];
+        const move = /IR|TAXI/.test(ty);
+        items.push({ kind: 'tx', ms, fid: f1, label: L[0], color: L[1], cols: move ? [{ label: 'Moved', color: '#e2e8f0', ents: add.concat(drop) }] : [{ label: /WAIVER|BBID/.test(ty) ? 'Claimed' : (/AUCTION/.test(ty) ? 'Won' : 'Added'), color: '#22c55e', ents: add }, { label: 'Dropped', color: '#ef4444', ents: drop }] });
+    });
+    // fix up the trade columns: label each side with who sent it
+    items.forEach(it => { if (it.label === 'Trade') { it.cols[0].label = 'Sent by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Sent by ' + (leagueFranchises[it.fid2] || it.fid2); } });
+    // message board threads sit in the same feed
+    const threads = await lldChatLoadThreads(); window._lldChatThreads = threads;
+    threads.slice(0, 25).forEach(t => { if (t.ms) items.push({ kind: 'post', ms: t.ms, id: t.id, subject: t.subject, fid: t.lastFid || t.fid, preview: t.preview, replies: t.replies }); });
+    items.sort((a, b) => a.ms - b.ms);
+    const block = baits.map(b => ({ fid: String(b.franchise_id || b.franchise || '').padStart(4, '0'), give: strOf(b.willGiveUp), want: String(b.inExchangeFor || '').replace(/^\s*$/, '') })).filter(b => b.fid && b.fid !== '0000');
     return { items, block };
 }
-async function lldChatShowList(tab) {
-    tab = tab || window._lldChatTab || 'board'; window._lldChatTab = tab;
+async function lldChatShowList() {
     const box = lldChatMount();
     $('#lld-chat').addClass('open'); document.body.style.overflow = 'hidden';
-    box.html(lldChatShellHtml('Message Board', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl(), tab));
-    if (tab === 'activity') {
-        const a = await lldChatLoadActivity();
-        box.html(lldChatShellHtml('League Chat', false, lldChatActivityHtml(a.items, a.block, lldChatCtx()), lldChatOpenUrl(), tab));
-        const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
-        return;
-    }
-    const threads = await lldChatLoadThreads();
-    window._lldChatThreads = threads;
-    const empty = window._lldChatDiag ? `Couldn't load the message board (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.` : '';
-    box.html(lldChatShellHtml('League Chat', false, threads.length || !empty ? lldChatListHtml(threads, lldChatCtx()) : `<div class="cm-empty">${empty}</div>`, lldChatOpenUrl(), tab));
+    box.html(lldChatShellHtml('League Chat', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl()));
+    let a; try { a = await lldChatLoadActivity(); } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
+    const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
+    box.html(lldChatShellHtml('League Chat', false, note || lldChatFeedHtml(a.items, a.block, lldChatCtx()), lldChatOpenUrl()));
+    const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
 }
 async function lldChatShowThread(id) {
     const box = lldChatMount();
