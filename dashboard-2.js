@@ -11925,7 +11925,7 @@ async function renderWeeklyRecap() {
             <div style="font-size:9px;">${recapTeamChip(c.t)}</div>
             <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#22c55e;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
             <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#22c55e; font-weight:900;">+${c.margin.toFixed(1)} pts</span></div>
-        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">No gutsy calls paid off this week.</div>`));
+        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${S.noProj ? 'MFL has no pre-game projections saved for this week, so this can’t be judged.' : 'No gutsy calls paid off this week.'}</div>`));
 
     overs.sort((a, b) => b.margin - a.margin);
     sections.push(recapCard('The Overthinker', '🤡', overs.length ? overs.slice(0, 5).map(c => `
@@ -11933,7 +11933,7 @@ async function renderWeeklyRecap() {
             <div style="font-size:9px;">${recapTeamChip(c.t)}</div>
             <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#ef4444;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
             <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#ef4444; font-weight:900;">−${c.margin.toFixed(1)} pts</span></div>
-        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">Nobody outsmarted themselves this week.</div>`));
+        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${S.noProj ? 'MFL has no pre-game projections saved for this week, so this can’t be judged.' : 'Nobody outsmarted themselves this week.'}</div>`));
 
     container.html(header + sections.join('') + '</div>');
     reapplyAllTeamStyles();
@@ -12089,6 +12089,7 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
     S.upsets.sort((a, b) => b.pct - a.pct || b.total - a.total);
 
     const isOff = pos => ['QB', 'RB', 'WR', 'TE'].includes(pos);
+    if (!Object.keys(projMap || {}).length) return S; // without that week's projections there are no call-based awards
     teams.forEach(t => {
         const opp = oppOf[t.fid];
         const optimal = recapOptimalLineup(t.roster, projMap);
@@ -12132,8 +12133,19 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
 async function getRecapSummary(wk, allScores, latest) {
     const cacheable = wk < latest;
     if (cacheable && window._recapSummaryCache[wk]) return window._recapSummaryCache[wk];
-    const [matchups, projMap] = await Promise.all([fetchRecapWeek(wk, cacheable), fetchWeekProjectedScoresMap(wk)]);
-    const S = computeRecapSummary(wk, matchups, projMap, allScores);
+    const [matchups, fetched] = await Promise.all([fetchRecapWeek(wk, cacheable), fetchWeekProjectedScoresMap(wk)]);
+    // Projections have to be the ones from before that week's games. Keep a copy the first time we see the current week,
+    // and use that copy for the week once it is over, since MFL may not serve old projections reliably.
+    const snapKey = `lld_projsnap_${year}_${lid}_${wk}`;
+    let projMap = fetched;
+    try {
+        if (wk >= latest) { if (Object.keys(fetched).length && !localStorage.getItem(snapKey)) localStorage.setItem(snapKey, JSON.stringify(fetched)); }
+        else { const sv = localStorage.getItem(snapKey); if (sv) projMap = JSON.parse(sv); }
+    } catch (e) { }
+    const meta = (window._projMeta || {})[String(wk)] || {};
+    const noProj = !Object.keys(projMap).length || (wk < latest && meta.stale);
+    const S = computeRecapSummary(wk, matchups, noProj ? {} : projMap, allScores);
+    S.noProj = noProj;
     if (cacheable) window._recapSummaryCache[wk] = S;
     return S;
 }
@@ -12653,6 +12665,11 @@ async function fetchWeekProjectedScoresMap(wk) {
         let list = data?.projectedScores?.playerScore || [];
         if (!Array.isArray(list)) list = list ? [list] : [];
         list.forEach(p => { if (p && p.id) map[p.id] = parseFloat(p.score) || 0; });
+        // MFL tells us which week the projections are for; if it isn't the week we asked for, they are not usable for that week
+        const rep = parseInt(data?.projectedScores?.week, 10);
+        window._projMeta = window._projMeta || {};
+        window._projMeta[cacheKey] = { reported: isNaN(rep) ? null : rep, n: Object.keys(map).length };
+        if (wk && !isNaN(rep) && rep !== parseInt(wk, 10)) { Object.keys(map).forEach(k => delete map[k]); window._projMeta[cacheKey].stale = true; }
     } catch(e) { console.warn('Could not fetch league-wide projected scores for week', wk, e); }
     window._weekProjScoreCache[cacheKey] = map;
     return map;
@@ -16184,6 +16201,8 @@ $('#team-info-panel-wrapper').html(buildTeamInfoPanel(newFid));
                 await fetchMasterStatus();
 window._teamDataDirty = true;
                 await loadTeamData();
+                // if you were on Stats, show this team's stats rather than the roster
+                if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'stats') lldStatsOpen('team');
             });
         }
     applyTeamStyle();
@@ -17597,8 +17616,16 @@ async function lldStatsOpen(mode) {
 }
 function lldStatsDraw(mode) {
     const root = $('.lld-stats[data-mode="' + mode + '"]'); if (!root.length || !window._lldSX) return;
-    const V = lldStatsViews(window._lldSX.S)[mode], i = Math.min(LLDSX.idx[mode] || 0, V.length - 1);
-    root.html('<div class="chips">' + V.map((x, k) => `<button type="button" class="sx-chip${k === i ? ' on' : ''}" data-i="${k}">${x[0]}</button>`).join('') + '</div><div class="sx-out"></div>');
+    // on the Team tab the stats follow whichever team is being viewed, not always your own
+    let SS = window._lldSX.S, other = '';
+    if (mode === 'team') {
+        const vf = (typeof fid !== 'undefined' && fid) ? String(fid).padStart(4, '0') : SS.me;
+        if (vf !== SS.me && SS.F.indexOf(vf) >= 0) {
+            try { SS._byFid = SS._byFid || {}; if (!SS._byFid[vf]) SS._byFid[vf] = lldStatsBuild(Object.assign({}, SS.D, { me: vf })); SS = SS._byFid[vf]; other = vf; } catch (e) { console.warn('stats for team', e); }
+        }
+    }
+    const V = lldStatsViews(SS)[mode], i = Math.min(LLDSX.idx[mode] || 0, V.length - 1);
+    root.html((other ? `<div class="sub" style="margin:0 0 8px;font-weight:800">Showing ${$('<i>').text(SS.D.names[other] || other).html()}’s stats</div>` : '') + '<div class="chips">' + V.map((x, k) => `<button type="button" class="sx-chip${k === i ? ' on' : ''}" data-i="${k}">${x[0]}</button>`).join('') + '</div><div class="sx-out"></div>');
     root.find('.sx-out').html(V[i][1]()); lldStatsWire(root);
     const t = root.find('.sx-chip.on')[0]; if (t && t.scrollIntoView) { try { t.parentNode.scrollLeft = t.offsetLeft - 20; } catch (e) { } }
 }
