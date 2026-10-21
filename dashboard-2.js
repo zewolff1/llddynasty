@@ -11979,6 +11979,8 @@ async function fetchAllWeekScores() {
 // Full box score (every player, starter flag, score) for any week, not tied to the Scores tab state
 async function fetchRecapWeek(wk, useCache) {
     if (useCache && window._recapWeekCache[wk]) return window._recapWeekCache[wk];
+    const lsKey = `lld_c_wk_${year}_${lid}_${wk}`;
+    if (useCache) { const c = lldLsGet(lsKey, 24 * 3600 * 1000); if (c && c.length) { window._recapWeekCache[wk] = c; return c; } }
     const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
     const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=${wk}&DETAILS=1&JSON=1`, { credentials: 'include', cache: 'no-store' });
     const data = await res.json();
@@ -12013,7 +12015,7 @@ async function fetchRecapWeek(wk, useCache) {
         const fr = asArr(m.franchise);
         return fr.length >= 2 ? { t1: buildTeam(fr[0]), t2: buildTeam(fr[1]) } : null;
     }).filter(Boolean);
-    if (useCache) window._recapWeekCache[wk] = matchups;
+    if (useCache) { window._recapWeekCache[wk] = matchups; if (matchups.length && matchups.every(m => m.t1.roster.length)) lldLsSet(lsKey, matchups); }
     return matchups;
 }
 
@@ -12652,6 +12654,8 @@ window._weekProjDebugLogged = false;
 async function fetchWeekProjectedScoresMap(wk) {
     const cacheKey = String(wk);
     if (window._weekProjScoreCache[cacheKey]) return window._weekProjScoreCache[cacheKey];
+    const pKey = `lld_c_proj_${year}_${lid}_${cacheKey}`;
+    { const c = lldLsGet(pKey, 6 * 3600 * 1000); if (c && Object.keys(c).length) { window._weekProjScoreCache[cacheKey] = c; return c; } }
     const map = {};
     try {
         const url = `${MFL_ORIGIN}/${year}/export?TYPE=projectedScores&L=${lid}${wk ? `&W=${wk}` : ''}&JSON=1`;
@@ -12672,6 +12676,7 @@ async function fetchWeekProjectedScoresMap(wk) {
         if (wk && !isNaN(rep) && rep !== parseInt(wk, 10)) { Object.keys(map).forEach(k => delete map[k]); window._projMeta[cacheKey].stale = true; }
     } catch(e) { console.warn('Could not fetch league-wide projected scores for week', wk, e); }
     window._weekProjScoreCache[cacheKey] = map;
+    if (Object.keys(map).length && !(window._projMeta && window._projMeta[cacheKey] && window._projMeta[cacheKey].stale)) lldLsSet(pKey, map);
     return map;
 }
 function buildLiveScorePlayerRow(p, projMap, liveDetails, teamColor) {
@@ -17471,10 +17476,21 @@ function lldChatInit() {
 const LLDSX = { mode: 'team', idx: { team: 0, league: 0 } };
 function lldSxArr(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
 let _lldSxLast = 0;
+// small persistent cache so reopening Stats / Recaps doesn't hit MFL for data that hasn't changed
+function lldLsGet(key, ttl) { try { const o = JSON.parse(localStorage.getItem(key) || 'null'); if (o && Date.now() - o.t < ttl) return o.v; } catch (e) { } return null; }
+function lldLsSet(key, v) { try { const s = JSON.stringify({ t: Date.now(), v }); if (s.length < 900000) localStorage.setItem(key, s); } catch (e) { try { Object.keys(localStorage).filter(k => /^lld_c_/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e2) { } } }
+const LLD_SX_TTL = { players: 86400000, playerScores: 86400000, league: 86400000, rosters: 900000, freeAgents: 900000, leagueStandings: 300000, schedule: 300000 };
 async function lldSxJson(type, extra) {
+    const ck = LLD_SX_TTL[type] ? `lld_c_${type}_${year}_${lid}_${extra || ''}`.slice(0, 180) : null;
+    if (ck) { const c = lldLsGet(ck, LLD_SX_TTL[type]); if (c) return c; }
+    const res = await lldSxJsonNet(type, extra);
+    if (ck && res) lldLsSet(ck, res);
+    return res;
+}
+async function lldSxJsonNet(type, extra) {
     let last = '', tries = 0;
-    for (let a = 0; a < 8; a++) {
-        if (a) await new Promise(r => setTimeout(r, Math.min(20000, last.indexOf('429') >= 0 ? (window._lldSxRetry || 4000) * a : 1200 * a)));
+    for (let a = 0; a < 6; a++) {
+        if (a) await new Promise(r => setTimeout(r, Math.min(7000, last.indexOf('429') >= 0 ? (window._lldSxRetry || 3000) * a : 1200 * a)));
         // MFL throttles quick bursts, so space our own requests out a little
         const wait = _lldSxLast + 400 - Date.now(); if (wait > 0) await new Promise(r => setTimeout(r, wait));
         _lldSxLast = Date.now();
