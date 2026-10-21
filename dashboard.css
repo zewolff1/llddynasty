@@ -3497,3 +3497,7 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 #pa-modal-content .pa-tot b{font-size:15px;font-weight:900;color:#fff}
 #pa-modal-content .pa-tot.avg{border-color:rgba(0,206,184,.35);background:rgba(0,206,184,.08)}
 #pa-modal-content .pa-tot.avg b{color:var(--accent-teal)}
+
+.lld-fa-fit{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+#lld-sx-help .pgb p{margin:0 0 10px;font-size:13px;line-height:1.45}
+#lld-sx-help .pgb td .good{color:var(--green);font-weight:800}
