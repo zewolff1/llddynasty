@@ -377,6 +377,8 @@ function lldStatsCompute(D) {
     S.officialRec = false;
     if (D.rec) F.forEach((f, i) => { const r = D.rec[f]; if (r && r.w != null && r.l != null) { S.wins[i] = r.w; S.losses[i] = r.l; S.ties[i] = r.t || 0; S.officialRec = true; } });
     S.gp = F.map((_, i) => S.wins[i] + S.losses[i] + S.ties[i]);
+    // all-play expected wins scale with games actually played (a team can play more than one game a week)
+    S.expW = i => (W ? S.gp[i] * S.ap[i] / (W * (N - 1)) : 0);
     S.apL = F.map((_, i) => W * (N - 1) - S.ap[i]);
     S.avg = S.pf.map(x => W ? x / W : 0);
     S.leagueAvg = llsMean(S.avg);
@@ -477,7 +479,7 @@ function lldStatsCompute(D) {
     S.sdTeam = Math.max(8, llsSd([].concat.apply([], S.sc.map((a, i) => a.map(x => x - S.avg[i])))) || 15);
     S.projMean = F.map((f, i) => { const base = S.avg[i] * .8 + S.leagueAvg * .2; if (!S.hasRos) return base; const pm = S.rosLineup(S.cur[f]); return pm > 0 ? pm * .6 + S.avg[i] * .4 : base; });
     S.sim = adj => {
-        const rg = llsRng(11), SIMS = 2000, res = F.map(() => ({ po: 0, bye: 0, w: 0, rk: 0 })), PT = D.playoffTeams || 6, BY = D.byes || 2;
+        const rg = llsRng(11), SIMS = 2000, res = F.map(() => ({ po: 0, bye: 0, w: 0, rk: 0, seed: new Array(D.playoffTeams || 6).fill(0), wd: {}, wp: {} })), PT = D.playoffTeams || 6, BY = D.byes || 2;
         const g2 = (m, sd) => { const u = 1 - rg(), v = rg(); return m + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
         const rest = S.rosW;
         for (let q = 0; q < SIMS; q++) {
@@ -487,10 +489,10 @@ function lldStatsCompute(D) {
                 (D.sched[w] || []).forEach(m => { const a = idx[m[0]], b = idx[m[1]]; if (a == null || b == null) return; if (ws[a] > ws[b]) wv[a]++; else wv[b]++; if (!counted[a]) { counted[a] = 1; pfs[a] += ws[a]; } if (!counted[b]) { counted[b] = 1; pfs[b] += ws[b]; } });
             });
             const o = order((a, b) => wv[b] - wv[a] || pfs[b] - pfs[a]);
-            o.forEach((t, k) => { if (k < PT) res[t].po++; if (k < BY) res[t].bye++; res[t].rk += k + 1; });
+            o.forEach((t, k) => { if (k < PT) { res[t].po++; res[t].seed[k]++; } if (k < BY) res[t].bye++; res[t].rk += k + 1; const wn = wv[t]; res[t].wd[wn] = (res[t].wd[wn] || 0) + 1; if (k < PT) res[t].wp[wn] = (res[t].wp[wn] || 0) + 1; });
             for (let t = 0; t < N; t++) res[t].w += wv[t];
         }
-        res.forEach(x => { x.po = Math.round(x.po / SIMS * 100); x.bye = Math.round(x.bye / SIMS * 100); x.rk /= SIMS; x.w /= SIMS; });
+        res.forEach(x => { x.poN = x.po; x.simN = SIMS; x.seedN = x.seed.slice(); x.seed = x.seed.map(c => c / SIMS * 100); x.miss = 100 - x.seed.reduce((a, b) => a + b, 0); x.po = Math.round(x.po / SIMS * 100); x.bye = Math.round(x.bye / SIMS * 100); x.rk /= SIMS; x.w /= SIMS; });
         return res;
     };
     S.base = S.sim(null);
@@ -525,13 +527,15 @@ function lldStatsExtend(S) {
             if (llsWouldStart(ent.map(e => ({ pid: e.pid, pos: e.pos, v: e.score })), { pid, pos, v: scoreOf(pid, wi) }, slots)) r.inOpt++;
             if (S.hasProj && llsWouldStart(ent.map(e => ({ pid: e.pid, pos: e.pos, v: projOf(wkNum(wi), e.pid) })), { pid, pos, v: projOf(wkNum(wi), pid) }, slots)) r.projStart++;
         }
-        const list = (base || S.cur[me]).filter(x => x !== pid), rp = {}, rv = {};
+        const list = (base || S.cur[me]).filter(x => x !== pid), rp = {}, rv = {}; r.weeks = [];
         S.rosW.forEach(wk => {
             const pool = list.map(x => ({ pid: x, pos: S.posOf(x), v: projOf(wk, x) })), c = { pid, pos, v: projOf(wk, pid) };
             const a = llsOpt(pool, slots), b = llsOpt(pool.concat([c]), slots);
             if (b.has(pid)) { r.rosStart++; pool.forEach(x => { if (a.has(x.pid) && !b.has(x.pid)) { rp[x.pid] = (rp[x.pid] || 0) + 1; rv[x.pid] = (rv[x.pid] || 0) + x.v; } }); }
             const sum = (set, pl) => { let t = 0; pl.forEach(x => { if (set.has(x.pid)) t += x.v; }); return t; };
-            r.rosGain += sum(b, pool.concat([c])) - sum(a, pool);
+            const dg = sum(b, pool.concat([c])) - sum(a, pool); r.rosGain += dg;
+            const out = pool.filter(x => a.has(x.pid) && !b.has(x.pid))[0];
+            r.weeks.push({ wk, v: c.v, starts: b.has(pid), out: out ? out.pid : null, outV: out ? out.v : 0, gain: dg });
         });
         const rk = Object.keys(rp).sort((x, y) => rp[y] - rp[x])[0]; if (rk) { r.repl = rk; r.replV = rv[rk] / rp[rk]; r.myV = S.rosW.length ? S.rosW.reduce((t, wk) => t + projOf(wk, pid), 0) / S.rosW.length : 0; }
         r.inOptP = W ? r.inOpt / W : 0; r.projStartP = W ? r.projStart / W : 0; r.rosStartP = r.rn ? r.rosStart / r.rn : 0; r.rosGainWk = r.rn ? r.rosGain / r.rn : 0;
@@ -655,16 +659,48 @@ function lldStatsViews(S) {
     const hasProj = S.hasProj;
     const projNote = hasProj ? '' : '<div class="sub" style="margin-top:6px">MFL has no projections for the past weeks, so projection comparisons are hidden.</div>';
 
+
+    // ---------- explanations that show the real numbers ----------
+    const nF = (x, d) => Number(x).toFixed(d == null ? 1 : d);
+    const left = Math.max(0, S.totG[mi] - S.gp[mi]);
+    const recTxt = S.wins[mi] + '-' + S.losses[mi] + (S.ties[mi] ? '-' + S.ties[mi] : '');
+    const tbl = (head, rows) => '<table><tr>' + head.map(x => `<th>${x}</th>`).join('') + '</tr>' + rows.map(r => '<tr>' + r.map(x => `<td>${x}</td>`).join('') + '</tr>').join('') + '</table>';
+    function helpFor(label) {
+        label = (label || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const b = S.base[mi], PT = D.playoffTeams || 6, SIMS = b.simN || 2000, nm0 = esc(D.names[F[mi]] || F[mi]);
+        if (label === 'record') return ['Record', `<p>Wins and losses${S.officialRec ? ' straight from MFL’s standings' : ' counted from every box score, one result per game'}.</p><p><b>${recTxt}</b> over <b>${S.gp[mi]}</b> games in <b>${W}</b> scored weeks. A week can hold more than one game, so games played can be higher than weeks.</p>`];
+        if (label === 'all-play') { const tot = W * (N - 1); return ['All-Play', `<p>Each week your score is compared with every other team’s score that week, as if you had played all ${N - 1} of them.</p><p>${W} weeks × ${N - 1} opponents = <b>${tot}</b> comparisons. You won <b>${nF(S.ap[mi], 0)}</b> and lost <b>${nF(S.apL[mi], 0)}</b>, so your all-play win rate is <b>${pct(S.ap[mi] / tot)}</b>.</p><p>That rate is used for expected wins in the Luck check, scaled to your ${S.gp[mi]} games played.</p>`]; }
+        if (label === 'power rank') return ['Power rank', `<p>Teams are ordered by all-play wins first, then by total points as the tiebreaker.</p><p>You have <b>${nF(S.ap[mi], 0)}</b> all-play wins and <b>${nF(S.pf[mi])}</b> points, which ranks <b>#${S.power.indexOf(mi) + 1}</b> of ${N}.</p>`];
+        if (label === 'avg points') return ['Average points', `<p>Total points ÷ scored weeks, so a double-header week counts as one score.</p><p><b>${nF(S.pf[mi])}</b> ÷ ${W} = <b>${nF(S.avg[mi])}</b> per week. The league average is ${nF(S.leagueAvg)}, and you rank #${S.rankPF.indexOf(mi) + 1}.</p>`];
+        if (label === 'playoffs' || label === 'proj. playoffs' || label === 'playoff odds') {
+            const wins = Object.keys(b.wd || {}).map(Number).sort((x, y) => y - x).filter(w => b.wd[w] / SIMS >= 0.005);
+            return ['Playoff odds', `<p><b>${nM0(b)}</b> of ${SIMS.toLocaleString()} simulated seasons put you in the top ${PT}, so <b>${b.po}%</b>. Only the top ${PT} of ${N} teams make the playoffs.</p><p><b>Starting point</b>: ${recTxt} after ${S.gp[mi]} games, ${left} left.</p><p><b>How each week is simulated</b>: every team gets a random score centered on its own projection (60% your best projected lineup, 40% season average = <b>${nF(S.projMean[mi])}</b> for you) with a typical swing of ±<b>${nF(S.sdTeam)}</b> points taken from this league’s real scores. The higher score wins each scheduled game, double-header weeks included.</p><p><b>Final order</b>: wins, then total points.</p>${wins.length ? '<p><b>What you need</b>: how often you finish on each win total, and how often that total gets you in.</p>' + tbl(['Final wins', 'Happens', 'Makes it'], wins.slice(0, 8).map(w => [w, nF(b.wd[w] / SIMS * 100, 0) + '%', nF((b.wp[w] || 0) / b.wd[w] * 100, 0) + '%'])) : ''}`];
+        }
+        if (label === 'seed odds') return ['Seed odds', `<p>Same ${SIMS.toLocaleString()} simulated seasons as the playoff odds. Each season ranks every team by wins, then points; the team in spot 1 is the #1 seed, and so on. Seeds 1 to ${PT} are the playoff field.</p>` + tbl(['Result', 'Seasons', 'Chance'], b.seed.map((p, k) => ['#' + (k + 1) + ' seed', Math.round(p * SIMS / 100), nF(p) + '%']).concat([['Miss playoffs', Math.round(b.miss * SIMS / 100), nF(b.miss) + '%']])) + '<p>The seeds add up to your playoff odds. Division winners and other tiebreakers are not modeled; ties are broken by points.</p>'];
+        if (label === 'proj. final rank') return ['Projected final rank', `<p>The average finishing spot across ${SIMS.toLocaleString()} simulated seasons: <b>${nF(b.rk, 2)}</b>, shown rounded as #${Math.round(b.rk)}. You are #${S.standing.indexOf(mi) + 1} now.</p>`];
+        if (label === 'proj. record') { const g = S.projGames(mi), ew = g.reduce((a, x) => a + x.p, 0); return ['Projected record', `<p>Current wins <b>${S.wins[mi]}</b> + average wins from the remaining ${left} game${left === 1 ? '' : 's'} across the simulations = <b>${nF(b.w)}</b>, shown as ${Math.round(b.w)}-${S.totG[mi] - Math.round(b.w)}.</p>${g.length ? '<p>Remaining games, each with a win chance from the gap between the two teams’ projected scores. They add up to about ' + nF(ew) + ' wins:</p>' + tbl(['Wk', 'Opponent', 'Win'], g.map(x => [x.wk, esc(D.names[F[x.opp]] || F[x.opp]), Math.round(x.p * 100) + '%'])) : ''}`]; }
+        if (label === 'proj. pts / wk') return ['Projected points per week', `<p>Your best legal lineup for each remaining week using MFL’s projections for your current roster, averaged: <b>${nF(S.rosLineup(mine))}</b>.</p>`];
+        if (label === 'luck check') return ['Luck check', `<p>Expected wins = all-play win rate × games you have played.</p><p>${pct(S.ap[mi] / (W * (N - 1)))} × ${S.gp[mi]} games = <b>${nF(S.expW(mi))}</b> expected wins, against <b>${S.wins[mi]}</b> actual. Positive means the schedule has helped you.</p>`];
+        return null;
+    }
+    const nM0 = b => (b.poN != null ? b.poN : Math.round(b.po / 100 * 2000)).toLocaleString();
+    function faSheet(pid) {
+        const f = S.fit(pid), nmp = esc((D.pinfo[pid] || {}).name || pid);
+        if (!f.weeks.length) return `<div class="sub">No weeks left to project.</div>`;
+        const rows = f.weeks.map(w => [w.wk, nF(w.v), w.starts ? `<span class="good">Starts</span>${w.out ? ' over ' + esc((D.pinfo[w.out] || {}).name || w.out) + ' (' + nF(w.outV) + ')' : ' (open slot)'}` : '<span class="sub" style="display:inline">Bench</span>', w.starts ? '+' + nF(w.gain) : '–']);
+        return `<div class="sub" style="margin:2px 0 8px">${nmp} would start in <b>${f.rosStart}</b> of the ${f.rn} remaining weeks (${pct(f.rosStartP)}). Each week his projection is added to your roster and the best legal lineup is recalculated; he starts only if he beats someone already in it.</div><div class="card scroll">${tbl(['Wk', 'His proj', 'Result', 'Adds'], rows)}</div><div class="sub">Adds is how many more points your lineup scores that week. Average ${nF(f.rosGainWk)} per week.</div>`;
+    }
     // ---------- TEAM ----------
     function tOverview() {
         const b = S.base[mi], mx = Math.max.apply(0, S.sc[mi]) + 10, wd = Math.max(8, Math.min(30, Math.floor(270 / Math.max(1, W)) - 4)), gap = Math.max(4, Math.min(14, wd / 2)), tw = 16 + W * (wd + gap);
         let bars = ''; S.sc[mi].forEach((v, w) => { const h = v / mx * 110, x = 8 + w * (wd + gap); bars += `<rect x="${x}" y="${130 - h}" width="${wd}" height="${h}" rx="4" fill="${v >= S.leagueAvg ? '#00ceb8' : '#3b82f6'}"/><text x="${x + wd / 2}" y="${124 - h}" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">${Math.round(v)}</text><text x="${x + wd / 2}" y="146" text-anchor="middle" font-size="9" fill="#8a9ab5">W${D.weeks[w].wk}</text>`; });
-        const ly = 130 - S.leagueAvg / mx * 110, ex = S.wins[mi] - S.ap[mi] / (N - 1);
+        const ly = 130 - S.leagueAvg / mx * 110, ex = S.wins[mi] - S.expW(mi);
         const byeN = D.byes || 2;
-        let h = `<div class="tiles">${tile('Record', S.wins[mi] + '-' + S.losses[mi])}${tile('All-Play', f1(S.ap[mi]).replace('.0', '') + '-' + f1(S.apL[mi]).replace('.0', ''), pct(S.ap[mi] / (W * (N - 1))), 'good')}${tile('Power Rank', '#' + (S.power.indexOf(mi) + 1))}${tile('Avg Points', f1(S.avg[mi]), '#' + (S.rankPF.indexOf(mi) + 1) + ' of ' + N, 'good')}${tile('Playoffs', b.po + '%')}${tile('Top-' + byeN + ' Bye', b.bye + '%')}</div>`;
+        let h = `<div class="tiles">${tile('Record', S.wins[mi] + '-' + S.losses[mi])}${tile('All-Play', f1(S.ap[mi]).replace('.0', '') + '-' + f1(S.apL[mi]).replace('.0', ''), pct(S.ap[mi] / (W * (N - 1))), 'good')}${tile('Power Rank', '#' + (S.power.indexOf(mi) + 1))}${tile('Avg Points', f1(S.avg[mi]), '#' + (S.rankPF.indexOf(mi) + 1) + ' of ' + N, 'good')}${tile('Playoffs', b.po + '%')}</div>`;
+        h += `<h2>Seed odds</h2><div class="card">${b.seed.map((p, k) => prow('#' + (k + 1) + ' seed', p / 100, (Math.round(p * 10) / 10) + '%')).join('')}${prow('Miss playoffs', b.miss / 100, (Math.round(b.miss * 10) / 10) + '%')}</div>`;
         h += `<h2>Rest of season</h2><div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk))}${tile('Proj. record', Math.round(b.w) + '-' + (S.totG[mi] - Math.round(b.w)))}${tile('Proj. playoffs', b.po + '%')}</div>`;
         h += `<h2>Weekly scoring</h2><div class="card"><svg viewBox="0 0 ${tw} 154" width="100%" role="img"><g style="color:var(--text-main)">${bars}</g><line x1="0" x2="${tw}" y1="${ly}" y2="${ly}" stroke="#f59e0b" stroke-dasharray="4 4"/></svg><div class="sub">Bright bars beat the league average. Dashed line: ${f1(S.leagueAvg)} pts.</div></div>`;
-        h += `<h2>Luck check</h2><div class="card"><div style="display:flex;justify-content:space-between;font-weight:800"><span>Actual wins</span><span>${S.wins[mi]}</span></div><div style="display:flex;justify-content:space-between;font-weight:800;margin-top:6px"><span>Expected from All-Play</span><span>${f1(S.ap[mi] / (N - 1))}</span></div><div class="sub">${ex > 0.4 ? 'Schedule has helped you a little.' : ex < -0.4 ? 'Schedule has hurt you a little.' : 'Your record matches how you really score.'}</div></div>`;
+        h += `<h2>Luck check</h2><div class="card"><div style="display:flex;justify-content:space-between;font-weight:800"><span>Actual wins</span><span>${S.wins[mi]}</span></div><div style="display:flex;justify-content:space-between;font-weight:800;margin-top:6px"><span>Expected from All-Play</span><span>${f1(S.expW(mi))}</span></div><div class="sub">${ex > 0.4 ? 'Schedule has helped you a little.' : ex < -0.4 ? 'Schedule has hurt you a little.' : 'Your record matches how you really score.'}</div></div>`;
         return h;
     }
     function tPositions() {
@@ -727,10 +763,7 @@ function lldStatsViews(S) {
         mine.filter(pid => S.posOf(pid)).sort((a, b) => POS.indexOf(S.posOf(a)) - POS.indexOf(S.posOf(b))).forEach(pid => { const rs = S.rosStarts(mine, pid), avg = llsMean(S.rosW.map(wk => S.rosP(pid, wk))); h += `<tr ${attr(pid)}><td class="tm" style="max-width:130px">${pn(pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(pid))}</span></td><td>${f1(avg)}</td><td>${rs} of ${S.rosW.length}</td><td>#${S.posFinish(pid)} ${llsLbl(S.posOf(pid))}</td></tr>`; });
         return h + `</table></div><div class="sub">Tap a player for the full breakdown. Starts is how many of the ${S.rosW.length} remaining weeks he is projected to be in your lineup. Finish is where his full-season total is projected to rank at his position.</div>`;
     }
-    function tAwards() {
-        let h = '<h2>Your awards</h2><div class="badges">'; AW.forEach(a => { const w = S.aw[mi][a[0]]; h += `<div class="badge${w.length ? '' : ' zero'}"><div class="ic">${a[1]}</div><div><b>${a[2]} ×${w.length}</b><span>${w.length ? 'Week ' + w.join(', ') : 'Not yet'}</span></div></div>`; });
-        return h + '</div>';
-    }
+    function tAwards() { return `<div class="sx-recap" data-kind="team" data-fid="${esc(F[mi])}"><div class="sub" style="padding:24px 10px;text-align:center">Loading awards…</div></div>`; }
     function playerHtml(pid) {
         const p = S.pl[pid], pos = S.posOf(pid), st = S.stat(pid) || { n: 0, avg: 0, sd: 0 }, owner = S.lastOwner(pid), mineP = owner === me, c = S.cons(pid);
         const lab = c >= .67 ? ['Steady', 'good'] : c <= .33 ? ['Volatile', 'bad'] : ['Average', 'warn'];
@@ -752,7 +785,7 @@ function lldStatsViews(S) {
     function tFA() {
         if (!S.faList.length) return '<div class="sub" style="padding:30px 10px;text-align:center">No free agent data yet.</div>';
         let h = `<h2>Free agents, fit for your team</h2><div class="card scroll"><table><tr><th>Player</th><th>Best lineup</th>${hasProj ? '<th>Proj. starter</th>' : ''}${S.hasRos ? '<th>Rest of season</th><th>Adds/wk</th>' : ''}</tr>`;
-        S.faList.slice(0, 25).forEach(x => { const f = x.fit; h += `<tr ${attr(x.pid)}><td class="tm" style="max-width:120px">${pn(x.pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(x.pid))}</span></td><td>${pct(f.inOptP)}</td>${hasProj ? `<td>${pct(f.projStartP)}</td>` : ''}${S.hasRos ? `<td class="${f.rosStartP >= .5 ? 'good' : ''}">${pct(f.rosStartP)}</td><td class="${f.rosGainWk > .05 ? 'good' : ''}">${f.rosGainWk > .05 ? '+' + f1(f.rosGainWk) : '—'}${f.repl ? `<div class="sub" style="margin:0">for ${esc((D.pinfo[f.repl] || {}).name || '')}</div>` : ''}</td>` : ''}</tr>`; });
+        S.faList.slice(0, 25).forEach(x => { const f = x.fit; h += `<tr ${attr(x.pid)}><td class="tm" style="max-width:120px">${pn(x.pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(x.pid))}</span></td><td>${pct(f.inOptP)}</td>${hasProj ? `<td>${pct(f.projStartP)}</td>` : ''}${S.hasRos ? `<td class="hp ${f.rosStartP >= .5 ? 'good' : ''}" data-fa="${esc(x.pid)}" style="text-decoration:underline dotted">${pct(f.rosStartP)}</td><td class="${f.rosGainWk > .05 ? 'good' : ''}">${f.rosGainWk > .05 ? '+' + f1(f.rosGainWk) : '—'}${f.repl ? `<div class="sub" style="margin:0">for ${esc((D.pinfo[f.repl] || {}).name || '')}</div>` : ''}</td>` : ''}</tr>`; });
         return h + '</table></div><div class="sub"><b>Best lineup</b>: past weeks where he would have been in your best possible lineup. <b>Proj. starter</b>: past weeks he would have been projected to start for you. <b>Rest of season</b>: share of the remaining weeks he is projected to start for you. <b>Adds/wk</b>: points per week your best lineup gains, which is his projection minus the player he replaces. Tap a player to see everything.</div>';
     }
     // trade lab (interactive; selections live in S._trade)
@@ -772,7 +805,7 @@ function lldStatsViews(S) {
     // ---------- LEAGUE ----------
     function lStandings() {
         let h = '<h2>All-Play standings</h2><div class="card scroll"><table><tr><th>Team</th><th>W-L</th><th>All-Play</th><th>PF</th><th>Luck</th></tr>';
-        S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]).forEach(t => { const l = S.wins[t] - S.ap[t] / (N - 1); h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>${S.wins[t]}-${S.losses[t]}${S.ties[t] ? '-' + S.ties[t] : ''}</td><td>${f1(S.ap[t]).replace('.0', '')}-${f1(S.apL[t]).replace('.0', '')}</td><td>${f1(S.pf[t])}</td><td class="${l > .5 ? 'warn' : l < -.5 ? 'bad' : ''}">${l > 0 ? '+' : ''}${l.toFixed(1)}</td></tr>`; });
+        S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]).forEach(t => { const l = S.wins[t] - S.expW(t); h += `<tr${t === mi ? ' class="me"' : ''}><td class="tm">${nm(t)}</td><td>${S.wins[t]}-${S.losses[t]}${S.ties[t] ? '-' + S.ties[t] : ''}</td><td>${f1(S.ap[t]).replace('.0', '')}-${f1(S.apL[t]).replace('.0', '')}</td><td>${f1(S.pf[t])}</td><td class="${l > .5 ? 'warn' : l < -.5 ? 'bad' : ''}">${l > 0 ? '+' : ''}${l.toFixed(1)}</td></tr>`; });
         return h + `</table></div><div class="sub">All-Play is your record if you played every team every week. Luck is actual wins minus expected wins; a positive number means the schedule has been kind.</div><h2>Power rankings</h2><div class="card">${S.power.map((t, i) => `<div class="lead"><span class="r">${i + 1}</span><span class="t">${nm(t)}</span><span class="v">${f1(S.avg[t])}</span></div>`).join('')}</div>`;
     }
     function lPlayoffs() {
@@ -785,10 +818,7 @@ function lldStatsViews(S) {
         S.power.forEach(t => { h += `<tr><td class="tm" style="${t === mi ? 'color:var(--accent-blue)' : ''}">${nm(t)}</td>` + POS.map(p => `<td class="c" style="background:${heat(S.PR[p][t])}">${S.PR[p][t]}</td>`).join('') + '</tr>'; });
         return h + `</table></div><div class="sub">Rank among ${N} teams by points scored by starters at each position. 1 is best.</div>`;
     }
-    function lAwards() {
-        let h = ''; AW.forEach(a => { const rows = S.order((x, y) => S.aw[y][a[0]].length - S.aw[x][a[0]].length).filter(t => S.aw[t][a[0]].length).slice(0, 4); h += `<h2>${a[1]} ${a[2]}</h2><div class="card">${rows.map((t, i) => `<div class="lead"><span class="r">${i + 1}</span><span class="t">${nm(t)}<div class="sub">Week ${S.aw[t][a[0]].join(', ')}</div></span><span class="v">${S.aw[t][a[0]].length}</span></div>`).join('') || '<div class="sub">None yet.</div>'}</div>`; });
-        return h;
-    }
+    function lAwards() { return `<div class="sx-recap" data-kind="league"><div class="sub" style="padding:24px 10px;text-align:center">Loading awards…</div></div>`; }
     function lPlayers() {
         const rel = Object.keys(S.pl).filter(pid => S.stat(pid).n >= Math.min(3, W) && S.pl[pid].st.some(x => x));
         const list = (title, arr, val) => `<h2>${title}</h2><div class="card">${arr.map((pid, i) => `<div class="lead sx-row" ${attr(pid)}><span class="r">${i + 1}</span><span class="t">${pn(pid)}<div class="sub">${llsLbl(S.pl[pid].pos)}${S.lastOwner(pid) ? ' · ' + esc(D.names[S.lastOwner(pid)] || '') : ''}</div></span><span class="v">${val(pid)}</span></div>`).join('') || '<div class="sub">Not enough games yet.</div>'}</div>`;
@@ -819,6 +849,7 @@ function lldStatsViews(S) {
         return h + '</table></div><div class="sub">Simulates the remaining weeks from current records, scoring and projected lineups. Arrows show movement from today’s standing. Tap a team to see every projected matchup behind its number.</div>';
     }
     return {
+        helpFor, faSheet,
         playerHtml,
         team: [['Overview', tOverview], ['Positions', tPositions], ['Boom / Bust', tBoom], ['Start / Sit', tStartSit], ['Value', tValue], ['Outlook', tOutlook], ['Awards', tAwards], ['Free agents', tFA]],
         league: [['Standings', lStandings], ['Playoffs', lPlayoffs], ['Positions', lPositions], ['Awards', lAwards], ['Players', lPlayers], ['Lineups', lLineups], ['Projected', lProjected]]
@@ -7010,6 +7041,7 @@ $(document).on('touchmove', '.settings-content-area', function(e) {
 });
 
     $(document).off('click touchend', '.player-row .player-name-slot, .player-row .player-img-wrapper, .player-modal-trigger').on('click touchend', '.player-row .player-name-slot, .player-row .player-img-wrapper, .player-modal-trigger', function(e) {
+        if ($(e.target).closest('[data-fa], .lld-fa-fit').length) return; // free-agent fit explainer handles its own taps
         if (e.type === 'touchend') { if (touchMoved) return; e.preventDefault(); } // Stops the phone from firing a ghost 'click'
         e.stopPropagation(); // Stops the tap from reaching the contract accordion
         const row = $(this).closest('.player-row');
@@ -9209,7 +9241,7 @@ function lldFaFitChip(S, pid, pos) {
     const rest = S.rosW.length > 0, p = rest ? f.rosStartP : f.inOptP, gain = f.rosGainWk;
     const col = p >= .5 ? '#22c55e' : p > 0 ? '#f59e0b' : '#94a3b8', pc = Math.round(p * 100) + '%';
     const nm = f.repl ? ((D.pinfo[f.repl] || {}).name || '').replace(/^(\S)\S*\s+/, '$1. ') : '';
-    return `<span class="lld-fa-fit" style="color:${col}"><b>${pc}</b> of ${rest ? 'weeks' : 'past weeks'} he starts${gain > .05 ? ` · <b>+${gain.toFixed(1)}</b>/wk${nm ? ' over ' + nm : ''}` : (p > 0 ? '' : ' · bench only')}</span>`;
+    return `<span class="lld-fa-fit" data-fa="${pid}" style="color:${col}"><b>${pc}</b> of ${rest ? 'weeks' : 'past weeks'} he starts${gain > .05 ? ` · <b>+${gain.toFixed(1)}</b>/wk${nm ? ' over ' + nm : ''}` : (p > 0 ? '' : ' · bench only')}</span>`;
 }
 function lldFaFitAnnotate(container) {
     const S = window._lldSX && window._lldSX.S;
@@ -17622,10 +17654,23 @@ async function lldStatsEnsurePlayer(S, pid) {
 }
 function lldStatsWire(root) {
     root = root || $('.lld-stats').first();
-    root.find('.tile').each(function () { const sp = this.querySelector('span'), h = sp && lldStatsHelpFor(sp.textContent); if (h) { this.dataset.h = h[2]; this.dataset.t = h[1]; this.classList.add('hp'); } });
-    root.find('h2').each(function () { const h = lldStatsHelpFor(this.textContent); if (h) { this.dataset.h = h[2]; this.dataset.t = h[1]; this.classList.add('hp'); } });
-    root.find('.badge').each(function () { const b = this.querySelector('b'), h = b && lldStatsHelpFor(b.textContent); if (h) { this.dataset.h = h[2]; this.dataset.t = h[1]; this.classList.add('hp'); } });
-    root.find('.card > b').each(function () { const h = lldStatsHelpFor(this.textContent); if (h) { const c = this.parentNode; c.dataset.h = h[2]; c.dataset.t = h[1]; c.classList.add('hp'); } });
+    const vw = window._lldSXv;
+    // a box that has its own worked explanation (with this team's numbers) wins over the generic text
+    const give = (el, label) => {
+        const d = vw && vw.helpFor && vw.helpFor(label), h = lldStatsHelpFor(label);
+        if (d) { el.dataset.t = d[0]; el.dataset.hx = d[1]; el.dataset.h = ' '; el.classList.add('hp'); }
+        else if (h) { el.dataset.h = h[2]; el.dataset.t = h[1]; el.classList.add('hp'); }
+    };
+    root.find('.tile').each(function () { const sp = this.querySelector('span'); if (sp) give(this, sp.textContent); });
+    root.find('h2').each(function () { give(this, this.textContent); });
+    root.find('.badge').each(function () { const b = this.querySelector('b'); if (b) give(this, b.textContent); });
+    root.find('.card > b').each(function () { give(this.parentNode, this.textContent); });
+    // awards use the same recap awards as the Recaps tab
+    root.find('.sx-recap').each(function () {
+        const el = $(this), kind = el.data('kind'), f = String(el.data('fid') || '');
+        getAllRecapEvents().then(ev => { el.html(kind === 'team' ? recapTeamView2(ev, f) : recapAwardsView(ev)); try { reapplyAllTeamStyles(); } catch (e) { } })
+            .catch(() => el.html('<div class="sub" style="padding:24px 10px;text-align:center">Could not load awards right now.</div>'));
+    });
 }
 async function lldStatsOpen(mode) {
     LLDSX.mode = mode;
@@ -17646,18 +17691,30 @@ function lldStatsDraw(mode) {
             try { SS._byFid = SS._byFid || {}; if (!SS._byFid[vf]) SS._byFid[vf] = lldStatsBuild(Object.assign({}, SS.D, { me: vf })); SS = SS._byFid[vf]; other = vf; } catch (e) { console.warn('stats for team', e); }
         }
     }
-    const V = lldStatsViews(SS)[mode], i = Math.min(LLDSX.idx[mode] || 0, V.length - 1);
+    const VW = lldStatsViews(SS); window._lldSXv = VW;
+    const V = VW[mode], i = Math.min(LLDSX.idx[mode] || 0, V.length - 1);
     root.html((other ? `<div class="sub" style="margin:0 0 8px;font-weight:800">Showing ${$('<i>').text(SS.D.names[other] || other).html()}’s stats</div>` : '') + '<div class="chips">' + V.map((x, k) => `<button type="button" class="sx-chip${k === i ? ' on' : ''}" data-i="${k}">${x[0]}</button>`).join('') + '</div><div class="sx-out"></div>');
     root.find('.sx-out').html(V[i][1]()); lldStatsWire(root);
     const t = root.find('.sx-chip.on')[0]; if (t && t.scrollIntoView) { try { t.parentNode.scrollLeft = t.offsetLeft - 20; } catch (e) { } }
 }
 $(document).on('click', '.lld-stats .sx-chip', function () { const mode = $(this).closest('.lld-stats').data('mode'); LLDSX.idx[mode] = +$(this).data('i'); lldStatsDraw(mode); });
 $(document).on('click', '.lld-sx-retry', function () { window._lldSX = null; lldStatsOpen($(this).closest('.lld-stats').data('mode')); });
-$(document).on('click', '.lld-stats [data-h]', function (e) { if ($(e.target).closest('.sx-pr, select, option, button').length) return; $('#lld-sx-help').remove(); $('body').append(`<div id="lld-sx-help" class="open"><div class="sheet"><b></b><p></p><button class="hx" type="button">Got it</button></div></div>`); $('#lld-sx-help b').text(this.dataset.t); $('#lld-sx-help p').text(this.dataset.h); });
+$(document).on('click', '.lld-stats [data-h]', function (e) { if ($(e.target).closest('.sx-pr, select, option, button, [data-fa], [data-pg]').length) return; $('#lld-sx-help').remove(); $('body').append(`<div id="lld-sx-help" class="open"><div class="sheet"><b></b><div class="pgb"></div><button class="hx" type="button">Got it</button></div></div>`); $('#lld-sx-help b').text(this.dataset.t); if (this.dataset.hx) $('#lld-sx-help .pgb').html(this.dataset.hx); else $('#lld-sx-help .pgb').append($('<p>').text(this.dataset.h)); });
+// free agent: which weeks he would start (works from the Stats tab and from the Free Agents list)
+$(document).on('click touchend', '[data-fa], .lld-fa-fit', function (e) {
+    if (e.type === 'touchend' && typeof touchMoved !== 'undefined' && touchMoved) return;
+    e.stopPropagation(); e.preventDefault();
+    const pid = String($(this).closest('[data-fa]').data('fa') || $(this).data('fa') || ''), base = $(this).is('.lld-fa-fit') || $(this).data('fab');
+    const SS = window._lldSX && window._lldSX.S; if (!pid || !SS) return;
+    const vw = (!base && window._lldSXv) || lldStatsViews(SS);
+    const nmp = ((SS.D.pinfo[pid] || {}).name || pid);
+    $('#lld-sx-help').remove(); $('body').append('<div id="lld-sx-help" class="open"><div class="sheet"><b></b><div class="pgb"></div><button class="hx" type="button">Close</button></div></div>');
+    $('#lld-sx-help b').text(nmp + ' · weeks he would start'); $('#lld-sx-help .pgb').html(vw.faSheet(pid));
+});
 $(document).on('click', '.lld-stats [data-pg]', function () { const S = window._lldSX && window._lldSX.S; if (!S) return; const t = +this.dataset.pg; $('#lld-sx-help').remove(); $('body').append('<div id="lld-sx-help" class="open"><div class="sheet"><b></b><div class="pgb"></div><button class="hx" type="button">Close</button></div></div>'); $('#lld-sx-help b').text(S.nmOf(t).replace(/&amp;/g, '&') + ' · projected matchups'); $('#lld-sx-help .pgb').html(S.projSheet(t)); });
 $(document).on('click', '#lld-sx-help', function (e) { if (e.target === this || $(e.target).closest('.hx').length) $(this).remove(); });
 // tapping a player opens the normal player popup on its Stats tab
-$(document).on('click', '.sx-pr', function () { setTimeout(() => { $('#tab-btn-sx').trigger('click'); }, 80); });
+$(document).on('click', '.sx-pr', function (e) { if ($(e.target).closest('[data-fa]').length) return; setTimeout(() => { $('#tab-btn-sx').trigger('click'); }, 80); });
 // trade lab controls
 $(document).on('change', '#sx-give, #sx-get, #sx-tid', function () {
     const S = window._lldSX && window._lldSX.S; if (!S) return; const T = S._trade = S._trade || { give: [], get: [], tid: null };
