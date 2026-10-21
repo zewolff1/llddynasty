@@ -17531,7 +17531,7 @@ async function lldStatsLoad(force) {
         const cfg = Object.assign({ reg: 14, playoffTeams: 6, byes: 2, boomPct: 0.25 }, LLD.stats || {});
         await lldEnsureFranchiseNames();
         const fids = Object.keys(leagueFranchises).sort();
-        const D = { fids, names: Object.assign({}, leagueFranchises), me: myFid, weeks: [], proj: {}, rosters: {}, pinfo: {}, sched: {}, reg: cfg.reg, playoffTeams: cfg.playoffTeams, byes: cfg.byes, boomPct: cfg.boomPct, slots: cfg.slots || LLDS_SLOTS, fa: [], faScores: {} };
+        const D = { fids, names: Object.assign({}, leagueFranchises), me: (fids.indexOf(myFid) >= 0 ? myFid : ((typeof fid !== 'undefined' && fids.indexOf(String(fid).padStart(4, '0')) >= 0) ? String(fid).padStart(4, '0') : fids[0])), weeks: [], proj: {}, rosters: {}, pinfo: {}, sched: {}, reg: cfg.reg, playoffTeams: cfg.playoffTeams, byes: cfg.byes, boomPct: cfg.boomPct, slots: cfg.slots || LLDS_SLOTS, fa: [], faScores: {} };
         prog('Loading league settings…');
         try {
             const lg = await lldSxJson('league'); const L = lg && lg.league;
