@@ -1588,7 +1588,9 @@ function buildWeeklyAwardChips(targetFid) {
     if (!window._recapEventsFull) {
         if (!window._recapHdrKick) {
             window._recapHdrKick = true;
-            getAllRecapEvents().then(() => refreshTeamInfoPanel()).catch(() => { window._recapHdrKick = false; });
+            // wait a few seconds so the page's own requests go first, and try once more later if MFL is busy
+            const kick = (again) => getAllRecapEvents().then(() => refreshTeamInfoPanel()).catch(() => { window._recapHdrKick = false; if (again) setTimeout(() => { window._recapHdrKick = true; kick(false); }, 30000); });
+            setTimeout(() => kick(true), 6000);
         }
         return '';
     }
@@ -15142,9 +15144,13 @@ async function lldEnsureFranchiseNames() {
 async function fetchFranchises() {
         try {
             await lldEnsureFranchiseNames();
-            const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`, { credentials: 'include' });
-            const data = await res.json();
-[].concat(data.league.franchises.franchise).forEach(f => {
+            // MFL sometimes answers with a "busy" page instead of JSON; retry, and never let that stop the team header from being built
+            let data = null;
+            for (let a = 0; a < 4 && !data; a++) {
+                if (a) await new Promise(r => setTimeout(r, 900 * a));
+                try { const res = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=league&L=${lid}&JSON=1`, { credentials: 'include' }); const d = JSON.parse(await res.text()); if (d?.league?.franchises) data = d; } catch (e) { }
+            }
+[].concat(data ? data.league.franchises.franchise : []).forEach(f => {
     leagueFranchises[f.id] = (f.name && String(f.name).trim()) ? f.name : ('Team ' + (parseInt(f.id, 10) || f.id));
     if (f.id === myFid) window._myOwnerName = (f.owner_name || '').split(',')[0].trim();
 });
