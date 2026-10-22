@@ -12762,7 +12762,7 @@ async function lldStandingsThrough(wk) {
     return Object.values(T).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
 }
 // ===== STORY MODE: full-screen animated recap / preview (tap to skip, hold to pause) =====
-const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0 };
+const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0, speed: 1, popup: false };
 function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" style="width:${s}px;height:${s}px">`; }
 function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
 function stSlide(c1, c2, html) { return { bg: `radial-gradient(120% 90% at 20% 0%, ${c1}, ${c2})`, html }; }
@@ -12770,7 +12770,7 @@ function stNum(v, dec, cls) { return `<div class="st-big st-a ${cls || ''}" data
 async function lldStorySlides(kind, wk, idx) {
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
-    const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind === 'matchup' ? 'preview' : kind}" data-wk="${wk}">Open the full ${label}</button>`));
+    const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind === 'matchup' ? 'preview' : kind}" data-wk="${wk}">${LLD_ST.popup ? 'See full preview' : 'Open the full ' + label}</button>`));
     if (kind === 'recap') {
         const [allScores] = await Promise.all([fetchAllWeekScores()]);
         const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
@@ -12846,15 +12846,20 @@ function stShow(i) {
     });
 }
 function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; }
-async function lldOpenStory(kind, wk, idx) {
-    $('#lld-story').remove();
-    $('body').append(`<div id="lld-story"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
+async function lldOpenStory(kind, wk, idx, popup) {
+    $('#lld-story').remove(); LLD_ST.popup = !!popup;
+    $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
     try { LLD_ST.slides = await lldStorySlides(kind, wk, idx); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
 $(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10), parseInt($(this).data('i'), 10)); });
 $(document).on('animationend', '#lld-story .st-bars .cur u', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-x', stClose);
+$(document).on('click', '#lld-story .st-sp', function () {
+    const L = [1, 1.5, 2, 3]; LLD_ST.speed = L[(L.indexOf(LLD_ST.speed) + 1) % L.length];
+    $(this).text(LLD_ST.speed + '×'); $('#lld-story').css('--dur', (5.4 / LLD_ST.speed).toFixed(2) + 's'); stShow(LLD_ST.i); // restart this slide at the new speed
+});
+$(document).on('click', '#lld-story .st-end', () => stShow(Math.max(0, LLD_ST.slides.length - 1)));
 $(document).on('click', '#lld-story .st-zr', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-zl', () => stShow(LLD_ST.i - 1));
 $(document).on('pointerdown', '#lld-story .st-zl, #lld-story .st-zr', function () { window._stHold = setTimeout(() => { LLD_ST.pause = true; $('#lld-story').addClass('paused'); window._stHeld = true; }, 260); });
@@ -12862,6 +12867,7 @@ $(document).on('pointerup pointercancel pointerleave', '#lld-story .st-zl, #lld-
 $(document).on('click', '#lld-story .st-zl, #lld-story .st-zr', function (e) { if (window._stHeld) { e.stopImmediatePropagation(); } });
 $(document).on('click', '#lld-story .st-cta', function () {
     const k = $(this).data('kind'), w = parseInt($(this).data('wk'), 10), st = window._recapState;
+    if (LLD_ST.popup) { stClose(); openMatchupPreview(); return; } // started from the Scores tab: finish on its preview popup
     stClose(); if (k === 'recap') { st.view = 'week'; st.wk = w; } else { st.view = 'preview'; st.pwk = w; }
     $('.tab-btn').filter(function () { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
     setTimeout(() => { ensureRecapsSubTab(); $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Recaps'; }).trigger('click'); }, 300);
@@ -13419,6 +13425,19 @@ async function pvLoadTimes(A, B, wk) {
         if (!paras.length) return none('No written preview from MFL for this matchup yet.');
         return paras.map((p, i) => `<p style="margin:0 0 9px; font-size:calc(11px * var(--ts,1)); line-height:1.55; color:${/^["“]/.test(p) ? 'var(--text-main, #fff)' : 'var(--text-dim)'}; ${/^["“]/.test(p) ? 'font-style:italic;' : ''}">${esc(p)}</p>`).join('') + `<div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;">Source: MyFantasyLeague.com Fantasy Times</div>`;
     } catch (e) { return none('Could not load the MFL preview.'); }
+}
+
+// Scores tab "Preview" button: play the matchup story, then offer the full preview popup
+async function lldScoresPreviewStory() {
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
+    const wk = parseInt(window._liveScoreActiveWeek, 10);
+    if (!m || !wk) { openMatchupPreview(); return; }
+    try {
+        const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
+        const i = P.games.findIndex(g => (g.t1.fid === m.t1.fid && g.t2.fid === m.t2.fid) || (g.t1.fid === m.t2.fid && g.t2.fid === m.t1.fid));
+        if (i < 0) { openMatchupPreview(); return; }
+        lldOpenStory('matchup', wk, i, true);
+    } catch (e) { console.warn('preview story', e); openMatchupPreview(); }
 }
 async function openMatchupPreview() {
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
@@ -15331,7 +15350,7 @@ async function checkNotifBadge() {
     $(document).off('click touchend', '.scores-preview-btn').on('click touchend', '.scores-preview-btn', function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         e.preventDefault(); e.stopPropagation();
-        openMatchupPreview();
+        lldScoresPreviewStory();
     });
 
     // --- SCORES VIEW TOGGLE (Matchups vs League Median) ---
@@ -17823,12 +17842,9 @@ async function lldDigestItems() {
     return last('preview').concat(last('recap'));
 }
 $(document).on('click', '#lld-chat .cm-rc', function () {
-    const t = $(this).data('dk'), w = parseInt($(this).data('wk'), 10), st = window._recapState;
+    const t = $(this).data('dk'), w = parseInt($(this).data('wk'), 10);
     lldChatClose();
-    if (t === 'recap') { st.view = 'week'; st.wk = w; } else { st.view = 'preview'; st.pwk = w; }
-    st.pickerOpen = false;
-    $('.tab-btn').filter(function () { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
-    setTimeout(() => { ensureRecapsSubTab(); $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Recaps'; }).trigger('click'); }, 300);
+    lldOpenStory(t === 'recap' ? 'recap' : 'preview', w); // plays the animation; its last slide opens the full page
 });
 async function lldChatShowList() {
     const box = lldChatMount();
@@ -17875,7 +17891,7 @@ $(document).on('click', '#lld-chat .cm-bh', function () { $(this).closest('.cm-b
 $(document).on('click', '#lld-chat .cm-row', function () { lldChatShowThread($(this).data('tid')); });
 $(document).on('click', '#lld-chat', function (e) { if (e.target === this) lldChatClose(); });
 function lldChatInit() {
-    if (LLD_CHAT_FIDS.indexOf(String(myFid)) < 0 || document.getElementById('lld-chat-btn')) return;
+    if (!myFid || document.getElementById('lld-chat-btn')) return; // every signed-in owner gets the message board
     const btn = `<button id="lld-chat-btn" aria-label="Message board" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_CHAT_ICON}</button>`;
     const s = document.querySelector('.open-settings-btn');
     if (s) s.insertAdjacentHTML('beforebegin', btn); else $('.header-right-controls').prepend(btn);
