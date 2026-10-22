@@ -924,6 +924,67 @@ function lldApplyTick(v) {
     lldBuildTicker(lldEffStyle());
 }
 $(document).on('click', '.lld-tick-btn', function () { lldApplyTick(this.dataset.v); });
+//LLDFX-PURE-START
+// Subtle seasonal background animation (pure CSS/DOM, no images). kind: fall | halloween | thanksgiving | christmas
+const LLD_FX_MAP = { season_fall: 'fall', season_halloween: 'halloween', season_thanksgiving: 'thanksgiving', season_christmas: 'christmas' };
+function lldFxSvg(s) { return "url(\"data:image/svg+xml," + encodeURIComponent(s) + "\")"; }
+function lldFxLeaf(c) { return lldFxSvg(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M20 2c6 6 14 8 16 18-4 0-7-1-9-3 1 4 0 9-3 12l-1 7h-6l-1-7c-3-3-4-8-3-12-2 2-5 3-9 3 2-10 10-12 16-18z' fill='${c}'/><path d='M20 8v28' stroke='rgba(0,0,0,.25)' stroke-width='1.4'/></svg>`); }
+function lldFxFeather(c) { return lldFxSvg(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 56'><path d='M12 1C3 12 2 30 12 48c10-18 9-36 0-47z' fill='${c}'/><path d='M12 4v52' stroke='rgba(0,0,0,.3)' stroke-width='1.3'/><path d='M12 18l-5-4M12 26l-6-4M12 34l-5-4M12 18l5-4M12 26l6-4M12 34l5-4' stroke='rgba(255,255,255,.35)' stroke-width='1'/></svg>`); }
+const LLD_FX_BAT = lldFxSvg("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'><path d='M32 10c2-5 5-7 6-9 1 3 3 5 6 6 4-2 10-2 20 5-5-1-9 0-11 3-2-1-5-1-7 1-1-2-3-3-5-3l-3 9-3-9c-2 0-4 1-5 3-2-2-5-2-7-1-2-3-6-4-11-3 10-7 16-7 20-5 3-1 5-3 6-6 1 2 4 4 6 9z' fill='#cdb8ff'/></svg>");
+function lldFxStop() { const o = document.getElementById('lld-fx'); if (o) o.remove(); if (window._lldFxRz) { window.removeEventListener('resize', window._lldFxRz); window._lldFxRz = null; } }
+function lldFxBuild(kind, host) {
+    lldFxStop();
+    if (!kind) return;
+    try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { }
+    const el = document.createElement('div'); el.id = 'lld-fx'; el.setAttribute('data-fx', kind);
+    const r = (a, z) => a + Math.random() * (z - a);
+    const add = (cls, vars, img) => { const s = document.createElement('i'); s.className = cls; Object.keys(vars).forEach(k => s.style.setProperty(k, vars[k])); if (img) s.style.backgroundImage = img; el.appendChild(s); return s; };
+    const small = Math.min(window.innerWidth, 700) < 600;
+    if (kind === 'fall' || kind === 'thanksgiving') {
+        const cols = kind === 'fall' ? ['#e8731c', '#c2410c', '#f0a030', '#9a3412', '#d9a21b'] : ['#b8412a', '#d9822b', '#e3b23c', '#7a4a21', '#a33a2c'];
+        const n = small ? 12 : 22;
+        for (let k = 0; k < n; k++) {
+            const d = kind === 'fall' ? r(9, 17) : r(14, 24), sz = kind === 'fall' ? r(16, 28) : r(18, 30);
+            add('fx-p ' + (kind === 'fall' ? 'leaf' : 'feather'), { '--x': r(-2, 98).toFixed(1) + '%', '--sz': sz.toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--dx': r(-90, 90).toFixed(0) + 'px', '--rot': r(-360, 360).toFixed(0) + 'deg' }, kind === 'fall' ? lldFxLeaf(cols[k % cols.length]) : lldFxFeather(cols[k % cols.length]));
+        }
+    } else if (kind === 'halloween') {
+        add('fx-fog a', {}); add('fx-fog b', {});
+        const n = small ? 3 : 5;
+        for (let k = 0; k < n; k++) {
+            const d = r(16, 28);
+            add('fx-bat', { '--y': r(4, 55).toFixed(0) + '%', '--sz': r(26, 44).toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--bob': r(10, 26).toFixed(0) + 'px', '--dir': k % 2 ? 1 : -1 }, LLD_FX_BAT);
+        }
+    } else if (kind === 'christmas') {
+        const build = () => {
+            el.querySelectorAll('.fx-wire,.fx-bulb').forEach(x => x.remove());
+            const W = window.innerWidth, step = W < 600 ? 30 : 38, n = Math.ceil(W / step) + 1, cols = ['#ff3b3b', '#22c55e', '#ffd23f', '#3b82f6', '#ff8fd0'];
+            let p = 'M-10 -2'; for (let k = 0; k < n; k++) { const x0 = k * step, x1 = x0 + step; p += ` Q${x0 + step / 2} 22 ${x1} 2`; }
+            const w = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); w.setAttribute('class', 'fx-wire'); w.setAttribute('width', W + step); w.setAttribute('height', 34);
+            w.innerHTML = `<path d="${p}" fill="none" stroke="#0a1a10" stroke-width="2" opacity=".75"/>`; el.appendChild(w);
+            for (let k = 0; k < n; k++) { const x = k * step + step / 2; add('fx-bulb', { '--x': x.toFixed(0) + 'px', '--c': cols[k % cols.length], '--d': r(1.6, 3.2).toFixed(2) + 's', '--delay': (-r(0, 3)).toFixed(2) + 's' }); }
+        };
+        build(); window._lldFxRz = () => { clearTimeout(window._lldFxT); window._lldFxT = setTimeout(build, 200); }; window.addEventListener('resize', window._lldFxRz);
+    }
+    (host || document.body).appendChild(el);
+}
+//LLDFX-PURE-END
+
+function lldFxApply(name) {
+    const kind = LLD_FX_MAP[name] || null;
+    lldFxBuild(kind && lldGet('lld_fx', '1') !== '0' ? kind : null);
+    $('#lld-fx-row').toggle(!!kind);
+    $('.lld-fx-btn').each(function () { $(this).toggleClass('on', (this.dataset.v === 'on') === (lldGet('lld_fx', '1') !== '0')); });
+}
+$(document).on('click', '.lld-fx-btn', function () { lldSet('lld_fx', this.dataset.v === 'on' ? '1' : '0'); lldFxApply(lldEffStyle()); });
+// league name as header text (replaces the logo image)
+function lldHeaderName() {
+    const t = LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || '';
+    const img = document.getElementById('custom-header-logo');
+    if (img) { const d = document.createElement('div'); d.id = 'lld-league-name'; d.textContent = t; img.replaceWith(d); }
+    else { const d = document.getElementById('lld-league-name'); if (d && t) d.textContent = t; }
+}
+function lldApplyWide() { document.body.classList.toggle('lld-wide', lldGet('lld_wide', '0') === '1'); $('.lld-wide-btn').each(function () { $(this).toggleClass('on', (this.dataset.v === 'wide') === (lldGet('lld_wide', '0') === '1')); }); }
+$(document).on('click', '.lld-wide-btn', function () { lldSet('lld_wide', this.dataset.v === 'wide' ? '1' : '0'); lldApplyWide(); });
 function lldApplyStyle(name) {
     if (name !== 'seasonal' && !LLD_STYLES[name]) name = 'classic';
     if (/^season_/.test(name)) name = 'seasonal'; // an old saved single holiday theme now follows the calendar
@@ -952,6 +1013,7 @@ function lldApplyStyle(name) {
     else if (typeof applyTheme === 'function') applyTheme(lldGet('lld_theme', 'midnight'));
     document.querySelectorAll('.lld-style-btn').forEach(b => b.classList.toggle('on', b.dataset.style === rawName));
     lldBuildScene(name);
+    lldHeaderName(); lldFxApply(name); lldApplyWide();
     lldBuildTicker(name);
     setTimeout(lldRefreshScoreboard, 60);
     window.LLD_STYLE_DEBUG = { name, base: LLD_SCRIPT_BASE, href: (document.getElementById('lld-theme-css') || {}).href || '' };
@@ -1108,7 +1170,7 @@ const LLD_READY = (async function lldAutoConfig() {
         const r = await fetch(`${MFL_ORIGIN}/${yrA}/export?TYPE=league&L=${lidA}&JSON=1`, { credentials: 'include', signal: ctl.signal });
         clearTimeout(to);
         const L = (await r.json()).league || {};
-        if (!cfg.leagueName && L.name) LLD.leagueName = L.name;
+        if (!cfg.leagueName && L.name) { LLD.leagueName = L.name; try { lldHeaderName(); } catch (e) { } }
         if (!cfg.logoUrl && L.leagueLogo) LLD.logoUrl = L.leagueLogo;
         if (!cfg.irSlots && parseInt(L.injuredReserve, 10) > 0) LLD.irSlots = parseInt(L.injuredReserve, 10);
         if (!cfg.taxiSlots && parseInt(L.taxiSquad, 10) > 0) LLD.taxiSlots = parseInt(L.taxiSquad, 10);
@@ -1421,8 +1483,13 @@ const NFL_THROWBACK_LOGOS = {};
     NFL_THROWBACK_LOGOS[t] = `https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/team/throwback/${t}.png`;
 });
 
+// logo style: the per-theme choice wins, then the theme's own default (90s Sports Desk = throwback), then the general choice
+function lldLogoStyle() {
+    let th = 'classic'; try { th = (typeof lldEffStyle === 'function') ? lldEffStyle() : 'classic'; } catch (e) { }
+    return localStorage.getItem('nfl_logo_style_' + th) || (th === 'sportscenter' ? 'throwback' : '') || localStorage.getItem('nfl_logo_style') || 'modern';
+}
 function getNFLLogoUrl(teamAbbr) {
-    const style = localStorage.getItem('nfl_logo_style') || 'modern';
+    const style = lldLogoStyle();
     const abbr = (teamAbbr || 'NFL').toUpperCase();
     if (style === 'throwback' && NFL_THROWBACK_LOGOS[abbr]) {
         return NFL_THROWBACK_LOGOS[abbr];
@@ -5553,18 +5620,16 @@ function lldGlossHtml(fa) {
     const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
     const ly = parseInt(year) - 1;
     return `<div class="gl-note"><span class="sort-hl">Gold highlight</span> marks the number the list is currently sorted by.</div>`
-        + `<h4>On every row</h4>`
-        + t('PROJ', 'MFL\u2019s projected fantasy points for this week.')
-        + t('PTS', 'Total fantasy points so far this season (shown when you sort by Pts).')
-        + t('Logos by the name', 'The first is his NFL team. If he is on a roster, the second is the fantasy team that owns him.')
-        + (fa ? `<h4>Free agents</h4>` + t('Opponent pill', 'His NFL opponent this week and kickoff time, with that defense\u2019s rank against his position (green = easy, red = tough).')
-              + t('X% of weeks he starts', 'How often he would crack your starting lineup, and how many points per week he would add over the player he replaces. Tap it to see which weeks.')
-          : `<h4>Contract</h4>` + t('$ HIT', 'Cap hit: salary \u00d7 guaranteed % \u00d7 years. What it costs you if he is cut.')
+        + `<h4>Points</h4>`
+        + t('PROJ', 'Projected fantasy points for this week.')
+        + t('PTS', 'Fantasy points scored so far this season.')
+        + (fa ? `<h4>Lineup fit</h4>` + t('X% of weeks he starts', 'How often he would make your starting lineup, and the points per week he adds over the player he replaces. Tap it to see which weeks.')
+          : `<h4>Contract</h4>` + t('$ HIT', 'Cap hit: what it costs you if he is cut.')
               + t('YR', 'Years left on the contract.')
               + t('GUAR', 'Percent of the salary that is guaranteed.')
-              + t('SAL', 'Yearly salary in millions ($m).')
-              + t('QB#1 CTR', 'Contract rank: where his salary ranks among players at his position (1 = highest paid).')
-              + t('QB#3 DYN', 'Dynasty rank: his long-term value rank at that position (NR = not ranked).'));
+              + t('SAL', 'Yearly salary in millions.')
+              + t('CTR rank', 'Where his salary ranks at his position (1 = highest paid).')
+              + t('DYN rank', 'His long-term dynasty value rank at that position.'));
 }
 $(document).on('click', '.player-gloss-btn', function () {
     $('#lld-gloss').remove();
@@ -8446,6 +8511,8 @@ $('body').append(`
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal${lldSeasonNow() ? ' (' + LLD_STYLES[lldSeasonNow()].name + ')' : ''}</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
+                    <div id="lld-fx-row" style="display:${LLD_FX_MAP[lldEffStyle()] ? 'block' : 'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Seasonal background animation</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')!=='0'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')==='0'?'on':''}" data-v="off">Off</button></div></div>
+                    <div class="lld-wide-row"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Page width (computers)</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'':'on'}" data-v="std">Standard</button><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'on':''}" data-v="wide">Wide</button></div></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
@@ -12764,6 +12831,8 @@ async function lldStandingsThrough(wk) {
     return Object.values(T).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
 }
 // ===== STORY MODE: full-screen animated recap / preview (tap to skip, hold to pause) =====
+// Music for the animations. Paste the MFL file URL (the one you get after uploading an mp3) between the quotes; leave '' for silence.
+const LLD_STORY_MUSIC = { recap: '', preview: '' };
 const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0, speed: 1, popup: false };
 function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" style="width:${s}px;height:${s}px">`; }
 function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
@@ -12847,10 +12916,19 @@ function stShow(i) {
         setTimeout(() => { [].forEach.call(wrap.children, r => { r.style.transition = 'top 1.3s cubic-bezier(.65,0,.25,1)'; r.style.top = (r.dataset.to * rh) + 'px'; r.querySelector('u').style.opacity = 1; r.classList.toggle('moved', r.dataset.from !== r.dataset.to); }); }, 1100);
     });
 }
-function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; }
+function stMusicStop() { const a = window._stAudio; window._stAudio = null; if (!a) return; let v = a.volume; const f = setInterval(() => { v -= .1; if (v <= .02) { clearInterval(f); try { a.pause(); } catch (e) { } } else a.volume = v; }, 60); }
+function stMusicStart(kind) {
+    stMusicStop();
+    const url = kind === 'recap' ? LLD_STORY_MUSIC.recap : LLD_STORY_MUSIC.preview; if (!url) return false;
+    let muted = false; try { muted = localStorage.getItem('lld_st_mute') === '1'; } catch (e) { }
+    const a = new Audio(url); a.loop = true; a.volume = .55; a.muted = muted; window._stAudio = a;
+    a.play().catch(e => console.warn('music', e)); return true;
+}
+function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop(); }
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup;
-    $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
+    $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
+    if (stMusicStart(kind)) { const m = window._stAudio.muted; $('#lld-story .st-mu').show().text(m ? '🔇' : '🔊'); }
     try { LLD_ST.slides = await lldStorySlides(kind, wk, idx); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
@@ -12861,6 +12939,7 @@ $(document).on('click', '#lld-story .st-sp', function () {
     const L = [1, 1.5, 2, 3]; LLD_ST.speed = L[(L.indexOf(LLD_ST.speed) + 1) % L.length];
     $(this).text(LLD_ST.speed + '×'); $('#lld-story').css('--dur', (5.4 / LLD_ST.speed).toFixed(2) + 's'); stShow(LLD_ST.i); // restart this slide at the new speed
 });
+$(document).on('click', '#lld-story .st-mu', function () { const a = window._stAudio; if (!a) return; a.muted = !a.muted; $(this).text(a.muted ? '🔇' : '🔊'); try { localStorage.setItem('lld_st_mute', a.muted ? '1' : '0'); } catch (e) { } });
 $(document).on('click', '#lld-story .st-end', () => stShow(Math.max(0, LLD_ST.slides.length - 1)));
 $(document).on('click', '#lld-story .st-zr', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-zl', () => stShow(LLD_ST.i - 1));
@@ -17289,7 +17368,7 @@ $(document).off('click touchend', '.tx-filter-btn').on('click', '.tx-filter-btn'
         }
     });
 function updateLogoStyleButtons() {
-    const current = localStorage.getItem('nfl_logo_style') || 'modern';
+    const current = lldLogoStyle();
     $('.logo-style-btn').each(function() {
         const isActive = $(this).data('style') === current;
         $(this).css({
@@ -17492,7 +17571,7 @@ $(document).on('click', '#notif-panel-close, #notif-backdrop', function() {
 });
 });
 $(document).on('click', '.logo-style-btn', function() {
-    localStorage.setItem('nfl_logo_style', $(this).data('style'));
+    localStorage.setItem('nfl_logo_style', $(this).data('style')); localStorage.setItem('nfl_logo_style_' + lldEffStyle(), $(this).data('style'));
     updateLogoStyleButtons();
     $('#display-save-status').text('✓ Saved').css('color', 'var(--accent-blue)');
     setTimeout(() => $('#display-save-status').text(''), 2000);
@@ -17861,6 +17940,8 @@ function lldChatBadgeSet(n) {
     b.toggleClass('has-new', n > 0); b.find('.cm-badge').remove();
     if (n > 0) b.append(`<span class="cm-badge">${n > 9 ? '9+' : n}</span>`);
 }
+function lldChatOfferSeenGet() { try { return JSON.parse(localStorage.getItem('lld_chat_offers_' + lid + '_' + myFid) || '[]'); } catch (e) { return []; } }
+function lldChatOfferSeenSet(ids) { try { localStorage.setItem('lld_chat_offers_' + lid + '_' + myFid, JSON.stringify(ids.slice(-50))); } catch (e) { } }
 function lldChatBadgeUpdate() { lldChatBadgeSet((window._lldChatNewOther || 0) + (window._lldChatOffers || 0)); }
 // trade offers waiting on you always count until you accept or decline them (one small request, checked often)
 async function lldChatCheckOffers() {
@@ -17868,7 +17949,10 @@ async function lldChatCheckOffers() {
     try {
         const pd = await lldChatJson('TYPE=pendingTrades');
         const me = String(myFid).padStart(4, '0');
-        window._lldChatOffers = lldChatArr(pd && pd.pendingTrades && pd.pendingTrades.pendingTrade).filter(o => String(o.offeredto || o.offeredTo || '').padStart(4, '0') === me).length;
+        const mine = lldChatArr(pd && pd.pendingTrades && pd.pendingTrades.pendingTrade).filter(o => String(o.offeredto || o.offeredTo || '').padStart(4, '0') === me);
+        window._lldChatOfferIds = mine.map(o => String(o.trade_id || o.tradeId || o.id || o.timestamp || ''));
+        const seenO = lldChatOfferSeenGet();
+        window._lldChatOffers = window._lldChatOfferIds.filter(i => seenO.indexOf(i) < 0).length;
         if (!$('#lld-chat').hasClass('open')) lldChatBadgeUpdate();
     } catch (e) { console.warn('offer check', e); }
 }
@@ -17895,7 +17979,7 @@ async function lldChatShowList() {
     box.html(lldChatShellHtml('League Chat', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl()));
     window._lldChatPrevSeen = lldChatSeenGet();
     let a; try { a = (window._lldChatAct && Date.now() - window._lldChatAct.t < 45000) ? window._lldChatAct.a : await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a }; } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
-    lldChatSeenSet(); window._lldChatNewOther = 0; window._lldChatOffers = a.items.filter(it => it.offer && it.incoming).length; lldChatBadgeUpdate();
+    lldChatSeenSet(); window._lldChatNewOther = 0; const inc = a.items.filter(it => it.offer && it.incoming).map(it => it.tid); lldChatOfferSeenSet(lldChatOfferSeenGet().concat(inc, window._lldChatOfferIds || [])); window._lldChatOffers = 0; lldChatBadgeUpdate();
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
     box.html(lldChatShellHtml('League Chat', false, note || lldChatFeedHtml(a.items, a.block, lldChatCtx()), lldChatOpenUrl()));
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
@@ -17955,7 +18039,7 @@ $(document).on('click', '#lld-chat .cm-act', async function () {
         await lldChatTradeAct(tid, act === 'counter' ? 'reject' : act, '');
         if (act === 'counter') { lldChatClose(); const f = String(box.data('fid')).padStart(4, '0'); const sp = x => String(x || '').split(',').filter(Boolean); await window.loadTradeHub(f, null, sp(box.data('give')), sp(box.data('recv'))); $('.tab-btn[onclick*="tab-league"]').first().click(); return; }
         box.html('<span class="cm-done">' + { accept: 'Accepted ✓', reject: 'Denied', revoke: 'Revoked' }[act] + '</span>');
-        setTimeout(lldChatShowList, 1200);
+        setTimeout(act === 'reject' ? lldChatClose : lldChatShowList, act === 'reject' ? 700 : 1200);
     } catch (e) { alert('MFL: ' + (e.message || 'could not complete that')); box.find('.cm-act').prop('disabled', false).css('opacity', 1); btn.text(word); }
 });
 $(document).on('click', '#lld-chat-btn', function () { lldChatShowList(); });
