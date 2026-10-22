@@ -3648,3 +3648,12 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 
 #lld-story .st-sp,#lld-story .st-end{background:rgba(255,255,255,.16);border:none;color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;border-radius:999px;padding:5px 10px;cursor:pointer}
 #open-calendar-btn{display:none!important}
+
+/* unread badge on the message board button */
+#lld-chat-btn { position: relative; }
+#lld-chat-btn .cm-badge { position: absolute; top: -2px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #ef4444; color: #fff; font-size: calc(10px * var(--ts,1)); font-weight: 900; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--page-bg, #0b1220); animation: cmPulse 1.6s ease-in-out infinite; }
+#lld-chat-btn.has-new svg { transform-origin: 50% 20%; animation: cmRing 3.2s ease-in-out infinite; }
+@keyframes cmRing { 0%, 55%, 100% { transform: rotate(0); } 60% { transform: rotate(16deg); } 66% { transform: rotate(-14deg); } 72% { transform: rotate(10deg); } 78% { transform: rotate(-8deg); } 84% { transform: rotate(4deg); } }
+@keyframes cmPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+#lld-chat .cm-new { display: flex; align-items: center; gap: 10px; margin: 16px 0 0; color: #ef4444; font-size: calc(10px * var(--ts,1)); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+#lld-chat .cm-new::before, #lld-chat .cm-new::after { content: ""; flex: 1; height: 1px; background: rgba(239,68,68,.6); }
