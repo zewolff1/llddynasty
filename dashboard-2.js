@@ -330,7 +330,8 @@ function lldChatFeedHtml(items, block, ctx) {
 // ===== STATS TAB (pure data -> numbers -> HTML; the wrapper below loads the data) =====
 //LLDSTATS-PURE-START
 const LLDS_POS = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
-const LLDS_SLOTS = [['QB'], ['RB'], ['RB'], ['WR'], ['WR'], ['TE'], ['PK'], ['DL'], ['LB'], ['DB'], ['RB', 'WR', 'TE'], ['RB', 'WR', 'TE'], ['QB', 'RB', 'WR', 'TE'], ['QB', 'RB', 'WR', 'TE'], ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB']];
+// 16 starters: QB, 2 RB, 2 WR, TE, one SUPERFLEX (QB/RB/WR/TE), three FLEX (RB/WR/TE), DL, LB, DB and three IDP flex (no kicker)
+const LLDS_SLOTS = [['QB'], ['RB'], ['RB'], ['WR'], ['WR'], ['TE'], ['QB', 'RB', 'WR', 'TE'], ['RB', 'WR', 'TE'], ['RB', 'WR', 'TE'], ['RB', 'WR', 'TE'], ['DL'], ['LB'], ['DB'], ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB'], ['DL', 'LB', 'DB']];
 function llsRng(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function llsLbl(p) { return p === 'PK' ? 'K' : p; }
 // best lineup: fill the slots in order, each with the best unused eligible player
@@ -653,7 +654,7 @@ function lldStatsViews(S) {
         return `<svg viewBox="0 0 ${W2} ${H}" width="100%" role="img"><line x1="0" x2="${W2}" y1="${y(th[0])}" y2="${y(th[0])}" stroke="#00ceb8" stroke-opacity=".45" stroke-dasharray="3 4"/><line x1="0" x2="${W2}" y1="${y(th[1])}" y2="${y(th[1])}" stroke="#ef4444" stroke-opacity=".45" stroke-dasharray="3 4"/><path d="${d}" fill="none" stroke="#8aa4d6" stroke-width="2" stroke-linejoin="round"/>` + p.g.map((v, i) => v == null ? '' : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="${v >= th[0] ? '#00ceb8' : v <= th[1] ? '#ef4444' : '#8aa4d6'}"/>`).join('') + p.g.map((v, i) => (W <= 9 || i % 2 === 0) ? `<text x="${x(i).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="9" fill="#8a9ab5">W${D.weeks[i].wk}</text>` : '').join('') + '</svg>';
     };
     const pbar = (p, col) => `<div class="bar" style="flex:1"><i style="width:${Math.round(Math.max(0, Math.min(1, p)) * 100)}%;${col ? 'background:' + col : ''}"></i></div>`;
-    const prow = (label, p, txt) => `<div style="display:flex;align-items:center;gap:10px;margin:9px 0"><div style="flex:0 0 132px;font-size:12px;font-weight:700">${label}</div>${pbar(p)}<b style="flex:0 0 78px;text-align:right;font-size:12px">${txt}</b></div>`;
+    const prow = (label, p, txt) => `<div style="display:flex;align-items:center;gap:10px;margin:9px 0"><div style="flex:0 0 132px;font-size:calc(12px * var(--ts,1));font-weight:700">${label}</div>${pbar(p)}<b style="flex:0 0 78px;text-align:right;font-size:calc(12px * var(--ts,1))">${txt}</b></div>`;
     const heat = r => { const t = (r - 1) / Math.max(1, N - 1), h = 170 - t * 170, l = 52 + t * 4; return `hsl(${h},70%,${l}%)`; };
     const AW = [['high', '🏆', 'High Score'], ['blow', '💥', 'Blowout'], ['close', '😬', 'Nail-biter'], ['low', '🧊', 'Low Score'], ['bench', '🪑', 'Bench Blunder']];
     const hasProj = S.hasProj;
@@ -720,7 +721,7 @@ function lldStatsViews(S) {
         const n = S.netRows();
         let h = `<h2>Net points vs projections</h2><div class="tiles" style="grid-template-columns:1fr 1fr">${tile('Season total', (n.net >= 0 ? '+' : '') + f1(n.net), n.net >= 0 ? 'gained by not following projections' : 'lost by not following projections', n.net >= 0 ? 'good' : 'bad')}${tile('Results changed', n.saved + ' / ' + n.cost, 'wins saved / wins cost')}</div>`;
         h += '<h2>Week by week</h2><div class="card scroll"><table><tr><th>Wk</th><th>You</th><th>Proj. lineup</th><th>Net</th><th>Result</th></tr>';
-        n.rows.forEach(r => { h += `<tr><td><b>${r.wk}</b></td><td>${f1(r.a)}</td><td>${f1(r.p)}</td><td class="${r.d >= 0 ? 'good' : 'bad'}">${r.d >= 0 ? '+' : ''}${f1(r.d)}</td><td class="${r.tag === 'cost' ? 'bad' : r.tag === 'save' ? 'good' : ''}" style="font-size:11px;font-weight:800">${r.tag === 'cost' ? 'Cost you a win' : r.tag === 'save' ? 'Saved a win' : (r.ar ? 'W' : 'L') + ' either way'}</td></tr>`; });
+        n.rows.forEach(r => { h += `<tr><td><b>${r.wk}</b></td><td>${f1(r.a)}</td><td>${f1(r.p)}</td><td class="${r.d >= 0 ? 'good' : 'bad'}">${r.d >= 0 ? '+' : ''}${f1(r.d)}</td><td class="${r.tag === 'cost' ? 'bad' : r.tag === 'save' ? 'good' : ''}" style="font-size:calc(11px * var(--ts,1));font-weight:800">${r.tag === 'cost' ? 'Cost you a win' : r.tag === 'save' ? 'Saved a win' : (r.ar ? 'W' : 'L') + ' either way'}</td></tr>`; });
         return h + '</table></div><div class="sub">Each week compares your actual score with the score you would have had by starting the highest projected players, against the same opponent.</div>';
     }
     function tStartSit() {
@@ -748,7 +749,7 @@ function lldStatsViews(S) {
         h += '</div><div class="legend"><span class="b">Above boom line</span><span class="x">Below bust line</span></div><div class="sub">Dashed lines are your league’s boom and bust cutoffs for that position. Compared with other relevant players at the same position.</div>';
         h += '<h2>Would he start for other teams?</h2><div class="card">';
         const so = list.map(pid => ({ pid, s: S.startsForOthers(pid) })).sort((a, b) => b.s.teams - a.s.teams || b.s.pct - a.s.pct);
-        so.forEach(x => { h += `<div class="pos sx-row" ${attr(x.pid)} style="grid-template-columns:1fr 100px 62px"><div><b style="font-size:13px">${pn(x.pid)}</b> <span class="sub" style="display:inline">${llsLbl(S.pl[x.pid].pos)}</span><div class="sub">${pct(x.s.pct)} of team-weeks</div></div>${pbar(x.s.teams / x.s.of, x.s.teams >= x.s.of * .7 ? 'var(--accent-teal)' : x.s.teams >= x.s.of * .35 ? '#f59e0b' : '#ef4444')}<small>${x.s.teams} of ${x.s.of}</small></div>`; });
+        so.forEach(x => { h += `<div class="pos sx-row" ${attr(x.pid)} style="grid-template-columns:1fr 100px 62px"><div><b style="font-size:calc(13px * var(--ts,1))">${pn(x.pid)}</b> <span class="sub" style="display:inline">${llsLbl(S.pl[x.pid].pos)}</span><div class="sub">${pct(x.s.pct)} of team-weeks</div></div>${pbar(x.s.teams / x.s.of, x.s.teams >= x.s.of * .7 ? 'var(--accent-teal)' : x.s.teams >= x.s.of * .35 ? '#f59e0b' : '#ef4444')}<small>${x.s.teams} of ${x.s.of}</small></div>`; });
         h += '</div>';
         const chips = so.filter(x => x.s.teams >= Math.ceil((N - 1) * .35) && S.pl[x.pid].st.filter((v, i) => v && S.pl[x.pid].tm[i] === me).length < W / 2);
         if (chips.length) h += `<div class="card" style="border-color:var(--accent-blue)"><b>Trade chips</b><div class="sub" style="margin-top:4px">Players you mostly bench who would start for several other teams: ${chips.map(x => pn(x.pid) + ' (' + x.s.teams + ' teams)').join(', ')}.</div></div>`;
@@ -845,7 +846,7 @@ function lldStatsViews(S) {
     S.projSheet = projSheet; S.nmOf = nm;
     function lProjected() {
         let h = '<h2>Projected final standings</h2><div class="card scroll"><table><tr><th>Team</th><th>Now</th><th>Proj. W-L</th><th>Proj. rank</th><th>Make it</th></tr>';
-        S.order((a, b) => S.base[a].rk - S.base[b].rk).forEach(t => { const nowR = S.standing.indexOf(t) + 1, pr = Math.round(S.base[t].rk), d = nowR - pr; h += `<tr${t === mi ? ' class="me"' : ''} data-pg="${t}" style="cursor:pointer"><td class="tm">${nm(t)} <span class="sub" style="display:inline">›</span></td><td>#${nowR}</td><td>${Math.round(S.base[t].w)}-${S.totG[t] - Math.round(S.base[t].w)}</td><td>#${pr} <span class="${d > 0 ? 'good' : d < 0 ? 'bad' : ''}" style="font-size:11px">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : ''}</span></td><td>${S.base[t].po}%</td></tr>`; });
+        S.order((a, b) => S.base[a].rk - S.base[b].rk).forEach(t => { const nowR = S.standing.indexOf(t) + 1, pr = Math.round(S.base[t].rk), d = nowR - pr; h += `<tr${t === mi ? ' class="me"' : ''} data-pg="${t}" style="cursor:pointer"><td class="tm">${nm(t)} <span class="sub" style="display:inline">›</span></td><td>#${nowR}</td><td>${Math.round(S.base[t].w)}-${S.totG[t] - Math.round(S.base[t].w)}</td><td>#${pr} <span class="${d > 0 ? 'good' : d < 0 ? 'bad' : ''}" style="font-size:calc(11px * var(--ts,1))">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : ''}</span></td><td>${S.base[t].po}%</td></tr>`; });
         return h + '</table></div><div class="sub">Simulates the remaining weeks from current records, scoring and projected lineups. Arrows show movement from today’s standing. Tap a team to see every projected matchup behind its number.</div>';
     }
     return {
@@ -1164,7 +1165,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // actually serving your latest push or still serving a cached older version.
 const DASHBOARD_BUILD_STAMP = "2026-09-23 3";
 $('body').append(`
-    <div id="dashboard-build-stamp" style="position:fixed; bottom:4px; right:6px; z-index:99990; font-size:8px; font-weight:800; color:rgba(255,255,255,0.35); background:rgba(0,0,0,0.4); border-radius:4px; padding:2px 6px; pointer-events:none;">
+    <div id="dashboard-build-stamp" style="position:fixed; bottom:4px; right:6px; z-index:99990; font-size:calc(8px * var(--ts,1)); font-weight:800; color:rgba(255,255,255,0.35); background:rgba(0,0,0,0.4); border-radius:4px; padding:2px 6px; pointer-events:none;">
         build: ${DASHBOARD_BUILD_STAMP}
     </div>
 `);
@@ -1313,7 +1314,7 @@ let rookiePids = new Set();
                     const d = document.createElement('div');
                     d.className = 'lld-empty-state';
                     d.style.cssText = 'text-align:center; padding:48px 24px; color:var(--text-dim);';
-                    d.innerHTML = '<div style="font-size:15px; font-weight:900; color:#fff; margin-bottom:6px;">' + EMPTY[id][0] + '</div><div style="font-size:12px; font-weight:600;">' + EMPTY[id][1] + '</div>';
+                    d.innerHTML = '<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">' + EMPTY[id][0] + '</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:600;">' + EMPTY[id][1] + '</div>';
                     el.appendChild(d);
                 } else if (old && real.length) {
                     old.remove();
@@ -1431,7 +1432,7 @@ function getFranchiseLogoUrl(franchiseId) {
         let contractFilterPanel = '';
         
         // Abstracting the button styles so they are perfectly uniform
-        const baseBtn = "padding: 6px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; white-space: nowrap; flex-shrink: 0;";
+        const baseBtn = "padding: 6px 10px; border-radius: 6px; font-size: calc(10px * var(--ts,1)); font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; white-space: nowrap; flex-shrink: 0;";
         const offBtn = `background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--card-border); ${baseBtn}`;
         const onBtn = `background: var(--accent-blue); color: #fff; border: 1px solid var(--accent-blue); ${baseBtn}`;
 
@@ -1449,7 +1450,7 @@ if (viewType === 'contracts') {
                 (playerFilters.capHit[0] > 0 || playerFilters.capHit[1] < 500 ? 1 : 0)
             ) : 0;
             const filterBadge = activeFilterCount > 0
-                ? `<span style="background:var(--accent-blue); color:#fff; border-radius:50%; width:14px; height:14px; font-size:8px; font-weight:900; display:inline-flex; align-items:center; justify-content:center; margin-left:4px;">${activeFilterCount}</span>`
+                ? `<span style="background:var(--accent-blue); color:#fff; border-radius:50%; width:14px; height:14px; font-size:calc(8px * var(--ts,1)); font-weight:900; display:inline-flex; align-items:center; justify-content:center; margin-left:4px;">${activeFilterCount}</span>`
                 : '';
             contractFilterPanel = playerFilterPanelOpen ? `
                 <div id="player-filter-panel" style="padding:10px 0; border-top:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; gap:12px; margin-top:6px;">
@@ -1458,17 +1459,17 @@ if (viewType === 'contracts') {
                     ${buildRangeFilter('guar', 'Guarantee %', playerFilters.guar, 0, 100, 5, '', '%')}
                     ${buildRangeFilter('capHit', 'Cap Hit', playerFilters.capHit, 0, 500, 10, '$', 'm')}
                     <div style="display:flex; gap:6px;">
-                        <button id="filter-reset-btn" style="flex:1; padding:6px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase;">Reset Filters</button>
-                        <button id="filter-apply-btn" style="flex:2; padding:6px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase;">Apply</button>
+                        <button id="filter-reset-btn" style="flex:1; padding:6px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Reset Filters</button>
+                        <button id="filter-apply-btn" style="flex:2; padding:6px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Apply</button>
                     </div>
                 </div>` : '';
             sortButtons = `
                 ${contractSorts.map(s => {
                     const isActive = contractSortBy === s.id;
                     const arrow = isActive ? (playerSortDir === 'desc' ? ' ↓' : ' ↑') : '';
-                    return `<button class="sort-btn contracts-sort-btn${isActive ? ' active' : ''}" data-type="contracts" data-val="${s.id}" style="background:transparent; border:none; border-bottom:2px solid ${isActive ? 'var(--accent-blue)' : 'transparent'}; color:${isActive ? '#fff' : 'var(--text-dim)'}; font-size:10px; font-weight:800; text-transform:uppercase; cursor:pointer; padding:6px 4px; white-space:nowrap;">${s.label}${arrow}</button>`;
+                    return `<button class="sort-btn contracts-sort-btn${isActive ? ' active' : ''}" data-type="contracts" data-val="${s.id}" style="background:transparent; border:none; border-bottom:2px solid ${isActive ? 'var(--accent-blue)' : 'transparent'}; color:${isActive ? '#fff' : 'var(--text-dim)'}; font-size:calc(10px * var(--ts,1)); font-weight:800; text-transform:uppercase; cursor:pointer; padding:6px 4px; white-space:nowrap;">${s.label}${arrow}</button>`;
                 }).join('')}
-                <button id="contracts-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0; margin-left:auto;">
+                <button id="contracts-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0; margin-left:auto;">
                     ⊘ Filter${filterBadge}
                 </button>
             `;
@@ -1499,12 +1500,12 @@ let prefixHtml = '';
             prefixHtml = `
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-right: 4px;">
                     <span class="header-icon-svg header-icon-bench"></span>
-                    <span style="font-size: 13px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 1px;">Bench</span>
+                    <span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 1px;">Bench</span>
                 </div>
                 <div style="width: 1px; height: 16px; background: var(--card-border); margin: 0 4px; flex-shrink: 0;"></div>
             `;
         } else {
-            prefixHtml = `<span style="font-size: 9px; font-weight: 900; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0;">View:</span>`;
+            prefixHtml = `<span style="font-size: calc(9px * var(--ts,1)); font-weight: 900; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0;">View:</span>`;
         }
 
         // Return the unified scrolling strip
@@ -1628,7 +1629,7 @@ function buildWeeklyAwardChips(targetFid) {
     const counts = {};
     window._recapEventsFull.filter(e => e.fid === targetFid).forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
     const chips = RECAP_AWARDS.filter(a => counts[a.key]).map(a =>
-        `<span class="team-award twk team-award-chip" data-award="${a.key}" data-fid="${targetFid}" title="${a.title}: ${counts[a.key]}"><span style="font-size:10px; line-height:1;">${RECAP_ICONS[a.key] || ''}</span><b style="font-size:9px;">${counts[a.key]}</b></span>`).join('');
+        `<span class="team-award twk team-award-chip" data-award="${a.key}" data-fid="${targetFid}" title="${a.title}: ${counts[a.key]}"><span style="font-size:calc(10px * var(--ts,1)); line-height:1;">${RECAP_ICONS[a.key] || ''}</span><b style="font-size:calc(9px * var(--ts,1));">${counts[a.key]}</b></span>`).join('');
     return chips ? `<span class="team-wk-awards">${chips}</span>` : '';
 }
 
@@ -1698,17 +1699,19 @@ function buildTeamInfoPanel(targetFid) {
     return `<div class="team-info-row"><div class="team-stat-chips">${chips.join('')}</div>${awardsHtml}</div>${nextHtml}`;
 }
 function getPlayerFilterBarHtml(isFAView) {
+    const lyLabel = "'" + String(parseInt(year) - 1).slice(-2) + ' Avg';
+    const statSorts = [{ id: 'pts', label: 'Pts' }, { id: 'lyavg', label: lyLabel }];
     const faSorts = [
         { id: 'own', label: 'Own %' }, { id: 'add', label: 'Add %' }, { id: 'proj', label: 'Proj' }
-    ];
+    ].concat(statSorts);
     const rosterSorts = [
         { id: 'salary', label: 'Salary' }, { id: 'caphit', label: 'Cap Hit' },
         { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }
-    ];
+    ].concat(statSorts);
     const sorts = isFAView ? faSorts : rosterSorts;
 
-    if (isFAView && !['own','add','proj'].includes(playerSortBy)) playerSortBy = 'own';
-    if (!isFAView && !['salary','caphit','guar','years'].includes(playerSortBy)) playerSortBy = 'salary';
+    if (isFAView && !['own','add','proj','pts','lyavg'].includes(playerSortBy)) playerSortBy = 'own';
+    if (!isFAView && !['salary','caphit','guar','years','pts','lyavg'].includes(playerSortBy)) playerSortBy = 'salary';
 
     const activeFilterCount = playerFiltersActive ? (
         (playerFilters.years[0] > 1 || playerFilters.years[1] < 5 ? 1 : 0) +
@@ -1724,7 +1727,7 @@ function getPlayerFilterBarHtml(isFAView) {
     };
 
     const filterBadge = activeFilterCount > 0
-        ? `<span style="background:var(--accent-blue); color:#fff; border-radius:50%; width:14px; height:14px; font-size:8px; font-weight:900; display:inline-flex; align-items:center; justify-content:center; margin-left:4px;">${activeFilterCount}</span>`
+        ? `<span style="background:var(--accent-blue); color:#fff; border-radius:50%; width:14px; height:14px; font-size:calc(8px * var(--ts,1)); font-weight:900; display:inline-flex; align-items:center; justify-content:center; margin-left:4px;">${activeFilterCount}</span>`
         : '';
 
     const filterPanel = playerFilterPanelOpen && !isFAView ? `
@@ -1734,8 +1737,8 @@ function getPlayerFilterBarHtml(isFAView) {
             ${buildRangeFilter('guar', 'Guarantee %', playerFilters.guar, 0, 100, 5, '', '%')}
             ${buildRangeFilter('capHit', 'Cap Hit', playerFilters.capHit, 0, 500, 10, '$', 'm')}
             <div style="display:flex; gap:6px;">
-                <button id="filter-reset-btn" style="flex:1; padding:6px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase;">Reset Filters</button>
-                <button id="filter-apply-btn" style="flex:2; padding:6px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase;">Apply</button>
+                <button id="filter-reset-btn" style="flex:1; padding:6px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Reset Filters</button>
+                <button id="filter-apply-btn" style="flex:2; padding:6px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Apply</button>
             </div>
         </div>` : '';
 
@@ -1757,21 +1760,21 @@ function getPlayerFilterBarHtml(isFAView) {
                 <button class="player-pos-filter-btn${playerPosFilter === 'LB' ? ' active' : ''}" data-pos="LB">LB</button>
                 <button class="player-pos-filter-btn${playerPosFilter === 'CB+S' ? ' active' : ''}" data-pos="CB+S">DB</button>
             </div>
-           <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
-                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
-                <div style="display:flex; gap:12px;">
+           <div style="display:flex; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap;">
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
+                <div style="display:flex; gap:6px 10px; flex-wrap:wrap; justify-content:center;">
                     ${sorts.map(buildSortBtn).join('')}
                 </div>
                 ${!isFAView ? `
-                <button id="player-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">
+                <button id="player-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">
                     ⊘ Filter${filterBadge}
                 </button>` : ''}
             </div>
             ${filterPanel}
             <div style="position:relative;">
                 <input id="player-search-input" type="text" placeholder="Search players..."
-                    style="width:100%; padding:8px 12px 8px 32px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; color:#fff; font-size:11px; font-weight:700; box-sizing:border-box; outline:none;">
-                <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:13px; color:var(--text-dim);">🔍</span>
+                    style="width:100%; padding:8px 12px 8px 32px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; color:#fff; font-size:calc(11px * var(--ts,1)); font-weight:700; box-sizing:border-box; outline:none;">
+                <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:calc(13px * var(--ts,1)); color:var(--text-dim);">🔍</span>
             </div>
         </div>`;
 }
@@ -1782,8 +1785,8 @@ function buildRangeFilter(id, label, values, min, max, step, prefix = '', suffix
     return `
         <div style="display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${label}</span>
-                <span style="font-size:10px; font-weight:900; color:#fff;" id="filter-label-${id}">${prefix}${values[0]}${suffix} – ${prefix}${values[1]}${suffix}</span>
+                <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${label}</span>
+                <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;" id="filter-label-${id}">${prefix}${values[0]}${suffix} – ${prefix}${values[1]}${suffix}</span>
             </div>
             <div style="position:relative; height:20px; display:flex; align-items:center;">
                 <div style="position:absolute; left:0; right:0; height:4px; background:rgba(255,255,255,0.1); border-radius:4px;"></div>
@@ -1830,7 +1833,7 @@ window.commishWrite = commishWrite;
     // --- UTILITIES ---
 function getRookieHtml(pid) {
         if (rookiePids.has(String(pid))) {
-            return `<span class="injury-badge" style="background: rgba(168,85,247,0.2); color: #a855f7; border: 1px solid rgba(168,85,247,0.4); font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 4px; margin-left: 3px;">R</span>`;
+            return `<span class="injury-badge" style="background: rgba(168,85,247,0.2); color: #a855f7; border: 1px solid rgba(168,85,247,0.4); font-size: calc(9px * var(--ts,1)); font-weight: 900; padding: 1px 5px; border-radius: 4px; margin-left: 3px;">R</span>`;
         }
         return '';
     }
@@ -1859,44 +1862,44 @@ function loadRulesContent() {
             content: `
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Roster Size</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">40 players total — 30 active, 4 IR, 5 Taxi Squad</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Roster Size</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">40 players total — 30 active, 4 IR, 5 Taxi Squad</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <span style="display:inline-flex; align-items:center; justify-content:center;">${TS_ICON}</span>
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Taxi Squad</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Taxi Squad</div>
                         </div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">5 spots for rookies only. Players must be promoted or cut after their second season.</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">5 spots for rookies only. Players must be promoted or cut after their second season.</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <span style="display:inline-flex; align-items:center; justify-content:center;">${IR_ICON}</span>
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">IR</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase;">IR</div>
                         </div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">4 spots. Player must have an official injury designation to be placed on IR.</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">4 spots. Player must have an official injury designation to be placed on IR.</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Starting Lineup</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Starting Lineup</div>
                         ${[
                             ['QB', '1 starter', 'qb'],
                             ['RB', '2 starters', 'rb'],
                             ['WR', '2 starters', 'wr'],
                             ['TE', '1 starter', 'te'],
                             ['SFLEX', 'QB/RB/WR/TE', 'wr'],
-                            ['FLEX', '2 starters — RB/WR/TE', 'rb'],
+                            ['FLEX', '3 starters — RB/WR/TE', 'rb'],
                             ['DL', '1 starter — DE/DT', 'dl'],
                             ['LB', '1 starter', 'lb'],
                             ['DB', '1 starter — CB/S', 'db'],
                             ['IDP FLEX', '3 starters — any IDP', 'lb'],
                         ].map(([pos, desc, cls]) => `
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <span style="font-size:12px; font-weight:900; color:var(--pos-${cls});">${pos}</span>
-                                <span style="font-size:11px; color:var(--text-dim);">${desc}</span>
+                                <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:var(--pos-${cls});">${pos}</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">${desc}</span>
                             </div>`).join('')}
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Offense Scoring</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Offense Scoring</div>
                         ${[
                             ['Passing TD', '4 pts'],
                             ['Passing Yard', '0.04 pts'],
@@ -1908,12 +1911,12 @@ function loadRulesContent() {
                             ['Reception', '0.5 pts'],
                         ].map(([label, val]) => `
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <span style="font-size:11px; color:var(--text-dim);">${label}</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">${val}</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">${label}</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${val}</span>
                             </div>`).join('')}
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">IDP Scoring</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">IDP Scoring</div>
                         ${[
                             ['Sack', '3 pts'],
                             ['INT', '3 pts'],
@@ -1925,37 +1928,37 @@ function loadRulesContent() {
                             ['Pass Deflection', '1 pt'],
                         ].map(([label, val]) => `
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <span style="font-size:11px; color:var(--text-dim);">${label}</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">${val}</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">${label}</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${val}</span>
                             </div>`).join('')}
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">League Format</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">10-team league · Head-to-head · 14 regular season weeks (Weeks 1–14)</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">League Format</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">10-team league · Head-to-head · 14 regular season weeks (Weeks 1–14)</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Tiebreaker</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">Total points scored (PF) is used as the primary tiebreaker for playoff seeding.</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Tiebreaker</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">Total points scored (PF) is used as the primary tiebreaker for playoff seeding.</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Playoffs</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">Top 5 teams qualify · Weeks 15–18 · Single elimination · #1 seed gets a bye</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Playoffs</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">Top 5 teams qualify · Weeks 15–18 · Single elimination · #1 seed gets a bye</div>
                         <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                                                <span style="font-size:11px; color:var(--text-dim);">Round 1</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">Week 15</span>
+                                                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Round 1</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">Week 15</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <span style="font-size:11px; color:var(--text-dim);">Semifinals</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">Weeks 16–17</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Semifinals</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">Weeks 16–17</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <span style="font-size:11px; color:var(--text-dim);">Championship</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">Week 18</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Championship</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">Week 18</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; padding:5px 0;">
-                                <span style="font-size:11px; color:var(--text-dim);">Seeding</span>
-                                <span style="font-size:11px; font-weight:900; color:#fff;">#4 vs #5 · winner plays #1 · #2 vs #3</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Seeding</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">#4 vs #5 · winner plays #1 · #2 vs #3</span>
                             </div>
                         </div>
                     </div>
@@ -1965,14 +1968,14 @@ function loadRulesContent() {
             label: 'Contracts',
             content: `
                 <div style="display:flex; gap:0; border-bottom:1px solid var(--card-border); margin-bottom:16px;" class="hide-scroll" id="contract-rules-tabs">
-                    <button class="contract-rules-tab active" data-tab="basics" style="flex:1; padding:10px 8px; background:transparent; color:#fff; border:none; border-bottom:2px solid var(--accent-blue); font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">Basics</button>
-                    <button class="contract-rules-tab" data-tab="caphits" style="flex:1; padding:10px 8px; background:transparent; color:var(--text-dim); border:none; border-bottom:2px solid transparent; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">Cap Hits</button>
+                    <button class="contract-rules-tab active" data-tab="basics" style="flex:1; padding:10px 8px; background:transparent; color:#fff; border:none; border-bottom:2px solid var(--accent-blue); font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">Basics</button>
+                    <button class="contract-rules-tab" data-tab="caphits" style="flex:1; padding:10px 8px; background:transparent; color:var(--text-dim); border:none; border-bottom:2px solid transparent; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">Cap Hits</button>
                 </div>
 
                 <div id="contract-rules-basics" class="contract-rules-panel">
                     <div style="display:flex; flex-direction:column; gap:12px;">
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:10px;">What Each Field Means</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:10px;">What Each Field Means</div>
                             ${[
                                 ['Salary', '#22c55e', 'The annual amount paid to the player. This counts against your cap every year they are on your roster.'],
                                 ['Years', 'var(--accent-blue)', 'How many seasons the contract runs. A 3-year deal signed in 2026 expires after the 2028 season.'],
@@ -1981,13 +1984,13 @@ function loadRulesContent() {
                                 ['Total Value', 'var(--text-dim)', 'Salary × Years. The full face value of the deal — does not reflect dead cap.'],
                             ].map(([label, color, desc]) => `
                                 <div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                    <div style="font-size:11px; font-weight:900; color:${color}; margin-bottom:3px;">${label}</div>
-                                    <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">${desc}</div>
+                                    <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${color}; margin-bottom:3px;">${label}</div>
+                                    <div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); line-height:1.5;">${desc}</div>
                                 </div>`).join('')}
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Re-Sign Formula</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6; margin-bottom:10px;">The salary floor is based on the player's dynasty rank. Final salary adjusts based on years and guarantee chosen relative to a 3yr/50% baseline.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Re-Sign Formula</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6; margin-bottom:10px;">The salary floor is based on the player's dynasty rank. Final salary adjusts based on years and guarantee chosen relative to a 3yr/50% baseline.</div>
                             <div style="display:flex; flex-direction:column; gap:4px;">
                                 ${[
                                     ['More years vs 3yr baseline', '↓ Lower salary', '#22c55e'],
@@ -1996,14 +1999,14 @@ function loadRulesContent() {
                                     ['Lower guarantee vs 50%', '↑ Higher salary', '#ef4444'],
                                 ].map(([label, val, color]) => `
                                     <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                        <span style="font-size:11px; color:var(--text-dim);">${label}</span>
-                                        <span style="font-size:11px; font-weight:900; color:${color};">${val}</span>
+                                        <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">${label}</span>
+                                        <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${color};">${val}</span>
                                     </div>`).join('')}
                             </div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Rookie Contracts</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6;">All drafted rookies receive a 3-year rookie contract at minimum salary. Eligible for the Taxi Squad for up to 2 seasons before they must be promoted or cut.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Rookie Contracts</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">All drafted rookies receive a 3-year rookie contract at minimum salary. Eligible for the Taxi Squad for up to 2 seasons before they must be promoted or cut.</div>
                         </div>
                     </div>
                 </div>
@@ -2011,15 +2014,15 @@ function loadRulesContent() {
                 <div id="contract-rules-caphits" class="contract-rules-panel" style="display:none;">
                     <div style="display:flex; flex-direction:column; gap:12px;">
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">How Cap Hits Work</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6; margin-bottom:6px;">When you cut a player, the dead cap hit is charged immediately. It equals the guaranteed portion of their remaining contract.</div>
-                            <div style="font-size:11px; color:#ef4444; font-weight:900; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:6px; padding:8px 10px;">
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">How Cap Hits Work</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6; margin-bottom:6px;">When you cut a player, the dead cap hit is charged immediately. It equals the guaranteed portion of their remaining contract.</div>
+                            <div style="font-size:calc(11px * var(--ts,1)); color:#ef4444; font-weight:900; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:6px; padding:8px 10px;">
                                 Dead Cap = Salary × Guarantee% × Years Remaining
                             </div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Cap Hits Decrease Each Year</div>
-                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">As each season passes, years remaining drops — and so does your dead cap exposure.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Cap Hits Decrease Each Year</div>
+                            <div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">As each season passes, years remaining drops — and so does your dead cap exposure.</div>
                             <div style="display:flex; flex-direction:column; gap:4px;">
                                 ${[
                                     ['Cut in Year 1 of 3', '$18m × 60% × 3', '$32.4m', '#ef4444'],
@@ -2029,51 +2032,51 @@ function loadRulesContent() {
                                 ].map(([when, formula, result, color]) => `
                                     <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
                                         <div>
-                                            <div style="font-size:11px; color:#fff; font-weight:800;">${when}</div>
-                                            <div style="font-size:9px; color:var(--text-dim); margin-top:2px;">${formula}</div>
+                                            <div style="font-size:calc(11px * var(--ts,1)); color:#fff; font-weight:800;">${when}</div>
+                                            <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); margin-top:2px;">${formula}</div>
                                         </div>
-                                        <span style="font-size:13px; font-weight:900; color:${color};">${result}</span>
+                                        <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:${color};">${result}</span>
                                     </div>`).join('')}
                             </div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">Cap Hit Simulator</div>
-                            <div style="font-size:9px; color:var(--text-dim); margin-bottom:12px;">Adjust the sliders and hit Cut to see the dead cap hit.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">Cap Hit Simulator</div>
+                            <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Adjust the sliders and hit Cut to see the dead cap hit.</div>
                             <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
                                 <div>
                                     <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                        <span style="font-size:10px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Salary</span>
-                                        <span style="font-size:10px; font-weight:900; color:#fff;" id="sim-sal-lbl">$18m</span>
+                                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase;">Salary</span>
+                                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;" id="sim-sal-lbl">$18m</span>
                                     </div>
                                     <input type="range" id="sim-salary" min="1" max="60" step="1" value="18" style="width:100%;">
                                 </div>
                                 <div>
                                     <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                        <span style="font-size:10px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Years Remaining</span>
-                                        <span style="font-size:10px; font-weight:900; color:#fff;" id="sim-yrs-lbl">3</span>
+                                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase;">Years Remaining</span>
+                                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;" id="sim-yrs-lbl">3</span>
                                     </div>
                                     <input type="range" id="sim-years" min="1" max="5" step="1" value="3" style="width:100%;">
                                 </div>
                                 <div>
                                     <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                        <span style="font-size:10px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Guarantee %</span>
-                                        <span style="font-size:10px; font-weight:900; color:#fff;" id="sim-guar-lbl">60%</span>
+                                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase;">Guarantee %</span>
+                                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;" id="sim-guar-lbl">60%</span>
                                     </div>
                                     <input type="range" id="sim-guar" min="0" max="100" step="5" value="60" style="width:100%;">
                                 </div>
                             </div>
                             <div style="margin-bottom:14px; background:rgba(0,0,0,0.3); border-radius:8px; padding:10px;">
                                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                                    <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Cap Space</span>
-                                    <span style="font-size:11px; font-weight:900; color:#22c55e;" id="sim-cap-label">$823m / $823m</span>
+                                    <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Cap Space</span>
+                                    <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;" id="sim-cap-label">$823m / $823m</span>
                                 </div>
                                 <div style="height:8px; background:rgba(255,255,255,0.08); border-radius:6px; overflow:hidden;">
                                     <div id="sim-cap-bar" style="height:100%; width:0%; background:#22c55e; border-radius:6px; transition:width 0.3s ease, background 0.3s ease;"></div>
                                 </div>
-                                <div id="sim-dead-cap-note" style="display:none; margin-top:8px; font-size:10px; font-weight:800; color:#ef4444; text-align:center;"></div>
+                                <div id="sim-dead-cap-note" style="display:none; margin-top:8px; font-size:calc(10px * var(--ts,1)); font-weight:800; color:#ef4444; text-align:center;"></div>
                             </div>
-                            <button id="sim-cut-btn" style="width:100%; padding:12px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.4); border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">Cut Player</button>
-                            <button id="sim-reset-btn" style="display:none; width:100%; padding:12px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer; margin-top:8px;">Reset</button>
+                            <button id="sim-cut-btn" style="width:100%; padding:12px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.4); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Cut Player</button>
+                            <button id="sim-reset-btn" style="display:none; width:100%; padding:12px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; margin-top:8px;">Reset</button>
                         </div>
                     </div>
                 </div>`
@@ -2082,18 +2085,18 @@ function loadRulesContent() {
             label: 'Free Agency',
             content: `
                 <div style="display:flex; gap:0; border-bottom:1px solid var(--card-border); margin-bottom:16px;" class="hide-scroll">
-                    <button class="fa-rules-tab active" data-tab="how" style="flex:1; padding:10px 8px; background:transparent; color:#fff; border:none; border-bottom:2px solid var(--accent-blue); font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">How It Works</button>
-                    <button class="fa-rules-tab" data-tab="offers" style="flex:1; padding:10px 8px; background:transparent; color:var(--text-dim); border:none; border-bottom:2px solid transparent; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">Making Offers</button>
+                    <button class="fa-rules-tab active" data-tab="how" style="flex:1; padding:10px 8px; background:transparent; color:#fff; border:none; border-bottom:2px solid var(--accent-blue); font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">How It Works</button>
+                    <button class="fa-rules-tab" data-tab="offers" style="flex:1; padding:10px 8px; background:transparent; color:var(--text-dim); border:none; border-bottom:2px solid transparent; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">Making Offers</button>
                 </div>
                 <div id="fa-rules-how" class="fa-rules-panel">
                     <div style="display:flex; flex-direction:column; gap:12px;">
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Blind Auction Format</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6;">Any owner can nominate a free agent at any time. Once nominated, all managers can place competing bids. The highest bidder wins and sets contract terms.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Blind Auction Format</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">Any owner can nominate a free agent at any time. Once nominated, all managers can place competing bids. The highest bidder wins and sets contract terms.</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Auction Timer</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6; margin-bottom:8px;">The auction clock runs for <span style="color:#f59e0b; font-weight:900;">12 hours from when the high bidder last changed</span>. Every time someone takes the lead, the window resets.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Auction Timer</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6; margin-bottom:8px;">The auction clock runs for <span style="color:#f59e0b; font-weight:900;">12 hours from when the high bidder last changed</span>. Every time someone takes the lead, the window resets.</div>
                             <div style="display:flex; flex-direction:column; gap:4px;">
                                 ${[
                                     ['Player nominated', 'Auction opens — 12hr clock starts', '#22c55e'],
@@ -2101,34 +2104,34 @@ function loadRulesContent() {
                                     ['No new high bid for 12hrs', 'Auction closes — high bidder wins', 'var(--accent-blue)'],
                                 ].map(([event, result, color]) => `
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); gap:10px;">
-                                        <span style="font-size:11px; color:var(--text-dim); flex:1;">${event}</span>
-                                        <span style="font-size:11px; font-weight:900; color:${color}; text-align:right; flex:1;">${result}</span>
+                                        <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); flex:1;">${event}</span>
+                                        <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${color}; text-align:right; flex:1;">${result}</span>
                                     </div>`).join('')}
                             </div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Available Funds</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6; margin-bottom:8px;">Your auction budget comes directly from your <span style="color:#22c55e; font-weight:900;">remaining cap space</span>. There is no separate wallet — you can only spend what you have left under the $823m cap.</div>
-                            <div style="font-size:11px; color:#ef4444; font-weight:900; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:6px; padding:8px 10px;">You cannot bid more than your remaining cap space allows.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Available Funds</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6; margin-bottom:8px;">Your auction budget comes directly from your <span style="color:#22c55e; font-weight:900;">remaining cap space</span>. There is no separate wallet — you can only spend what you have left under the $823m cap.</div>
+                            <div style="font-size:calc(11px * var(--ts,1)); color:#ef4444; font-weight:900; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:6px; padding:8px 10px;">You cannot bid more than your remaining cap space allows.</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Re-Sign Limit</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6;"><span style="color:#ef4444; font-weight:900;">A player cannot be re-signed more than once per season.</span> If a player's contract expires and they enter free agency, they are available to all teams but only one new deal can be signed.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Re-Sign Limit</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;"><span style="color:#ef4444; font-weight:900;">A player cannot be re-signed more than once per season.</span> If a player's contract expires and they enter free agency, they are available to all teams but only one new deal can be signed.</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Minimum Bid</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6;">The minimum opening bid is <span style="color:#f59e0b; font-weight:900;">$1m</span>. Each subsequent bid must be higher than the current high bid.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Minimum Bid</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">The minimum opening bid is <span style="color:#f59e0b; font-weight:900;">$1m</span>. Each subsequent bid must be higher than the current high bid.</div>
                         </div>
                     </div>
                 </div>
                 <div id="fa-rules-offers" class="fa-rules-panel" style="display:none;">
                     <div style="display:flex; flex-direction:column; gap:12px;">
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">How Offers Work</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6;">Making an offer works like re-signing — you set salary, years, and guarantee. The difference is you're competing against other managers, so your bid amount also determines who wins.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">How Offers Work</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">Making an offer works like re-signing — you set salary, years, and guarantee. The difference is you're competing against other managers, so your bid amount also determines who wins.</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:10px;">Offer Fields</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:10px;">Offer Fields</div>
                             <div style="display:flex; flex-direction:column; gap:8px;">
                                 ${[
                                     ['Years', 'var(--accent-blue)', '1–5 years. More years = lower annual salary.'],
@@ -2137,22 +2140,22 @@ function loadRulesContent() {
                                     ['MFL Bid', '#ef4444', 'The amount you submit to win the auction. Must be higher than the current high bid. Separate from the contract salary.'],
                                 ].map(([label, color, desc]) => `
                                     <div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                        <div style="font-size:11px; font-weight:900; color:${color}; margin-bottom:3px;">${label}</div>
-                                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">${desc}</div>
+                                        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${color}; margin-bottom:3px;">${label}</div>
+                                        <div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); line-height:1.5;">${desc}</div>
                                     </div>`).join('')}
                             </div>
                         </div>
                         <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Bid vs Contract Salary</div>
-                            <div style="font-size:12px; color:#fff; line-height:1.6; margin-bottom:8px;">These are two different numbers.</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Bid vs Contract Salary</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6; margin-bottom:8px;">These are two different numbers.</div>
                             <div style="display:flex; flex-direction:column; gap:4px;">
                                 ${[
                                     ['MFL Bid', 'One-time auction cost to win the player', '#ef4444'],
                                     ['Contract Salary', 'Annual cap charge for the length of the deal', '#22c55e'],
                                 ].map(([label, desc, color]) => `
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); gap:10px;">
-                                        <span style="font-size:11px; font-weight:900; color:${color}; flex-shrink:0;">${label}</span>
-                                        <span style="font-size:11px; color:var(--text-dim); text-align:right;">${desc}</span>
+                                        <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${color}; flex-shrink:0;">${label}</span>
+                                        <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); text-align:right;">${desc}</span>
                                     </div>`).join('')}
                             </div>
                         </div>
@@ -2164,23 +2167,23 @@ function loadRulesContent() {
             content: `
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Format</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">5 rounds · Linear (not snake) · Held annually in August. Lowest Max PF picks first (picks 1–9). Defending champion always gets pick 10.</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Format</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">5 rounds · Linear (not snake) · Held annually in August. Lowest Max PF picks first (picks 1–9). Defending champion always gets pick 10.</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Pick Trading</div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">Picks can be traded up to 5 years in advance and also during the draft itself. Picks show the original owner when traded.</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:6px;">Pick Trading</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">Picks can be traded up to 5 years in advance and also during the draft itself. Picks show the original owner when traded.</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                             <span style="display:inline-flex; align-items:center; justify-content:center;">${TS_ICON}</span>
-                            <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Taxi Squad Eligibility</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Taxi Squad Eligibility</div>
                         </div>
-                        <div style="font-size:12px; color:#fff; line-height:1.6;">Drafted rookies may be placed on the Taxi Squad for up to 2 seasons. They must be promoted or cut before their 3rd season begins.</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">Drafted rookies may be placed on the Taxi Squad for up to 2 seasons. They must be promoted or cut before their 3rd season begins.</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px;">
-                        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Rookie Contract Salaries</div>
-                        <div style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">5-year contract · 30% guaranteed · Salary by pick slot:</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">Rookie Contract Salaries</div>
+                        <div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:8px;">5-year contract · 30% guaranteed · Salary by pick slot:</div>
                         <div style="display:flex; flex-direction:column; gap:4px;">
                             ${[
                                 ['1.01', '$5.0m'], ['1.02', '$4.875m'], ['1.03', '$4.75m'],
@@ -2188,11 +2191,11 @@ function loadRulesContent() {
                                 ['Floor', '$1.0m minimum'],
                             ].map(([pick, sal]) => sal ? `
                                 <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                    <span style="font-size:11px; color:var(--text-dim);">${pick}</span>
-                                    <span style="font-size:11px; font-weight:900; color:#22c55e;">${sal}</span>
+                                    <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">${pick}</span>
+                                    <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">${sal}</span>
                                 </div>` : `
                                 <div style="padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                    <span style="font-size:10px; color:var(--text-dim); font-style:italic;">${pick}</span>
+                                    <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); font-style:italic;">${pick}</span>
                                 </div>`).join('')}
                         </div>
                     </div>
@@ -2203,7 +2206,7 @@ function loadRulesContent() {
     let activeRulesTab = 'basics';
 
     const tabsHtml = Object.entries(ruleSections).map(([key, section]) => `
-        <button class="rules-tab-btn" data-tab="${key}" style="flex-shrink:0; padding:10px 14px; background:transparent; color:${key === activeRulesTab ? '#fff' : 'var(--text-dim)'}; border:none; border-bottom:2px solid ${key === activeRulesTab ? 'var(--accent-blue)' : 'transparent'}; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.2s;">
+        <button class="rules-tab-btn" data-tab="${key}" style="flex-shrink:0; padding:10px 14px; background:transparent; color:${key === activeRulesTab ? '#fff' : 'var(--text-dim)'}; border:none; border-bottom:2px solid ${key === activeRulesTab ? 'var(--accent-blue)' : 'transparent'}; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.2s;">
             ${section.label}
         </button>
     `).join('');
@@ -2384,10 +2387,10 @@ html += `
                     <div class="pos-group-wrapper ${minClass}" data-pos="${pos}" style="margin-bottom: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden;">
                        <div class="pos-group-header header-${pos.toLowerCase()}" style="padding: 10px 14px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-weight: 900; font-size: 11px; color: var(--pos-${pos.toLowerCase()}); text-transform: uppercase;">${{'QB':'Quarterback','RB':'Running Back','WR':'Wide Receiver','TE':'Tight End','PK':'Kicker','DL':'Defensive Line','LB':'Linebacker','DB':'Defensive Back','DE':'Defensive End','DT':'Defensive Tackle','CB':'Cornerback','S':'Safety','PICKS':'Draft Capital'}[pos] || pos}</span>
-                                <span style="background: rgba(0,0,0,0.3); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 800;">${groups[pos].length}</span>
+                                <span style="font-weight: 900; font-size: calc(11px * var(--ts,1)); color: var(--pos-${pos.toLowerCase()}); text-transform: uppercase;">${{'QB':'Quarterback','RB':'Running Back','WR':'Wide Receiver','TE':'Tight End','PK':'Kicker','DL':'Defensive Line','LB':'Linebacker','DB':'Defensive Back','DE':'Defensive End','DT':'Defensive Tackle','CB':'Cornerback','S':'Safety','PICKS':'Draft Capital'}[pos] || pos}</span>
+                                <span style="background: rgba(0,0,0,0.3); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: calc(9px * var(--ts,1)); font-weight: 800;">${groups[pos].length}</span>
                             </div>
-                            <span class="toggle-icon ${rotClass}" style="font-size: 10px; color: rgba(255,255,255,0.7);">▼</span>
+                            <span class="toggle-icon ${rotClass}" style="font-size: calc(10px * var(--ts,1)); color: rgba(255,255,255,0.7);">▼</span>
                         </div>
                         <div class="pos-group-content roster-grid" style="padding: 8px;">
                             ${sortedHtml}
@@ -2465,10 +2468,10 @@ function buildDraftPicksHtml(picks) {
         <div class="pos-group-wrapper ${minClass}" data-pos="PICKS" style="margin-bottom: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden;">
             <div class="pos-group-header" style="background: rgba(245, 158, 11, 0.15); padding: 10px 14px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-weight: 900; font-size: 11px; color: #f59e0b; text-transform: uppercase;">Draft Capital</span>
-                    <span style="background: rgba(0,0,0,0.3); color: #f59e0b; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 800;">${picks.length}</span>
+                    <span style="font-weight: 900; font-size: calc(11px * var(--ts,1)); color: #f59e0b; text-transform: uppercase;">Draft Capital</span>
+                    <span style="background: rgba(0,0,0,0.3); color: #f59e0b; padding: 2px 6px; border-radius: 10px; font-size: calc(9px * var(--ts,1)); font-weight: 800;">${picks.length}</span>
                 </div>
-                <span class="toggle-icon ${rotClass}" style="font-size: 10px; color: rgba(255,255,255,0.7);">▼</span>
+                <span class="toggle-icon ${rotClass}" style="font-size: calc(10px * var(--ts,1)); color: rgba(255,255,255,0.7);">▼</span>
             </div>
             <div class="pos-group-content" style="padding: 10px;">
     `;
@@ -2481,7 +2484,7 @@ sortedYears.forEach((year, index) => {
 
         html += `
             <div style="margin-top: ${marginTop};">
-                <div style="font-size: 10px; font-weight: 900; color: #f59e0b; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px dashed rgba(245,158,11,0.3); padding-bottom: 4px; margin-bottom: 8px;">${year}</div>
+                <div style="font-size: calc(10px * var(--ts,1)); font-weight: 900; color: #f59e0b; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px dashed rgba(245,158,11,0.3); padding-bottom: 4px; margin-bottom: 8px;">${year}</div>
                 <div style="display: flex; flex-wrap: wrap; gap: 6px;">
         `;
 
@@ -2511,12 +2514,12 @@ const pickId = pick.pickStr ? `${pick.year}_${pick.pickStr.replace('.','_')}` : 
             html += `
                 <div class="draft-pick-chip" data-pickid="${pickId}" data-label="${label}" data-year="${pick.year}" data-round="${pick.round}" data-pickstr="${pick.pickStr || ''}"
                     style="display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(0,0,0,0.25); border:1px solid ${isOnBlock ? 'rgba(168,85,247,0.4)' : 'rgba(245,158,11,0.2)'}; border-radius:8px; padding:8px 10px; min-width:54px; cursor:pointer;">
-                    <span style="font-size:12px; font-weight:900; color:#f59e0b;">${label}</span>
-                    ${isOnBlock ? `<span style="font-size:7px; font-weight:900; color:#a855f7;">${BLOCK_ICON}</span>` : ''}
+                    <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#f59e0b;">${label}</span>
+                    ${isOnBlock ? `<span style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#a855f7;">${BLOCK_ICON}</span>` : ''}
                     ${viaText || originalLogoUrl ? `
                         <div style="display:flex; align-items:center; gap:3px;">
                             ${originalLogoUrl ? `<img src="${originalLogoUrl}" style="width:14px; height:14px; border-radius:50%; object-fit:cover; background:var(--card-bg);">` : ''}
-                            ${viaText && !originalLogoUrl ? `<span style="font-size:8px; color:var(--text-dim); font-weight:800; text-align:center; max-width:60px; line-height:1.2;">${viaText.split(' ').slice(-1)[0]}</span>` : ''}
+                            ${viaText && !originalLogoUrl ? `<span style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); font-weight:800; text-align:center; max-width:60px; line-height:1.2;">${viaText.split(' ').slice(-1)[0]}</span>` : ''}
                         </div>
                     ` : ''}
                 </div>`;
@@ -2595,8 +2598,8 @@ if ($('#open-dev-tools-btn').length === 0) {
                         <button class="player-modal-close" id="close-dev-tools">✕</button>
                         
                         <div class="settings-header" style="background: linear-gradient(to bottom, rgba(16, 185, 129, 0.15), transparent); padding: 25px 20px;">
-                            <div style="font-size: 32px; margin-bottom: 8px;">🛠️</div>
-                            <h2 style="margin: 0; color: #fff; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Admin & Dev Tools</h2>
+                            <div style="font-size: calc(32px * var(--ts,1)); margin-bottom: 8px;">🛠️</div>
+                            <h2 style="margin: 0; color: #fff; font-size: calc(18px * var(--ts,1)); font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Admin & Dev Tools</h2>
                         </div>
                         
 <div class="settings-content-area" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; overflow-y: auto; max-height: 60vh;">
@@ -2859,8 +2862,8 @@ grid.append(`
         border:2px solid ${isSelected ? 'var(--accent-blue)' : 'var(--card-border)'};
         background:${isSelected ? 'rgba(59,130,246,0.15)' : 'rgba(0,0,0,0.2)'};
         min-height:60px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">
-        <div style="font-family:${font.css}; font-size:14px; font-weight:900; color:${isSelected ? '#fff' : 'var(--text-dim)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${font.sample}</div>
-        <div style="font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">${font.name}</div>
+        <div style="font-family:${font.css}; font-size:calc(14px * var(--ts,1)); font-weight:900; color:${isSelected ? '#fff' : 'var(--text-dim)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${font.sample}</div>
+        <div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">${font.name}</div>
     </div>`);
     });
 }
@@ -3574,7 +3577,7 @@ $(document).on('click touchend', '.open-settings-btn', function() {
     
     if (isCommishEditing) {
         $('#tab-style').find('div:first').prepend(`
-            <div id="style-commish-banner" style="padding:8px 12px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; margin-bottom:8px; font-size:10px; font-weight:900; color:#f59e0b;">
+            <div id="style-commish-banner" style="padding:8px 12px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; margin-bottom:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; color:#f59e0b;">
                 👑 Editing style for: ${leagueFranchises[targetFid] || targetFid}
             </div>
         `);
@@ -4177,8 +4180,8 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
             const errMsg = match ? match[0].trim() : 'This action is currently unavailable.';
             $('#player-rows-container').html(`
                 <div style="text-align:center; padding:50px 24px;">
-                    <div style="font-size:32px; margin-bottom:14px;">⚠️</div>
-                    <div style="font-size:14px; font-weight:800; color:#ef4444; line-height:1.6; max-width:340px; margin:0 auto;">${errMsg}</div>
+                    <div style="font-size:calc(32px * var(--ts,1)); margin-bottom:14px;">⚠️</div>
+                    <div style="font-size:calc(14px * var(--ts,1)); font-weight:800; color:#ef4444; line-height:1.6; max-width:340px; margin:0 auto;">${errMsg}</div>
                 </div>`);
             window._teamDataDirty = true;
             return;
@@ -4444,7 +4447,7 @@ let swapIndicator = '';
 
 let rStat = irPids.has(pid) ? "IR" : taxiPids.has(pid) ? "TS" : "";
 const inlineStatusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
-                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: 11px; font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span style="font-size: 13px; font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: 8px; font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
+                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: calc(11px * var(--ts,1)); font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
                 
                 // Core Matchup UI Variables
                 let teamMatch = secondaryText.match(/(?:vs|@)\s*([A-Z]{2,3})/i);
@@ -4467,7 +4470,7 @@ if (isL) {
         let rankNum = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][opp] : 0;
         let displayPts = Math.round(oppPtsNum); 
         let cls = (rankNum >= 24) ? 'matchup-easy' : (rankNum <= 9) ? 'matchup-tough' : 'matchup-neutral';
-        badge = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin-top: 4px; display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);" title="View game log">${displayPts} PA (#${rankNum})</div>`;
+        badge = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin-top: 4px; display: inline-block; font-size: calc(9px * var(--ts,1)); padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);" title="View game log">${displayPts} PA (#${rankNum})</div>`;
     }
 
     const dayMatch = secondaryText.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
@@ -4484,7 +4487,7 @@ onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit
             <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
                 <div style="display: flex; align-items: center; gap: 4px;">
                     ${oppLogo}
-                    <div class="matchup-opp-text" style="font-size: 11px; color: #fff; font-weight: 800; line-height: 1.2;">${gameDay} ${gameTime}</div>
+                    <div class="matchup-opp-text" style="font-size: calc(11px * var(--ts,1)); color: #fff; font-weight: 800; line-height: 1.2;">${gameDay} ${gameTime}</div>
                 </div>
                 ${badge}
             </div>
@@ -4494,7 +4497,7 @@ onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit
                     matchupHtml = `
                         <div class="player-secondary-slot" style="display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; margin-top: 6px; padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, ${c1}35, ${c2}15); border: 1px solid ${c1}50; width: fit-content; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);">
                             ${inlineTeamLogo}
-                            <span style="font-size: 11px; color: #fff; font-weight: 800; letter-spacing: 0.3px;">${secondaryText || '-'}</span>
+                            <span style="font-size: calc(11px * var(--ts,1)); color: #fff; font-weight: 800; letter-spacing: 0.3px;">${secondaryText || '-'}</span>
                         </div>`;
                 }
 
@@ -4507,10 +4510,10 @@ if (isL) {
     if (opp && pointsAllowedMap[opp]?.[realPos]) {
         const cRank = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][opp] : 0;
         const cCls = (cRank >= 24) ? 'matchup-easy' : (cRank <= 9) ? 'matchup-tough' : 'matchup-neutral';
-        cPA = `<div class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin: 0; display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 4px; line-height: 1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[opp][realPos]))} PA (#${cRank})</div>`;
+        cPA = `<div class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin: 0; display: inline-block; font-size: calc(9px * var(--ts,1)); padding: 1px 5px; border-radius: 4px; line-height: 1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[opp][realPos]))} PA (#${cRank})</div>`;
     }
-    matchupHtml = `<div class="matchup-compact" style="display: flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 6px; background: linear-gradient(135deg, ${c1}35, ${c2}15); border: 1px solid ${c1}50; white-space: nowrap; flex-wrap: nowrap; flex-shrink: 0; box-sizing: border-box;">${opp ? `<span style="font-size: 10px; font-weight: 900; color: #fff; letter-spacing: 0.4px; margin-right: 1px;">${/@\s*[A-Z]{2,3}/i.test(secondaryText) ? '@' : ''}${opp}</span><span style="font-size: 10px; color: var(--text-dim); margin: 0 1px;">·</span>` : ''}<span style="font-size: 10px; font-weight: 800; color: #fff;">${cWhen}</span>${cPA}</div>
-        <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 9px; white-space: nowrap; flex-shrink: 0;"><span style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span style="font-weight: 800; color: var(--text-dim);">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span></span>`;
+    matchupHtml = `<div class="matchup-compact" style="display: flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 6px; background: linear-gradient(135deg, ${c1}35, ${c2}15); border: 1px solid ${c1}50; white-space: nowrap; flex-wrap: nowrap; flex-shrink: 0; box-sizing: border-box;">${opp ? `<span style="font-size: calc(10px * var(--ts,1)); font-weight: 900; color: #fff; letter-spacing: 0.4px; margin-right: 1px;">${/@\s*[A-Z]{2,3}/i.test(secondaryText) ? '@' : ''}${opp}</span><span style="font-size: calc(10px * var(--ts,1)); color: var(--text-dim); margin: 0 1px;">·</span>` : ''}<span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: #fff;">${cWhen}</span>${cPA}</div>
+        <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: calc(9px * var(--ts,1)); white-space: nowrap; flex-shrink: 0;"><span style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span style="font-weight: 800; color: var(--text-dim);">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span></span>`;
 }
 return `<div class="player-row pos-border-${pos.toLowerCase()} ${isChanged ? 'status-changed' : ''}"
              data-pid="${pid}" data-pname="${name}" data-pteam="${team}" data-ppos="${pos}">
@@ -4522,15 +4525,15 @@ return `<div class="player-row pos-border-${pos.toLowerCase()} ${isChanged ? 'st
         </div>
     </div>
     <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;">
-        <div style="font-size:9px; font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${shortName || name}</div>
+        <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${shortName || name}</div>
         <div style="display:flex; align-items:center; justify-content:center; margin-top:3px;">
         <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;">
     </div>
     </div>
     <div class="player-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
         <div style="display: flex; align-items: center; gap: 6px;">
-            <span class="full-name" style="font-size: 13px; font-weight: 800; color: #fff;">${name}</span>
-            <span class="short-name" style="display:none; font-size: 13px; font-weight: 800; color: #fff;">${shortName}</span>
+            <span class="full-name" style="font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #fff;">${name}</span>
+            <span class="short-name" style="display:none; font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #fff;">${shortName}</span>
 ${inlinePosBadge}
             ${inlineStatusBadge}
             ${injHtml}
@@ -4542,10 +4545,10 @@ ${inlinePosBadge}
     ${matchupHtml}
     ${false ? `
     <div style="padding: 6px 12px; border-radius: 8px; background: rgba(0,206,184,0.08); border: 1px solid rgba(0,206,184,0.2); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px; flex-shrink: 0; align-self: stretch;">
-        <span style="font-size: 13px; font-weight: 900; color: var(--accent-teal); letter-spacing: 0.3px; white-space: nowrap;">${projNum.toFixed(1)} PROJ</span>
+        <span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); letter-spacing: 0.3px; white-space: nowrap;">${projNum.toFixed(1)} PROJ</span>
         <div style="display: flex; gap: 6px; align-items: center;">
-            <span style="font-size: 9px; font-weight: 900; color: var(--accent-blue); white-space: nowrap;">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span>
-            <span style="font-size: 9px; font-weight: 800; color: var(--text-dim); white-space: nowrap;">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span>
+            <span style="font-size: calc(9px * var(--ts,1)); font-weight: 900; color: var(--accent-blue); white-space: nowrap;">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span>
+            <span style="font-size: calc(9px * var(--ts,1)); font-weight: 800; color: var(--text-dim); white-space: nowrap;">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span>
         </div>
     </div>` : ''}
 </div>
@@ -4611,9 +4614,9 @@ function buildInactiveRow(p) {
                 else { starterHtml += renderEmptySlot(s.l); }
             });
                                    // League actually allows 16 total starters / 10 offensive players, not 15/9 — this
-            // adds the missing offensive flex slot (2 SFLEX + 2 FLEX instead of 1 + 2).
+            // adds the missing offensive flex slot (1 SFLEX + 3 FLEX instead of 1 + 2).
             for (let i = 0; i < 4; i++) {
-                let l = (i < 2) ? "SFLEX" : "FLEX"; let elig = (i < 2) ? ['QB','RB','WR','TE'] : ['RB','WR','TE'];
+                let l = (i < 1) ? "SFLEX" : "FLEX"; let elig = (i < 1) ? ['QB','RB','WR','TE'] : ['RB','WR','TE'];
                 const idx = starterPlayers.findIndex(p => elig.includes(p.pos) && !assigned.has(p.pid));
                 if (idx !== -1) { starterHtml += starterPlayers[idx].build(l); assigned.add(starterPlayers[idx].pid); }
                 else { starterHtml += renderEmptySlot(l); }
@@ -4735,8 +4738,8 @@ for (let i = 0; i < maxYearsToShow; i++) {
     const yearHit = (salNum * gPct * remainingYears).toFixed(1);
 yearCols.push(`
         <div style="display: flex; flex-direction: column; width: 36px; flex-shrink:0;">
-            <span style="font-size: 7px; color: var(--text-dim); text-transform: uppercase;">${y}</span>
-            <span style="font-size: 10px; font-weight: 800; color: #f59e0b;">$${yearHit}m</span>
+            <span style="font-size: calc(7px * var(--ts,1)); color: var(--text-dim); text-transform: uppercase;">${y}</span>
+            <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: #f59e0b;">$${yearHit}m</span>
         </div>`);
 }
 
@@ -4746,9 +4749,9 @@ const innerRowHtml = buildUniversalRow(
     {
                compact: true,
         pill: contractPillHtml(currentCapHitDisplay, relativeYrsLeft, guar),
-        topRight: `<b style="font-size:15px; font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>`,
+        topRight: `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>`,
         bottomRight: rankLineHtml(pid, pos, salNum),
-        nameSuffix: !isUnderContract ? '<span style="font-size:9px; color:#ef4444; margin-left:6px;">(Expired)</span>' : '',
+        nameSuffix: !isUnderContract ? '<span style="font-size:calc(9px * var(--ts,1)); color:#ef4444; margin-left:6px;">(Expired)</span>' : '',
         rowStyle: 'margin-bottom: 0 !important; cursor: pointer;'
     }
 );
@@ -4833,8 +4836,8 @@ const sal = p.salary || 0;
             ${capHeaderHtml}
             <div style="width: 100%; margin-bottom: 15px; padding: 0 5px;">
                 <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 4px;">
-                    <span style="font-size: 10px; font-weight: 800; color: var(--text-dim); text-transform: uppercase;">Cap Usage (${selectedYear})</span>
-                    <span style="font-size: 10px; font-weight: 800; color: ${barColor};">${capPct}%</span>
+                    <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: var(--text-dim); text-transform: uppercase;">Cap Usage (${selectedYear})</span>
+                    <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: ${barColor};">${capPct}%</span>
                 </div>
                 <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
                     <div style="width: ${capPct}%; height: 100%; background: ${barColor}; border-radius: 10px; transition: width 0.4s ease;"></div>
@@ -4845,7 +4848,7 @@ const sal = p.salary || 0;
         <div class="dashboard-pill stacked-pill" id="year-selector-pill"
             style="cursor:pointer; min-width:64px; border-bottom-color:var(--accent-blue);">
             <span class="pill-label">YEAR ${window._yearSelectorOpen ? '▲' : '▼'}</span>
-            <span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${selectedYear}</span>
+            <span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${selectedYear}</span>
         </div>
         <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#3b82f6;"><span class="pill-label">ROSTER</span><span class="pill-value">${totalPlayers}/${LINEUP_RULES.rosterLimit}</span></div>
         <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#ef4444;"><span class="pill-label">IR</span><span class="pill-value">${totalIR}/${LLD.irSlots}</span></div>
@@ -4858,7 +4861,7 @@ const sal = p.salary || 0;
             const isActive = parseInt(y) === selectedYear;
             return `<div class="dashboard-pill stacked-pill year-selector-item" data-year="${y}"
                 style="cursor:pointer; min-width:52px; border-bottom-color:${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${isActive ? '1' : '0.6'};">
-                <span class="pill-value" style="font-size:13px; font-weight:900; color:${isActive ? 'var(--accent-blue)' : '#fff'};">${y}</span>
+                <span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:${isActive ? 'var(--accent-blue)' : '#fff'};">${y}</span>
             </div>`;
         }).join('')}
     </div>` : ''}
@@ -4878,11 +4881,11 @@ ${(() => {
                         const countdownStr = diffDays > 0 ? `${diffDays}d ${diffHrs}h` : `${diffHrs}h`;
                        return `<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; margin-bottom:10px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:8px; width:100%; box-sizing:border-box;">
                             <div>
-                                <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Re-Signing Opens In</div>
-                                <div style="font-size:16px; font-weight:900; color:#ef4444;">${countdownStr}</div>
+                                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Re-Signing Opens In</div>
+                                <div style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:#ef4444;">${countdownStr}</div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:12px; font-weight:900; color:#fff;">${resignEvent.date.toLocaleDateString([], { month:'long', day:'numeric' })}</div>
+                                <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">${resignEvent.date.toLocaleDateString([], { month:'long', day:'numeric' })}</div>
                             </div>
                         </div>`;
                     }
@@ -4974,27 +4977,27 @@ $('#roster-dashboard-inject').html(dashboardHtml);
             
             if (canEdit) {
 optimizeBtnHtml = needsOptimization 
-                   ? `<button class="accept-optimal-btn" onclick="openOptimizeModal()" style="background:var(--accent-blue);color:#fff;border:none;padding:6px 12px;border-radius:4px;font-weight:800;font-size:11px;cursor:pointer;">OPTIMIZE</button>`
-                    : `<button disabled style="background:rgba(255,255,255,0.1);color:var(--text-dim);border:none;padding:6px 12px;border-radius:4px;font-weight:800;font-size:11px;cursor:not-allowed;">OPTIMIZED</button>`;
+                   ? `<button class="accept-optimal-btn" onclick="openOptimizeModal()" style="background:var(--accent-blue);color:#fff;border:none;padding:6px 12px;border-radius:4px;font-weight:800;font-size:calc(11px * var(--ts,1));cursor:pointer;">OPTIMIZE</button>`
+                    : `<button disabled style="background:rgba(255,255,255,0.1);color:var(--text-dim);border:none;padding:6px 12px;border-radius:4px;font-weight:800;font-size:calc(11px * var(--ts,1));cursor:not-allowed;">OPTIMIZED</button>`;
             } else {
-                optimizeBtnHtml = `<div style="background:rgba(255,255,255,0.05);color:var(--text-dim);padding:6px 12px;border-radius:4px;font-weight:800;font-size:11px;text-transform:uppercase;border:1px dashed rgba(255,255,255,0.2);">VIEW ONLY</div>`;
+                optimizeBtnHtml = `<div style="background:rgba(255,255,255,0.05);color:var(--text-dim);padding:6px 12px;border-radius:4px;font-weight:800;font-size:calc(11px * var(--ts,1));text-transform:uppercase;border:1px dashed rgba(255,255,255,0.2);">VIEW ONLY</div>`;
             }
 
 dashboardHtml = `<div class="roster-dashboard">
                 <div class="dashboard-header-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 12px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span class="header-icon-svg header-icon-starters"></span>
-                        <span style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">Starters</span>
+                        <span style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: calc(13px * var(--ts,1)); letter-spacing: 1px;">Starters</span>
                     </div>                    <div style="display: flex; align-items: center; gap: 12px;">
                         ${activeSub === 'roster' ? '<span class="dashboard-title" style="font-weight:800; color:#fff; text-transform:uppercase;">Total Roster</span>' : ''}
                         <div style="display: flex; background: rgba(0,0,0,0.25); border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden;">
                             <div style="padding: 4px 10px; border-right: 1px solid var(--card-border); text-align: center;">
-                                <span style="display: block; font-size: 8px; color: var(--text-dim); text-transform: uppercase; line-height: 1.2;">Current</span>
-                                <span style="display: block; font-size: 13px; font-weight: 800; color: #fff;">${currentProj}</span>
+                                <span style="display: block; font-size: calc(8px * var(--ts,1)); color: var(--text-dim); text-transform: uppercase; line-height: 1.2;">Current</span>
+                                <span style="display: block; font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #fff;">${currentProj}</span>
                             </div>
                             <div style="padding: 4px 10px; text-align: center; background: rgba(0, 206, 184, 0.05);">
-                                <span style="display: block; font-size: 8px; color: #00ceb8; text-transform: uppercase; line-height: 1.2;">Optimal</span>
-                                <span style="display: block; font-size: 13px; font-weight: 800; color: #00ceb8;">${optimalProj}</span>
+                                <span style="display: block; font-size: calc(8px * var(--ts,1)); color: #00ceb8; text-transform: uppercase; line-height: 1.2;">Optimal</span>
+                                <span style="display: block; font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #00ceb8;">${optimalProj}</span>
                             </div>
                         </div>
                     </div>
@@ -5003,14 +5006,14 @@ dashboardHtml = `<div class="roster-dashboard">
 
                 <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:4px;">
                     ${stats.filter(s => s.c < s.r).length === 0
-                        ? '<span style="font-size:10px; color:#22c55e; font-weight:800;">✓ Lineup Valid</span>'
+                        ? '<span style="font-size:calc(10px * var(--ts,1)); color:#22c55e; font-weight:800;">✓ Lineup Valid</span>'
                         : `<div style="display:flex; align-items:center; gap:6px; padding:8px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px;">
-                            <span style="font-size:14px;">⚠️</span>
+                            <span style="font-size:calc(14px * var(--ts,1));">⚠️</span>
                             <div style="display:flex; flex-direction:column; gap:2px;">
                                 ${stats.filter(s => s.c < s.r).map(s => {
                                     const need = s.r - s.c;
                                     const posName = s.l === 'QB' ? 'QB' : s.l === 'RB' ? 'RB' : s.l === 'WR' ? 'WR' : s.l === 'TE' ? 'TE' : s.l === 'PK' ? 'Kicker' : s.l === 'Def' ? 'Defense' : s.l === 'SFLEX' ? 'Superflex' : s.l === 'FLEX' ? 'Flex' : s.l === 'DL' ? 'DL' : s.l === 'LB' ? 'LB' : s.l === 'DB' ? 'DB' : s.l === 'IDP' ? 'IDP Flex' : s.l;
-                                    return `<span style="font-size:10px; font-weight:800; color:#f59e0b;">Needs ${need} more ${posName}${need > 1 ? 's' : ''}</span>`;
+                                    return `<span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#f59e0b;">Needs ${need} more ${posName}${need > 1 ? 's' : ''}</span>`;
                                 }).join('')}
                             </div>
                            </div>`
@@ -5246,12 +5249,12 @@ proj: getRowProj(row),
             </div>
             <div style="flex:1;">
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="font-size:12px; font-weight:900; color:#fff;">${p.shortName || p.name}</span>
-                    <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:8px; font-weight:900;">${p.pos}</span>
+                    <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">${p.shortName || p.name}</span>
+                    <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900;">${p.pos}</span>
                 </div>
-                <div style="font-size:10px; color:${color}; font-weight:800; margin-top:2px; text-transform:uppercase;">${action === 'start' ? '▲ Move to Starters' : '▼ Move to Bench'}</div>
+                <div style="font-size:calc(10px * var(--ts,1)); color:${color}; font-weight:800; margin-top:2px; text-transform:uppercase;">${action === 'start' ? '▲ Move to Starters' : '▼ Move to Bench'}</div>
             </div>
-            <span style="font-size:12px; font-weight:900; color:var(--accent-teal);">${p.proj.toFixed(1)}</span>
+            <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.proj.toFixed(1)}</span>
         </div>`;
 
     const modalHtml = `
@@ -5259,16 +5262,16 @@ proj: getRowProj(row),
             <div class="player-modal-box" style="padding:0; overflow:hidden; max-width:400px;">
                 <button class="player-modal-close" onclick="$('#optimize-modal').fadeOut(200); $('body').css('overflow','');">✕</button>
                 <div style="padding:16px 20px; border-bottom:1px solid var(--card-border); background:rgba(0,206,184,0.08);">
-                    <div style="font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Suggested Changes</div>
-                    <div style="font-size:10px; color:var(--text-dim); margin-top:3px;">${toStart.length + toBench.length} change${toStart.length + toBench.length !== 1 ? 's' : ''} recommended</div>
+                    <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Suggested Changes</div>
+                    <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:3px;">${toStart.length + toBench.length} change${toStart.length + toBench.length !== 1 ? 's' : ''} recommended</div>
                 </div>
                 <div style="padding:16px; max-height:60vh; overflow-y:auto;">
-                    ${toStart.length ? `<div style="font-size:9px; font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Start</div>${toStart.map(p => makeRow(p, 'start', '#22c55e')).join('')}` : ''}
-                    ${toBench.length ? `<div style="font-size:9px; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:12px 0 8px;">Bench</div>${toBench.map(p => makeRow(p, 'bench', '#f59e0b')).join('')}` : ''}
+                    ${toStart.length ? `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Start</div>${toStart.map(p => makeRow(p, 'start', '#22c55e')).join('')}` : ''}
+                    ${toBench.length ? `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:12px 0 8px;">Bench</div>${toBench.map(p => makeRow(p, 'bench', '#f59e0b')).join('')}` : ''}
                 </div>
                 <div style="padding:12px 16px; border-top:1px solid var(--card-border); display:flex; gap:8px;">
-                    <button onclick="applyOptimizeChanges()" style="flex:1; padding:10px; background:#00ceb8; color:var(--card-bg); border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">Apply Selected</button>
-                    <button onclick="$('#optimize-modal').fadeOut(200); $('body').css('overflow','');" style="padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; cursor:pointer;">Cancel</button>
+                    <button onclick="applyOptimizeChanges()" style="flex:1; padding:10px; background:#00ceb8; color:var(--card-bg); border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Apply Selected</button>
+                    <button onclick="$('#optimize-modal').fadeOut(200); $('body').css('overflow','');" style="padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">Cancel</button>
                 </div>
             </div>
         </div>`;
@@ -5396,7 +5399,7 @@ function buildSwapRow(p) {
             let rankNum = pointsAllowedRankMap[p.realPos] ? pointsAllowedRankMap[p.realPos][opp] : 0;
             let displayPts = Math.round(pts);
             let cls = (rankNum >= 24) ? 'matchup-easy' : (rankNum <= 9) ? 'matchup-tough' : 'matchup-neutral';
-            badge = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${opp}" data-pos="${p.realPos}" style="cursor: pointer; margin-top: 3px; display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 4px;" title="View game log">${displayPts} PA (#${rankNum})</div>`;
+            badge = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${opp}" data-pos="${p.realPos}" style="cursor: pointer; margin-top: 3px; display: inline-block; font-size: calc(9px * var(--ts,1)); padding: 2px 6px; border-radius: 4px;" title="View game log">${displayPts} PA (#${rankNum})</div>`;
         }
         
         const avgNum = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : "0.0";
@@ -5404,10 +5407,10 @@ function buildSwapRow(p) {
 
         let rightDataHtml = `
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                <span style="font-size: 12px; font-weight: 900; color: var(--text-main);">${p.proj.toFixed(1)} PROJ</span>
+                <span style="font-size: calc(12px * var(--ts,1)); font-weight: 900; color: var(--text-main);">${p.proj.toFixed(1)} PROJ</span>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                    <span style="font-size: 9px; font-weight: 900; color: var(--accent-blue);">${p.pos}${rankStr}</span>
-                    <span style="font-size: 9px; font-weight: 800; color: var(--text-dim); letter-spacing: 0.5px;">${avgNum} AVG</span>
+                    <span style="font-size: calc(9px * var(--ts,1)); font-weight: 900; color: var(--accent-blue);">${p.pos}${rankStr}</span>
+                    <span style="font-size: calc(9px * var(--ts,1)); font-weight: 800; color: var(--text-dim); letter-spacing: 0.5px;">${avgNum} AVG</span>
                 </div>
             </div>`;
 
@@ -5415,7 +5418,7 @@ function buildSwapRow(p) {
         if (opp && pointsAllowedMap[opp]?.[p.realPos]) {
             const cRank = pointsAllowedRankMap[p.realPos] ? pointsAllowedRankMap[p.realPos][opp] : 0;
             const cCls = (cRank >= 24) ? 'matchup-easy' : (cRank <= 9) ? 'matchup-tough' : 'matchup-neutral';
-            cPA = `<span class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${p.realPos}" style="cursor:pointer; margin:0; display:inline-block; font-size:9px; padding:1px 5px; border-radius:4px; line-height:1.2;">${Math.round(parseFloat(pointsAllowedMap[opp][p.realPos]))} PA (#${cRank})</span>`;
+            cPA = `<span class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${p.realPos}" style="cursor:pointer; margin:0; display:inline-block; font-size:calc(9px * var(--ts,1)); padding:1px 5px; border-radius:4px; line-height:1.2;">${Math.round(parseFloat(pointsAllowedMap[opp][p.realPos]))} PA (#${cRank})</span>`;
         }
         return buildUniversalRow(
             { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
@@ -5519,10 +5522,10 @@ function schedPillHtml(sec) {
 function rankAvgHtml(pid, pos) {
     const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0';
     const r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
-    return `<span style="font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${pos}${r}</span> ${avg} AVG</span>`;
+    return `<span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${pos}${r}</span> ${avg} AVG</span>`;
 }
 function projTopHtml(v) {
-    return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:13px; font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;">${v} PROJ</span>`;
+    return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;">${v} PROJ</span>`;
 }
 
 function contractPillHtml(hit, yrs, guar) {
@@ -5531,7 +5534,7 @@ function contractPillHtml(hit, yrs, guar) {
 function rankLineHtml(pid, pos, salNum) {
     const g = dynGrp(pos), cr = contractRankFor(pos, salNum);
     const i = (c) => `font-style:normal; font-weight:900; color:${c};`;
-    return `<span style="font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap;">${cr ? `<i style="${i('#f59e0b')}">${g}#${cr}</i> CTR · ` : ''}<span class="dyn-rank" data-pid="${pid}" data-grp="${g}"><i style="${i('var(--accent-blue)')}">${g}#–</i></span> DYN</span>`;
+    return `<span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;">${cr ? `<i style="${i('#f59e0b')}">${g}#${cr}</i> CTR · ` : ''}<span class="dyn-rank" data-pid="${pid}" data-grp="${g}"><i style="${i('var(--accent-blue)')}">${g}#–</i></span> DYN</span>`;
 }
 window._dynRankCache = window._dynRankCache || {};
 function getDynRankMap(grp) {
@@ -5600,7 +5603,7 @@ function oppPillHtml(team, realPos, sched) {
     if (pointsAllowedMap[g.opp]?.[realPos]) {
         const rank = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][g.opp] : 0;
         const cls = (rank >= 24) ? 'matchup-easy' : (rank <= 9) ? 'matchup-tough' : 'matchup-neutral';
-        pa = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${g.opp}" data-pos="${realPos}" style="cursor:pointer; margin:0; display:inline-block; font-size:9px; padding:1px 5px; border-radius:4px; line-height:1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[g.opp][realPos]))} PA (#${rank})</div>`;
+        pa = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${g.opp}" data-pos="${realPos}" style="cursor:pointer; margin:0; display:inline-block; font-size:calc(9px * var(--ts,1)); padding:1px 5px; border-radius:4px; line-height:1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[g.opp][realPos]))} PA (#${rank})</div>`;
     }
     return `<span>${g.isHome === false ? '@' : ''}${g.opp}</span><span style="color:var(--text-dim);">·</span><span>${when}</span>${pa}`;
 }
@@ -5611,7 +5614,7 @@ function buildCompactUniversalRow(data, opts) {
     const rStat = opts.forcedStatus || (irPids.has(pid) ? 'IR' : taxiPids.has(pid) ? 'TS' : '');
     const statusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : '';
     const colors = (typeof NFL_TEAM_COLORS !== 'undefined' && NFL_TEAM_COLORS[team]) || ['#3b82f6', '#1e293b'];
-    const pill = opts.pill ? `<div style="display:flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:6px; background:linear-gradient(135deg, ${colors[0]}35, ${colors[1]}15); border:1px solid ${colors[0]}50; white-space:nowrap; flex-shrink:0; box-sizing:border-box; font-size:10px; font-weight:900; color:#fff;">${opts.pill}</div>` : '';
+    const pill = opts.pill ? `<div style="display:flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:6px; background:linear-gradient(135deg, ${colors[0]}35, ${colors[1]}15); border:1px solid ${colors[0]}50; white-space:nowrap; flex-shrink:0; box-sizing:border-box; font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">${opts.pill}</div>` : '';
     hydrateDynRanks();
     return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row pos-border-${posL} ${opts.extraClasses || ''}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
                 ${opts.leftContent ? `<div style="display:flex; align-items:center; flex-shrink:0; margin-right:8px;">${opts.leftContent}</div>` : ''}
@@ -5622,14 +5625,14 @@ function buildCompactUniversalRow(data, opts) {
             </div>
         </div>
         <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;">
-            <div style="font-size:9px; font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div>
+            <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div>
             <div style="display:flex; align-items:center; justify-content:center; margin-top:3px;"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;"></div>
         </div>
         <div class="player-info" style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:6px;">
             <div style="display:flex; align-items:center; gap:6px;">
-                <span class="full-name" style="font-size:13px; font-weight:800; color:#fff;">${data.name}</span>
-                <span class="short-name" style="display:none; font-size:13px; font-weight:800; color:#fff;">${data.shortName || data.name}</span>
-                <span class="pos-text-${posL}" style="font-size:11px; font-weight:900; flex-shrink:0;">${data.pos || ''}</span>
+                <span class="full-name" style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;">${data.name}</span>
+                <span class="short-name" style="display:none; font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;">${data.shortName || data.name}</span>
+                <span class="pos-text-${posL}" style="font-size:calc(11px * var(--ts,1)); font-weight:900; flex-shrink:0;">${data.pos || ''}</span>
                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:16px; height:16px; object-fit:contain; flex-shrink:0;">
                                ${opts.ownerHtml || ''}                ${opts.ownerHtml || ''}${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
                 ${opts.topRight ? `<span style="margin-left:auto; display:flex; align-items:baseline; gap:4px; flex-shrink:0; white-space:nowrap;">${opts.topRight}</span>` : ''}
@@ -5651,12 +5654,12 @@ function buildUniversalRow(data, opts = {}) {
         const injHtml = getInjuryHtml(data.pid);
         
 const inlineStatusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
-const inlinePosBadge = `<span class="pos-text-${(data.pos||'').toLowerCase()}" style="font-size: 10px; font-weight: 900; flex-shrink: 0;">${data.pos || ''}</span>`;
+const inlinePosBadge = `<span class="pos-text-${(data.pos||'').toLowerCase()}" style="font-size: calc(10px * var(--ts,1)); font-weight: 900; flex-shrink: 0;">${data.pos || ''}</span>`;
 
 
 
 const inlineTeamLogo = `<img src="${getNFLLogoUrl(playerTeam)}" onerror="this.style.display='none'" style="width: 30px; height: 30px; object-fit: contain; flex-shrink: 0;">`;  
-        const lockIcon = opts.isLocked ? `<span style="position:absolute; top:-6px; right:-6px; background:#ef4444; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:8px; border:1px solid var(--card-bg); z-index:20;" title="${opts.lockMsg || ''}">🔒</span>` : '';
+        const lockIcon = opts.isLocked ? `<span style="position:absolute; top:-6px; right:-6px; background:#ef4444; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:calc(8px * var(--ts,1)); border:1px solid var(--card-bg); z-index:20;" title="${opts.lockMsg || ''}">🔒</span>` : '';
         const opacityStyle = opts.isLocked ? 'opacity: 0.6; filter: grayscale(0.5);' : (opts.opacityStyle || '');
 
         const rowClass = opts.isSwapView ? 'swap-item' : 'player-row';
@@ -5668,7 +5671,7 @@ let subHtml = `
     <div class="player-secondary-slot" style="display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; margin-top: 5px;">
         <div style="display: inline-flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 3px 7px;">
             ${inlineTeamLogo}
-            <span style="font-size: 10px; font-weight: 800; line-height: 1; ${opts.subTextColor ? `color:${opts.subTextColor};` : 'color: var(--text-dim);'}">${opts.subText || '-'}</span>
+            <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; line-height: 1; ${opts.subTextColor ? `color:${opts.subTextColor};` : 'color: var(--text-dim);'}">${opts.subText || '-'}</span>
         </div>
         ${opts.subBadge ? `<div style="margin-top: 0;">${opts.subBadge}</div>` : ''}
     </div>`;
@@ -5689,7 +5692,7 @@ let subHtml = `
 
                 <div class="${infoClass}" style="flex: 1; min-width: 0; padding-left: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;">
                     <div class="${nameClass}" style="display: flex; align-items: center; flex-wrap: wrap;">
-                        <span class="full-name" style="font-size: 13px; font-weight: 800; color: #fff;">${data.name}</span>
+                        <span class="full-name" style="font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #fff;">${data.name}</span>
                         <span class="short-name" style="display: none;">${data.shortName || data.name}</span> 
 ${inlinePosBadge}
                         ${inlineStatusBadge}
@@ -5703,10 +5706,10 @@ ${subHtml}
                 </div>
 
                 <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;">
-                    <div style="font-size:9px; font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div>
                     <div style="display:flex; align-items:center; gap:4px; margin-top:3px;">
                         <img src="${getNFLLogoUrl(playerTeam)}" style="width:10px; height:10px; object-fit:contain;">
-                        <span class="pos-text-${(data.pos||'').toLowerCase()}" style="font-size:7px; font-weight:900;">${data.pos || ''}</span>
+                        <span class="pos-text-${(data.pos||'').toLowerCase()}" style="font-size:calc(7px * var(--ts,1)); font-weight:900;">${data.pos || ''}</span>
                     </div>
                 </div>
 
@@ -6014,7 +6017,7 @@ const proj = activePlayerRow.find('.data-badge').first().text() || "0.0 PROJ";
             const actionText = isIR ? 'Activate from IR' : 'Promote from Taxi';
             $('#quick-swap-list').html(`
                 <div style="padding: 20px 15px; text-align: center;">
-                    <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 15px;">This player is deactivated. You must move them to your active roster to start them.</p>
+                    <p style="color: var(--text-dim); font-size: calc(12px * var(--ts,1)); margin-bottom: 15px;">This player is deactivated. You must move them to your active roster to start them.</p>
                     <button class="roster-tx-btn" data-tx-type="${action}" data-tx-pid="${pid}" style="width: 100%; padding: 14px; border-radius: 8px; background: var(--accent-blue); color: #fff; font-weight: 800; border: none; cursor: pointer; text-transform: uppercase;">${actionText}</button>
                 </div>
             `);
@@ -6023,13 +6026,13 @@ const proj = activePlayerRow.find('.data-badge').first().text() || "0.0 PROJ";
             // Previously these buttons only showed for bench players — starters had no way to
             // be moved to IR/Taxi from this sheet at all. Now shown for any of your own players.
             let irBtnHtml = hasInjury
-                ? `<button class="roster-tx-btn" data-tx-type="deactivate" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to IR</button>`
-                : `<button disabled style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); border: 1px dashed rgba(255, 255, 255, 0.15); font-weight: 800; font-size: 10px; cursor: not-allowed; text-transform: uppercase;" title="Player must have an injury designation to be placed on IR">IR (Not Injured)</button>`;
+                ? `<button class="roster-tx-btn" data-tx-type="deactivate" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Move to IR</button>`
+                : `<button disabled style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); border: 1px dashed rgba(255, 255, 255, 0.15); font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: not-allowed; text-transform: uppercase;" title="Player must have an injury designation to be placed on IR">IR (Not Injured)</button>`;
 
             $('#quick-swap-list').prepend(`
                 <div style="display: flex; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.2);">
                     ${irBtnHtml}
-                    <button class="roster-tx-btn" data-tx-type="demote" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to Taxi</button>
+                    <button class="roster-tx-btn" data-tx-type="demote" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Move to Taxi</button>
                 </div>
             `);
         }
@@ -6076,7 +6079,7 @@ $(document).on('click', '.management-trigger', function(e) {
                         </div>
                     </div>
                     <div class="player-right-slot">
-                        <button class="roster-tx-execute-btn" data-tx-type="${txType}" data-source-pid="${sourcePid}" data-target-pid="${p.pid}" style="padding: 8px 12px; border-radius: 6px; background: var(--accent-blue); color: #fff; border: none; font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Swap</button>
+                        <button class="roster-tx-execute-btn" data-tx-type="${txType}" data-source-pid="${sourcePid}" data-target-pid="${p.pid}" style="padding: 8px 12px; border-radius: 6px; background: var(--accent-blue); color: #fff; border: none; font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Swap</button>
                     </div>
                 </div>
             `);
@@ -6108,11 +6111,11 @@ function renderDropMenu(addPid) {
                             <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" class="swap-img" style="width:100%; height:100%; border-radius:50%;">
                         </div>
                         <div class="swap-info" style="margin-left:10px;">
-                            <div class="swap-name" style="font-size:12px;">${name}</div>
-                            <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase;">${team} • ${pos}</div>
+                            <div class="swap-name" style="font-size:calc(12px * var(--ts,1));">${name}</div>
+                            <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase;">${team} • ${pos}</div>
                         </div>
                     </div>
-                    <div style="font-size:10px; font-weight:900; color:#ef4444; text-transform:uppercase; padding-right:5px;">Drop</div>
+                    <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#ef4444; text-transform:uppercase; padding-right:5px;">Drop</div>
                 </div>
             `);
         });
@@ -6136,7 +6139,7 @@ async function openDropToAddModal(addPid) {
 
         const closeJs = "$('#drop-add-modal').remove(); $('body').css('overflow','');";
         $('#drop-add-modal').remove();
-        $('body').append(`<div id="drop-add-modal" class="player-modal-backdrop" style="z-index:99999; display:flex;"><div class="player-modal-box" style="padding:30px; max-width:420px; text-align:center; color:var(--text-dim); font-size:11px; font-weight:800; text-transform:uppercase;">Loading roster...</div></div>`).css('overflow', 'hidden');
+        $('body').append(`<div id="drop-add-modal" class="player-modal-backdrop" style="z-index:99999; display:flex;"><div class="player-modal-box" style="padding:30px; max-width:420px; text-align:center; color:var(--text-dim); font-size:calc(11px * var(--ts,1)); font-weight:800; text-transform:uppercase;">Loading roster...</div></div>`).css('overflow', 'hidden');
 
         let players = [];
         try {
@@ -6158,7 +6161,7 @@ async function openDropToAddModal(addPid) {
         } catch (e) { console.warn('Drop modal roster fetch failed', e); }
 
         if (!players.length) {
-            $('#drop-add-modal .player-modal-box').html(`<div style="color:#ef4444;">Couldn't load your roster.</div><button onclick="${closeJs}" style="margin-top:14px; padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; cursor:pointer;">Close</button>`);
+            $('#drop-add-modal .player-modal-box').html(`<div style="color:#ef4444;">Couldn't load your roster.</div><button onclick="${closeJs}" style="margin-top:14px; padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">Close</button>`);
             return;
         }
 
@@ -6200,15 +6203,15 @@ async function openDropToAddModal(addPid) {
                 </div>
                 <div style="flex:1; min-width:0;">
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:12px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
-                        <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:8px; font-weight:900;">${p.pos}</span>
-                        ${tag ? `<span style="font-size:8px; font-weight:900; color:#f59e0b; border:1px solid rgba(245,158,11,0.4); border-radius:4px; padding:0 4px;">${tag}</span>` : ''}
+                        <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
+                        <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900;">${p.pos}</span>
+                        ${tag ? `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#f59e0b; border:1px solid rgba(245,158,11,0.4); border-radius:4px; padding:0 4px;">${tag}</span>` : ''}
                     </div>
-                    <div style="font-size:9px; color:var(--text-dim); font-weight:700; margin-top:2px;">${p.team} · ${p.salaryText} · ${p.yrsNum}yr · ${p.guarText}</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:700; margin-top:2px;">${p.team} · ${p.salaryText} · ${p.yrsNum}yr · ${p.guarText}</div>
                 </div>
                 <div style="text-align:right; flex-shrink:0;">
-                    <div style="font-size:12px; font-weight:900; color:#ef4444;">$${p.hit.toFixed(1)}m</div>
-                    <div style="font-size:7px; color:var(--text-dim); font-weight:800; text-transform:uppercase;">cap hit</div>
+                    <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#ef4444;">$${p.hit.toFixed(1)}m</div>
+                    <div style="font-size:calc(7px * var(--ts,1)); color:var(--text-dim); font-weight:800; text-transform:uppercase;">cap hit</div>
                 </div>
             </label>`;
         }).join('');
@@ -6220,8 +6223,8 @@ async function openDropToAddModal(addPid) {
             <div class="player-modal-box" style="padding:0; overflow:hidden; max-width:420px;">
                 <button class="player-modal-close" onclick="${closeJs}">✕</button>
                 <div style="padding:16px 20px; border-bottom:1px solid var(--card-border); background:rgba(239,68,68,0.08);">
-                    <div style="font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Roster Full</div>
-                    <div style="font-size:10px; color:var(--text-dim); margin-top:3px;">Select ${need} player${need > 1 ? 's' : ''} to drop to make room</div>
+                    <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Roster Full</div>
+                    <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:3px;">Select ${need} player${need > 1 ? 's' : ''} to drop to make room</div>
                 </div>
                 <div style="padding:12px 16px 0;">
                     <div style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(34,197,94,0.08); border-radius:8px; border-left:3px solid #22c55e;">
@@ -6229,34 +6232,34 @@ async function openDropToAddModal(addPid) {
                             <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${addPid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                         </div>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-size:8px; font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px;">Adding</div>
+                            <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px;">Adding</div>
                             <div style="display:flex; align-items:center; gap:6px;">
-                                <span style="font-size:13px; font-weight:900; color:#fff;">${addName}</span>
-                                <span class="pos-text-${addPos.toLowerCase()}" style="font-size:8px; font-weight:900;">${addPos}</span>
-                                <span style="font-size:9px; color:var(--text-dim); font-weight:700;">${addTeam}</span>
+                                <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${addName}</span>
+                                <span class="pos-text-${addPos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900;">${addPos}</span>
+                                <span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:700;">${addTeam}</span>
                             </div>
-                            <div style="font-size:9px; color:var(--text-dim); font-weight:700; margin-top:2px;">$${NEW_CONTRACT.sal.toFixed(1)}m · ${NEW_CONTRACT.yrs}yr · ${NEW_CONTRACT.guar}% guar · <span style="color:#ef4444;">$${newHit.toFixed(1)}m hit</span></div>
+                            <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:700; margin-top:2px;">$${NEW_CONTRACT.sal.toFixed(1)}m · ${NEW_CONTRACT.yrs}yr · ${NEW_CONTRACT.guar}% guar · <span style="color:#ef4444;">$${newHit.toFixed(1)}m hit</span></div>
                         </div>
                     </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:10px 2px 8px;">Your Active Roster (${activePlayers.length}) · IR &amp; Taxi not listed</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:10px 2px 8px;">Your Active Roster (${activePlayers.length}) · IR &amp; Taxi not listed</div>
                 </div>
                 <div style="padding:0 16px; max-height:36vh; overflow-y:auto;">${rowsHtml}</div>
                 <div style="padding:10px 16px; border-top:1px solid var(--card-border); background:rgba(0,0,0,0.2);">
-                    <div id="drop-sel-count" style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px;">0 selected · ${need} needed</div>
-                    <div style="display:grid; grid-template-columns:1fr auto; gap:3px 12px; font-size:10px; font-weight:800; color:#fff;">
+                    <div id="drop-sel-count" style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px;">0 selected · ${need} needed</div>
+                    <div style="display:grid; grid-template-columns:1fr auto; gap:3px 12px; font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff;">
                         ${row('Current salary', `$${totalSal.toFixed(1)}m`)}
                         ${row('− Salary dropped', '<span id="drop-sel-sal">$0.0m</span>')}
                         ${row('+ Cap hit from drops', '<span id="drop-sel-hit" style="color:#ef4444;">$0.0m</span>')}
                         ${row(`+ New contract ($${NEW_CONTRACT.sal.toFixed(1)}m, ${NEW_CONTRACT.guar}% guar)`, `$${NEW_CONTRACT.sal.toFixed(1)}m`)}
                         ${row('Net salary change', '<span id="drop-net"></span>', 'font-weight:900;')}
-                        <span style="border-top:1px solid var(--card-border); padding-top:4px; font-size:11px; font-weight:900;">Salary after</span>
-                        <span id="drop-after" style="border-top:1px solid var(--card-border); padding-top:4px; text-align:right; font-size:11px; font-weight:900;"></span>
+                        <span style="border-top:1px solid var(--card-border); padding-top:4px; font-size:calc(11px * var(--ts,1)); font-weight:900;">Salary after</span>
+                        <span id="drop-after" style="border-top:1px solid var(--card-border); padding-top:4px; text-align:right; font-size:calc(11px * var(--ts,1)); font-weight:900;"></span>
                         ${row('Cap remaining', '<span id="drop-remaining"></span>')}
                     </div>
                 </div>
                 <div style="padding:12px 16px; border-top:1px solid var(--card-border); display:flex; gap:8px;">
-                    <button id="drop-add-confirm" disabled style="flex:1; padding:10px; background:#00ceb8; color:var(--card-bg); border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:not-allowed; opacity:0.4;">Select players to drop</button>
-                    <button onclick="${closeJs}" style="padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; cursor:pointer;">Cancel</button>
+                    <button id="drop-add-confirm" disabled style="flex:1; padding:10px; background:#00ceb8; color:var(--card-bg); border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:not-allowed; opacity:0.4;">Select players to drop</button>
+                    <button onclick="${closeJs}" style="padding:10px 16px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">Cancel</button>
                 </div>
             </div>
         </div>`;
@@ -6484,29 +6487,29 @@ $('body').append(`
 
         <div style="padding:14px 16px; border-bottom:1px solid var(--card-border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
             <div>
-                <div style="font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">League Chat</div>
-                <div id="chat-online-count" style="font-size:10px; color:var(--accent-teal); margin-top:2px;">Loading...</div>
+                <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">League Chat</div>
+                <div id="chat-online-count" style="font-size:calc(10px * var(--ts,1)); color:var(--accent-teal); margin-top:2px;">Loading...</div>
             </div>
             <a href="${MFL_ORIGIN}/${year}/chat?L=${lid}&COUNT=40" target="_blank"
-               style="font-size:9px; font-weight:900; color:var(--text-dim); text-decoration:none; text-transform:uppercase; border:1px solid var(--card-border); border-radius:6px; padding:4px 8px;">
+               style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-decoration:none; text-transform:uppercase; border:1px solid var(--card-border); border-radius:6px; padding:4px 8px;">
                 Open Full ↗
             </a>
         </div>
 
         <div id="chat-messages" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px;">
-            <div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>
+            <div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>
         </div>
 
         <div style="padding:10px 12px; border-top:1px solid var(--card-border); flex-shrink:0;">
             <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center;">
-<select id="chat-to-fid" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:6px 8px; color:#fff; font-size:10px; font-weight:800; outline:none;">
+<select id="chat-to-fid" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:6px 8px; color:#fff; font-size:calc(10px * var(--ts,1)); font-weight:800; outline:none;">
     <option value="">Everyone</option>
 </select>
             </div>
             <div style="display:flex; gap:6px;">
                 <input id="chat-input" type="text" maxlength="200" placeholder="Type a message..."
-                    style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:12px; font-weight:700; outline:none; box-sizing:border-box;">
-                <button id="chat-send-btn" style="padding:8px 16px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">Send</button>
+                    style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:700; outline:none; box-sizing:border-box;">
+                <button id="chat-send-btn" style="padding:8px 16px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">Send</button>
             </div>
         </div>
     </div>
@@ -6525,37 +6528,37 @@ $('body').append(`
         </div>
         <div style="display:flex; flex-direction:column; justify-content:center; flex: 1; text-align: left;">
             <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
-                <span id="modal-name" style="font-size: 18px; font-weight: 800; color: #fff; margin-right: 8px;"></span>
-                <span id="modal-pos" class="inline-pos-badge" style="font-size: 11px; font-weight: 900; padding: 2px 6px; border-radius: 4px; color: #fff; margin-right: 6px;"></span>
+                <span id="modal-name" style="font-size: calc(18px * var(--ts,1)); font-weight: 800; color: #fff; margin-right: 8px;"></span>
+                <span id="modal-pos" class="inline-pos-badge" style="font-size: calc(11px * var(--ts,1)); font-weight: 900; padding: 2px 6px; border-radius: 4px; color: #fff; margin-right: 6px;"></span>
                 <span id="modal-inj"></span>
             </div>
 <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
                 <img id="modal-team-logo" src="" style="width: 18px; height: 18px; object-fit: contain; flex-shrink:0;">
-                <span id="modal-pid-text" style="font-size: 10px; color: var(--text-dim); font-weight: 700;"></span>
+                <span id="modal-pid-text" style="font-size: calc(10px * var(--ts,1)); color: var(--text-dim); font-weight: 700;"></span>
             </div>
             <div id="modal-bio-pills" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;"></div>
 <button id="modal-trade-offer-btn" onclick="txAction('propose', window._modalCurrentPid, event)"
-    style="display:none; margin-top:8px; padding:5px 12px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer;">
+    style="display:none; margin-top:8px; padding:5px 12px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">
     Offer Trade
 </button>
 <div id="modal-owner-actions" style="display:none; margin-top:8px; display:flex; flex-wrap:nowrap; gap:4px; overflow-x:auto;" class="hide-scroll">
-<button id="header-btn-taxi" style="flex-shrink:0; padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
+<button id="header-btn-taxi" style="flex-shrink:0; padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:12px; width:auto; fill:#f59e0b;"><path d="M256 64C238.3 64 224 78.3 224 96L224 128L215.1 128C173.1 128 136 155.3 123.5 195.4L100.5 268.9C78.5 283.1 64 307.9 64 336L64 512C64 529.7 78.3 544 96 544L128 544C145.7 544 160 529.7 160 512L160 480L480 480L480 512C480 529.7 494.3 544 512 544L544 544C561.7 544 576 529.7 576 512L576 336C576 307.9 561.5 283.1 539.6 268.9L516.6 195.4C504.1 155.3 466.9 128 424.9 128L416 128L416 96C416 78.3 401.7 64 384 64L256 64zM215.1 192L425 192C439 192 451.4 201.1 455.5 214.5L468.5 256L171.6 256L184.6 214.5C188.8 201.1 201.1 192 215.1 192zM160 336C177.7 336 192 350.3 192 368C192 385.7 177.7 400 160 400C142.3 400 128 385.7 128 368C128 350.3 142.3 336 160 336zM448 368C448 350.3 462.3 336 480 336C497.7 336 512 350.3 512 368C512 385.7 497.7 400 480 400C462.3 400 448 385.7 448 368z"/></svg>
     Taxi
 </button>
-<button id="header-btn-ir" style="flex-shrink:0; padding:4px 8px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
+<button id="header-btn-ir" style="flex-shrink:0; padding:4px 8px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:12px; width:auto; fill:#ef4444;"><path d="M341.8 72.6C329.5 61.2 310.5 61.2 298.3 72.6L74.3 280.6C64.7 289.6 61.5 303.5 66.3 315.7C71.1 327.9 82.8 336 96 336L112 336L112 512C112 547.3 140.7 576 176 576L464 576C499.3 576 528 547.3 528 512L528 336L544 336C557.2 336 569 327.9 573.8 315.7C578.6 303.5 575.4 289.5 565.8 280.6L341.8 72.6zM288 312C288 303.2 295.2 296 304 296L336 296C344.8 296 352 303.2 352 312L352 352L392 352C400.8 352 408 359.2 408 368L408 400C408 408.8 400.8 416 392 416L352 416L352 456C352 464.8 344.8 472 336 472L304 472C295.2 472 288 464.8 288 456L288 416L248 416C239.2 416 232 408.8 232 400L232 368C232 359.2 239.2 352 248 352L288 352L288 312z"/></svg>
     IR
 </button>
-<button id="header-btn-block" style="flex-shrink:0; padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
+<button id="header-btn-block" style="flex-shrink:0; padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:12px; width:auto; fill:#3b82f6;"><path d="M0 192C0 174.3 14.3 160 32 160L480 160L480 112C480 98.7 487.5 86.5 499.3 80.3C511.1 74.2 525.3 75.2 536.1 82.8L632.1 146.8C641.4 152.9 647 163.1 647 174C647 184.9 641.4 195.1 632.1 201.2L536.1 265.2C525.3 272.8 511.1 273.8 499.3 267.7C487.5 261.5 480 249.3 480 236L480 192L32 192C14.3 192 0 177.7 0 160zM640 416C640 433.7 625.7 448 608 448L160 448L160 496C160 509.3 152.5 521.5 140.7 527.7C128.9 533.8 114.7 532.8 103.9 525.2L7.9 461.2C-1.4 455.1 -7 444.9 -7 434C-7 423.1 -1.4 412.9 7.9 406.8L103.9 342.8C114.7 335.2 128.9 334.2 140.7 340.3C152.5 346.5 160 358.7 160 372L160 416L608 416C625.7 416 640 430.3 640 448z"/></svg>
     Block
 </button>
-<button id="header-btn-resign" style="flex-shrink:0; padding:4px 8px; background:rgba(34,197,94,0.1); color:#22c55e; border:1px solid rgba(34,197,94,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
+<button id="header-btn-resign" style="flex-shrink:0; padding:4px 8px; background:rgba(34,197,94,0.1); color:#22c55e; border:1px solid rgba(34,197,94,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:12px; width:auto; fill:#22c55e;"><path d="M368.4 18.3L312.7 74.1L383.9 145.3L439.7 89.6C456.2 73.1 456.2 46.6 439.7 30.1L441.7 32.1C425.2 15.6 398.7 1.8 368.4 18.3zM44.9 353.4L299.1 99.2L370.3 170.4L116.2 424.6C111.3 429.5 105.1 433 98.3 434.8L18.5 455.5C13.5 456.8 8.2 455.4 4.6 451.8C1 448.2 -0.4 442.9 0.9 437.9L21.6 358.1C23.4 351.3 26.9 345.1 31.8 340.2L44.9 353.4zM432 416C415.4 416 400.5 424.8 392 438.4C383.5 424.8 368.6 416 352 416C326.5 416 306 436.5 306 462C306 478.3 314.4 509.4 325.5 534.5C331.1 547.1 337.4 558 343.5 565.6C349.4 573 354.7 576 352 576C343.2 576 336 583.2 336 592C336 600.8 343.2 608 352 608C378.5 608 393.4 587.5 400 571.7C406.6 587.5 421.5 608 448 608C474.5 608 489.4 587.5 496 571.7C502.6 587.5 517.5 608 544 608C552.8 608 560 600.8 560 592C560 583.2 552.8 576 544 576C541.3 576 546.6 573 552.5 565.6C558.6 558 564.9 547.1 570.5 534.5C581.6 509.4 590 478.3 590 462C590 436.5 569.5 416 544 416C527.4 416 512.5 424.8 504 438.4C495.5 424.8 480.6 416 464 416z"/></svg>
     Resign
 </button>
-<button id="header-btn-cut" style="flex-shrink:0; padding:4px 8px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.5); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
+<button id="header-btn-cut" style="flex-shrink:0; padding:4px 8px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.5); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:12px; width:auto; fill:#ef4444;"><path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM232 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296z"/></svg>
     Cut
 </button>
@@ -6604,36 +6607,36 @@ $('body').append(`
             <div style="display:flex; align-items:center; gap:14px;">
                 <img id="team-popup-logo" src="" style="width:56px; height:56px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:2px solid rgba(255,255,255,0.1); flex-shrink:0;">
                 <div style="flex:1; min-width:0;">
-                    <div id="team-popup-name" style="font-size:18px; font-weight:900; color:#fff; white-space:normal; line-height:1.2;"></div>
+                    <div id="team-popup-name" style="font-size:calc(18px * var(--ts,1)); font-weight:900; color:#fff; white-space:normal; line-height:1.2;"></div>
                     <div style="display:flex; align-items:center; gap:8px; margin-top:4px; flex-wrap:wrap;">
-                        <span id="team-popup-record" style="font-size:10px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 8px;"></span>
-                        <span id="team-popup-owner" style="font-size:10px; font-weight:800; color:var(--text-dim);"></span>
+                        <span id="team-popup-record" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 8px;"></span>
+                        <span id="team-popup-owner" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);"></span>
                     </div>
                 </div>
-                <button id="team-popup-view-btn" style="flex-shrink:0; padding:6px 12px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">View Team</button>
+                <button id="team-popup-view-btn" style="flex-shrink:0; padding:6px 12px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; white-space:nowrap;">View Team</button>
             </div>
             <div style="display:flex; gap:8px;">
                 <div id="team-popup-cap-bar-wrap" style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:8px 10px;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Cap Used</span>
-                        <span id="team-popup-cap-label" style="font-size:9px; font-weight:900; color:#22c55e;"></span>
+                        <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Cap Used</span>
+                        <span id="team-popup-cap-label" style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#22c55e;"></span>
                     </div>
                     <div style="height:4px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">
                         <div id="team-popup-cap-bar" style="height:100%; width:0%; background:#22c55e; border-radius:4px; transition:width 0.3s;"></div>
                     </div>
                 </div>
                 <div id="team-popup-block-count" style="background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:8px; padding:8px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0;">
-                    <span style="font-size:16px; font-weight:900; color:#a855f7;" id="team-popup-block-num">0</span>
-                    <span style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">On Block</span>
+                    <span style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:#a855f7;" id="team-popup-block-num">0</span>
+                    <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">On Block</span>
                 </div>
             </div>
         </div>
 
         <div class="modal-tabs hide-scroll" style="display:flex; overflow-x:auto; flex-wrap:nowrap; border-bottom:1px solid var(--card-border);">
-            <div class="team-popup-tab active" data-tab="tp-roster" style="flex-shrink:0; padding:10px 16px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:#fff; border-bottom:2px solid var(--accent-blue); white-space:nowrap;">Roster</div>
-            <div class="team-popup-tab" data-tab="tp-schedule" style="flex-shrink:0; padding:10px 16px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; white-space:nowrap;">Schedule</div>
-            <div class="team-popup-tab" data-tab="tp-stats" style="flex-shrink:0; padding:10px 16px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; white-space:nowrap;">Stats</div>
-<div class="team-popup-tab" data-tab="tp-block" style="flex-shrink:0; padding:10px 16px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; white-space:nowrap;">Trade Block</div>
+            <div class="team-popup-tab active" data-tab="tp-roster" style="flex-shrink:0; padding:10px 16px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:#fff; border-bottom:2px solid var(--accent-blue); white-space:nowrap;">Roster</div>
+            <div class="team-popup-tab" data-tab="tp-schedule" style="flex-shrink:0; padding:10px 16px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; white-space:nowrap;">Schedule</div>
+            <div class="team-popup-tab" data-tab="tp-stats" style="flex-shrink:0; padding:10px 16px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; white-space:nowrap;">Stats</div>
+<div class="team-popup-tab" data-tab="tp-block" style="flex-shrink:0; padding:10px 16px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; white-space:nowrap;">Trade Block</div>
         </div>
 
         <div class="player-modal-body" style="padding:0; max-height:55vh; overflow-y:auto;">
@@ -6692,7 +6695,7 @@ $('#team-popup-owner').text(owner || '');
     $('#team-popup-cap-label').text('Loading...');
     $('#team-popup-cap-bar').css('width', '0%');
     $('#team-popup-block-num').text('0');
-    $('#tp-roster').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    $('#tp-roster').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
 
     $('#team-popup-modal').css('display', 'flex').hide().fadeIn(200);
     $('body').css('overflow', 'hidden');
@@ -6771,16 +6774,16 @@ $('#team-popup-owner').text(owner || '');
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                            <span style="font-size:13px; font-weight:800; color:#fff;">${p.shortName || p.name}</span>
-                            <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:10px; font-weight:900;">${p.pos}</span>
-                            ${p.isOnBlock ? '<span style="font-size:9px; color:#a855f7; font-weight:900;">${BLOCK_ICON}</span>' : ''}
+                            <span style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;">${p.shortName || p.name}</span>
+                            <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:calc(10px * var(--ts,1)); font-weight:900;">${p.pos}</span>
+                            ${p.isOnBlock ? '<span style="font-size:calc(9px * var(--ts,1)); color:#a855f7; font-weight:900;">${BLOCK_ICON}</span>' : ''}
                             ${p.injHtml}
                         </div>
                         ${p.salary ? `<div style="display:flex; gap:5px; margin-top:2px; align-items:center;">
                             <img src="${getNFLLogoUrl(p.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain; opacity:0.7;">
-                            <span style="font-size:10px; font-weight:900; color:#22c55e;">${p.salary}</span>
-                            ${p.years ? `<span style="font-size:9px; color:var(--accent-blue); font-weight:800;">${p.years}yr</span>` : ''}
-                            ${p.avgScore ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">${p.avgScore.toFixed(1)} avg</span>` : ''}
+                            <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</span>
+                            ${p.years ? `<span style="font-size:calc(9px * var(--ts,1)); color:var(--accent-blue); font-weight:800;">${p.years}yr</span>` : ''}
+                            ${p.avgScore ? `<span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${p.avgScore.toFixed(1)} avg</span>` : ''}
                         </div>` : ''}
                     </div>
                 </div>`;
@@ -6789,7 +6792,7 @@ $('#team-popup-owner').text(owner || '');
         let rosterHtml = '';
 
         // Top 5
-        rosterHtml += `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.05);">Top Players</div>`;
+        rosterHtml += `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.05);">Top Players</div>`;
         rosterHtml += top5.map(buildPlayerChipRow).join('');
 
 
@@ -6803,7 +6806,7 @@ $('#team-popup-owner').text(owner || '');
 }
 
 async function loadTeamPopupSchedule(targetFid) {
-    const container = $('#tp-schedule').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    const container = $('#tp-schedule').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/weekly?L=${lid}`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
@@ -6840,12 +6843,12 @@ async function loadTeamPopupSchedule(targetFid) {
                 <div style="display:flex; align-items:center; gap:12px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; margin-bottom:8px;">
                     <img src="${opp.logo}" onerror="this.src=''" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
                     <div style="flex:1;">
-                        <div style="font-size:12px; font-weight:800; color:#fff;">${opp.teamName}</div>
-                        <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${leagueFranchises[opp.fid] || opp.fid}</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">${opp.teamName}</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:2px;">${leagueFranchises[opp.fid] || opp.fid}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:16px; font-weight:900; color:${meColor};">${me.score}</div>
-                        <div style="font-size:11px; color:var(--text-dim);">${opp.score}</div>
+                        <div style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:${meColor};">${me.score}</div>
+                        <div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">${opp.score}</div>
                     </div>
                 </div>`;
         });
@@ -6855,7 +6858,7 @@ async function loadTeamPopupSchedule(targetFid) {
     }
 }
 async function loadTeamPopupBlock(targetFid) {
-    const container = $('#tp-block').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    const container = $('#tp-block').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const tbRes = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=tradeBait&L=${lid}&INCLUDE_DRAFT_PICKS=1&JSON=1`, { credentials: 'include' });
         const tbData = await tbRes.json();
@@ -6864,7 +6867,7 @@ async function loadTeamPopupBlock(targetFid) {
         const myBait = baits.find(b => (b.franchise_id || b.franchise || '').padStart(4,'0') === targetFid);
 
         if (!myBait || !myBait.willGiveUp) {
-            container.html('<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:11px;">Nothing on the trade block.</div>');
+            container.html('<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Nothing on the trade block.</div>');
             return;
         }
 
@@ -6877,12 +6880,12 @@ async function loadTeamPopupBlock(targetFid) {
         if (wantText) {
             html += `
                 <div style="padding:10px 12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:8px; margin-bottom:14px;">
-                    <div style="font-size:8px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">Looking For</div>
-                    <div style="font-size:12px; color:#fff; font-weight:800;">${wantText}</div>
+                    <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">Looking For</div>
+                    <div style="font-size:calc(12px * var(--ts,1)); color:#fff; font-weight:800;">${wantText}</div>
                 </div>`;
         }
 
-        html += `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.05);">Available to Trade</div>`;
+        html += `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.05);">Available to Trade</div>`;
 
         // Resolve each pid
         const playerFetches = pidList.map(async pid => {
@@ -6895,11 +6898,11 @@ async function loadTeamPopupBlock(targetFid) {
                 return `
                     <div style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(0,0,0,0.2); border:1px solid rgba(245,158,11,0.25); border-radius:8px; margin-bottom:6px;">
                         <div style="width:34px; height:34px; border-radius:50%; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <span style="font-size:13px; font-weight:900; color:#f59e0b;">${round}</span>
+                            <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#f59e0b;">${round}</span>
                         </div>
                         <div>
-                            <div style="font-size:12px; font-weight:900; color:#f59e0b;">${pickYear} Round ${round} Pick</div>
-                            <div style="font-size:9px; color:var(--text-dim); margin-top:1px;">Draft Pick</div>
+                            <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#f59e0b;">${pickYear} Round ${round} Pick</div>
+                            <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); margin-top:1px;">Draft Pick</div>
                         </div>
                     </div>`;
             }
@@ -6920,19 +6923,19 @@ async function loadTeamPopupBlock(targetFid) {
                         </div>
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                                <span style="font-size:13px; font-weight:800; color:#fff;">${name.split(' ').slice(-1)[0]}, ${name.split(' ')[0]}</span>
-                                ${pos ? `<span class="pos-text-${pos.toLowerCase()}" style="font-size:10px; font-weight:900;">${pos}</span>` : ''}
+                                <span style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;">${name.split(' ').slice(-1)[0]}, ${name.split(' ')[0]}</span>
+                                ${pos ? `<span class="pos-text-${pos.toLowerCase()}" style="font-size:calc(10px * var(--ts,1)); font-weight:900;">${pos}</span>` : ''}
                                 ${injHtml}
                             </div>
                             <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
                                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain; opacity:0.7;">
-                                <span style="font-size:9px; color:var(--text-dim); font-weight:800;">${team}</span>
+                                <span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${team}</span>
                             </div>
                         </div>
-                        <span style="font-size:9px; color:#a855f7; font-weight:900; flex-shrink:0;">${BLOCK_ICON}</span>
+                        <span style="font-size:calc(9px * var(--ts,1)); color:#a855f7; font-weight:900; flex-shrink:0;">${BLOCK_ICON}</span>
                     </div>`;
             } catch(e) {
-                return `<div style="padding:8px; color:var(--text-dim); font-size:10px;">pid: ${pid}</div>`;
+                return `<div style="padding:8px; color:var(--text-dim); font-size:calc(10px * var(--ts,1));">pid: ${pid}</div>`;
             }
         });
 
@@ -6949,7 +6952,7 @@ async function loadTeamPopupBlock(targetFid) {
                     $('#subtabs-league .sub-tab-btn').filter(function(){ return $(this).text().trim() === 'Trades'; }).trigger('click');
                     setTimeout(() => loadTradeHub('${targetFid}'), 300);
                 }, 200);
-            " style="width:100%; margin-top:14px; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">
+            " style="width:100%; margin-top:14px; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">
                 Propose Trade
             </button>`;
 
@@ -6960,7 +6963,7 @@ async function loadTeamPopupBlock(targetFid) {
     }
 }
 async function loadTeamPopupStats(targetFid) {
-    const container = $('#tp-stats').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    const container = $('#tp-stats').html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/standings?L=${lid}`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
@@ -6982,8 +6985,8 @@ async function loadTeamPopupStats(targetFid) {
         container.html(`<div style="display:flex; flex-direction:column; gap:6px;">
             ${stats.map(([label, val]) => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px;">
-                    <span style="font-size:11px; color:var(--text-dim); font-weight:800;">${label}</span>
-                    <span style="font-size:13px; font-weight:900; color:#fff;">${val}</span>
+                    <span style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${label}</span>
+                    <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${val}</span>
                 </div>`).join('')}
         </div>`);
     } catch(e) {
@@ -7061,7 +7064,7 @@ if ($(this).hasClass('player-modal-trigger') && (!row.length || $(this).hasClass
 $('#modal-img').attr('src', `https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png`);
 $('#modal-team-logo').attr('src', teamImg);
 const posColors = { QB: 'var(--pos-qb)', RB: 'var(--pos-rb)', WR: 'var(--pos-wr)', TE: 'var(--pos-te)', PK: 'var(--pos-pk)', DL: 'var(--pos-dl)', LB: 'var(--pos-lb)', DB: 'var(--pos-db)', DE: 'var(--pos-dl)', DT: 'var(--pos-dl)', CB: 'var(--pos-db)', S: 'var(--pos-db)' };
-$('#modal-pos').text(pos).removeClass().css({ fontSize: '13px', fontWeight: '900', marginLeft: '5px', marginRight: '4px', background: 'none', padding: '0', borderRadius: '0', color: posColors[pos.toUpperCase()] || '#fff' });
+$('#modal-pos').text(pos).removeClass().css({ fontSize: 'calc(13px * var(--ts,1))', fontWeight: '900', marginLeft: '5px', marginRight: '4px', background: 'none', padding: '0', borderRadius: '0', color: posColors[pos.toUpperCase()] || '#fff' });
 $('#modal-name').html(name);
 $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
@@ -7085,13 +7088,13 @@ const hw = bioMap['Height/Weight'] || '';
                 const ageMatch = age.match(/Age:\s*(\d+)/i) || age.match(/\((\d+)\)/);
                 const ageDisplay = ageMatch ? ageMatch[1] : age.split('/').pop()?.trim();
                 let bioHtml = '';
-                if (hw) bioHtml += `<div style="font-size:11px; font-weight:900; color:#fff;">${hw}</div>`;
+                if (hw) bioHtml += `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${hw}</div>`;
                 const details = [];
                 if (ageDisplay) details.push(`<span><span style="color:var(--text-dim);">Age:</span> ${ageDisplay}</span>`);
                 if (drafted) details.push(`<span><span style="color:var(--text-dim);">Drafted:</span> ${drafted}</span>`);
                 if (exp) details.push(`<span><span style="color:var(--text-dim);">Exp:</span> ${exp}</span>`);
                 if (bye) details.push(`<span><span style="color:var(--text-dim);">Bye:</span> ${bye}</span>`);
-                if (details.length) bioHtml += `<div style="font-size:10px; font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
+                if (details.length) bioHtml += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
                 $('#modal-bio-pills').html(bioHtml);
             }).catch(() => {});
     $('#modal-dynamic-header').css({ background: 'rgba(59,130,246,0.2)', 'border-bottom': '1px solid rgba(59,130,246,0.3)' });
@@ -7192,15 +7195,15 @@ $('#modal-owner-actions').show();
                 const lockMsg = row.data('lockmsg') || 'Player is locked.';
                 $('#modal-swap-list').html(`
                     <div style="padding: 30px 15px; text-align: center;">
-                        <div style="font-size: 28px; margin-bottom: 10px;">🔒</div>
-                        <p style="color: #ef4444; font-size: 14px; font-weight: 900; margin-bottom: 8px; text-transform: uppercase;">Action Locked</p>
-                        <p style="color: var(--text-dim); font-size: 11px;">${lockMsg}</p>
+                        <div style="font-size: calc(28px * var(--ts,1)); margin-bottom: 10px;">🔒</div>
+                        <p style="color: #ef4444; font-size: calc(14px * var(--ts,1)); font-weight: 900; margin-bottom: 8px; text-transform: uppercase;">Action Locked</p>
+                        <p style="color: var(--text-dim); font-size: calc(11px * var(--ts,1));">${lockMsg}</p>
                     </div>
                 `);
             } else {
                 $('#modal-swap-list').html(`
                     <div style="padding: 20px 15px; text-align: center;">
-                        <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 15px;">This player is deactivated.</p>
+                        <p style="color: var(--text-dim); font-size: calc(12px * var(--ts,1)); margin-bottom: 15px;">This player is deactivated.</p>
                         <button class="roster-tx-btn" data-tx-type="${action}" data-tx-pid="${pid}" style="width: 100%; padding: 14px; border-radius: 8px; background: var(--accent-blue); color: #fff; font-weight: 800; border: none; cursor: pointer; text-transform: uppercase;">${actionText}</button>
                     </div>
                 `);
@@ -7210,12 +7213,12 @@ $('#modal-owner-actions').show();
             if (!isStarter) {
                 const hasInjury = row.find('.injury-badge').length > 0;
                 let irBtnHtml = hasInjury
-                    ? `<button class="roster-tx-btn" data-tx-type="deactivate" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to IR</button>`
-                    : `<button disabled style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px dashed rgba(255,255,255,0.15); font-weight: 800; font-size: 10px; cursor: not-allowed; text-transform: uppercase;">IR (Not Injured)</button>`;
+                    ? `<button class="roster-tx-btn" data-tx-type="deactivate" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Move to IR</button>`
+                    : `<button disabled style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px dashed rgba(255,255,255,0.15); font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: not-allowed; text-transform: uppercase;">IR (Not Injured)</button>`;
                 $('#modal-swap-list').prepend(`
                     <div style="display: flex; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.2);">
                         ${irBtnHtml}
-                        <button class="roster-tx-btn" data-tx-type="demote" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase;">Move to Taxi</button>
+                        <button class="roster-tx-btn" data-tx-type="demote" data-tx-pid="${pid}" style="flex: 1; padding: 10px; border-radius: 6px; background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); font-weight: 800; font-size: calc(10px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Move to Taxi</button>
                     </div>
                 `);
             }
@@ -7248,7 +7251,7 @@ $('#modal-owner-actions').show();
         $('#modal-img').attr('src', `https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png`);
         $('#modal-team-logo').attr('src', teamImg);
 const posColors = { QB: 'var(--pos-qb)', RB: 'var(--pos-rb)', WR: 'var(--pos-wr)', TE: 'var(--pos-te)', PK: 'var(--pos-pk)', DL: 'var(--pos-dl)', LB: 'var(--pos-lb)', DB: 'var(--pos-db)', DE: 'var(--pos-dl)', DT: 'var(--pos-dl)', CB: 'var(--pos-db)', S: 'var(--pos-db)' };
-$('#modal-pos').text(pos).removeClass().css({ fontSize: '13px', fontWeight: '900', marginLeft: '5px', marginRight: '4px', background: 'none', padding: '0', borderRadius: '0', color: posColors[pos.toUpperCase()] || '#fff' });
+$('#modal-pos').text(pos).removeClass().css({ fontSize: 'calc(13px * var(--ts,1))', fontWeight: '900', marginLeft: '5px', marginRight: '4px', background: 'none', padding: '0', borderRadius: '0', color: posColors[pos.toUpperCase()] || '#fff' });
         $('#modal-name').html(playerName);
         $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
@@ -7272,13 +7275,13 @@ const hw = bioMap['Height/Weight'] || '';
                 const ageMatch = age.match(/Age:\s*(\d+)/i) || age.match(/\((\d+)\)/);
                 const ageDisplay = ageMatch ? ageMatch[1] : age.split('/').pop()?.trim();
                 let bioHtml = '';
-                if (hw) bioHtml += `<div style="font-size:11px; font-weight:900; color:#fff;">${hw}</div>`;
+                if (hw) bioHtml += `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${hw}</div>`;
                 const details = [];
                 if (ageDisplay) details.push(`<span><span style="color:var(--text-dim);">Age:</span> ${ageDisplay}</span>`);
                 if (drafted) details.push(`<span><span style="color:var(--text-dim);">Drafted:</span> ${drafted}</span>`);
                 if (exp) details.push(`<span><span style="color:var(--text-dim);">Exp:</span> ${exp}</span>`);
                 if (bye) details.push(`<span><span style="color:var(--text-dim);">Bye:</span> ${bye}</span>`);
-                if (details.length) bioHtml += `<div style="font-size:10px; font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
+                if (details.length) bioHtml += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
                 $('#modal-bio-pills').html(bioHtml);
             }).catch(() => {});
 // Pre-load default tab
@@ -7406,7 +7409,7 @@ const adjText = await adjRes.text();
 
 $('#smart-player-modal').fadeOut(200);
 $('body').css('overflow', '');
-$('#player-rows-container').html('<div style="text-align:center; padding: 40px; color: #ef4444; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Processing Cut...</div>');
+$('#player-rows-container').html('<div style="text-align:center; padding: 40px; color: #ef4444; font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Processing Cut...</div>');
 
 await fetchMasterStatus();
 window._teamDataDirty = true;
@@ -7461,7 +7464,7 @@ if (responseText.match(/<error[^>]*>.*?<\/error>/i)) {
                 
                 $('#smart-player-modal').fadeOut(200);
                 $('body').css('overflow', '');
-                $('#player-rows-container').html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Processing Move...</div>');
+                $('#player-rows-container').html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Processing Move...</div>');
                 
                 await fetchMasterStatus();
 window._teamDataDirty = true;
@@ -7514,13 +7517,13 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
                 const myPicks = window.currentTeamPicks || [];
                 console.log('[block-debug] myPicks:', myPicks);
                 const picksChipsHtml = myPicks.length ? `
-                    <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Include My Picks</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Include My Picks</div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
                         ${myPicks.map(pick => {
                             const pickId = pick.pickStr ? `${pick.year}_${pick.pickStr.replace('.','_')}` : `${pick.year}_${pick.round}`;
                             const label = pick.pickStr ? pick.pickStr : `${pick.year} R${pick.round}`;
                             return `<div class="trade-pick-tag-btn" data-pickid="${pickId}" 
-                                style="padding:6px 10px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:#f59e0b;">
+                                style="padding:6px 10px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:#f59e0b;">
                                 ${label}
                             </div>`;
                         }).join('')}
@@ -7529,9 +7532,9 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
 
                 $('#modal-actions-container').html(`
                     <div class="trade-block-form" style="animation: fadeIn 0.3s ease;">
-                        <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">Trading ${playerName}</div>
+                        <div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">Trading ${playerName}</div>
                         
-                        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Positions</div>
+                        <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Positions</div>
                         <div class="trade-tag-group">
                             <div class="trade-tag-btn" data-val="QB">QB</div>
                             <div class="trade-tag-btn" data-val="RB">RB</div>
@@ -7539,7 +7542,7 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
                             <div class="trade-tag-btn" data-val="TE">TE</div>
                         </div>
 
-                        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Picks</div>
+                        <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Picks</div>
                         <div class="trade-tag-group">
                             <div class="trade-tag-btn" data-val="1st Rd">1st Rd</div>
                             <div class="trade-tag-btn" data-val="2nd Rd">2nd Rd</div>
@@ -7550,7 +7553,7 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
                         ${picksChipsHtml}
 
                <button class="trade-submit-btn" id="confirm-trade-block" data-pid="" data-giveup="${pid}" data-removing="${isAlreadyOnBlock}">${isAlreadyOnBlock ? 'Remove from Trade Block' : 'Add to Trade Block'}</button>
-                        <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
+                        <button style="width: 100%; background: transparent; color: var(--text-dim); border: none; padding: 12px; margin-top: 10px; font-weight: 700; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; cursor: pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
                     </div>
                 `);
                 // The modal content above replaces #modal-actions-container, which is a
@@ -7685,98 +7688,98 @@ const baseSalary = calcSalary(3, 50);  // ← add this line here
                 const drawerRows = salaries.slice(start, end).map((entry, i) => {
                     const idx = start + i;
                     const isTarget = idx === targetRank - 1;
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);background:${isTarget?'rgba(245,158,11,0.12)':'transparent'};"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:9px;font-weight:900;color:${isTarget?'#f59e0b':'var(--text-dim)'};min-width:20px;">#${idx+1}</span><span style="font-size:11px;font-weight:${isTarget?'900':'700'};color:${isTarget?'#f59e0b':'#fff'};">${entry.name}</span></div><span style="font-size:11px;font-weight:900;color:${isTarget?'#f59e0b':'#fff'};white-space:nowrap;">$${entry.sal}m${isTarget?' ← floor':''}</span></div>`;
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);background:${isTarget?'rgba(245,158,11,0.12)':'transparent'};"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:calc(9px * var(--ts,1));font-weight:900;color:${isTarget?'#f59e0b':'var(--text-dim)'};min-width:20px;">#${idx+1}</span><span style="font-size:calc(11px * var(--ts,1));font-weight:${isTarget?'900':'700'};color:${isTarget?'#f59e0b':'#fff'};">${entry.name}</span></div><span style="font-size:calc(11px * var(--ts,1));font-weight:900;color:${isTarget?'#f59e0b':'#fff'};white-space:nowrap;">$${entry.sal}m${isTarget?' ← floor':''}</span></div>`;
                 }).join('');
 
 $('#modal-actions-container').html(`
     <div style="animation:fadeIn 0.3s ease;">
 ${window._resignOpen !== true ? `
         <div style="padding:8px 12px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-            <span style="font-size:16px;">🔒</span>
+            <span style="font-size:calc(16px * var(--ts,1));">🔒</span>
             <div>
-                <div style="font-size:10px; font-weight:900; color:#ef4444; text-transform:uppercase;">Re-Signing Locked</div>
-                <div style="font-size:9px; color:var(--text-dim); margin-top:2px;">You can review terms but cannot submit until the commissioner opens re-signing.</div>
+                <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#ef4444; text-transform:uppercase;">Re-Signing Locked</div>
+                <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); margin-top:2px;">You can review terms but cannot submit until the commissioner opens re-signing.</div>
             </div>
         </div>` : ''}
         ${window._alreadyResigned ? `
         <div style="padding:8px 12px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-            <span style="font-size:16px;">🔒</span>
+            <span style="font-size:calc(16px * var(--ts,1));">🔒</span>
             <div>
-                <div style="font-size:10px; font-weight:900; color:#ef4444; text-transform:uppercase;">Already Resigned This Season</div>
-                <div style="font-size:9px; color:var(--text-dim); margin-top:2px;">A player can only be re-signed once per year.</div>
+                <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#ef4444; text-transform:uppercase;">Already Resigned This Season</div>
+                <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); margin-top:2px;">A player can only be re-signed once per year.</div>
             </div>
         </div>` : ''}
-        <div style="font-size:11px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:10px;text-align:center;">Resign ${playerName}</div>
+        <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:10px;text-align:center;">Resign ${playerName}</div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
                             <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="resign-floor-toggle">
                                 <div>
-                                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Dynasty Rank</div>
-                                    <div style="font-size:13px;font-weight:900;color:var(--accent-blue);">#${dynastyRank}</div>
+                                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Dynasty Rank</div>
+                                    <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:var(--accent-blue);">#${dynastyRank}</div>
                                 </div>
                                 <div style="text-align:right;">
-                                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Floor</div>
-                                    <div style="font-size:13px;font-weight:900;color:#f59e0b;">$${baseFloor}m</div>
+                                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Floor</div>
+                                    <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:#f59e0b;">$${baseFloor}m</div>
                                 </div>
                             </div>
                             <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;">
-                                <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;text-align:center;">Proposal</div>
-                                <div id="resign-salary-warning" style="display:none; font-size:9px; font-weight:800; color:#ef4444; text-align:center; padding:4px 6px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; margin-bottom:4px;">⚠️ Cannot resign below current salary while years remain</div>
-<div style="font-size:13px;font-weight:900;color:#22c55e;text-align:center;" id="resign-final-sal">$${calcSalary(3,50).toFixed(1)}m/yr</div>
-                                <div style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:3px;" id="resign-proposal-summary">3 yrs · 50% guar</div>
-                                <button id="resign-show-yearly" style="width:100%;margin-top:6px;padding:4px;border-radius:4px;background:rgba(255,255,255,0.08);color:var(--text-dim);border:1px solid rgba(255,255,255,0.1);font-size:9px;font-weight:800;text-transform:uppercase;cursor:pointer;">Show Yearly ▼</button>
+                                <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;text-align:center;">Proposal</div>
+                                <div id="resign-salary-warning" style="display:none; font-size:calc(9px * var(--ts,1)); font-weight:800; color:#ef4444; text-align:center; padding:4px 6px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; margin-bottom:4px;">⚠️ Cannot resign below current salary while years remain</div>
+<div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:#22c55e;text-align:center;" id="resign-final-sal">$${calcSalary(3,50).toFixed(1)}m/yr</div>
+                                <div style="font-size:calc(9px * var(--ts,1));color:var(--text-dim);text-align:center;margin-top:3px;" id="resign-proposal-summary">3 yrs · 50% guar</div>
+                                <button id="resign-show-yearly" style="width:100%;margin-top:6px;padding:4px;border-radius:4px;background:rgba(255,255,255,0.08);color:var(--text-dim);border:1px solid rgba(255,255,255,0.1);font-size:calc(9px * var(--ts,1));font-weight:800;text-transform:uppercase;cursor:pointer;">Show Yearly ▼</button>
                             </div>
                         </div>
 
                         <div id="resign-floor-drawer" style="display:none;background:rgba(0,0,0,0.2);border-radius:6px;overflow:hidden;margin-bottom:10px;">
-                            <div style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);">${posGroup} salaries — floor at rank #${targetRank}</div>
+                            <div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);">${posGroup} salaries — floor at rank #${targetRank}</div>
                             ${drawerRows}
                         </div>
 
 <div id="resign-yearly-drawer" style="display:none;background:rgba(0,0,0,0.2);border-radius:6px;overflow:hidden;margin-bottom:10px;">
-                            <div style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:7px 8px;border-bottom:1px solid rgba(255,255,255,0.05);">Cap Hit if Cut Each Year</div>
+                            <div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:7px 8px;border-bottom:1px solid rgba(255,255,255,0.05);">Cap Hit if Cut Each Year</div>
                             <div id="resign-cap-hit-table"></div>
                         </div>
 
                         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
                             <div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-                                    <span style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;">Years</span>
-                                    <span style="font-size:10px;font-weight:900;color:#fff;" id="resign-yrs-lbl">3 yrs</span>
+                                    <span style="font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim);text-transform:uppercase;">Years</span>
+                                    <span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;" id="resign-yrs-lbl">3 yrs</span>
                                 </div>
                                 <input type="range" id="resign-years" min="1" max="5" step="1" value="3" style="width:100%;">
                             </div>
                             <div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-                                    <span style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;">Guaranteed %</span>
-                                    <span style="font-size:10px;font-weight:900;color:#fff;" id="resign-guar-lbl">50%</span>
+                                    <span style="font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim);text-transform:uppercase;">Guaranteed %</span>
+                                    <span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;" id="resign-guar-lbl">50%</span>
                                 </div>
                                 <input type="range" id="resign-guar" min="10" max="100" step="5" value="50" style="width:100%;">
                             </div>
                             <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:7px 10px;">
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <span style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;">Cap</span>
+                                    <span style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;">Cap</span>
                                     <div style="flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
                                         <div id="resign-cap-bar-fill" style="height:100%;width:0%;border-radius:10px;transition:width 0.2s ease,background 0.2s ease;"></div>
                                     </div>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-top:5px;">
                                     <div>
-                                        <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Used</div>
-                                        <div style="font-size:11px;font-weight:900;" id="resign-cap-used">—</div>
+                                        <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Used</div>
+                                        <div style="font-size:calc(11px * var(--ts,1));font-weight:900;" id="resign-cap-used">—</div>
                                     </div>
                                     <div style="text-align:right;">
-                                        <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Remaining</div>
-                                        <div style="font-size:11px;font-weight:900;" id="resign-cap-remaining">—</div>
+                                        <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Remaining</div>
+                                        <div style="font-size:calc(11px * var(--ts,1));font-weight:900;" id="resign-cap-remaining">—</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-<button id="confirm-resign" style="width:100%; padding:14px; border-radius:10px; font-size:13px; font-weight:900; text-transform:uppercase; cursor:${window._resignOpen && !window._alreadyResigned ? 'pointer' : 'not-allowed'}; border:none; background:${window._resignOpen && !window._alreadyResigned ? '#22c55e' : 'rgba(255,255,255,0.08)'}; color:${window._resignOpen && !window._alreadyResigned ? '#000' : 'var(--text-dim)'}; opacity:${window._resignOpen && !window._alreadyResigned ? '1' : '0.4'}; pointer-events:${window._resignOpen && !window._alreadyResigned ? 'auto' : 'none'};">
+<button id="confirm-resign" style="width:100%; padding:14px; border-radius:10px; font-size:calc(13px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:${window._resignOpen && !window._alreadyResigned ? 'pointer' : 'not-allowed'}; border:none; background:${window._resignOpen && !window._alreadyResigned ? '#22c55e' : 'rgba(255,255,255,0.08)'}; color:${window._resignOpen && !window._alreadyResigned ? '#000' : 'var(--text-dim)'}; opacity:${window._resignOpen && !window._alreadyResigned ? '1' : '0.4'}; pointer-events:${window._resignOpen && !window._alreadyResigned ? 'auto' : 'none'};">
     ${!window._resignOpen ? '🔒 Re-Signing Locked' : window._alreadyResigned ? '🔒 Already Resigned This Season' : 'Confirm Resign'}
 </button>
-                        <button style="width:100%;background:transparent;color:var(--text-dim);border:none;padding:8px;font-weight:700;font-size:11px;text-transform:uppercase;cursor:pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
+                        <button style="width:100%;background:transparent;color:var(--text-dim);border:none;padding:8px;font-weight:700;font-size:calc(11px * var(--ts,1));text-transform:uppercase;cursor:pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
                     </div>
                 `);
 
@@ -7795,12 +7798,12 @@ const isFirst = i === 0;
                         const guarYears = Math.round(yrs * (guar / 100));
                         const remainingGuarYears = Math.max(0, guarYears - i);
                         capHitRows += `<div style="flex:1;min-width:70px;background:${isFirst?'rgba(59,130,246,0.08)':'rgba(0,0,0,0.2)'};border:1px solid ${isFirst?'rgba(59,130,246,0.3)':'rgba(255,255,255,0.05)'};border-radius:6px;padding:7px;text-align:center;">
-                            <div style="font-size:10px;font-weight:900;color:${isFirst?'var(--accent-blue)':'var(--text-dim)'};margin-bottom:5px;">${yearLabel}</div>
-                            <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Salary</div>
-                            <div style="font-size:11px;font-weight:900;color:#22c55e;margin-bottom:4px;">$${sal.toFixed(1)}m</div>
-                            <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Cap Hit</div>
-                            <div style="font-size:11px;font-weight:900;color:#ef4444;">$${capHit.toFixed(1)}m</div>
-                            <div style="font-size:8px;color:var(--text-dim);margin-top:3px;">${remainingYears} yr${remainingYears!==1?'s':''} remaining</div>
+                            <div style="font-size:calc(10px * var(--ts,1));font-weight:900;color:${isFirst?'var(--accent-blue)':'var(--text-dim)'};margin-bottom:5px;">${yearLabel}</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Salary</div>
+                            <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#22c55e;margin-bottom:4px;">$${sal.toFixed(1)}m</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Cap Hit</div>
+                            <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#ef4444;">$${capHit.toFixed(1)}m</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);margin-top:3px;">${remainingYears} yr${remainingYears!==1?'s':''} remaining</div>
                         </div>`;
                     }
                     capHitRows += '</div>';
@@ -8001,10 +8004,10 @@ const matchingPick = pickOptions.find(p => {
         });
 
         const picksSelectHtml = pickOptions.length ? `
-            <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Select Pick</div>
+            <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Select Pick</div>
             <div style="max-height:200px; overflow-y:auto; margin-bottom:12px;">
                 ${Object.keys(picksByYear).sort().map(yr => `
-                    <div style="font-size:9px; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:2px; border-bottom:1px dashed rgba(245,158,11,0.3); padding-bottom:4px; margin:8px 4px 6px;">${yr}</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:2px; border-bottom:1px dashed rgba(245,158,11,0.3); padding-bottom:4px; margin:8px 4px 6px;">${yr}</div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px;">
                         ${picksByYear[yr].map(p => {
                             const roundMatch = p.label.match(/Round (\d+)/i);
@@ -8017,28 +8020,28 @@ const matchingPick = pickOptions.find(p => {
                                     background:${isSelected ? 'rgba(245,158,11,0.2)' : 'rgba(0,0,0,0.25)'}; 
                                     border:1px solid ${isSelected ? 'rgba(245,158,11,0.7)' : 'rgba(245,158,11,0.2)'}; 
                                     border-radius:8px; padding:6px 10px; min-width:44px; cursor:pointer;">
-                                    <span style="font-size:11px; font-weight:900; color:#f59e0b;">${chipLabel}</span>
+                                    <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b;">${chipLabel}</span>
                                 </div>`;
                         }).join('')}
                     </div>
                 `).join('')}
             </div>
-        ` : '<div style="color:var(--text-dim); font-size:10px; margin-bottom:12px;">No picks found</div>';
+        ` : '<div style="color:var(--text-dim); font-size:calc(10px * var(--ts,1)); margin-bottom:12px;">No picks found</div>';
 const selectedId = matchingPick?.id || '';
         const hasAutoMatch = !!matchingPick;
         const isPickOnBlock = selectedId && tradeBlockPids.has(selectedId);
 
         $('#modal-actions-container').html(`
             <div class="trade-block-form" style="animation: fadeIn 0.3s ease;">
-                <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">${displayName}</div>
+                <div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; margin-bottom:15px; text-align:center;">${displayName}</div>
 
                ${hasAutoMatch ? `
                     <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:${isPickOnBlock ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'}; border:1px solid ${isPickOnBlock ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}; border-radius:8px; margin-bottom:12px;">
-                        <span style="font-size:11px; font-weight:900; color:${isPickOnBlock ? '#ef4444' : '#f59e0b'}">${isPickOnBlock ? '✕ On Trade Block' : '✓'} ${matchingPick.label}</span>
+                        <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${isPickOnBlock ? '#ef4444' : '#f59e0b'}">${isPickOnBlock ? '✕ On Trade Block' : '✓'} ${matchingPick.label}</span>
                     </div>
                 ` : picksSelectHtml}
 
-                <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Positions</div>
+                <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Positions</div>
                 <div class="trade-tag-group">
                     <div class="trade-tag-btn" data-val="QB">QB</div>
                     <div class="trade-tag-btn" data-val="RB">RB</div>
@@ -8046,7 +8049,7 @@ const selectedId = matchingPick?.id || '';
                     <div class="trade-tag-btn" data-val="TE">TE</div>
                 </div>
 
-                <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Picks</div>
+                <div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; font-weight:800;">Target Picks</div>
                 <div class="trade-tag-group">
                     <div class="trade-tag-btn" data-val="1st Rd">1st Rd</div>
                     <div class="trade-tag-btn" data-val="2nd Rd">2nd Rd</div>
@@ -8055,7 +8058,7 @@ const selectedId = matchingPick?.id || '';
                 </div>
 
                <button class="trade-submit-btn" id="confirm-trade-block" data-pid="" data-giveup="${selectedId}" data-removing="${isPickOnBlock}">${isPickOnBlock ? 'Remove from Trade Block' : 'Add to Trade Block'}</button>
-                <button style="width:100%; background:transparent; color:var(--text-dim); border:none; padding:12px; margin-top:10px; font-weight:700; font-size:12px; text-transform:uppercase; cursor:pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
+                <button style="width:100%; background:transparent; color:var(--text-dim); border:none; padding:12px; margin-top:10px; font-weight:700; font-size:calc(12px * var(--ts,1)); text-transform:uppercase; cursor:pointer;" onclick="$('.player-modal-close').click()">Cancel</button>
             </div>
         `);
 
@@ -8272,7 +8275,7 @@ const res = await fetch(`${MFL_ORIGIN}/${year}/import`, {
             <div class="settings-modal-box" style="max-width: 380px; background: var(--card-bg);">
                 <button class="player-modal-close" id="close-pa-modal">✕</button>
                 <div class="settings-header" style="background: linear-gradient(to bottom, rgba(59, 130, 246, 0.15), transparent); padding: 25px 20px 15px;">
-                    <h2 id="pa-modal-title" style="margin: 0; color: #fff; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; text-align: center;">Points Allowed</h2>
+                    <h2 id="pa-modal-title" style="margin: 0; color: #fff; font-size: calc(16px * var(--ts,1)); font-weight: 900; text-transform: uppercase; letter-spacing: 1px; text-align: center;">Points Allowed</h2>
                 </div>
                 <div id="pa-modal-content" class="settings-content-area hide-scroll" style="max-height: 65vh; overflow-y: auto; padding: 15px; background: rgba(0,0,0,0.2);">
                 </div>
@@ -8289,37 +8292,37 @@ $('body').append(`
         <div class="settings-header">
             <div style="position:absolute; top:8px; right:8px; display:flex; gap:6px; align-items:center;">
                 ${(myFid === '0000') ? `
-                    <button id="settings-commish-toggle" style="padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">👑 Commish</button>
-                    <button id="settings-dev-tools" style="padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">🛠️ Dev</button>
+                    <button id="settings-commish-toggle" style="padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">👑 Commish</button>
+                    <button id="settings-dev-tools" style="padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">🛠️ Dev</button>
                 ` : ''}
-                <a href="${MFL_ORIGIN}/${year}/logout?L=${lid}" style="padding:4px 10px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; text-decoration:none;">Sign Out</a>
+                <a href="${MFL_ORIGIN}/${year}/logout?L=${lid}" style="padding:4px 10px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">Sign Out</a>
             </div>
 
             <div style="position:relative; width:56px; height:56px; background:#222; border-radius:50%; border:2px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 15px rgba(0,0,0,0.5);">
                 <img id="settings-team-logo" src="" style="width:100%; height:100%; object-fit:contain; cursor:pointer;" onclick="$('#logo-url-editor').toggle();">
-                <button id="edit-logo-btn" onclick="$('#logo-url-editor').toggle()" style="position:absolute; bottom:-2px; right:-2px; width:18px; height:18px; border-radius:50%; background:var(--accent-blue); border:none; cursor:pointer; font-size:9px; z-index:10;">✏️</button>
+                <button id="edit-logo-btn" onclick="$('#logo-url-editor').toggle()" style="position:absolute; bottom:-2px; right:-2px; width:18px; height:18px; border-radius:50%; background:var(--accent-blue); border:none; cursor:pointer; font-size:calc(9px * var(--ts,1)); z-index:10;">✏️</button>
             </div>
 
             <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
-                <h2 id="settings-team-name" data-team-style="${myFid}" style="margin:0; color:#fff; font-size:17px; font-weight:900;"></h2>
-                <button id="edit-team-name-btn" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:3px 7px; cursor:pointer; font-size:11px; color:var(--text-dim);">✏️</button>
+                <h2 id="settings-team-name" data-team-style="${myFid}" style="margin:0; color:#fff; font-size:calc(17px * var(--ts,1)); font-weight:900;"></h2>
+                <button id="edit-team-name-btn" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:3px 7px; cursor:pointer; font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">✏️</button>
             </div>
 
             <div id="edit-team-name-form" style="display:none; flex-direction:column; gap:6px; margin-top:6px; width:100%;">
-                <input id="edit-location" type="text" placeholder="Location" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:6px 10px; color:#fff; font-size:12px; font-weight:800; width:100%; box-sizing:border-box;">
-                <input id="edit-teamname" type="text" placeholder="Team Name" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:6px 10px; color:#fff; font-size:12px; font-weight:800; width:100%; box-sizing:border-box;">
+                <input id="edit-location" type="text" placeholder="Location" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:6px 10px; color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
+                <input id="edit-teamname" type="text" placeholder="Team Name" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:6px 10px; color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
                 <div style="display:flex; gap:6px;">
-                    <button id="edit-team-name-save" style="flex:1; padding:6px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer;">Save</button>
-                    <button id="edit-team-name-cancel" style="flex:1; padding:6px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:10px; font-weight:900; cursor:pointer;">Cancel</button>
+                    <button id="edit-team-name-save" style="flex:1; padding:6px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer;">Save</button>
+                    <button id="edit-team-name-cancel" style="flex:1; padding:6px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer;">Cancel</button>
                 </div>
             </div>
 
             <div id="logo-url-editor" style="display:none; width:100%; margin-top:8px; padding:12px; background:rgba(0,0,0,0.3); border-radius:8px; box-sizing:border-box;">
-                <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">Update Team Logo</div>
-                <input id="logo-url-input" type="text" placeholder="https://i.imgur.com/yourlogo.png" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:7px 10px; color:#fff; font-size:11px; box-sizing:border-box; outline:none; margin-bottom:8px;">
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">Update Team Logo</div>
+                <input id="logo-url-input" type="text" placeholder="https://i.imgur.com/yourlogo.png" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:7px 10px; color:#fff; font-size:calc(11px * var(--ts,1)); box-sizing:border-box; outline:none; margin-bottom:8px;">
                 <div style="display:flex; gap:6px;">
-                    <button id="logo-url-save" style="flex:1; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
-                    <button onclick="$('#logo-url-editor').hide()" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel</button>
+                    <button id="logo-url-save" style="flex:1; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
+                    <button onclick="$('#logo-url-editor').hide()" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel</button>
                 </div>
             </div>
         </div>
@@ -8340,38 +8343,38 @@ $('body').append(`
             <div id="tab-team-set" class="settings-tab-content" style="display:none;">
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <div style="display:flex; flex-direction:column; gap:4px;">
-                        <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Owner Name(s)</label>
-                        <input id="ts-owner-name" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; font-weight:800; width:100%; box-sizing:border-box;">
+                        <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Owner Name(s)</label>
+                        <input id="ts-owner-name" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(13px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
                     </div>
                     <div style="display:flex; flex-direction:column; gap:4px;">
-                        <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Email</label>
-                        <input id="ts-email" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; font-weight:800; width:100%; box-sizing:border-box;">
+                        <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Email</label>
+                        <input id="ts-email" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(13px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
                     </div>
                     <div style="display:flex; flex-direction:column; gap:4px;">
-                        <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Stadium</label>
-                        <input id="ts-stadium" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; font-weight:800; width:100%; box-sizing:border-box;">
+                        <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Stadium</label>
+                        <input id="ts-stadium" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(13px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
                     </div>
-                   <button id="ts-save-btn" style="width:100%; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer; letter-spacing:1px;">Save Changes</button>
-<div id="ts-save-status" style="font-size:10px; font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px;"></div>
+                   <button id="ts-save-btn" style="width:100%; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; letter-spacing:1px;">Save Changes</button>
+<div id="ts-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px;"></div>
 
 ${(myFid === '0000') ? `
 <div style="margin-top:8px; padding-top:14px; border-top:1px solid var(--card-border); display:flex; flex-direction:column; gap:8px;">
-    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">League Controls</div>
+    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">League Controls</div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px;">
         <div>
-            <div style="font-size:12px; font-weight:900; color:#fff;">Player Re-Signing</div>
-            <div id="resign-status-text" style="font-size:10px; color:var(--accent-teal); margin-top:2px;">Currently: Open</div>
+            <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">Player Re-Signing</div>
+            <div id="resign-status-text" style="font-size:calc(10px * var(--ts,1)); color:var(--accent-teal); margin-top:2px;">Currently: Open</div>
         </div>
-        <button id="toggle-resign-btn" style="padding:8px 16px; border-radius:8px; font-size:11px; font-weight:900; cursor:pointer; border:none; background:#22c55e; color:#000; text-transform:uppercase;">Open</button>
+        <button id="toggle-resign-btn" style="padding:8px 16px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; cursor:pointer; border:none; background:#22c55e; color:#000; text-transform:uppercase;">Open</button>
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px;">
         <div>
-            <div style="font-size:12px; font-weight:900; color:#fff;">Free Agency Mode</div>
-            <div id="fa-mode-status-text" style="font-size:10px; color:var(--accent-teal); margin-top:2px;">Currently: Offseason</div>
+            <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">Free Agency Mode</div>
+            <div id="fa-mode-status-text" style="font-size:calc(10px * var(--ts,1)); color:var(--accent-teal); margin-top:2px;">Currently: Offseason</div>
         </div>
-        <button id="toggle-fa-mode-btn" style="padding:8px 16px; border-radius:8px; font-size:11px; font-weight:900; cursor:pointer; border:none; background:#22c55e; color:#000; text-transform:uppercase;">Offseason</button>
+        <button id="toggle-fa-mode-btn" style="padding:8px 16px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; cursor:pointer; border:none; background:#22c55e; color:#000; text-transform:uppercase;">Offseason</button>
     </div>
 </div>` : ''}
                 </div>
@@ -8388,32 +8391,32 @@ ${(myFid === '0000') ? `
 
                 <!-- Display sub-tabs -->
               <div style="display:flex; gap:6px; background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; margin-bottom:14px;">
-                    <button class="display-sub-tab active" data-sub="theme" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Theme</button>
-                    <button class="display-sub-tab" data-sub="textsize" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Text</button>
+                    <button class="display-sub-tab active" data-sub="theme" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Theme</button>
+                    <button class="display-sub-tab" data-sub="textsize" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Text</button>
                 </div>
 
                 <!-- Theme sub-content -->
                 <div class="display-sub-content" data-sub="theme">
-                    <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:12px;font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal (auto)</button></div><div style="font-size:10px; color:var(--text-dim); margin-bottom:14px;">Seasonal (auto) follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
+                    <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal (auto)</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal (auto) follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
                     </div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
                     </div>
                 <!-- Logos sub-content -->
                 <div style="margin-top:6px;">
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">NFL Team Logos</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">NFL Team Logos</div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div style="font-size:12px; font-weight:800; color:#fff;">Modern or Throwback</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">Modern or Throwback</div>
                         <div style="display:flex; gap:6px;">
-                            <button class="logo-style-btn" data-style="modern" style="padding:6px 12px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Modern</button>
-                            <button class="logo-style-btn" data-style="throwback" style="padding:6px 12px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Throwback</button>
+                            <button class="logo-style-btn" data-style="modern" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Modern</button>
+                            <button class="logo-style-btn" data-style="throwback" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Throwback</button>
                         </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -8424,20 +8427,22 @@ ${(myFid === '0000') ? `
                         <img id="logo-preview-PHI" style="width:32px; height:32px; object-fit:contain;">
                         <img id="logo-preview-NEP" style="width:32px; height:32px; object-fit:contain;">
                     </div>
-                    <div id="display-save-status" style="font-size:10px; font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
+                    <div id="display-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
                 </div>
 
                     </div>
 
                <!-- Text Size sub-content -->
                 <div class="display-sub-content" data-sub="textsize" style="display:none;">
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Text Size</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Text Size</div>
                     <div style="display:flex; gap:8px;">
-                        <button class="text-scale-btn" data-scale="1" style="flex:1; padding:14px 8px; border-radius:8px; font-size:11px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Normal</button>
-                        <button class="text-scale-btn" data-scale="1.15" style="flex:1; padding:14px 8px; border-radius:8px; font-size:13px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Large</button>
-                        <button class="text-scale-btn" data-scale="1.3" style="flex:1; padding:14px 8px; border-radius:8px; font-size:15px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">X-Large</button>
+                        <button class="text-scale-btn" data-scale="0.9" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Small</button>
+                        <button class="text-scale-btn" data-scale="1" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Normal</button>
+                        <button class="text-scale-btn" data-scale="1.15" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(13px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Large</button>
+                        <button class="text-scale-btn" data-scale="1.3" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(15px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">X-Large</button>
+                        <button class="text-scale-btn" data-scale="1.4" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(15px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">X-Large</button>
                     </div>
-                    <div style="font-size:10px; color:var(--text-dim); margin-top:10px; line-height:1.5;">Scales everything on the page — text, buttons, and spacing.</div>
+                    <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:10px; line-height:1.5;">Changes the size of text only; layout and spacing stay the same.</div>
                 </div>
 
                 </div>
@@ -8445,34 +8450,34 @@ ${(myFid === '0000') ? `
             <!-- STYLE TAB -->
             <div id="tab-style" class="settings-tab-content" style="display:none;">
                 <div style="display:flex; gap:6px; background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; margin-bottom:14px;">
-                    <button class="style-sub-tab active" data-sub="color" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Color</button>
-                    <button class="style-sub-tab" data-sub="font" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Font</button>
-                    <button class="style-sub-tab" data-sub="effects" style="flex:1; padding:6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Effects</button>
+                    <button class="style-sub-tab active" data-sub="color" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Color</button>
+                    <button class="style-sub-tab" data-sub="font" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Font</button>
+                    <button class="style-sub-tab" data-sub="effects" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Effects</button>
                 </div>
 
                 <div class="style-sub-content" data-sub="color">
                     <div style="display:flex; flex-direction:column; gap:10px;">
                         <div style="display:flex; flex-direction:column; gap:4px;">
-                            <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Primary Color</label>
+                            <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Primary Color</label>
                             <div style="display:flex; gap:8px; align-items:center;">
                                 <input id="style-primary-color" type="color" value="#3b82f6" style="width:44px; height:36px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
-                                <span id="style-primary-hex" style="font-size:12px; font-weight:800; color:#fff;">#3b82f6</span>
+                                <span id="style-primary-hex" style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">#3b82f6</span>
                             </div>
                         </div>
                         <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px;">
-                            <label style="font-size:10px; font-weight:900; color:#fff;">Gradient</label>
+                            <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">Gradient</label>
                             <input type="checkbox" id="style-gradient-toggle" style="width:16px; height:16px; cursor:pointer;">
                         </div>
                         <div id="style-gradient-controls" style="display:none; flex-direction:column; gap:8px;">
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <span style="font-size:10px; color:var(--text-dim); min-width:50px;">Color 2</span>
+                                <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); min-width:50px;">Color 2</span>
                                 <input id="style-gradient-color2" type="color" value="#a855f7" style="width:36px; height:28px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
-                                <span id="style-gradient-hex2" style="font-size:11px; font-weight:800; color:#fff;">#a855f7</span>
+                                <span id="style-gradient-hex2" style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">#a855f7</span>
                             </div>
                             <div style="display:flex; gap:6px;">
-                                <button class="gradient-dir-btn active" data-dir="to right" style="flex:1; padding:5px; border-radius:6px; font-size:9px; font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">→</button>
-                                <button class="gradient-dir-btn" data-dir="to bottom right" style="flex:1; padding:5px; border-radius:6px; font-size:9px; font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↘</button>
-                                <button class="gradient-dir-btn" data-dir="to bottom" style="flex:1; padding:5px; border-radius:6px; font-size:9px; font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↓</button>
+                                <button class="gradient-dir-btn active" data-dir="to right" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">→</button>
+                                <button class="gradient-dir-btn" data-dir="to bottom right" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↘</button>
+                                <button class="gradient-dir-btn" data-dir="to bottom" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↓</button>
                             </div>
                         </div>
                     </div>
@@ -8480,11 +8485,11 @@ ${(myFid === '0000') ? `
 
                 <div class="style-sub-content" data-sub="font" style="display:none;">
                     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;" id="font-category-tabs">
-                        <button class="font-cat-btn active" data-cat="athletic" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Athletic</button>
-                        <button class="font-cat-btn" data-cat="serif" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Serif</button>
-                        <button class="font-cat-btn" data-cat="modern" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Modern</button>
-                        <button class="font-cat-btn" data-cat="display" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Display</button>
-                        <button class="font-cat-btn" data-cat="retro" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Retro</button>
+                        <button class="font-cat-btn active" data-cat="athletic" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Athletic</button>
+                        <button class="font-cat-btn" data-cat="serif" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Serif</button>
+                        <button class="font-cat-btn" data-cat="modern" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Modern</button>
+                        <button class="font-cat-btn" data-cat="display" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Display</button>
+                        <button class="font-cat-btn" data-cat="retro" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Retro</button>
                     </div>
                     <div id="font-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
                 </div>
@@ -8493,15 +8498,15 @@ ${(myFid === '0000') ? `
                     <div style="display:flex; flex-direction:column; gap:10px;">
                         <div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Glow</label>
-                                <span id="style-glow-lbl" style="font-size:10px; font-weight:900; color:#fff;">0px</span>
+                                <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Glow</label>
+                                <span id="style-glow-lbl" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">0px</span>
                             </div>
                             <input type="range" id="style-glow" min="0" max="30" step="1" value="0" style="width:100%;">
                         </div>
                         <div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                <label style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Outline</label>
-                                <span id="style-outline-lbl" style="font-size:10px; font-weight:900; color:#fff;">0px</span>
+                                <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Outline</label>
+                                <span id="style-outline-lbl" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">0px</span>
                             </div>
                             <div style="display:flex; gap:6px; align-items:center;">
                                 <input type="range" id="style-outline-width" min="0" max="4" step="0.5" value="0" style="flex:1;">
@@ -8512,15 +8517,15 @@ ${(myFid === '0000') ? `
                 </div>
 
                 <div style="display:flex; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid var(--card-border);">
-                    <button id="style-reset-btn" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer;">Reset</button>
-                    <button id="style-save-btn" style="flex:2; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:900; text-transform:uppercase; cursor:pointer;">Save Style</button>
+                    <button id="style-reset-btn" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Reset</button>
+                    <button id="style-save-btn" style="flex:2; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Save Style</button>
                 </div>
-                <div id="style-save-status" style="font-size:10px; font-weight:800; color:var(--accent-teal); text-align:center; min-height:14px; margin-top:6px;"></div>
+                <div id="style-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:14px; margin-top:6px;"></div>
             </div>
 
             <!-- DEV TAB -->
             <div id="tab-dev" class="settings-tab-content" style="display:none;">
-                <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Developer Tools</div>
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Developer Tools</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                     <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=0000" target="_blank" class="dev-link-btn">Roster Mgmt</a>
                     <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=17" target="_blank" class="dev-link-btn">Draft Order</a>
@@ -8693,27 +8698,12 @@ function loadSavedBgStyle() {
 loadSavedBgStyle();
 
 function applyTextScale(scale) {
-    if (!window._baseViewportWidth) {
-        window._baseViewportWidth = window.innerWidth;
-    }
+    // scales text only (every font-size is calc(Npx * var(--ts))); layout and the viewport are left alone
+    document.documentElement.style.zoom = '';
     const metaViewport = document.querySelector('meta[name="viewport"]');
-    if (metaViewport) {
-        const desiredContent = scale === 1
-            ? 'width=device-width, initial-scale=1'
-            : `width=${(window._baseViewportWidth / scale).toFixed(2)}, initial-scale=1`;
-
-        // iOS Safari often ignores a runtime viewport change unless it's reset to
-        // the default first and re-applied after a layout flush + frame tick.
-        metaViewport.setAttribute('content', 'width=device-width, initial-scale=1');
-        void document.body.offsetHeight; // force reflow
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                metaViewport.setAttribute('content', desiredContent);
-            });
-        });
-    }
-    document.documentElement.style.zoom = scale;
-    localStorage.setItem('lld_text_scale', scale);
+    if (metaViewport && /width=\d+(\.\d+)?,/.test(metaViewport.getAttribute('content') || '')) metaViewport.setAttribute('content', 'width=device-width, initial-scale=1');
+    document.documentElement.style.setProperty('--ts', scale);
+    try { localStorage.setItem('lld_text_scale', scale); } catch (e) { }
     $('.text-scale-btn').css({ background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', borderColor: 'var(--card-border)' });
     $(`.text-scale-btn[data-scale="${scale}"]`).css({ background: 'var(--accent-blue)', color: '#fff', borderColor: 'var(--accent-blue)' });
 }
@@ -8841,7 +8831,7 @@ async function loadPlayersData(subTabId, containerId) {
     }
 
     // Show loader while fetching
-    container.html(getPlayerFilterBarHtml(isFAView) + '<div id="players-loader" style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Processing Rankings...</div>');
+    container.html(getPlayerFilterBarHtml(isFAView) + '<div id="players-loader" style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Processing Rankings...</div>');
 
     try {
         const posParam = encodeURIComponent(playerPosFilter);
@@ -8928,6 +8918,8 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         else if (playerSortBy === 'caphit') comparison = b.capHitNum - a.capHitNum;
         else if (playerSortBy === 'guar') comparison = b.guarNum - a.guarNum;
         else if (playerSortBy === 'years') comparison = b.yrsNum - a.yrsNum;
+        else if (playerSortBy === 'pts') comparison = ((playerSeason[b.pid] || {}).pts || 0) - ((playerSeason[a.pid] || {}).pts || 0);
+        else if (playerSortBy === 'lyavg') comparison = (playerAverages[b.pid] || 0) - (playerAverages[a.pid] || 0);
         else comparison = b.ownVal - a.ownVal;
         return playerSortDir === 'asc' ? -comparison : comparison;
     });
@@ -8994,15 +8986,15 @@ const contractLine = contractMatch ? `${contractMatch[2]} yrs · ${contractMatch
                 <div style="flex:0 0 150px; background:rgba(0,0,0,0.3); border:1px solid ${item.isWinning ? 'rgba(34,197,94,0.4)' : 'var(--card-border)'}; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; scroll-snap-align:start;">
                     <div style="position:relative; height:80px; background:linear-gradient(to bottom,rgba(59,130,246,0.15),rgba(0,0,0,0.4));">
                         <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${item.pid}.png" onerror="this.style.display='none'" style="width:60px; height:80px; object-fit:cover; object-position:top; display:block; margin:0 auto;">
-                        <span class="pos-text-${item.pos.toLowerCase()}" style="position:absolute; bottom:4px; left:4px; font-size:8px; font-weight:900;">${item.pos}</span>
-                        ${item.isWinning ? '<span style="position:absolute;top:4px;left:4px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.4);border-radius:4px;padding:2px 5px;font-size:8px;font-weight:900;color:#22c55e;">WINNING</span>' : ''}
+                        <span class="pos-text-${item.pos.toLowerCase()}" style="position:absolute; bottom:4px; left:4px; font-size:calc(8px * var(--ts,1)); font-weight:900;">${item.pos}</span>
+                        ${item.isWinning ? '<span style="position:absolute;top:4px;left:4px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.4);border-radius:4px;padding:2px 5px;font-size:calc(8px * var(--ts,1));font-weight:900;color:#22c55e;">WINNING</span>' : ''}
                     </div>
                     <div style="padding:8px; flex:1; display:flex; flex-direction:column; gap:5px;">
-                        <div style="font-size:11px; font-weight:900; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</div>
-                        <div style="font-size:11px; font-weight:900; color:#22c55e;">${item.displayBid}</div>
-${item.contractLine ? `<div style="font-size:9px; color:var(--text-dim);">${item.contractLine}</div>` : ''}
-                        <div style="font-size:9px; color:${item.urgency};">⏱ ${item.timeLeft}</div>
-                        <button class="fa-bid-btn" data-pid="${item.pid}" data-name="${item.name}" data-minbid="${item.minBid}" style="width:100%; padding:6px 0; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase; margin-top:auto;">Bid</button>
+                        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</div>
+                        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">${item.displayBid}</div>
+${item.contractLine ? `<div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim);">${item.contractLine}</div>` : ''}
+                        <div style="font-size:calc(9px * var(--ts,1)); color:${item.urgency};">⏱ ${item.timeLeft}</div>
+                        <button class="fa-bid-btn" data-pid="${item.pid}" data-name="${item.name}" data-minbid="${item.minBid}" style="width:100%; padding:6px 0; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; margin-top:auto;">Bid</button>
                     </div>
                 </div>`;
         }
@@ -9020,16 +9012,16 @@ ${item.contractLine ? `<div style="font-size:9px; color:var(--text-dim);">${item
         function auctionSortBtnHtml(id, label) {
             const isActive = auctionSortBy === id;
             const arrow = isActive ? (auctionSortDir === 'asc' ? ' ↑' : ' ↓') : '';
-            return `<button class="auction-sort-btn" data-sort="${id}" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${isActive ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${isActive ? '#fff' : 'var(--text-dim)'}; flex-shrink:0;">${label}${arrow}</button>`;
+            return `<button class="auction-sort-btn" data-sort="${id}" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${isActive ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${isActive ? '#fff' : 'var(--text-dim)'}; flex-shrink:0;">${label}${arrow}</button>`;
         }
         function auctionPosBtnHtml(id, label) {
             const isActive = auctionPosFilter === id;
-            return `<button class="auction-pos-filter-btn" data-pos="${id}" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${isActive ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${isActive ? '#fff' : 'var(--text-dim)'}; flex-shrink:0;">${label}</button>`;
+            return `<button class="auction-pos-filter-btn" data-pos="${id}" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${isActive ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${isActive ? '#fff' : 'var(--text-dim)'}; flex-shrink:0;">${label}</button>`;
         }
         function auctionControlsBarHtml() {
             const positions = window._auctionPositions || [];
             return `
-                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; align-self:center; flex-shrink:0;">Sort:</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; align-self:center; flex-shrink:0;">Sort:</span>
                 ${auctionSortBtnHtml('time', 'Time Left')}
                 ${auctionSortBtnHtml('bid', 'Highest Bid')}
                 <span style="width:1px; height:16px; background:var(--card-border); flex-shrink:0; margin:0 2px;"></span>
@@ -9089,8 +9081,8 @@ let myRosterCapUsed = 0;
                         </div>
                     </div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <span style="font-size:10px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">Projected Cap Usage</span>
-                        <span style="font-size:10px; font-weight:800; color:${faBarColor};">${faCapPct.toFixed(1)}% of $${faSalaryCap}m</span>
+                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase;">Projected Cap Usage</span>
+                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:${faBarColor};">${faCapPct.toFixed(1)}% of $${faSalaryCap}m</span>
                     </div>
 <div style="position:relative; width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,0.05);">
                         <div style="position:absolute; left:0; top:0; width:${faRosterPct.toFixed(1)}%; height:100%; background:#22c55e;"></div>
@@ -9112,20 +9104,20 @@ let myRosterCapUsed = 0;
                 <div style="padding:10px 10px 0;">
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                         <div>
-                            <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Contract Negotiations</div>
-                            <div id="auction-count-label" style="font-size:10px; color:var(--text-dim); margin-top:2px;">${visibleItems.length} of ${aCardsData.length} active · Swipe or scroll to see all</div>
+                            <div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Contract Negotiations</div>
+                            <div id="auction-count-label" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:2px;">${visibleItems.length} of ${aCardsData.length} active · Swipe or scroll to see all</div>
                         </div>
-                        <span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
+                        <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>
                     </div>
                     <div id="auction-controls-bar" class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:6px;">
                         ${auctionControlsBarHtml()}
                     </div>
                     <div style="position:relative;">
-                        <button class="auction-scroll-btn" data-dir="-1" style="position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:5; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+                        <button class="auction-scroll-btn" data-dir="-1" style="position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:5; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
                         <div id="auction-scroll-row" class="hide-scroll" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; scroll-snap-type:x mandatory; scroll-behavior:smooth;">
                             ${visibleItems.map(buildAuctionCard).join('')}
                         </div>
-                        <button class="auction-scroll-btn" data-dir="1" style="position:absolute; right:0; top:50%; transform:translateY(-50%); z-index:5; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+                        <button class="auction-scroll-btn" data-dir="1" style="position:absolute; right:0; top:50%; transform:translateY(-50%); z-index:5; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
                     </div>
                 </div>` + capBarHtml;
         } else {
@@ -9151,21 +9143,21 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
     pendingWaiversHtml = `
         <div style="padding:10px 10px 0;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                <div style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Your Pending Waiver Claims</div>
-                <span style="font-size:9px; font-weight:900; color:#eab308; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:6px; padding:3px 8px;">${totalCount} Pending</span>
+                <div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Your Pending Waiver Claims</div>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#eab308; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:6px; padding:3px 8px;">${totalCount} Pending</span>
             </div>
             <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:14px;">
                 ${roundsSorted.map(rnd => `
                     <div>
-                        <div style="font-size:9px; font-weight:900; color:#eab308; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Round ${rnd}${byRound[rnd].length > 1 ? ` — ${byRound[rnd].length} picks, in priority order` : ''}</div>
+                        <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#eab308; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Round ${rnd}${byRound[rnd].length > 1 ? ` — ${byRound[rnd].length} picks, in priority order` : ''}</div>
                         <div style="display:flex; flex-direction:column; gap:6px;">
                             ${byRound[rnd].map((c, i) => `
                                 <div style="padding:8px 10px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:8px;">
                                     <div style="display:flex; align-items:center; gap:10px;">
                                         ${byRound[rnd].length > 1 ? `
                                         <div style="display:flex; flex-direction:column; gap:2px; flex-shrink:0;">
-                                            <button class="waiver-reorder-btn" data-pid="${c.pid}" data-dir="-1" ${i === 0 ? 'disabled' : ''} style="width:20px; height:16px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:${i===0?'var(--text-dim)':'#fff'}; font-size:9px; cursor:${i===0?'not-allowed':'pointer'}; opacity:${i===0?'0.3':'1'};">▲</button>
-                                            <button class="waiver-reorder-btn" data-pid="${c.pid}" data-dir="1" ${i === byRound[rnd].length - 1 ? 'disabled' : ''} style="width:20px; height:16px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:${i===byRound[rnd].length-1?'var(--text-dim)':'#fff'}; font-size:9px; cursor:${i===byRound[rnd].length-1?'not-allowed':'pointer'}; opacity:${i===byRound[rnd].length-1?'0.3':'1'};">▼</button>
+                                            <button class="waiver-reorder-btn" data-pid="${c.pid}" data-dir="-1" ${i === 0 ? 'disabled' : ''} style="width:20px; height:16px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:${i===0?'var(--text-dim)':'#fff'}; font-size:calc(9px * var(--ts,1)); cursor:${i===0?'not-allowed':'pointer'}; opacity:${i===0?'0.3':'1'};">▲</button>
+                                            <button class="waiver-reorder-btn" data-pid="${c.pid}" data-dir="1" ${i === byRound[rnd].length - 1 ? 'disabled' : ''} style="width:20px; height:16px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:${i===byRound[rnd].length-1?'var(--text-dim)':'#fff'}; font-size:calc(9px * var(--ts,1)); cursor:${i===byRound[rnd].length-1?'not-allowed':'pointer'}; opacity:${i===byRound[rnd].length-1?'0.3':'1'};">▼</button>
                                         </div>` : ''}
                                         <div class="player-modal-trigger" data-pid="${c.pid}" data-team="${c.team}" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; cursor:pointer;">
                                             <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(234,179,8,0.3);">
@@ -9173,23 +9165,23 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
                                             </div>
                                             <div style="flex:1; min-width:0;">
                                                 <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                                                    <span style="font-size:12px; font-weight:900; color:#fff;">${c.shortName || c.name}</span>
-                                                    <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:8px; font-weight:900;">${c.pos || ''}</span>
+                                                    <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">${c.shortName || c.name}</span>
+                                                    <span class="pos-text-${(c.pos||'').toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900;">${c.pos || ''}</span>
                                                 </div>
                                                 <div style="display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap;">
                                                     <img src="${getNFLLogoUrl(c.team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;">
-                                                    ${c.dropName ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
+                                                    ${c.dropName ? `<span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:800;">Drop: ${c.dropName}</span>` : ''}
                                                 </div>
                                             </div>
                                         </div>
-                                        ${c.dateText ? `<div style="font-size:8px; color:var(--text-dim); font-weight:700; text-align:right; max-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0;">${c.dateText}</div>` : ''}
+                                        ${c.dateText ? `<div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); font-weight:700; text-align:right; max-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0;">${c.dateText}</div>` : ''}
                                     </div>
                                     <div style="display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(234,179,8,0.15);">
-                                        <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Round</span>
+                                        <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Round</span>
                                         <input type="number" class="waiver-round-input" data-pid="${c.pid}" value="${c.round}" min="1"
-                                            style="width:44px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:4px 6px; color:#fff; font-size:11px; font-weight:800; text-align:center;">
-                                        <button class="waiver-save-round-btn" data-pid="${c.pid}" style="padding:5px 10px; border-radius:6px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
-                                        <button class="waiver-cancel-btn" data-pid="${c.pid}" style="margin-left:auto; padding:5px 10px; border-radius:6px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel Claim</button>
+                                            style="width:44px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:4px 6px; color:#fff; font-size:calc(11px * var(--ts,1)); font-weight:800; text-align:center;">
+                                        <button class="waiver-save-round-btn" data-pid="${c.pid}" style="padding:5px 10px; border-radius:6px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
+                                        <button class="waiver-cancel-btn" data-pid="${c.pid}" style="margin-left:auto; padding:5px 10px; border-radius:6px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel Claim</button>
                                     </div>
                                 </div>
                             `).join('')}
@@ -9214,11 +9206,11 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                                         compact: true,
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: p.salary
-                        ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>`
-                        : `<span class="proj-popup-trigger" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:15px; font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b> <small style="font-size:8px; font-weight:800; color:var(--text-dim);">PROJ</small></span>`,
+                        ? `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>`
+                        : `<span class="proj-popup-trigger" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b> <small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">PROJ</small></span>`,
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
-                                                : `<span style="font-size:9px; white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
+                                                : `<span style="font-size:calc(9px * var(--ts,1)); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
                     ownerHtml: p.ownerFid ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png" class="team-popup-trigger" data-fid="${p.ownerFid}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0; cursor:pointer;">` : '',
                     rightContent: buildPlayerRightHtml(p, isFAView),
                     leftContent: p._actionBtn || '',
@@ -9276,36 +9268,36 @@ function buildPlayerRightHtml(p, isFAView) {
 
         const auctionBadgeHtml = pendingClaim ? `
                 <div style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 5px 10px; text-align: right;">
-                    <div style="font-size: 10px; font-weight: 900; color: #eab308; line-height: 1;">⏳ CLAIM PENDING</div>
-                    ${pendingClaim.priority ? `<div style="font-size: 8px; font-weight: 800; color: var(--text-dim); margin-top: 3px;">Priority ${pendingClaim.priority}</div>` : ''}
-                    ${pendingClaim.dropName ? `<div style="font-size: 8px; font-weight: 800; color: var(--text-dim); margin-top: 2px;">Drop: ${pendingClaim.dropName}</div>` : ''}
-                    ${pendingClaim.dateText ? `<div style="font-size: 7px; font-weight: 700; color: var(--text-dim); margin-top: 2px;">${pendingClaim.dateText}</div>` : ''}
+                    <div style="font-size: calc(10px * var(--ts,1)); font-weight: 900; color: #eab308; line-height: 1;">⏳ CLAIM PENDING</div>
+                    ${pendingClaim.priority ? `<div style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim); margin-top: 3px;">Priority ${pendingClaim.priority}</div>` : ''}
+                    ${pendingClaim.dropName ? `<div style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim); margin-top: 2px;">Drop: ${pendingClaim.dropName}</div>` : ''}
+                    ${pendingClaim.dateText ? `<div style="font-size: calc(7px * var(--ts,1)); font-weight: 700; color: var(--text-dim); margin-top: 2px;">${pendingClaim.dateText}</div>` : ''}
                 </div>` : activeAuction ? `
                 <div style="background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; padding: 5px 10px; text-align: right;">
-                    <div style="font-size: 11px; font-weight: 900; color: #22c55e; line-height: 1;">${activeAuction.displayBid}</div>
-                    <div style="font-size: 8px; font-weight: 900; color: ${activeAuction.urgency}; margin-top: 3px;">⏱ ${activeAuction.timeLeft}</div>
-                    ${activeAuction.isWinning ? '<div style="font-size:7px; font-weight:900; color:#22c55e; margin-top:2px; text-transform:uppercase;">Winning</div>' : ''}
+                    <div style="font-size: calc(11px * var(--ts,1)); font-weight: 900; color: #22c55e; line-height: 1;">${activeAuction.displayBid}</div>
+                    <div style="font-size: calc(8px * var(--ts,1)); font-weight: 900; color: ${activeAuction.urgency}; margin-top: 3px;">⏱ ${activeAuction.timeLeft}</div>
+                    ${activeAuction.isWinning ? '<div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#22c55e; margin-top:2px; text-transform:uppercase;">Winning</div>' : ''}
                 </div>` : '';
 
         const actionBtn = pendingClaim
-            ? `<button disabled style="padding: 6px 12px; border-radius: 4px; background: rgba(234,179,8,0.1); color: #eab308; border: 1px solid rgba(234,179,8,0.3); font-weight: 900; font-size: 9px; cursor: not-allowed; text-transform: uppercase;">Pending</button>`
+            ? `<button disabled style="padding: 6px 12px; border-radius: 4px; background: rgba(234,179,8,0.1); color: #eab308; border: 1px solid rgba(234,179,8,0.3); font-weight: 900; font-size: calc(9px * var(--ts,1)); cursor: not-allowed; text-transform: uppercase;">Pending</button>`
             : activeAuction
             ? `<button class="fa-bid-btn" data-pid="${p.pid}" data-name="${p.name}" data-minbid="${activeAuction.minBid}"
-                   style="padding: 6px 12px; border-radius: 4px; background: var(--accent-blue); color: #fff; border: none; font-weight: 900; font-size: 9px; cursor: pointer; text-transform: uppercase;">Bid</button>`
+                   style="padding: 6px 12px; border-radius: 4px; background: var(--accent-blue); color: #fff; border: none; font-weight: 900; font-size: calc(9px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Bid</button>`
             : (offseasonMode
                 ? `<button class="fa-nominate-btn" data-pid="${p.pid}" data-name="${p.name}"
-                       style="padding: 6px 12px; border-radius: 4px; background: rgba(0,206,184,0.15); color: var(--accent-teal); border: 1px solid rgba(0,206,184,0.3); font-weight: 900; font-size: 9px; cursor: pointer; text-transform: uppercase;">Offer</button>`
+                       style="padding: 6px 12px; border-radius: 4px; background: rgba(0,206,184,0.15); color: var(--accent-teal); border: 1px solid rgba(0,206,184,0.3); font-weight: 900; font-size: calc(9px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Offer</button>`
                 : `<button class="roster-tx-btn" data-tx-type="add" data-tx-pid="${p.pid}"
-                       style="padding: 6px 12px; border-radius: 4px; background: var(--accent-blue); color: #000; border: none; font-weight: 900; font-size: 9px; cursor: pointer; text-transform: uppercase;">Add</button>`);
+                       style="padding: 6px 12px; border-radius: 4px; background: var(--accent-blue); color: #000; border: none; font-weight: 900; font-size: calc(9px * var(--ts,1)); cursor: pointer; text-transform: uppercase;">Add</button>`);
 
         return `
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
                 ${auctionBadgeHtml}
                 <div style="display: none; background: rgba(0,206,184,0.08); border: 1px solid rgba(0,206,184,0.15); border-radius: 8px; padding: 5px 10px; text-align: right;">
-                    <div style="font-size: 13px; font-weight: 900; color: var(--accent-teal); line-height: 1;">${p.projVal.toFixed(1)} <span style="font-size: 9px;">PROJ</span></div>
+                    <div style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); line-height: 1;">${p.projVal.toFixed(1)} <span style="font-size: calc(9px * var(--ts,1));">PROJ</span></div>
                     <div style="display: flex; gap: 6px; margin-top: 3px; justify-content: flex-end;">
-                        <span style="font-size: 8px; font-weight: 900; color: #f59e0b;">${p.addVal}% ADD</span>
-                        <span style="font-size: 8px; font-weight: 800; color: var(--text-dim);">${p.ownVal}% OWN</span>
+                        <span style="font-size: calc(8px * var(--ts,1)); font-weight: 900; color: #f59e0b;">${p.addVal}% ADD</span>
+                        <span style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim);">${p.ownVal}% OWN</span>
                     </div>
                 </div>
                 ${(p._actionBtn = actionBtn, '')}
@@ -9358,8 +9350,8 @@ function buildLeagueContractsView(rows, container, posParam) {
             const yearHit = (salNum * gPct * remainingYears).toFixed(1);
    yearCols.push(`
     <div style="display:flex; flex-direction:column; align-items:center; gap:1px;">
-        <span style="font-size:7px; color:var(--text-dim); text-transform:uppercase;">${y}</span>
-        <span style="font-size:11px; font-weight:900; color:#f59e0b; white-space:nowrap;">$${yearHit}m</span>
+        <span style="font-size:calc(7px * var(--ts,1)); color:var(--text-dim); text-transform:uppercase;">${y}</span>
+        <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; white-space:nowrap;">$${yearHit}m</span>
     </div>`);
         }
 
@@ -9368,7 +9360,7 @@ const capHitDisplay = (salNum * gPct * yrsNum).toFixed(1);
 
 const rightDataHtml = logoUrl 
     ? `<img src="${logoUrl}" style="width:28px; height:28px; border-radius:50%; border:1px solid var(--card-border); background:#000; object-fit:cover; flex-shrink:0;">`
-    : `<span style="font-size:9px; color:var(--accent-teal); font-weight:900;">FA</span>`;
+    : `<span style="font-size:calc(9px * var(--ts,1)); color:var(--accent-teal); font-weight:900;">FA</span>`;
 
 const rowHtml = buildUniversalRow(
     { pid, name, shortName, pos, team },
@@ -9377,7 +9369,7 @@ const rowHtml = buildUniversalRow(
         pill: salNum > 0
             ? contractPillHtml(capHitDisplay, yrsNum, guar)
             : `<span style="color:var(--accent-blue);">${ownerFid ? `On ${leagueFranchises[ownerFid]}` : 'Free Agent'}</span>`,
-        topRight: salNum > 0 ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>` : '',
+        topRight: salNum > 0 ? `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>` : '',
         bottomRight: salNum > 0 ? rankLineHtml(pid, pos, salNum) : '',
         rightContent: rightDataHtml,
         rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
@@ -9495,10 +9487,10 @@ const { name, shortName, pos, team } = parseMFLName(pLink.textContent);
                     <div style="display:flex; align-items:center; gap:10px;">
                         <img src="${logoUrl}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${winnerFid}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid rgba(255,255,255,0.1); background:#000; cursor:pointer;">
                         <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:13px; font-weight:800; color:#fff;" data-team-style="${winnerFid}">${teamName2}</span>
-<span style="font-size:9px; font-weight:900; color:#f59e0b; text-transform:uppercase; margin-top:2px;">Add/Drop</span>                        </div>
+                            <span style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;" data-team-style="${winnerFid}">${teamName2}</span>
+<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; margin-top:2px;">Add/Drop</span>                        </div>
                     </div>
-                    <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${auctionTimestamp || ''}</span>
+                    <span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${auctionTimestamp || ''}</span>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
 <div class="player-modal-trigger" data-pid="${pid}" data-team="${team}" style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid rgba(245,158,11,0.3); background:var(--card-bg); flex-shrink:0; cursor:pointer;">
@@ -9506,8 +9498,8 @@ const { name, shortName, pos, team } = parseMFLName(pLink.textContent);
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
-                            <span style="font-size:13px; font-weight:900; color:#fff;">${shortName || name}</span>
-                            <span class="pos-text-${pos.toLowerCase()}" style="font-size:9px; font-weight:900;">${pos}</span>
+                            <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${shortName || name}</span>
+                            <span class="pos-text-${pos.toLowerCase()}" style="font-size:calc(9px * var(--ts,1)); font-weight:900;">${pos}</span>
                             ${injHtml2}
                         </div>
                         <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
@@ -9515,10 +9507,10 @@ const { name, shortName, pos, team } = parseMFLName(pLink.textContent);
                         </div>
                         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                             ${contractMatch ? `
-                                <span style="font-size:11px; font-weight:900; color:#22c55e;">$${contractMatch[1]}m/yr</span>
-                                <span style="font-size:10px; color:var(--accent-blue); font-weight:800;">${contractMatch[2]} yrs</span>
-                                <span style="font-size:10px; color:var(--text-dim); font-weight:800;">${contractMatch[3]}% guar</span>
-                            ` : bidCell ? `<span style="font-size:11px; font-weight:900; color:#22c55e;">${bidCell}</span>` : ''}
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">$${contractMatch[1]}m/yr</span>
+                                <span style="font-size:calc(10px * var(--ts,1)); color:var(--accent-blue); font-weight:800;">${contractMatch[2]} yrs</span>
+                                <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${contractMatch[3]}% guar</span>
+                            ` : bidCell ? `<span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">${bidCell}</span>` : ''}
                         </div>
                     </div>
 </div>
@@ -9567,16 +9559,16 @@ if (pid.startsWith('FP_')) {
 
                     return `<div style="display:flex; flex-direction:column; align-items:center; gap:4px; width:56px;">
                         <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid rgba(245,158,11,0.4); background:rgba(245,158,11,0.1); display:flex; align-items:center; justify-content:center;">
-                            <span style="font-size:13px; font-weight:900; color:#f59e0b;">${round}</span>
+                            <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#f59e0b;">${round}</span>
                         </div>
-                        <div style="font-size:8px; font-weight:800; color:#f59e0b; text-align:center;">${pickYear} R${round}</div>
+                        <div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:#f59e0b; text-align:center;">${pickYear} R${round}</div>
                     </div>`;
                 }
                 return `<div style="display:flex; flex-direction:column; align-items:center; gap:4px; width:56px; cursor:pointer;" class="player-modal-trigger" data-pid="${pid}">
                     <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid rgba(168,85,247,0.4);">
                         <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                     </div>
-                    <div id="tb-player-name-${pid}" style="font-size:8px; font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px;">...</div>
+                    <div id="tb-player-name-${pid}" style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px;">...</div>
                 </div>`;
             }).join('');
 
@@ -9586,11 +9578,11 @@ if (pid.startsWith('FP_')) {
                         <div style="display:flex; align-items:center; gap:10px;">
 <img src="${logoUrl}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${bFid}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1.5px solid rgba(255,255,255,0.1); flex-shrink:0; cursor:pointer;">
                         <div>
-                                <span style="font-size:13px; font-weight:800; color:#fff;" data-team-style="${bFid}">${teamName}</span>
-                                <div style="font-size:9px; font-weight:900; color:#a855f7; text-transform:uppercase; margin-top:2px;">Trade Block ${bait.inExchangeFor ? '· ' + bait.inExchangeFor : ''}</div>
+                                <span style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;" data-team-style="${bFid}">${teamName}</span>
+                                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#a855f7; text-transform:uppercase; margin-top:2px;">Trade Block ${bait.inExchangeFor ? '· ' + bait.inExchangeFor : ''}</div>
                             </div>
                         </div>
-                        <span style="font-size:9px; font-weight:900; color:#a855f7; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:6px; padding:3px 8px;">${BLOCK_ICON} Available</span>
+                        <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#a855f7; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:6px; padding:3px 8px;">${BLOCK_ICON} Available</span>
                     </div>
                     <div style="display:flex; flex-wrap:wrap; gap:8px;">${chipsHtml}</div>
                 </div>`;
@@ -9766,15 +9758,15 @@ const isGrouped = true;
 
         const makeChips = (players, color) => players.map(p => {
             const teamAbbr = (p.parsed.team || 'NFL').trim().toUpperCase();
-            const contractHtml = p.contract ? `<span style="font-size:7px; font-weight:800; color:#22c55e; line-height:1.3; text-align:left; flex-shrink:0;">$${p.contract.sal}m/yr<br><span style="color:var(--text-dim); font-weight:700;">${p.contract.yrs}yr · ${p.contract.guar}%</span></span>` : '';
+            const contractHtml = p.contract ? `<span style="font-size:calc(7px * var(--ts,1)); font-weight:800; color:#22c55e; line-height:1.3; text-align:left; flex-shrink:0;">$${p.contract.sal}m/yr<br><span style="color:var(--text-dim); font-weight:700;">${p.contract.yrs}yr · ${p.contract.guar}%</span></span>` : '';
             return `
 <div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.28); border-radius:20px; padding:3px 10px 3px 3px; cursor:pointer; min-width:0; max-width:100%;" class="player-modal-trigger" data-pid="${p.pid}" data-team="${teamAbbr}">
                 <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid ${color}40; flex-shrink:0; box-sizing:border-box;">
                     <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover; display:block;">
                 </div>
-                <span style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${p.parsed.shortName || p.parsed.name}</span>
+                <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${p.parsed.shortName || p.parsed.name}</span>
                 <img src="${getNFLLogoUrl(teamAbbr)}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:10px; height:10px; object-fit:contain; flex-shrink:0;">
-                <span class="pos-text-${(p.parsed.pos||'').toLowerCase()}" style="font-size:9px; font-weight:900; flex-shrink:0;">${p.parsed.pos}</span>
+                <span class="pos-text-${(p.parsed.pos||'').toLowerCase()}" style="font-size:calc(9px * var(--ts,1)); font-weight:900; flex-shrink:0;">${p.parsed.pos}</span>
                 ${contractHtml}
             </div>`;
         }).join('');
@@ -9782,11 +9774,11 @@ const isGrouped = true;
         const makePickChips = (picks, color) => picks.map(p => `
             <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.28); border-radius:20px; padding:3px 12px 3px 3px;">
                 <div style="width:44px; height:44px; border-radius:50%; background:${color}15; border:2px solid ${color}40; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-sizing:border-box;">
-                    <span style="font-size:14px; font-weight:900; color:${color};">${(p.details.match(/\d+/)?.[0]) || '?'}</span>
+                    <span style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:${color};">${(p.details.match(/\d+/)?.[0]) || '?'}</span>
                 </div>
                 <div style="display:flex; flex-direction:column; line-height:1.2;">
-                    <span style="font-size:11px; font-weight:800; color:#fff;">${p.yearStr} pick</span>
-                    <span style="font-size:7px; font-weight:900; color:${color}; text-transform:uppercase;">${p.details}</span>
+                    <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">${p.yearStr} pick</span>
+                    <span style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:${color}; text-transform:uppercase;">${p.details}</span>
                 </div>
             </div>`).join('');
 
@@ -9801,7 +9793,7 @@ const isGrouped = true;
             const headerLabel = isTradeCard ? `Traded by ${addSideName}` : (addPlayers[0]?.actionText || 'Added');
             addedHtml = `
             <div style="flex:1; min-width:0;">
-                <div style="font-size:8px; font-weight:900; color:#22c55e; text-transform:uppercase; margin-bottom:6px;">${headerLabel}</div>
+                <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; margin-bottom:6px;">${headerLabel}</div>
                 <div style="display:flex; flex-wrap:wrap; gap:8px;">${makeChips(addPlayers, '#22c55e')}${makePickChips(addPicks, '#22c55e')}</div>
             </div>`;
         }
@@ -9809,12 +9801,12 @@ const isGrouped = true;
             const deadCapInfo = dropPlayers.map(p => {
                 const key = `${g.fId}|${(p.parsed.name || '').toLowerCase()}`;
                 const cap = deadCapMap[key];
-                return cap ? `<span style="font-size:9px; color:#ef4444; font-weight:800;"> $${cap.toFixed(1)}m dead cap</span>` : '';
+                return cap ? `<span style="font-size:calc(9px * var(--ts,1)); color:#ef4444; font-weight:800;"> $${cap.toFixed(1)}m dead cap</span>` : '';
             }).filter(Boolean).join('');
             const headerLabel = isTradeCard ? `Traded by ${dropSideName}` : (dropPlayers[0]?.actionText || 'Dropped');
             droppedHtml = `
             <div style="flex:1; min-width:0;">
-                <div style="font-size:8px; font-weight:900; color:#ef4444; text-transform:uppercase; margin-bottom:6px;">${headerLabel}</div>
+                <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#ef4444; text-transform:uppercase; margin-bottom:6px;">${headerLabel}</div>
                 <div style="display:flex; flex-wrap:wrap; gap:8px;">${makeChips(dropPlayers, '#ef4444')}${makePickChips(dropPicks, '#ef4444')}</div>
                 ${deadCapInfo ? `<div style="margin-top:6px;">${deadCapInfo}</div>` : ''}
             </div>`;
@@ -9825,7 +9817,7 @@ const isGrouped = true;
         // Normal full row view
         g.allPlayers.forEach(p => {
             if (!p.pid) {
-                const fallbackHtml = `<div style="font-size:11px; font-weight:800; color:#fff; padding:8px 12px; background:rgba(0,0,0,0.25); border-radius:8px; border:1px solid rgba(255,255,255,0.05); text-align:center; margin-bottom:4px;">${p.fallback}</div>`;
+                const fallbackHtml = `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; padding:8px 12px; background:rgba(0,0,0,0.25); border-radius:8px; border:1px solid rgba(255,255,255,0.05); text-align:center; margin-bottom:4px;">${p.fallback}</div>`;
                 if (p.targetCol === 'add') addedHtml += fallbackHtml;
                 else if (p.targetCol === 'drop') droppedHtml += fallbackHtml;
                 else genericHtml += fallbackHtml;
@@ -9835,7 +9827,7 @@ const isGrouped = true;
                 { pid: p.pid, name: p.parsed.name, shortName: p.parsed.shortName, pos: p.parsed.pos, team: p.parsed.team, rank: playerRanks[p.pid] },
                 {
                     subText: p.parsed.team || '-',
-                    rightContent: `<span style="font-size:9px; font-weight:900; color:${p.actionColor}; background:${p.actionBg}; border:1px solid ${p.actionColor}40; text-transform:uppercase; padding:4px 6px; border-radius:4px; white-space:nowrap;">${p.actionText}</span>`,
+                    rightContent: `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${p.actionColor}; background:${p.actionBg}; border:1px solid ${p.actionColor}40; text-transform:uppercase; padding:4px 6px; border-radius:4px; white-space:nowrap;">${p.actionText}</span>`,
                     rowStyle: 'margin-bottom:4px; background:rgba(0,0,0,0.25); padding:6px 10px;',
                     badgeContainerStyle: 'padding:0;'
                 }
@@ -9850,14 +9842,14 @@ const isGrouped = true;
                 <div class="player-row" style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(0,0,0,0.25); border-radius:8px; padding:6px 10px; margin-bottom:4px; border:1px solid #f59e0b50; border-left:3px solid #f59e0b;">
                     <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
                         <div style="width:42px; height:42px; flex-shrink:0; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                            <span style="font-weight:900; font-size:13px; color:#f59e0b;">${p.yearStr.slice(-2)}</span>
+                            <span style="font-weight:900; font-size:calc(13px * var(--ts,1)); color:#f59e0b;">${p.yearStr.slice(-2)}</span>
                         </div>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-size:13px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.details}</div>
-                            <span style="font-size:10px; font-weight:900; color:#f59e0b; text-transform:uppercase; margin-top:4px; display:block;">Draft Pick</span>
+                            <div style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.details}</div>
+                            <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; margin-top:4px; display:block;">Draft Pick</span>
                         </div>
                     </div>
-                    <span style="font-size:9px; font-weight:900; color:${p.actionColor}; background:${p.actionBg}; border:1px solid ${p.actionColor}40; text-transform:uppercase; padding:4px 6px; border-radius:4px; white-space:nowrap;">${p.actionText}</span>
+                    <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${p.actionColor}; background:${p.actionBg}; border:1px solid ${p.actionColor}40; text-transform:uppercase; padding:4px 6px; border-radius:4px; white-space:nowrap;">${p.actionText}</span>
                 </div>`;
             if (p.targetCol === 'add') addedHtml += pickHtml;
             else if (p.targetCol === 'drop') droppedHtml += pickHtml;
@@ -9875,22 +9867,22 @@ ${g.tradeFids && g.tradeFids.length > 1 ? `
             ${g.tradeFids.map((f, i) => `
                 <div style="display:flex; align-items:center; gap:6px;">
                     <img src="${f.teamLogo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${f.fId}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">
-                    <span style="font-size:12px; font-weight:800; color:#fff;" data-team-style="${f.fId}">${f.teamName}</span>
+                    <span style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;" data-team-style="${f.fId}">${f.teamName}</span>
                 </div>
-                ${i < g.tradeFids.length - 1 ? '<span style="font-size:10px; color:var(--text-dim);">⇄</span>' : ''}
+                ${i < g.tradeFids.length - 1 ? '<span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">⇄</span>' : ''}
             `).join('')}
         </div>
-        <span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase;">${g.txType}</span>
+        <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${typeColor}; text-transform:uppercase;">${g.txType}</span>
     </div>
 ` : `
     <div class="team-popup-trigger" data-fid="${g.fId}" style="cursor:pointer;">${buildLogoWithTrophy(g.fId, 32)}</div>
     <div style="display:flex; flex-direction:column;">
-        <span style="font-size:13px; font-weight:800; color:#fff;" data-team-style="${g.fId}">${g.teamName}</span>
-        ${/add\/drop|waiver/i.test(g.txType) && !g.isCommish ? '' : `<span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase; margin-top:2px;">${/add\/drop|waiver/i.test(g.txType) ? '' : g.txType} ${g.isCommish ? '<span style="color:var(--text-dim);">(Commish)</span>' : ''}</span>`}
+        <span style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;" data-team-style="${g.fId}">${g.teamName}</span>
+        ${/add\/drop|waiver/i.test(g.txType) && !g.isCommish ? '' : `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${typeColor}; text-transform:uppercase; margin-top:2px;">${/add\/drop|waiver/i.test(g.txType) ? '' : g.txType} ${g.isCommish ? '<span style="color:var(--text-dim);">(Commish)</span>' : ''}</span>`}
     </div>
 `}
                 </div>
-                <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${(String(latestTimestamp).match(/\d{1,2}:\d{2}\s*[ap]\.?m\.?/i) || [latestTimestamp])[0]}</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${(String(latestTimestamp).match(/\d{1,2}:\d{2}\s*[ap]\.?m\.?/i) || [latestTimestamp])[0]}</span>
             </div>
            <div style="display:flex; gap:10px; margin-top:10px; align-items:stretch;">
                 ${addedHtml ? `<div style="flex:1; display:flex; flex-direction:column; gap:4px; min-width:0;">${addedHtml}</div>` : ''}
@@ -9939,11 +9931,11 @@ resignEntries.push({ dateObj: r.dateObj, html: `
                             <div style="display:flex; align-items:center; gap:10px;">
 <img src="${logoUrl}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${r.fId}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid rgba(255,255,255,0.1); background:#000; cursor:pointer;">
                                 <div style="display:flex; flex-direction:column;">
-                                    <span style="font-size:13px; font-weight:800; color:#fff;">${teamName}</span>
-                                    <span style="font-size:9px; font-weight:900; color:#22c55e; text-transform:uppercase; margin-top:2px;">Re-Signed</span>
+                                    <span style="font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;">${teamName}</span>
+                                    <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; margin-top:2px;">Re-Signed</span>
                                 </div>
                             </div>
-                            <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${dateShort}</span>
+                            <span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-align:right; max-width:80px; line-height:1.3;">${dateShort}</span>
                         </div>
 <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                             <div style="display:flex; flex-direction:column; align-items:center; gap:4px; width:56px; flex-shrink:0;">
@@ -9951,18 +9943,18 @@ resignEntries.push({ dateObj: r.dateObj, html: `
 <img src="${resignPid ? `https://www.mflscripts.com/playerImages_80x107/mfl_${resignPid}.png` : ''}" onerror="this.style.opacity='0'" style="width:100%; height:100%; object-fit:cover;">                                </div>
                                 <div style="display:flex; align-items:center; gap:3px;">
                                     <img src="${getNFLLogoUrl(playerTeam)}" style="width:10px; height:10px; object-fit:contain;">
-                                   ${playerPos ? `<span class="pos-text-${playerPos.toLowerCase()}" style="font-size:6px; font-weight:900;">${playerPos}</span>` : ''}
+                                   ${playerPos ? `<span class="pos-text-${playerPos.toLowerCase()}" style="font-size:calc(6px * var(--ts,1)); font-weight:900;">${playerPos}</span>` : ''}
                                 </div>
                             </div>
                             <div style="flex:1; min-width:0;">
                                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
-                                    <span style="font-size:13px; font-weight:900; color:#fff;">${playerName}</span>
-                                    ${playerPos ? `<span class="pos-text-${playerPos.toLowerCase()}" style="font-size:9px; font-weight:900;">${playerPos}</span>` : ''}
+                                    <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${playerName}</span>
+                                    ${playerPos ? `<span class="pos-text-${playerPos.toLowerCase()}" style="font-size:calc(9px * var(--ts,1)); font-weight:900;">${playerPos}</span>` : ''}
                                 </div>
                                 <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                                    <span style="font-size:11px; font-weight:900; color:#22c55e;">$${contractSal}/yr</span>
-                                    <span style="font-size:10px; color:var(--accent-blue); font-weight:800;">${contractYrs} yrs</span>
-                                    <span style="font-size:10px; color:var(--text-dim); font-weight:800;">${contractGuar}% guar</span>
+                                    <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">$${contractSal}/yr</span>
+                                    <span style="font-size:calc(10px * var(--ts,1)); color:var(--accent-blue); font-weight:800;">${contractYrs} yrs</span>
+                                    <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${contractGuar}% guar</span>
                                 </div>
                             </div>
                         </div>
@@ -9980,12 +9972,12 @@ console.log('[tx-filter-debug] final uniqueTxTypes set:', [...uniqueTxTypes]);
 let filterHtml = `
                        <div class="sticky-controls" style="position: relative; margin-bottom: 15px;">
                 <div id="tx-filter-scroll" class="tx-filter-bar hide-scroll" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; padding-right: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); touch-action: pan-x; -webkit-overflow-scrolling: touch;">
-                    <button class="tx-filter-btn active" data-filter="all" style="padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; border: 1px solid var(--accent-blue); background: var(--accent-blue); color: #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s;">All</button>
+                    <button class="tx-filter-btn active" data-filter="all" style="padding: 6px 12px; border-radius: 6px; font-size: calc(10px * var(--ts,1)); font-weight: 900; text-transform: uppercase; border: 1px solid var(--accent-blue); background: var(--accent-blue); color: #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s;">All</button>
         `;
 
         Array.from(uniqueTxTypes).sort().forEach(type => {
             const safeTypeAttr = type.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-            filterHtml += `<button class="tx-filter-btn" data-filter="${safeTypeAttr}" style="padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text-dim); cursor: pointer; flex-shrink: 0; transition: 0.2s;">${type}</button>`;
+            filterHtml += `<button class="tx-filter-btn" data-filter="${safeTypeAttr}" style="padding: 6px 12px; border-radius: 6px; font-size: calc(10px * var(--ts,1)); font-weight: 900; text-transform: uppercase; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text-dim); cursor: pointer; flex-shrink: 0; transition: 0.2s;">${type}</button>`;
         });
         filterHtml += `</div>
                 <div style="position: absolute; top: 0; right: 0; bottom: 10px; width: 24px; background: linear-gradient(to right, transparent, var(--page-bg)); pointer-events: none;"></div>
@@ -10045,9 +10037,9 @@ async function loadLeagueSchedule(targetWeek = null) {
         }
         
         if ($('.schedule-dashboard').length === 0) {
-            container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Matchups...</div>');
+            container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Matchups...</div>');
         } else {
-            $('#matchups-list-container').html('<div style="text-align:center; padding: 40px; color: var(--text-dim); font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Fetching Week...</div>');
+            $('#matchups-list-container').html('<div style="text-align:center; padding: 40px; color: var(--text-dim); font-weight: 800; font-size: calc(10px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Fetching Week...</div>');
         }
         
         try {
@@ -10162,7 +10154,7 @@ blockRows.forEach(row => {
                 const color = isActive ? '#fff' : 'var(--text-dim)';
                 const border = isActive ? '1px solid var(--accent-blue)' : '1px solid var(--card-border)';
                 // Tightened up padding, added line-height: 1 to prevent global font stretching
-                weekPills += `<div class="schedule-week-pill" data-week="${i}" style="flex: 0 0 auto; padding: 4px 10px; text-align: center; background: ${bg}; color: ${color}; border: ${border}; border-radius: 6px; font-size: 10px; font-weight: 900; line-height: 1; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box;">W${i}</div>`;
+                weekPills += `<div class="schedule-week-pill" data-week="${i}" style="flex: 0 0 auto; padding: 4px 10px; text-align: center; background: ${bg}; color: ${color}; border: ${border}; border-radius: 6px; font-size: calc(10px * var(--ts,1)); font-weight: 900; line-height: 1; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box;">W${i}</div>`;
             }
 
             const numTeams = Object.keys(leagueFranchises).length || 10;
@@ -10173,7 +10165,7 @@ blockRows.forEach(row => {
             if (isDoubleHeader) {
                 doubleHeaderBadge = `
                     <div style="margin-bottom: 8px;">
-                        <span style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); color: #fff; padding: 3px 8px; border-radius: 4px; font-weight: 900; font-size: 9px; text-transform: uppercase; letter-spacing: 1px;">🔥 Double Header Week</span>
+                        <span style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); color: #fff; padding: 3px 8px; border-radius: 4px; font-weight: 900; font-size: calc(9px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px;">🔥 Double Header Week</span>
                     </div>
                 `;
             }
@@ -10182,7 +10174,7 @@ blockRows.forEach(row => {
             let scheduleHtml = `<div class="schedule-dashboard" style="padding: 5px;">`;
             scheduleHtml += `
                 <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; text-align: center;">
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom: ${doubleHeaderBadge ? '6px' : '8px'}; letter-spacing: 1px;">League Scoreboard</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom: ${doubleHeaderBadge ? '6px' : '8px'}; letter-spacing: 1px;">League Scoreboard</div>
                     ${doubleHeaderBadge}
                     <div class="hide-scroll" style="display: flex; gap: 6px; width: 100%; overflow-x: auto; align-items: center;">
                         ${weekPills}
@@ -10229,11 +10221,11 @@ blockRows.forEach(row => {
                                     <img class="team-logo-overlay" src="${getNFLLogoUrl(p1.team)}" onerror="this.style.display='none'" style="width: 12px !important; height: 12px !important; bottom: 0 !important; left: 0 !important;">
                                 </div>
                                 <div class="player-info" style="padding-left: 2px !important; flex: 1 1 0px !important; min-width: 0;">
-                                    <div class="player-name-slot" style="font-size: 10px !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p1.name}</div>
-                                    <div style="font-size: 8px; color: var(--accent-blue); font-weight: 900;">${p1.pos}</div>
+                                    <div class="player-name-slot" style="font-size: calc(10px * var(--ts,1)) !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p1.name}</div>
+                                    <div style="font-size: calc(8px * var(--ts,1)); color: var(--accent-blue); font-weight: 900;">${p1.pos}</div>
                                 </div>
                                 <div class="player-right-slot" style="flex-shrink: 0; margin-left: auto;">
-                                    <span style="font-size: 11px; font-weight: 900; color: ${p1.pts === '0.00' ? 'var(--text-dim)' : '#fff'};">${p1.pts}</span>
+                                    <span style="font-size: calc(11px * var(--ts,1)); font-weight: 900; color: ${p1.pts === '0.00' ? 'var(--text-dim)' : '#fff'};">${p1.pts}</span>
                                 </div>
                             </div>`;
                     } else { l1Html += `<div style="height: 44px; margin-bottom: 4px;"></div>`; }
@@ -10246,17 +10238,17 @@ blockRows.forEach(row => {
                                     <img class="team-logo-overlay" src="${getNFLLogoUrl(p2.team)}" onerror="this.style.display='none'" style="width: 12px !important; height: 12px !important; bottom: 0 !important; left: 0 !important;">
                                 </div>
                                 <div class="player-info" style="padding-right: 2px !important; padding-left: 0 !important; flex: 1 1 0px !important; min-width: 0;">
-                                    <div class="player-name-slot" style="font-size: 10px !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p2.name}</div>
-                                    <div style="font-size: 8px; color: var(--accent-blue); font-weight: 900;">${p2.pos}</div>
+                                    <div class="player-name-slot" style="font-size: calc(10px * var(--ts,1)) !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p2.name}</div>
+                                    <div style="font-size: calc(8px * var(--ts,1)); color: var(--accent-blue); font-weight: 900;">${p2.pos}</div>
                                 </div>
                                 <div class="player-right-slot" style="flex-shrink: 0; margin-right: auto; margin-left: 0;">
-                                    <span style="font-size: 11px; font-weight: 900; color: ${p2.pts === '0.00' ? 'var(--text-dim)' : '#fff'};">${p2.pts}</span>
+                                    <span style="font-size: calc(11px * var(--ts,1)); font-weight: 900; color: ${p2.pts === '0.00' ? 'var(--text-dim)' : '#fff'};">${p2.pts}</span>
                                 </div>
                             </div>`;
                     } else { l2Html += `<div style="height: 44px; margin-bottom: 4px;"></div>`; }
                 }
 
-                const noLineupMsg = maxStarters === 0 ? '<div style="text-align:center; padding:10px; color:var(--text-dim); width:100%; font-size:10px;">Lineups not available</div>' : '';
+                const noLineupMsg = maxStarters === 0 ? '<div style="text-align:center; padding:10px; color:var(--text-dim); width:100%; font-size:calc(10px * var(--ts,1));">Lineups not available</div>' : '';
 
                 // Build the individual card HTML
                 let cardHtml = `
@@ -10264,22 +10256,22 @@ blockRows.forEach(row => {
                         <div style="display: flex; justify-content: space-between; align-items: stretch; padding: 12px 10px;">
                             <div style="display: flex; flex-direction: column; align-items: center; width: 35%; text-align: center;">
 <div class="team-popup-trigger" data-fid="${t1.fId}" style="cursor:pointer;">${buildLogoWithTrophy(t1.fId, 36)}</div>
-                                <span style="font-size: 10px; font-weight: 800; color: #fff; line-height: 1.2;">${t1.teamName}</span>
+                                <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: #fff; line-height: 1.2;">${t1.teamName}</span>
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 30%;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 16px; font-weight: ${t1Weight}; color: ${t1Color};">${t1.score}</span>
-                                    <span style="font-size: 12px; color: var(--text-dim);">—</span>
-                                    <span style="font-size: 16px; font-weight: ${t2Weight}; color: ${t2Color};">${t2.score}</span>
+                                    <span style="font-size: calc(16px * var(--ts,1)); font-weight: ${t1Weight}; color: ${t1Color};">${t1.score}</span>
+                                    <span style="font-size: calc(12px * var(--ts,1)); color: var(--text-dim);">—</span>
+                                    <span style="font-size: calc(16px * var(--ts,1)); font-weight: ${t2Weight}; color: ${t2Color};">${t2.score}</span>
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: center; width: 35%; text-align: center;">
                                 <img src="${t2.teamLogo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" class="team-popup-trigger" data-fid="${t2.fId}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--card-bg); border: 1.5px solid rgba(255,255,255,0.1); margin-bottom: 6px; cursor:pointer;">
-                                <span style="font-size: 10px; font-weight: 800; color: #fff; line-height: 1.2;">${t2.teamName}</span>
+                                <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: #fff; line-height: 1.2;">${t2.teamName}</span>
                             </div>
                         </div>
                         <div class="matchup-drawer-trigger" style="text-align: center; padding: 6px; background: rgba(0,0,0,0.15); border-top: 1px solid var(--card-border); cursor: pointer;">
-                            <span class="drawer-icon" style="font-size: 10px; color: var(--text-dim); transition: transform 0.2s; display: inline-block;">▼</span>
+                            <span class="drawer-icon" style="font-size: calc(10px * var(--ts,1)); color: var(--text-dim); transition: transform 0.2s; display: inline-block;">▼</span>
                         </div>
                         <div class="matchup-lineup-drawer" style="display: none; padding: 10px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--card-border);">
                             <div style="display: flex; justify-content: space-between; gap: 15px;">
@@ -10310,9 +10302,9 @@ blockRows.forEach(row => {
             // Inject dividers if it's a Double Header
             if (isDoubleHeader) {
                 scheduleHtml += `
-                    <div style="font-size: 11px; font-weight: 900; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px; margin: 5px 0 15px; text-align: center;">Game 1</div>
+                    <div style="font-size: calc(11px * var(--ts,1)); font-weight: 900; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px; margin: 5px 0 15px; text-align: center;">Game 1</div>
                     ${game1Html}
-                    <div style="font-size: 11px; font-weight: 900; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px; margin: 25px 0 15px; text-align: center;">Game 2</div>
+                    <div style="font-size: calc(11px * var(--ts,1)); font-weight: 900; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px; margin: 25px 0 15px; text-align: center;">Game 2</div>
                     ${game2Html}
                 `;
             } else {
@@ -10517,7 +10509,7 @@ if (tabId === 'tab-players') {
                         }
                     }
                 }
-                customHtml = faCountdownHtml ? `<div id="tab-header-custom" style="padding:10px 15px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-bottom:none; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Free Agency</div><div style="font-size:13px; font-weight:900; color:#fff; margin-top:2px;">${faCountdownHtml}</div></div><i class="fas fa-clipboard-list" style="font-size:18px; color:var(--accent-blue);"></i></div>` : '';
+                customHtml = faCountdownHtml ? `<div id="tab-header-custom" style="padding:10px 15px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-bottom:none; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Free Agency</div><div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; margin-top:2px;">${faCountdownHtml}</div></div><i class="fas fa-clipboard-list" style="font-size:calc(18px * var(--ts,1)); color:var(--accent-blue);"></i></div>` : '';
             } else if (tabId === 'tab-league') {
                 customHtml = '';
  } else if (tabId === 'tab-draft') {
@@ -10542,7 +10534,7 @@ if (tabId === 'tab-players') {
                     }
                 }
 
-                customHtml = `<div id="tab-header-custom" style="padding:12px 15px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-bottom:none; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Rookie Draft</div><div style="font-size:13px; font-weight:900; color:#fff; margin-top:2px;">${clockPick ? `Pick ${clockPick} On The Clock` : countdownHtml || 'Draft Board'}</div></div><i class="fas fa-football" style="font-size:20px; color:var(--accent-blue);"></i></div>`;
+                customHtml = `<div id="tab-header-custom" style="padding:12px 15px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-bottom:none; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Rookie Draft</div><div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; margin-top:2px;">${clockPick ? `Pick ${clockPick} On The Clock` : countdownHtml || 'Draft Board'}</div></div><i class="fas fa-football" style="font-size:calc(20px * var(--ts,1)); color:var(--accent-blue);"></i></div>`;
 } else if (tabId === 'tab-scores') {
     loadLiveScores();
 
@@ -10561,7 +10553,7 @@ if (tabId === 'tab-players') {
                         }
                     }
                 }
-                customHtml = `<div id="tab-header-custom" style="padding:12px 15px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-bottom:none; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Free Agency</div><div style="font-size:13px; font-weight:900; color:#fff; margin-top:2px;">${faCountdownHtml}</div></div><i class="fas fa-clipboard-list" style="font-size:20px; color:var(--accent-blue);"></i></div>`;
+                customHtml = `<div id="tab-header-custom" style="padding:12px 15px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-bottom:none; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between;"><div><div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Free Agency</div><div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; margin-top:2px;">${faCountdownHtml}</div></div><i class="fas fa-clipboard-list" style="font-size:calc(20px * var(--ts,1)); color:var(--accent-blue);"></i></div>`;
             }
             if (customHtml) headerArea.prepend(customHtml);
         }
@@ -10577,6 +10569,114 @@ window.openPlayersSubTab = function(evt, subTabId) {
         loadPlayersData(subTabId);
     };
 
+// ===== UPCOMING SCHEDULE GRID (Team tab > Schedule) =====
+window._schedN = window._schedN || 6;
+async function lldSchedWeekMap(wk, cur) {
+    const k = 'lld_c_nflsch_' + year + '_' + wk;
+    if (wk > cur) { const c = lldLsGet(k, 24 * 3600 * 1000); if (c && Object.keys(c).length) return c; }
+    let m = {};
+    try { m = await fetchNflScheduleForWeek(wk); } catch (e) { m = {}; }
+    if (m && Object.keys(m).length && wk > cur) lldLsSet(k, m);
+    return m || {};
+}
+async function lldSchedCurWeek() {
+    try {
+        const r = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&JSON=1`, { credentials: 'include' });
+        const d = await r.json(); const w = parseInt(d && d.nflSchedule && d.nflSchedule.week, 10);
+        if (!isNaN(w)) return w;
+    } catch (e) { }
+    return parseInt(window._liveScoreCurrentWeek, 10) || 1;
+}
+async function lldSchedPlayers() {
+    const urls = [`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&rnd=${Date.now()}`, `${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${fid}&rnd=${Date.now()}`];
+    for (const u of urls) {
+        try {
+            const doc = new DOMParser().parseFromString(await (await fetch(u, { credentials: 'include', cache: 'no-store' })).text(), 'text/html');
+            const t = doc.querySelector('table.report'); if (!t) continue;
+            const out = [];
+            t.querySelectorAll('tr.oddtablerow, tr.eventablerow').forEach(row => {
+                const a = row.querySelector('td a[class*="position_"]'); if (!a) return;
+                const pid = (a.getAttribute('href').match(/\d+/g) || []).pop();
+                const p = parseMFLName(a.textContent);
+                const cb = row.querySelector('input[type="checkbox"]');
+                out.push({ pid, name: p.shortName || p.name, pos: p.pos, realPos: p.realPos, team: (p.team || '').toUpperCase(), starter: !!(cb && cb.checked), hasCb: !!cb });
+            });
+            if (out.length) return out;
+        } catch (e) { }
+    }
+    return [];
+}
+async function loadScheduleTab() {
+    const box = $('#player-rows-container');
+    box.html('<div class="loading-indicator">Loading schedule…</div>');
+    try {
+        if (!Object.keys(pointsAllowedMap).length) await fetchPointsAllowed();
+        const cur = await lldSchedCurWeek();
+        const last = 18, N = window._schedN === 99 ? last - cur + 1 : window._schedN;
+        const weeks = []; for (let w = cur; w <= Math.min(last, cur + N - 1); w++) weeks.push(w);
+        const [players, projMap] = await Promise.all([lldSchedPlayers(), fetchWeekProjectedScoresMap(cur).catch(() => ({}))]);
+        const scheds = {}; for (const w of weeks) scheds[w] = await lldSchedWeekMap(w, cur);
+        if (!players.length) { box.html('<div class="loading-indicator">No players found for this team.</div>'); return; }
+        // league average points allowed by position (for the matchup adjustment)
+        const avgPA = {};
+        ['QB', 'RB', 'WR', 'TE', 'PK', 'DT', 'DE', 'LB', 'CB', 'S'].forEach(ps => {
+            const v = Object.keys(pointsAllowedMap).map(t => parseFloat(pointsAllowedMap[t][ps])).filter(n => n > 0);
+            avgPA[ps] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+        });
+        const cellCls = r => r >= 24 ? 'easy' : (r && r <= 9) ? 'tough' : 'mid';
+        // pass 1: projected points per player per week (0 on bye)
+        players.forEach(p => {
+            const st = playerSeason[p.pid];
+            p._base = (projMap && projMap[p.pid] > 0) ? projMap[p.pid] : ((st && st.avg) || playerAverages[p.pid] || 0);
+            p._e = weeks.map((w, i) => {
+                const g = (scheds[w] || {})[p.team];
+                if (!g || !g.opp) return 0;
+                const pa = parseFloat((pointsAllowedMap[g.opp] || {})[p.realPos]) || 0;
+                let est = p._base;
+                if (i > 0 && avgPA[p.realPos] && pa) est = p._base * Math.max(0.75, Math.min(1.25, 1 + 0.6 * (pa / avgPA[p.realPos] - 1)));
+                return est;
+            });
+        });
+        // pass 2: best lineup for each week from those projections
+        const optSets = weeks.map((w, i) => llsOpt(players.map(p => ({ pid: p.pid, pos: p.pos, v: p._e[i] })).filter(x => x.v > 0), LLDS_SLOTS));
+        const optTot = weeks.map((w, i) => players.reduce((a, p) => a + (optSets[i].has(p.pid) ? p._e[i] : 0), 0));
+        const curTot = weeks.map((w, i) => players.reduce((a, p) => a + (p.starter ? p._e[i] : 0), 0));
+        const rows = players.map(p => {
+            const base = p._base;
+            let tot = 0, rk = [], cells = '';
+            weeks.forEach((w, i) => {
+                const g = (scheds[w] || {})[p.team];
+                if (!g || !g.opp) { cells += '<td class="sg-c bye"><b>BYE</b></td>'; return; }
+                const rank = pointsAllowedRankMap[p.realPos] ? pointsAllowedRankMap[p.realPos][g.opp] : 0;
+                const est = p._e[i];
+                tot += est; if (rank) rk.push(rank);
+                cells += `<td class="sg-c ${cellCls(rank)}${optSets[i].has(p.pid) ? ' opt' : ''} pa-breakdown-trigger" data-team="${g.opp}" data-pos="${p.realPos}"><b>${g.isHome === false ? '@' : ''}${g.opp}</b><i>${base ? est.toFixed(1) : '–'}</i><u>${rank ? '#' + rank : ''}</u></td>`;
+            });
+            const sos = rk.length ? rk.reduce((a, b) => a + b, 0) / rk.length : 0;
+            const sc = sos >= 19 ? 'easy' : (sos && sos <= 13) ? 'tough' : 'mid';
+            const tail = `<td class="sg-c sg-t ${sc}"><b>${sos ? sos.toFixed(1) : '–'}</b><i>${base ? tot.toFixed(0) : '–'}</i></td>`;
+            const head = `<th class="sg-p pos-border-${(p.pos || '').toLowerCase()}"><img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.opacity=0"><span><b>${p.name}</b><em>${p.realPos} · ${p.team}</em></span></th>`;
+            return { p, html: `<tr>${head}${cells}${tail}</tr>` };
+        });
+        const hasCb = players.some(p => p.hasCb);
+        const secs = hasCb ? [['Starters', rows.filter(r => r.p.starter)], ['Bench', rows.filter(r => !r.p.starter)]] : [['Roster', rows]];
+        const thead = `<tr><th class="sg-p">Player</th>${weeks.map((w, i) => `<th class="sg-c">${i === 0 ? 'Wk ' + w + '<br><small>now</small>' : 'Wk ' + w}</th>`).join('')}<th class="sg-c sg-t">SOS<br><small>Σ pts</small></th></tr>`;
+        const sumRow = (lbl, arr, cls) => `<tr class="sg-sum ${cls}"><th class="sg-p"><span><b>${lbl}</b></span></th>${arr.map(v => `<td class="sg-c"><b>${v.toFixed(1)}</b></td>`).join('')}<td class="sg-c sg-t"><b>${arr.reduce((a, b) => a + b, 0).toFixed(0)}</b></td></tr>`;
+        const sums = `<tr class="sg-sec"><td colspan="${weeks.length + 2}">Projected lineup totals</td></tr>` + sumRow('Best', optTot, 'o') + (hasCb ? sumRow('Current', curTot, 'c') + sumRow('Missed', optTot.map((v, i) => v - curTot[i]), 'd') : '');
+        const body = secs.filter(s => s[1].length).map(s => `<tr class="sg-sec"><td colspan="${weeks.length + 2}">${s[0]}</td></tr>` + s[1].map(r => r.html).join('')).join('') + sums;
+        const chip = (n, l) => `<button class="sg-chip${window._schedN === n ? ' on' : ''}" data-n="${n}">${l}</button>`;
+        box.html(`<div class="lld-sched">
+            <div class="sg-bar">${chip(4, '4 wks')}${chip(6, '6 wks')}${chip(99, 'Rest of season')}</div>
+            <div class="sg-wrap"><table class="sg"><thead>${thead}</thead><tbody>${body}</tbody></table></div>
+            <div class="sg-note"><span class="sg-k easy"></span>Easy (opp ranks 24-32 vs pos) <span class="sg-k mid"></span>Neutral <span class="sg-k tough"></span>Tough (1-9). Gold-outlined cells are in that week's best lineup (16 starters, same slots as your league, using these projections; it assumes you could set the lineup each week). Each cell: opponent, projected pts, defense rank vs that position. Week ${cur} uses MFL's projection; later weeks are estimates (this week's projection nudged by how much the opponent allows to the position, capped ±25%). SOS is the average opponent rank (higher = easier). Tap a cell for the defense breakdown.</div>
+        </div>`);
+    } catch (e) {
+        console.warn('schedule', e);
+        box.html('<div class="loading-indicator">Could not load the schedule. ' + $('<i>').text((e && e.message) || '').html() + '</div>');
+    }
+}
+$(document).on('click', '.lld-sched .sg-chip', function () { window._schedN = +$(this).data('n'); loadScheduleTab(); });
+
 window.openSubTab = function(evt, subTabId) { 
         $('#subtabs-team .sub-tab-btn').removeClass('active'); 
         $(evt.currentTarget).addClass('active'); 
@@ -10587,10 +10687,7 @@ window.openSubTab = function(evt, subTabId) {
         $('#player-rows-container').html(`<div class="loading-indicator">Loading ${tabName}...</div>`);
 
         if (subTabId === 'stats') { lldStatsOpen('team'); return; }
-        if (subTabId === 'schedule') {
-            $('#player-rows-container').html(`<div style="text-align:center; padding:60px 20px; color:var(--text-dim); font-weight:800; text-transform:uppercase;">${tabName} module coming soon...</div>`);
-            return;
-        }
+        if (subTabId === 'schedule') { loadScheduleTab(); return; }
 window._teamDataDirty = true;
         loadTeamData(); 
     };
@@ -10605,7 +10702,7 @@ case 'transactions': loadLeagueTransactions(); break;            case 'league-st
         }
     };
 async function loadTradeHub(targetFid = null, targetPid = null, presetGive = [], presetReceive = []) {
-    const container = $('#league-content-container').html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Trade Hub...</div>');
+    const container = $('#league-content-container').html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Trade Hub...</div>');
 
     try {
         // Fetch pending proposals
@@ -10710,7 +10807,7 @@ function buildTradePlayerRow(p, isSelected, side) {
     const yrs = parseInt(p.years) || 1;
     const gPct = parseFloat(String(p.guar || '0').replace(/[^0-9.]/g, '')) / 100 || 0;
     const capHit = (sal * gPct * yrs).toFixed(1);
-    const addBtn = `<button class="trade-add-btn" data-pid="${p.pid}" data-side="${side}" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:14px; font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">${isSelected ? '✓' : '+'}</button>`;
+    const addBtn = `<button class="trade-add-btn" data-pid="${p.pid}" data-side="${side}" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:calc(14px * var(--ts,1)); font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">${isSelected ? '✓' : '+'}</button>`;
     return buildUniversalRow(
         { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
         {
@@ -10719,7 +10816,7 @@ function buildTradePlayerRow(p, isSelected, side) {
             extraClasses: 'trade-chip player-modal-trigger',
             extraAttributes: `data-side="${side}" data-name="${String(p.name).replace(/"/g, '&quot;')}" data-pos="${p.pos}" data-team="${p.team}"`,
             pill: p.salary ? contractPillHtml(capHit, yrs, p.guar || '0%') : '',
-            topRight: p.salary ? `<b style="font-size:15px; font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:8px; font-weight:800; color:var(--text-dim);">SAL</small>` : '',
+            topRight: p.salary ? `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>` : '',
             bottomRight: p.salary ? rankLineHtml(p.pid, p.pos, sal) : '',
             rightContent: addBtn,
             rowStyle: `padding:5px 6px !important; margin-bottom:3px !important; cursor:pointer; ${isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : ''}`
@@ -10734,18 +10831,18 @@ function buildPlayerChip(p, selected, side) {
     const displayName = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
 
     const row1 = p.isPick ? `
-        <span style="font-size:12px; font-weight:${isSelected?'900':'800'}; color:${isSelected?'#22c55e':'#fff'};">${displayName}</span>
-        <span class="pos-pk" style="font-size:8px; font-weight:900; padding:1px 5px; border-radius:3px; color:#fff;">PK</span>
-        ${p.desc && p.desc.includes('via') ? `<span style="font-size:8px; color:#f59e0b; font-weight:800;">via ${p.desc.match(/via (.+)\)/)?.[1] || ''}</span>` : ''}
-        ${rStat ? `<span style="font-size:8px; font-weight:900; padding:1px 4px; border-radius:3px; color:#fff; background:rgba(0,0,0,0.3);">${rStat}</span>` : ''}
+        <span style="font-size:calc(12px * var(--ts,1)); font-weight:${isSelected?'900':'800'}; color:${isSelected?'#22c55e':'#fff'};">${displayName}</span>
+        <span class="pos-pk" style="font-size:calc(8px * var(--ts,1)); font-weight:900; padding:1px 5px; border-radius:3px; color:#fff;">PK</span>
+        ${p.desc && p.desc.includes('via') ? `<span style="font-size:calc(8px * var(--ts,1)); color:#f59e0b; font-weight:800;">via ${p.desc.match(/via (.+)\)/)?.[1] || ''}</span>` : ''}
+        ${rStat ? `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; padding:1px 4px; border-radius:3px; color:#fff; background:rgba(0,0,0,0.3);">${rStat}</span>` : ''}
         ${injHtml}
     ` : `
-        <span style="font-size:12px; font-weight:${isSelected?'900':'800'}; color:${isSelected?'#22c55e':'#fff'};">${displayName}</span>
-       <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:8px; font-weight:900;">${p.pos}</span>
+        <span style="font-size:calc(12px * var(--ts,1)); font-weight:${isSelected?'900':'800'}; color:${isSelected?'#22c55e':'#fff'};">${displayName}</span>
+       <span class="pos-text-${p.pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900;">${p.pos}</span>
         <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:1px 5px;">
             <img src="${getNFLLogoUrl(p.team)}" style="width:11px; height:11px; object-fit:contain;">
         </div>
-        ${rStat ? `<span style="font-size:8px; font-weight:900; padding:1px 4px; border-radius:3px; color:#fff; background:rgba(0,0,0,0.3);">${rStat}</span>` : ''}
+        ${rStat ? `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; padding:1px 4px; border-radius:3px; color:#fff; background:rgba(0,0,0,0.3);">${rStat}</span>` : ''}
         ${injHtml}
     `;
 
@@ -10755,10 +10852,10 @@ function buildPlayerChip(p, selected, side) {
         const gPct = parseFloat((p.guar || '0').replace(/[^0-9.]/g, '')) / 100 || 0;
         const capHit = (sal * gPct * yrs).toFixed(1);
         return `<div style="display:flex; align-items:center; gap:5px; margin-top:2px;">
-            <span style="font-size:9px; font-weight:900; color:#22c55e;">${p.salary}</span>
-            ${p.years ? `<span style="font-size:9px; color:var(--accent-blue); font-weight:800;">${p.years}yr</span>` : ''}
-            ${p.guar ? `<span style="font-size:9px; color:var(--text-dim); font-weight:800;">${p.guar}</span>` : ''}
-            <span style="font-size:9px; color:#ef4444; font-weight:800;">$${capHit}m hit</span>
+            <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</span>
+            ${p.years ? `<span style="font-size:calc(9px * var(--ts,1)); color:var(--accent-blue); font-weight:800;">${p.years}yr</span>` : ''}
+            ${p.guar ? `<span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${p.guar}</span>` : ''}
+            <span style="font-size:calc(9px * var(--ts,1)); color:#ef4444; font-weight:800;">$${capHit}m hit</span>
         </div>`;
     })() : '';
 
@@ -10771,7 +10868,7 @@ function buildPlayerChip(p, selected, side) {
             transition:0.2s;">
             <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; background:${p.isPick ? 'rgba(245,158,11,0.1)' : 'var(--card-bg)'}; border:1px solid ${p.isPick ? 'rgba(245,158,11,0.3)' : 'transparent'}; display:flex; align-items:center; justify-content:center;">
                 ${p.isPick 
-                    ? `<span style="font-size:11px; font-weight:900; color:#f59e0b;">${p.pickRound}</span>`
+                    ? `<span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b;">${p.pickRound}</span>`
                     : `<img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">`
                 }
             </div>
@@ -10780,7 +10877,7 @@ function buildPlayerChip(p, selected, side) {
                 ${row2}
             </div>
             <button class="trade-add-btn" data-pid="${p.pid}" data-side="${side}" 
-                style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.2s;">
+                style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:calc(14px * var(--ts,1)); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.2s;">
                 ${isSelected ? '✓' : '+'}
             </button>
         </div>`;
@@ -10888,29 +10985,29 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
 
             <div id="trade-summary-bar" style="display:flex; gap:8px; margin-bottom:10px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; min-height:44px; align-items:center;">
 <div style="flex:1;">
-                    <div style="font-size:8px; font-weight:900; color:#ef4444; text-transform:uppercase; margin-bottom:4px;">✓ Selected to Give</div>
-                    <div id="trade-summary-mine" style="font-size:10px; color:var(--text-dim);">Tap + on your players</div>
+                    <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#ef4444; text-transform:uppercase; margin-bottom:4px;">✓ Selected to Give</div>
+                    <div id="trade-summary-mine" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Tap + on your players</div>
                 </div>
-                <div style="font-size:16px; color:var(--text-dim);">⇄</div>
+                <div style="font-size:calc(16px * var(--ts,1)); color:var(--text-dim);">⇄</div>
                 <div style="flex:1; text-align:right;">
-                    <div style="font-size:8px; font-weight:900; color:#22c55e; text-transform:uppercase; margin-bottom:4px;">✓ Selected to Get</div>
-                    <div id="trade-summary-theirs" style="font-size:10px; color:var(--text-dim);">Tap + on their players</div>
+                    <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; margin-bottom:4px;">✓ Selected to Get</div>
+                    <div id="trade-summary-theirs" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Tap + on their players</div>
                 </div>
             </div>
 
             <div style="display:flex; gap:6px; margin-bottom:10px;">
 <div id="trade-tab-mine" class="trade-roster-tab" data-tab="mine"
                     style="flex:1; padding:8px 10px; background:rgba(59,130,246,0.15); border:2px solid rgba(59,130,246,0.6); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; gap:4px;">
-                    <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">You give ▾</div>
+                    <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">You give ▾</div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         ${buildLogoWithTrophy(myFid, 24)}
                         <div style="flex:1; min-width:0;">
-                            <div style="font-size:10px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${myTeamName}</div>
+                            <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${myTeamName}</div>
                         </div>
-                        ${mySelected.size > 0 ? `<span style="font-size:9px; font-weight:900; color:#22c55e; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.3); border-radius:10px; padding:2px 6px;">${mySelected.size}</span>` : ''}
+                        ${mySelected.size > 0 ? `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#22c55e; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.3); border-radius:10px; padding:2px 6px;">${mySelected.size}</span>` : ''}
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span id="my-cap-label" data-base="${myCapUsed}" style="font-size:8px; font-weight:900; color:${myCapColor};">$${myCapUsed.toFixed(1)}m / $${salaryCap}m</span>
+                        <span id="my-cap-label" data-base="${myCapUsed}" style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${myCapColor};">$${myCapUsed.toFixed(1)}m / $${salaryCap}m</span>
                     </div>
                     <div style="height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden;">
                         <div id="my-cap-bar" style="height:100%; width:${myCapPct}%; background:${myCapColor}; border-radius:2px; transition:width 0.3s;"></div>
@@ -10918,19 +11015,19 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
                 </div>
 <div id="trade-tab-theirs" class="trade-roster-tab" data-tab="theirs"
                     style="flex:1; padding:8px 10px; background:rgba(0,0,0,0.2); border:2px solid var(--card-border); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; gap:4px;">
-                    <div style="font-size:7px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Tap to switch team ▾</div>
+                    <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Tap to switch team ▾</div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <div id="trade-their-switcher" style="display:flex; align-items:center; gap:8px; flex:1; min-width:0; cursor:pointer;">
                             <div id="their-team-logo-wrapper">${buildLogoWithTrophy(activeFid, 24)}</div>
                             <div style="flex:1; min-width:0;">
-                                <div id="their-team-name" style="font-size:10px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${theirTeamName}</div>
+                                <div id="their-team-name" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${theirTeamName}</div>
                             </div>
                         </div>
-                        ${theirSelected.size > 0 ? `<span style="font-size:9px; font-weight:900; color:#22c55e; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.3); border-radius:10px; padding:2px 6px;">${theirSelected.size}</span>` : ''}
-                        <button id="trade-switch-team-btn" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:var(--text-dim); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Switch opponent">⇄</button>
+                        ${theirSelected.size > 0 ? `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#22c55e; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.3); border-radius:10px; padding:2px 6px;">${theirSelected.size}</span>` : ''}
+                        <button id="trade-switch-team-btn" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:var(--text-dim); font-size:calc(14px * var(--ts,1)); cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Switch opponent">⇄</button>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span id="their-cap-bar-label" data-base="${theirCapUsed}" style="font-size:8px; font-weight:900; color:${theirCapColor};">$${theirCapUsed.toFixed(1)}m / $${salaryCap}m</span>
+                        <span id="their-cap-bar-label" data-base="${theirCapUsed}" style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${theirCapColor};">$${theirCapUsed.toFixed(1)}m / $${salaryCap}m</span>
                     </div>
                     <div style="height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden;">
                         <div id="their-cap-bar" style="height:100%; width:${theirCapPct}%; background:${theirCapColor}; border-radius:2px; transition:width 0.3s;"></div>
@@ -10949,9 +11046,9 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
             </div>
 
             <div id="trade-action-bar" style="display:flex; gap:8px; margin-top:10px;">
-                <button id="trade-back-btn" style="display:none; flex:1; padding:12px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">← Back</button>
-                <button id="trade-next-btn" style="flex:1; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">Next →</button>
-                <button id="trade-hub-submit" style="display:none; flex:1; padding:12px; background:#22c55e; color:#000; border:none; border-radius:8px; font-size:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">Send Proposal</button>
+                <button id="trade-back-btn" style="display:none; flex:1; padding:12px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">← Back</button>
+                <button id="trade-next-btn" style="flex:1; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Next →</button>
+                <button id="trade-hub-submit" style="display:none; flex:1; padding:12px; background:#22c55e; color:#000; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Send Proposal</button>
             </div>
         </div>
 `;
@@ -10959,7 +11056,7 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
 
 function buildTradeBlockSection() {
     if (baitList.length === 0 || !baitList[0].franchise_id) {
-        return `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No players on the trade block.</div>`;
+        return `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No players on the trade block.</div>`;
     }
     return baitList.map(bait => {
         const bFid = bait.franchise_id || bait.franchise;
@@ -10979,9 +11076,9 @@ const playerChipsHtml = pidList.map(pid => {
         return `
             <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:rgba(0,0,0,0.2); border-radius:6px; margin-bottom:4px; border:1px solid rgba(245,158,11,0.3);">
                 <div style="width:32px; height:32px; border-radius:50%; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                    <span style="font-size:13px; font-weight:900; color:#f59e0b;">${round}</span>
+                    <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#f59e0b;">${round}</span>
                 </div>
-                <div style="font-size:11px; font-weight:800; color:#f59e0b;">${pickYear} Round ${round} Pick</div>
+                <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#f59e0b;">${pickYear} Round ${round} Pick</div>
             </div>`;
     }
     return `
@@ -10989,7 +11086,7 @@ const playerChipsHtml = pidList.map(pid => {
             <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg);">
                 <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
             </div>
-            <div id="trade-block-player-${pid}" style="font-size:11px; font-weight:800; color:#fff;">Loading...</div>
+            <div id="trade-block-player-${pid}" style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Loading...</div>
         </div>`;
 }).join('');
 
@@ -10997,10 +11094,10 @@ const playerChipsHtml = pidList.map(pid => {
             <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:10px; margin-bottom:8px;">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                     <img src="${logoUrl}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
-                    <span style="font-size:12px; font-weight:900; color:#fff; flex:1;">${teamName}</span>
-                    ${isMe ? `<button class="remove-bait-btn" style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px; cursor:pointer;">Remove</button>` : ''}
+                    <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; flex:1;">${teamName}</span>
+                    ${isMe ? `<button class="remove-bait-btn" style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px; cursor:pointer;">Remove</button>` : ''}
                 </div>
-                ${bait.inExchangeFor ? `<div style="font-size:10px; color:var(--accent-blue); margin-bottom:8px;">${bait.inExchangeFor}</div>` : ''}
+                ${bait.inExchangeFor ? `<div style="font-size:calc(10px * var(--ts,1)); color:var(--accent-blue); margin-bottom:8px;">${bait.inExchangeFor}</div>` : ''}
                 ${playerChipsHtml}
             </div>`;
     }).join('');
@@ -11008,7 +11105,7 @@ const playerChipsHtml = pidList.map(pid => {
 
         function buildPendingSection() {
             if (pendingList.length === 0 || !pendingList[0].offeredTo) {
-                return `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No pending proposals.</div>`;
+                return `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No pending proposals.</div>`;
             }
             return pendingList.map(trade => {
                 const isIncoming = trade.offeredTo === myFid;
@@ -11021,17 +11118,17 @@ const playerChipsHtml = pidList.map(pid => {
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:10px; margin-bottom:8px;">
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                             <img src="${logoUrl}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
-                            <span style="font-size:12px; font-weight:900; color:#fff; flex:1;">${teamName}</span>
-                            <span style="font-size:9px; font-weight:900; color:${labelColor}; text-transform:uppercase;">${label}</span>
+                            <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; flex:1;">${teamName}</span>
+                            <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${labelColor}; text-transform:uppercase;">${label}</span>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <div style="flex:1;">
-                                <div style="font-size:8px; color:#ef4444; font-weight:900; text-transform:uppercase; margin-bottom:3px;">Gives Up</div>
-                                <div style="font-size:10px; color:var(--text-dim);">${trade.willGiveUp || '—'}</div>
+                                <div style="font-size:calc(8px * var(--ts,1)); color:#ef4444; font-weight:900; text-transform:uppercase; margin-bottom:3px;">Gives Up</div>
+                                <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${trade.willGiveUp || '—'}</div>
                             </div>
                             <div style="flex:1;">
-                                <div style="font-size:8px; color:#22c55e; font-weight:900; text-transform:uppercase; margin-bottom:3px;">Receives</div>
-                                <div style="font-size:10px; color:var(--text-dim);">${trade.willReceive || '—'}</div>
+                                <div style="font-size:calc(8px * var(--ts,1)); color:#22c55e; font-weight:900; text-transform:uppercase; margin-bottom:3px;">Receives</div>
+                                <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${trade.willReceive || '—'}</div>
                             </div>
                         </div>
                     </div>`;
@@ -11071,7 +11168,7 @@ const rows = [...doc.querySelectorAll('table.report tr.oddtablerow, table.report
     return row.querySelector('td a[href*="F="]') !== null;
 });
         if (!rows.length) {
-            $('#pending-proposals-list').html('<div style="text-align:center; color:var(--text-dim); font-size:10px; padding:12px;">No pending proposals.</div>');
+            $('#pending-proposals-list').html('<div style="text-align:center; color:var(--text-dim); font-size:calc(10px * var(--ts,1)); padding:12px;">No pending proposals.</div>');
             return;
         }
 
@@ -11094,7 +11191,7 @@ const toFid = cells[3]?.querySelector('a')?.href.match(/F=(\d+)/)?.[1] || '';
 function buildAssetChips(cell, contractMap) {
                 let salaryTotal = 0;
                 const pids = [];
-                if (!cell) return { html: '<span style="color:var(--text-dim); font-size:10px;">—</span>', salaryTotal, pids };
+                if (!cell) return { html: '<span style="color:var(--text-dim); font-size:calc(10px * var(--ts,1));">—</span>', salaryTotal, pids };
                 const chips = [];
                 const seenText = new Set();
 
@@ -11108,7 +11205,7 @@ function buildAssetChips(cell, contractMap) {
                     const contract = pid ? contractMap[pid] : null;
                     if (contract) salaryTotal += contract.salNum;
                     const contractLine = contract
-                        ? `<div style="font-size:8px; color:#22c55e; font-weight:800; margin-top:1px;">$${contract.salNum.toFixed(1)}m/yr · ${contract.yrsNum}yr · ${Math.round(contract.gPct*100)}% guar · <span style="color:#f59e0b;">$${contract.capHit.toFixed(1)}m hit if cut</span></div>`
+                        ? `<div style="font-size:calc(8px * var(--ts,1)); color:#22c55e; font-weight:800; margin-top:1px;">$${contract.salNum.toFixed(1)}m/yr · ${contract.yrsNum}yr · ${Math.round(contract.gPct*100)}% guar · <span style="color:#f59e0b;">$${contract.capHit.toFixed(1)}m hit if cut</span></div>`
                         : '';
                     chips.push(`
                         <div style="display:flex; align-items:center; gap:6px; padding:4px 8px; background:rgba(0,0,0,0.25); border-radius:6px; margin-bottom:4px;">
@@ -11116,7 +11213,7 @@ function buildAssetChips(cell, contractMap) {
                                 ${pid ? `<img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">` : ''}
                             </div>
                             <div style="flex:1; min-width:0;">
-                                <span style="font-size:10px; font-weight:800; color:#fff;">${label}</span>
+                                <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff;">${label}</span>
                                 ${contractLine}
                             </div>
                         </div>`);
@@ -11130,12 +11227,12 @@ function buildAssetChips(cell, contractMap) {
                     if (!text) return;
                     chips.push(`
                         <div style="display:flex; align-items:center; gap:6px; padding:4px 8px; background:rgba(0,0,0,0.25); border-radius:6px; margin-bottom:4px;">
-                            <div style="width:24px; height:24px; border-radius:50%; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:9px; font-weight:900; color:#f59e0b;">PK</div>
-                            <span style="font-size:10px; font-weight:800; color:#f59e0b;">${text}</span>
+                            <div style="width:24px; height:24px; border-radius:50%; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b;">PK</div>
+                            <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#f59e0b;">${text}</span>
                         </div>`);
                 });
 
-const html = chips.join('') || '<span style="color:var(--text-dim); font-size:10px;">—</span>';
+const html = chips.join('') || '<span style="color:var(--text-dim); font-size:calc(10px * var(--ts,1));">—</span>';
                 return { html, salaryTotal, pids };
             }
 
@@ -11182,57 +11279,57 @@ const rejectLink = makeLink(rejectHref);
             return `
                 <div style="padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; border-left:3px solid ${isOutgoing ? 'var(--accent-blue)' : '#22c55e'};">
                     <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-                        <span style="font-size:8px; font-weight:900; text-transform:uppercase; padding:2px 6px; border-radius:4px; color:#fff; background:${isOutgoing ? 'var(--accent-blue)' : 'rgba(34,197,94,0.3)'};">${isOutgoing ? 'Sent' : 'Received'}</span>
-                        <span style="font-size:8px; color:var(--text-dim);">${date}</span>
-                        <span style="font-size:8px; color:var(--text-dim); margin-left:auto;">Expires: ${expires}</span>
+                        <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; padding:2px 6px; border-radius:4px; color:#fff; background:${isOutgoing ? 'var(--accent-blue)' : 'rgba(34,197,94,0.3)'};">${isOutgoing ? 'Sent' : 'Received'}</span>
+                        <span style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim);">${date}</span>
+                        <span style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-left:auto;">Expires: ${expires}</span>
                     </div>
                     <div style="display:flex; gap:8px; align-items:flex-start;">
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; gap:5px; margin-bottom:4px;">
                                 <img src="${fromLogo}" class="team-popup-trigger" data-fid="${fromFid}" style="width:18px; height:18px; border-radius:50%; object-fit:cover; cursor:pointer;">
-                                <span style="font-size:9px; font-weight:900; color:#fff;">${fromName}</span>
-                                <span style="font-size:8px; color:#ef4444; font-weight:800;">gives</span>
+                                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#fff;">${fromName}</span>
+                                <span style="font-size:calc(8px * var(--ts,1)); color:#ef4444; font-weight:800;">gives</span>
                             </div>
 <div>${givePlayers}</div>
-                            <div style="font-size:9px; font-weight:900; color:${fromRemaining < 0 ? '#ef4444' : fromPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${fromNewUsed.toFixed(1)}m used (${fromPct}%) · $${fromRemaining.toFixed(1)}m left</div>
+                            <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${fromRemaining < 0 ? '#ef4444' : fromPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${fromNewUsed.toFixed(1)}m used (${fromPct}%) · $${fromRemaining.toFixed(1)}m left</div>
                         </div>
-                        <div style="font-size:14px; color:var(--text-dim); align-self:center;">⇄</div>
+                        <div style="font-size:calc(14px * var(--ts,1)); color:var(--text-dim); align-self:center;">⇄</div>
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; gap:5px; margin-bottom:4px;">
                                 <img src="${toLogo}" class="team-popup-trigger" data-fid="${toFid}" style="width:18px; height:18px; border-radius:50%; object-fit:cover; cursor:pointer;">
-                                <span style="font-size:9px; font-weight:900; color:#fff;">${toName}</span>
-                                <span style="font-size:8px; color:#22c55e; font-weight:800;">gives</span>
+                                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#fff;">${toName}</span>
+                                <span style="font-size:calc(8px * var(--ts,1)); color:#22c55e; font-weight:800;">gives</span>
                             </div>
                             <div>${getPlayers}</div>
-                            <div style="font-size:9px; font-weight:900; color:${toRemaining < 0 ? '#ef4444' : toPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${toNewUsed.toFixed(1)}m used (${toPct}%) · $${toRemaining.toFixed(1)}m left</div>
+                            <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${toRemaining < 0 ? '#ef4444' : toPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${toNewUsed.toFixed(1)}m used (${toPct}%) · $${toRemaining.toFixed(1)}m left</div>
                         </div>
                     </div>
 <div style="display:flex; gap:6px; margin-top:8px;">
     ${isOutgoing 
-        ? `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="revoke" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Revoke</button>
-           <button class="proposal-edit-btn" data-tradeid="${tradeId}" data-targetfid="${toFid}" data-give="${giveResult.pids.join(',')}" data-receive="${getResult.pids.join(',')}" style="flex:1; padding:5px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; color:var(--accent-blue); font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Edit</button>`
-        : `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="accept" style="flex:1; padding:5px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:6px; color:#22c55e; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Accept</button>
-           <button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="reject" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:9px; font-weight:900; cursor:pointer; text-transform:uppercase;">Reject</button>`
+        ? `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="revoke" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Revoke</button>
+           <button class="proposal-edit-btn" data-tradeid="${tradeId}" data-targetfid="${toFid}" data-give="${giveResult.pids.join(',')}" data-receive="${getResult.pids.join(',')}" style="flex:1; padding:5px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; color:var(--accent-blue); font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Edit</button>`
+        : `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="accept" style="flex:1; padding:5px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:6px; color:#22c55e; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Accept</button>
+           <button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="reject" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Reject</button>`
     }
 </div>
                 </div>`;
 }))).filter(Boolean).join('');
 
-        $('#pending-proposals-list').html(html || '<div style="text-align:center; color:var(--text-dim); font-size:10px; padding:12px;">No pending proposals.</div>');
+        $('#pending-proposals-list').html(html || '<div style="text-align:center; color:var(--text-dim); font-size:calc(10px * var(--ts,1)); padding:12px;">No pending proposals.</div>');
 
     } catch(e) {
         console.error('loadPendingProposals error:', e);
-        $('#pending-proposals-list').html('<div style="text-align:center; color:#ef4444; font-size:10px; padding:12px;">Failed to load proposals.</div>');
+        $('#pending-proposals-list').html('<div style="text-align:center; color:#ef4444; font-size:calc(10px * var(--ts,1)); padding:12px;">Failed to load proposals.</div>');
     }
 }
         function render() {
            container.html(`
                 <div style="padding:10px;">
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">Pending Proposals</div>
-                    <div id="pending-proposals-list"><div style="text-align:center; color:var(--text-dim); font-size:10px; padding:12px;">Loading...</div></div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">Trade Block</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">Pending Proposals</div>
+                    <div id="pending-proposals-list"><div style="text-align:center; color:var(--text-dim); font-size:calc(10px * var(--ts,1)); padding:12px;">Loading...</div></div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">Trade Block</div>
                     ${buildTradeBlockSection()}
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">Propose Trade</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">Propose Trade</div>
                     ${buildProposeSection(theirCapUsed)}
                 </div>
             `);
@@ -11286,11 +11383,11 @@ const theirCapColor = theirCapUsed > salaryCap ? '#ef4444' : theirCapPct > 90 ? 
 function openTradeTeamPicker() {
     $('#trade-team-picker').remove();
     const picker = $(`<div id="trade-team-picker" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:99999; background:#1e293b; border:1px solid var(--card-border); border-radius:10px; padding:8px; max-height:300px; overflow-y:auto; width:220px; box-shadow:0 8px 30px rgba(0,0,0,0.7);">
-        <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; padding:6px 8px; margin-bottom:4px;">Select Team</div>
+        <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; padding:6px 8px; margin-bottom:4px;">Select Team</div>
         ${Object.keys(leagueFranchises).filter(id => id !== myFid).map(id => `
             <div class="trade-team-pick-item" data-fid="${id}" style="display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; cursor:pointer; background:${id === activeFid ? 'rgba(59,130,246,0.15)' : 'transparent'};">
                 <img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${id}.png" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
-                <span style="font-size:11px; font-weight:800; color:${id === activeFid ? 'var(--accent-blue)' : '#fff'};">${leagueFranchises[id]}</span>
+                <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:${id === activeFid ? 'var(--accent-blue)' : '#fff'};">${leagueFranchises[id]}</span>
             </div>`).join('')}
     </div>`);
     $('body').append(picker);
@@ -11326,8 +11423,8 @@ const playerChipHtml = (p) => {
                     const name = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
                     const pos = p.isPick ? 'PK' : p.pos;
                     return `<span style="display:inline-flex; align-items:center; gap:3px; margin-right:4px;">
-                       <span class="pos-text-${pos.toLowerCase()} minimized-pos-badge" style="font-size:7px; font-weight:900;">${pos}</span>
-                        <span style="font-size:10px; font-weight:800; color:#fff;">${name}</span>
+                       <span class="pos-text-${pos.toLowerCase()} minimized-pos-badge" style="font-size:calc(7px * var(--ts,1)); font-weight:900;">${pos}</span>
+                        <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff;">${name}</span>
                     </span>`;
                 };
                 const mineHtml = [...mySelected].map(pid => playerChipHtml(myPlayers.find(p => String(p.pid) === pid))).join('');
@@ -11346,13 +11443,13 @@ const playerChipHtml = (p) => {
 
 $('#trade-summary-mine')
                     .html(mineNames.length 
-                        ? `<div style="line-height:1.6;">${mineHtml}</div>${mineSalTotal > 0 ? `<div style="font-size:9px; color:#ef4444; font-weight:800; margin-top:2px;">-$${mineSalTotal.toFixed(1)}m</div>` : ''}` 
+                        ? `<div style="line-height:1.6;">${mineHtml}</div>${mineSalTotal > 0 ? `<div style="font-size:calc(9px * var(--ts,1)); color:#ef4444; font-weight:800; margin-top:2px;">-$${mineSalTotal.toFixed(1)}m</div>` : ''}` 
                         : '<span style="color:var(--text-dim);">None selected</span>')
                     .css('color', '');
 
                 $('#trade-summary-theirs')
                     .html(theirNames.length 
-                        ? `<div style="line-height:1.6;">${theirHtml}</div>${theirSalTotal > 0 ? `<div style="font-size:9px; color:#22c55e; font-weight:800; margin-top:2px;">+$${theirSalTotal.toFixed(1)}m</div>` : ''}` 
+                        ? `<div style="line-height:1.6;">${theirHtml}</div>${theirSalTotal > 0 ? `<div style="font-size:calc(9px * var(--ts,1)); color:#22c55e; font-weight:800; margin-top:2px;">+$${theirSalTotal.toFixed(1)}m</div>` : ''}` 
                         : '<span style="color:var(--text-dim);">None selected</span>')
                     .css('color', '');
             });
@@ -11469,9 +11566,9 @@ render();
                         const pos = player.position || '';
                         const team = player.team || 'NFL';
                         $(`#trade-block-player-${pid}`).html(`
-                            <span style="font-size:11px; font-weight:800; color:#fff;">${name}</span>
-                           <span class="pos-text-${pos.toLowerCase()}" style="font-size:8px; font-weight:900; margin-left:5px;">${pos}</span>
-                            <span style="font-size:9px; color:var(--text-dim); margin-left:4px;">${team}</span>
+                            <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">${name}</span>
+                           <span class="pos-text-${pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900; margin-left:5px;">${pos}</span>
+                            <span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); margin-left:4px;">${team}</span>
                         `);
                     }
                 } catch(e) {}
@@ -11616,7 +11713,7 @@ async function injectLiveStatusIntoLineupRows(targetFid) {
         });
 
         $(this).find('.live-status-chip').remove();
-        const chip = `<span class="live-status-chip" style="font-size:8px; font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; margin-left:4px; white-space:nowrap;">${status.playing ? '● ' : ''}${status.label}</span>`;
+        const chip = `<span class="live-status-chip" style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; margin-left:4px; white-space:nowrap;">${status.playing ? '● ' : ''}${status.label}</span>`;
         $(this).find('.full-name').first().after(chip);
     });
 }
@@ -11669,8 +11766,8 @@ function computeTeamProjectedTotal(roster, projMap) {
 
 function buildScoresViewToggleHtml() {
     const mode = window._scoresViewMode || 'matchups';
-    const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
-        const linkBtn = `<button class="scores-recap-link-btn" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Weekly Recap ›</button>`;
+    const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
+        const linkBtn = `<button class="scores-recap-link-btn" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Weekly Recap ›</button>`;
     return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">${btn('matchups','Matchups')}${btn('median','League Median')}${linkBtn}</div>`;
 }
 
@@ -11699,7 +11796,7 @@ async function renderLeagueMedianView() {
 
     const sortBtnHtml = (key, label) => {
         const active = sortBy === key;
-        return `<button class="median-sort-btn" data-sort="${key}" style="padding:5px 12px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active?'var(--accent-blue)':'var(--card-border)'}; background:${active?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${active?'#fff':'var(--text-dim)'};">${label}</button>`;
+        return `<button class="median-sort-btn" data-sort="${key}" style="padding:5px 12px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active?'var(--accent-blue)':'var(--card-border)'}; background:${active?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${active?'#fff':'var(--text-dim)'};">${label}</button>`;
     };
 
     const rowsHtml = ranked.map((r, rank) => {
@@ -11708,18 +11805,18 @@ async function renderLeagueMedianView() {
         const beatsProj = r.proj > projectedMedian;
         return `
             <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.02); border:1px solid ${t.fid===fid?'rgba(59,130,246,0.4)':'var(--card-border)'}; border-radius:8px; margin-bottom:6px;">
-                <span style="font-size:11px; font-weight:900; color:var(--text-dim); min-width:16px; text-align:center; flex-shrink:0;">${rank+1}</span>
+                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); min-width:16px; text-align:center; flex-shrink:0;">${rank+1}</span>
                 <img src="${t.logo}" onerror="this.style.display='none'" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
                 <div style="flex:1; min-width:0;">
-                    <div data-team-style="${t.fid}" style="font-size:12px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</div>
+                    <div data-team-style="${t.fid}" style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</div>
                 </div>
                 <div style="text-align:right; min-width:56px;">
-                    <div style="font-size:14px; font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'};">${t.score.toFixed(2)}</div>
-                    <div style="font-size:7px; font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsCur ? '▲ Above' : '▼ Below'}</div>
+                    <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'};">${t.score.toFixed(2)}</div>
+                    <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:${beatsCur ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsCur ? '▲ Above' : '▼ Below'}</div>
                 </div>
                 <div style="text-align:right; min-width:56px;">
-                    <div style="font-size:12px; font-weight:900; color:#f59e0b;">${r.proj.toFixed(1)}</div>
-                    <div style="font-size:7px; font-weight:900; color:${beatsProj ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsProj ? '▲ Proj' : '▼ Proj'}</div>
+                    <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#f59e0b;">${r.proj.toFixed(1)}</div>
+                    <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:${beatsProj ? '#22c55e' : '#ef4444'}; text-transform:uppercase;">${beatsProj ? '▲ Proj' : '▼ Proj'}</div>
                 </div>
             </div>`;
     }).join('');
@@ -11728,13 +11825,13 @@ async function renderLeagueMedianView() {
         <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
             <div style="text-align:center; margin-bottom:10px;">
-                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Current Median</span>
-                <span style="font-size:12px; font-weight:900; color:#fff; margin-left:5px;">${currentMedian.toFixed(2)}</span>
-                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-left:14px;">Projected Median</span>
-                <span style="font-size:12px; font-weight:900; color:#f59e0b; margin-left:5px;">${projectedMedian.toFixed(1)}</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Current Median</span>
+                <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; margin-left:5px;">${currentMedian.toFixed(2)}</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-left:14px;">Projected Median</span>
+                <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#f59e0b; margin-left:5px;">${projectedMedian.toFixed(1)}</span>
             </div>
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
-                <span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
                 ${sortBtnHtml('projected', 'Projected')}
                 ${sortBtnHtml('current', 'Current')}
             </div>
@@ -11826,13 +11923,13 @@ function recapLegalSwapPick(g, cands, roster, projMap) {
 function recapTeamChip(t, align) {
     return `<span style="display:inline-flex; align-items:center; gap:5px; min-width:0;">
         <img src="${t.logo}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
-        <span data-team-style="${t.fid}" style="font-size:10px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</span>
+        <span data-team-style="${t.fid}" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</span>
     </span>`;
 }
 
 function recapCard(title, icon, bodyHtml) {
     return `<div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-bottom:10px;">
-        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">${icon} ${title}</div>
+        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">${icon} ${title}</div>
         ${bodyHtml}
     </div>`;
 }
@@ -11847,23 +11944,23 @@ async function renderWeeklyRecap() {
         <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
-                <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer;">‹</button>
+                <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">‹</button>
                 <div class="dashboard-pill stacked-pill" style="border-bottom-color:var(--accent-blue);">
                     <span class="pill-label">RECAP · WEEK</span>
-                    <span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${wk}</span>
+                    <span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${wk}</span>
                 </div>
-                <button class="live-score-week-next" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer;">›</button>
-                ${isLiveWk ? '<span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● In progress</span>' : ''}
+                <button class="live-score-week-next" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">›</button>
+                ${isLiveWk ? '<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● In progress</span>' : ''}
             </div>`;
 
     const teams = getUniqueTeamsFromMatchups(matchups);
     const games = matchups.filter(m => m.t1.score > 0 || m.t2.score > 0);
     if (!games.length) {
-        container.html(header + `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No completed games for Week ${wk} yet.</div></div>`);
+        container.html(header + `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No completed games for Week ${wk} yet.</div></div>`);
         reapplyAllTeamStyles();
         return;
     }
-    container.html(header + `<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase;">Building recap...</div></div>`);
+    container.html(header + `<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase;">Building recap...</div></div>`);
 
     const [projMap, allScores] = await Promise.all([fetchWeekProjectedScoresMap(wk), fetchAllWeekScores()]);
     if (window._liveScoreActiveWeek !== wk || (window._scoresViewMode || 'matchups') !== 'recap') return;
@@ -11874,7 +11971,7 @@ async function renderWeeklyRecap() {
     const top = [...teams].sort((a, b) => b.score - a.score)[0];
     sections.push(recapCard('Highest Score', '🔥', `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(top)}
-        <span style="font-size:16px; font-weight:900; color:#22c55e;">${top.score.toFixed(2)}</span></div>`));
+        <span style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:#22c55e;">${top.score.toFixed(2)}</span></div>`));
 
     // 2. Players of the week
     const posOrder = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
@@ -11888,26 +11985,26 @@ async function renderWeeklyRecap() {
     }).filter(Boolean);
     sections.push(recapCard('Players of the Week', '⭐', potw.map(x => `
         <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid rgba(255,255,255,0.04);">
-            <span style="font-size:9px; font-weight:900; color:var(--text-dim); width:22px;">${x.pos}</span>
+            <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); width:22px;">${x.pos}</span>
             <div style="flex:1; min-width:0;">
-                <div style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${x.p.name} <span style="color:var(--text-dim); font-weight:700;">${x.p.team || ''}</span></div>
-                <div style="font-size:9px;">${recapTeamChip(x.t)}</div>
+                <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${x.p.name} <span style="color:var(--text-dim); font-weight:700;">${x.p.team || ''}</span></div>
+                <div style="font-size:calc(9px * var(--ts,1));">${recapTeamChip(x.t)}</div>
             </div>
-            <span style="font-size:13px; font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</span>
+            <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</span>
         </div>`).join('')));
 
     // 3 & 4. Blowout / closest
     const withMargin = games.filter(m => m.t1.score > 0 && m.t2.score > 0).map(m => ({ m, d: Math.abs(m.t1.score - m.t2.score) }));
     const gameRow = (m) => {
         const w = m.t1.score >= m.t2.score ? m.t1 : m.t2, l = w === m.t1 ? m.t2 : m.t1;
-        return `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0;">${recapTeamChip(w)}<span style="font-size:13px; font-weight:900; color:#22c55e;">${w.score.toFixed(2)}</span></div>
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0;">${recapTeamChip(l)}<span style="font-size:13px; font-weight:900; color:#ef4444;">${l.score.toFixed(2)}</span></div>`;
+        return `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0;">${recapTeamChip(w)}<span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#22c55e;">${w.score.toFixed(2)}</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0;">${recapTeamChip(l)}<span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#ef4444;">${l.score.toFixed(2)}</span></div>`;
     };
     if (withMargin.length) {
         const blow = [...withMargin].sort((a, b) => b.d - a.d)[0];
         const close = [...withMargin].sort((a, b) => a.d - b.d)[0];
-        sections.push(recapCard('Biggest Blowout', '💥', gameRow(blow.m) + `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-align:right;">Margin ${blow.d.toFixed(2)}</div>`));
-        sections.push(recapCard('Closest Game', '😰', gameRow(close.m) + `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-align:right;">Margin ${close.d.toFixed(2)}</div>`));
+        sections.push(recapCard('Biggest Blowout', '💥', gameRow(blow.m) + `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-align:right;">Margin ${blow.d.toFixed(2)}</div>`));
+        sections.push(recapCard('Closest Game', '😰', gameRow(close.m) + `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-align:right;">Margin ${close.d.toFixed(2)}</div>`));
     }
 
     // 5. Upsets: loser outscored the winner in more than half of the previous weeks
@@ -11927,10 +12024,10 @@ async function renderWeeklyRecap() {
     upsets.sort((a, b) => b.pct - a.pct || b.total - a.total);
     sections.push(recapCard('Upsets', '🚨', upsets.length ? upsets.map(u => `
         <div style="padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(u.w)}<span style="font-size:11px; font-weight:900; color:#22c55e;">${u.w.score.toFixed(1)}</span></div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(u.l)}<span style="font-size:11px; font-weight:900; color:#ef4444;">${u.l.score.toFixed(1)}</span></div>
-            <div style="font-size:9px; font-weight:800; color:#f59e0b; margin-top:2px;">${u.l.name} had outscored ${u.w.name} in ${u.lWins} of ${u.total} earlier week${u.total === 1 ? '' : 's'} (${Math.round(u.pct * 100)}%) but lost.</div>
-        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`));
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(u.w)}<span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">${u.w.score.toFixed(1)}</span></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">${recapTeamChip(u.l)}<span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#ef4444;">${u.l.score.toFixed(1)}</span></div>
+            <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#f59e0b; margin-top:2px;">${u.l.name} had outscored ${u.w.name} in ${u.lWins} of ${u.total} earlier week${u.total === 1 ? '' : 's'} (${Math.round(u.pct * 100)}%) but lost.</div>
+        </div>`).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`));
 
     // 6. Gutsiest calls
         const calls = [];
@@ -11956,18 +12053,18 @@ async function renderWeeklyRecap() {
     calls.sort((a, b) => b.margin - a.margin);
     sections.push(recapCard('Gutsiest Calls', '🧠', calls.length ? calls.slice(0, 5).map(c => `
         <div style="padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
-            <div style="font-size:9px;">${recapTeamChip(c.t)}</div>
-            <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#22c55e;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
-            <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#22c55e; font-weight:900;">+${c.margin.toFixed(1)} pts</span></div>
-        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${S.noProj ? 'MFL has no pre-game projections saved for this week, so this can’t be judged.' : 'No gutsy calls paid off this week.'}</div>`));
+            <div style="font-size:calc(9px * var(--ts,1));">${recapTeamChip(c.t)}</div>
+            <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#22c55e;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
+            <div style="font-size:calc(10px * var(--ts,1)); font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#22c55e; font-weight:900;">+${c.margin.toFixed(1)} pts</span></div>
+        </div>`).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${S.noProj ? 'MFL has no pre-game projections saved for this week, so this can’t be judged.' : 'No gutsy calls paid off this week.'}</div>`));
 
     overs.sort((a, b) => b.margin - a.margin);
     sections.push(recapCard('The Overthinker', '🤡', overs.length ? overs.slice(0, 5).map(c => `
         <div style="padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
-            <div style="font-size:9px;">${recapTeamChip(c.t)}</div>
-            <div style="font-size:11px; font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#ef4444;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
-            <div style="font-size:10px; font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#ef4444; font-weight:900;">−${c.margin.toFixed(1)} pts</span></div>
-        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${S.noProj ? 'MFL has no pre-game projections saved for this week, so this can’t be judged.' : 'Nobody outsmarted themselves this week.'}</div>`));
+            <div style="font-size:calc(9px * var(--ts,1));">${recapTeamChip(c.t)}</div>
+            <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; margin-top:2px;">Started ${c.g.name} <span style="color:#ef4444;">${c.g.score.toFixed(1)}</span> <span style="color:var(--text-dim); font-weight:700;">(proj ${c.gProj.toFixed(1)})</span></div>
+            <div style="font-size:calc(10px * var(--ts,1)); font-weight:700; color:var(--text-dim);">over ${c.d.name} ${c.d.score.toFixed(1)} (proj ${c.dProj.toFixed(1)}) · <span style="color:#ef4444; font-weight:900;">−${c.margin.toFixed(1)} pts</span></div>
+        </div>`).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${S.noProj ? 'MFL has no pre-game projections saved for this week, so this can’t be judged.' : 'Nobody outsmarted themselves this week.'}</div>`));
 
     container.html(header + sections.join('') + '</div>');
     reapplyAllTeamStyles();
@@ -12228,7 +12325,7 @@ function recapHeadshot(pid, size) {
 function recapNflPill(team) {
     const abbr = String(team || 'NFL').toUpperCase();
     const c = (typeof NFL_TEAM_COLORS !== 'undefined' && NFL_TEAM_COLORS[abbr]) || ['#3b82f6', '#1e293b'];
-    return `<span style="display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg, ${c[0]}30, ${c[1]}15); border:1px solid ${c[0]}40; border-radius:5px; padding:2px 6px;"><img src="${getNFLLogoUrl(abbr)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;"><span style="font-size:8px; font-weight:800; color:#fff;">${abbr}</span></span>`;
+    return `<span style="display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg, ${c[0]}30, ${c[1]}15); border:1px solid ${c[0]}40; border-radius:5px; padding:2px 6px;"><img src="${getNFLLogoUrl(abbr)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain;"><span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:#fff;">${abbr}</span></span>`;
 }
 function recapPlayerRow(p, o) {
     o = o || {};
@@ -12239,9 +12336,9 @@ function recapPlayerRow(p, o) {
         ${recapHeadshot(p.pid, o.size || 38)}
         <div style="flex:1; min-width:0;">
             <div style="display:flex; align-items:center; gap:5px;">
-                <span style="font-size:11px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
-                <span class="pos-text-${pos.toLowerCase()}" style="font-size:8px; font-weight:900; flex-shrink:0;">${pos}</span>
-                ${o.tag ? `<span style="font-size:7px; font-weight:900; color:${o.accent || 'var(--text-dim)'}; letter-spacing:0.5px; flex-shrink:0;">${o.tag}</span>` : ''}
+                <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
+                <span class="pos-text-${pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900; flex-shrink:0;">${pos}</span>
+                ${o.tag ? `<span style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:${o.accent || 'var(--text-dim)'}; letter-spacing:0.5px; flex-shrink:0;">${o.tag}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">${recapNflPill(team)}${o.sub || ''}</div>
         </div>
@@ -12251,34 +12348,34 @@ function recapPlayerRow(p, o) {
 function recapCard(title, icon, body, sub) {
     return `<div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-bottom:10px;">
         <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:10px;">
-            <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${title}</span>
-            ${sub ? `<span style="font-size:8px; font-weight:800; color:var(--text-dim);">${sub}</span>` : ''}
+            <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${title}</span>
+            ${sub ? `<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${sub}</span>` : ''}
         </div>${body}</div>`;
 }
 function recapMatchup(w, l, badge) {
     const side = (t, win) => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
-        <div style="position:relative;">${recapLogo(t.fid, 42)}${win ? `<span style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}</div>
+        <div style="position:relative;">${recapLogo(t.fid, 42)}${win ? `<span style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:calc(9px * var(--ts,1)); border:1px solid var(--card-bg);">🏆</span>` : ''}</div>
         <div style="max-width:100%; display:flex;">${recapTeamName(t.fid, 10)}</div>
-        <span style="font-size:20px; font-weight:900; color:${win ? '#22c55e' : '#ef4444'}; font-variant-numeric:tabular-nums;">${t.score.toFixed(2)}</span>
+        <span style="font-size:calc(20px * var(--ts,1)); font-weight:900; color:${win ? '#22c55e' : '#ef4444'}; font-variant-numeric:tabular-nums;">${t.score.toFixed(2)}</span>
     </div>`;
-    return `<div style="display:flex; align-items:center; gap:6px;">${side(w, true)}<div style="font-size:10px; font-weight:900; color:var(--text-dim);">vs</div>${side(l, false)}</div>
+    return `<div style="display:flex; align-items:center; gap:6px;">${side(w, true)}<div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim);">vs</div>${side(l, false)}</div>
         ${badge ? `<div style="text-align:center; margin-top:8px;">${badge}</div>` : ''}`;
 }
 function recapPill(text, color) {
-    return `<span style="display:inline-block; font-size:9px; font-weight:900; color:${color}; background:${color}1f; border:1px solid ${color}55; border-radius:6px; padding:3px 8px;">${text}</span>`;
+    return `<span style="display:inline-block; font-size:calc(9px * var(--ts,1)); font-weight:900; color:${color}; background:${color}1f; border:1px solid ${color}55; border-radius:6px; padding:3px 8px;">${text}</span>`;
 }
 function recapGutsyCard(c, withTeam) {
     const swing = c.decisive
-        ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.5); font-size:10px; font-weight:800; color:#f59e0b; line-height:1.4;">
+        ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.5); font-size:calc(10px * var(--ts,1)); font-weight:800; color:#f59e0b; line-height:1.4;">
             🏆 <b>GAME-WINNING CALL</b> — won ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}. Starting ${c.d.name} instead would have been ${(c.teamScore - c.margin).toFixed(1)}–${c.oppScore.toFixed(1)}, a loss to ${leagueFranchises[c.oppFid] || c.oppFid}.</div>`
-        : (c.oppScore != null ? `<div style="margin-top:6px; font-size:9px; font-weight:700; color:var(--text-dim);">${c.won ? 'Team won' : 'Team lost'} ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}${c.won ? ' — would have won anyway' : ''}</div>` : '');
+        : (c.oppScore != null ? `<div style="margin-top:6px; font-size:calc(9px * var(--ts,1)); font-weight:700; color:var(--text-dim);">${c.won ? 'Team won' : 'Team lost'} ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}${c.won ? ' — would have won anyway' : ''}</div>` : '');
     return `<div style="padding:8px; border-radius:10px; margin-bottom:8px; background:rgba(255,255,255,0.015); border:1px solid ${c.decisive ? 'rgba(245,158,11,0.5)' : 'var(--card-border)'};">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
             ${withTeam ? recapTeamChip(c.fid, 22) : '<span></span>'}
             ${recapPill('+' + c.margin.toFixed(1) + ' pts', '#22c55e')}
         </div>
-        ${recapPlayerRow(c.g, { accent: '#22c55e', tag: 'STARTED', right: `<div style="font-size:14px; font-weight:900; color:#22c55e;">${c.g.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:#f59e0b;">PROJ ${c.gProj.toFixed(1)}</div>` })}
-        ${recapPlayerRow(c.d, { dim: true, accent: '#94a3b8', tag: 'BENCHED', right: `<div style="font-size:14px; font-weight:900; color:#94a3b8;">${c.d.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:#f59e0b;">PROJ ${c.dProj.toFixed(1)}</div>` })}
+        ${recapPlayerRow(c.g, { accent: '#22c55e', tag: 'STARTED', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#22c55e;">${c.g.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b;">PROJ ${c.gProj.toFixed(1)}</div>` })}
+        ${recapPlayerRow(c.d, { dim: true, accent: '#94a3b8', tag: 'BENCHED', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#94a3b8;">${c.d.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b;">PROJ ${c.dProj.toFixed(1)}</div>` })}
         ${swing}
     </div>`;
 }
@@ -12286,36 +12383,36 @@ function recapGutsyCard(c, withTeam) {
 // ---------- views ----------
 function recapOverCard(c, withTeam) {
     const swing = c.decisive
-        ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.5); font-size:10px; font-weight:800; color:#ef4444; line-height:1.4;">
+        ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.5); font-size:calc(10px * var(--ts,1)); font-weight:800; color:#ef4444; line-height:1.4;">
             💀 <b>COST THE GAME</b> — lost ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}. Starting ${c.d.name} instead would have been ${(c.teamScore + c.margin).toFixed(1)}–${c.oppScore.toFixed(1)}, a win over ${leagueFranchises[c.oppFid] || c.oppFid}.</div>`
-        : (c.oppScore != null ? `<div style="margin-top:6px; font-size:9px; font-weight:700; color:var(--text-dim);">${c.won ? 'Team won' : 'Team lost'} ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}${c.won ? ' anyway' : ' — wouldn\'t have changed the result'}</div>` : '');
+        : (c.oppScore != null ? `<div style="margin-top:6px; font-size:calc(9px * var(--ts,1)); font-weight:700; color:var(--text-dim);">${c.won ? 'Team won' : 'Team lost'} ${c.teamScore.toFixed(1)}–${c.oppScore.toFixed(1)}${c.won ? ' anyway' : ' — wouldn\'t have changed the result'}</div>` : '');
     return `<div style="padding:8px; border-radius:10px; margin-bottom:8px; background:rgba(255,255,255,0.015); border:1px solid ${c.decisive ? 'rgba(239,68,68,0.5)' : 'var(--card-border)'};">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
             ${withTeam ? recapTeamChip(c.fid, 22) : '<span></span>'}
             ${recapPill('−' + c.margin.toFixed(1) + ' pts', '#ef4444')}
         </div>
-        ${recapPlayerRow(c.g, { accent: '#ef4444', tag: 'STARTED', right: `<div style="font-size:14px; font-weight:900; color:#ef4444;">${c.g.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:#f59e0b;">PROJ ${c.gProj.toFixed(1)}</div>` })}
-        ${recapPlayerRow(c.d, { dim: true, accent: '#22c55e', tag: 'BENCHED', right: `<div style="font-size:14px; font-weight:900; color:#22c55e;">${c.d.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:#f59e0b;">PROJ ${c.dProj.toFixed(1)}</div>` })}
+        ${recapPlayerRow(c.g, { accent: '#ef4444', tag: 'STARTED', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#ef4444;">${c.g.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b;">PROJ ${c.gProj.toFixed(1)}</div>` })}
+        ${recapPlayerRow(c.d, { dim: true, accent: '#22c55e', tag: 'BENCHED', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#22c55e;">${c.d.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b;">PROJ ${c.dProj.toFixed(1)}</div>` })}
         ${swing}
     </div>`;
 }
 
 function recapWeekView(S) {
-    if (!S.top) return `<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">No completed games for Week ${S.wk}.</div>`;
+    if (!S.top) return `<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No completed games for Week ${S.wk}.</div>`;
     const out = [];
     out.push(recapCard('Highest Score', '🔥', `
         <div style="display:flex; align-items:center; gap:12px;">
             ${recapLogo(S.top.fid, 52)}
             <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;">
                 <div style="display:flex;">${recapTeamName(S.top.fid, 13)}</div>
-                ${S.top.opp ? `<span style="font-size:9px; font-weight:700; color:var(--text-dim);">${S.top.score > S.top.opp.score ? 'def.' : 'lost to'} ${leagueFranchises[S.top.opp.fid] || S.top.opp.fid} ${S.top.opp.score.toFixed(1)}</span>` : ''}
+                ${S.top.opp ? `<span style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:var(--text-dim);">${S.top.score > S.top.opp.score ? 'def.' : 'lost to'} ${leagueFranchises[S.top.opp.fid] || S.top.opp.fid} ${S.top.opp.score.toFixed(1)}</span>` : ''}
             </div>
-            <span style="font-size:26px; font-weight:900; color:#22c55e; font-variant-numeric:tabular-nums;">${S.top.score.toFixed(2)}</span>
+            <span style="font-size:calc(26px * var(--ts,1)); font-weight:900; color:#22c55e; font-variant-numeric:tabular-nums;">${S.top.score.toFixed(2)}</span>
         </div>`));
     out.push(recapCard('Players of the Week', '⭐', S.potw.map(x => recapPlayerRow(x.p, {
         accent: '#22c55e',
-        sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(x.fid, 14)}<span style="font-size:8px; font-weight:800; color:var(--text-dim); max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${leagueFranchises[x.fid] || x.fid}</span></span>`,
-        right: `<div style="font-size:15px; font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">BEST ${x.pos}</div>`
+        sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(x.fid, 14)}<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${leagueFranchises[x.fid] || x.fid}</span></span>`,
+        right: `<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">BEST ${x.pos}</div>`
     })).join(''), 'Top starter at each position'));
     if (S.blowout) out.push(recapCard('Biggest Blowout', '💥', recapMatchup(S.blowout.w, S.blowout.l, recapPill('Margin ' + S.blowout.d.toFixed(2), '#ef4444'))));
     if (S.close) out.push(recapCard('Closest Game', '😰', recapMatchup(S.close.w, S.close.l, recapPill('Margin ' + S.close.d.toFixed(2), '#f59e0b'))));
@@ -12324,16 +12421,16 @@ function recapWeekView(S) {
             ${recapMatchup(u.w, u.l)}
             <div style="margin-top:8px;">
                 <div style="height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden;"><div style="width:${Math.round(u.pct * 100)}%; height:100%; background:#f59e0b;"></div></div>
-                <div style="font-size:9px; font-weight:800; color:#f59e0b; margin-top:4px; text-align:center;">${leagueFranchises[u.l.fid] || u.l.fid} had outscored ${leagueFranchises[u.w.fid] || u.w.fid} in ${u.lWins} of ${u.total} earlier week${u.total === 1 ? '' : 's'} (${Math.round(u.pct * 100)}%)</div>
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#f59e0b; margin-top:4px; text-align:center;">${leagueFranchises[u.l.fid] || u.l.fid} had outscored ${leagueFranchises[u.w.fid] || u.w.fid} in ${u.lWins} of ${u.total} earlier week${u.total === 1 ? '' : 's'} (${Math.round(u.pct * 100)}%)</div>
             </div>
-        </div>`).join('') : `<div style="font-size:10px; color:var(--text-dim);">${S.wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`, 'Lost to a team they usually outscore'));
-    out.push(recapCard('Gutsiest Calls', '🧠', S.calls.length ? S.calls.slice(0, 6).map(c => recapGutsyCard(c, true)).join('') : `<div style="font-size:10px; color:var(--text-dim);">No gutsy calls paid off this week.</div>`, 'Started against the projections, and it worked'));
-    out.push(recapCard('The Overthinker', '🤡', (S.overs || []).length ? S.overs.slice(0, 6).map(c => recapOverCard(c, true)).join('') : `<div style="font-size:10px; color:var(--text-dim);">Nobody outsmarted themselves this week.</div>`, 'Started against the projections, and it backfired'));
+        </div>`).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${S.wk === 1 ? 'Needs at least one previous week of scores.' : 'No upsets this week.'}</div>`, 'Lost to a team they usually outscore'));
+    out.push(recapCard('Gutsiest Calls', '🧠', S.calls.length ? S.calls.slice(0, 6).map(c => recapGutsyCard(c, true)).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">No gutsy calls paid off this week.</div>`, 'Started against the projections, and it worked'));
+    out.push(recapCard('The Overthinker', '🤡', (S.overs || []).length ? S.overs.slice(0, 6).map(c => recapOverCard(c, true)).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Nobody outsmarted themselves this week.</div>`, 'Started against the projections, and it backfired'));
     return out.join('');
 }
 
 function recapChips(list) {
-    return list.map(e => `<span style="font-size:8px; font-weight:900; color:${e.hot ? '#f59e0b' : 'var(--text-dim)'}; background:rgba(255,255,255,0.05); border:1px solid ${e.hot ? 'rgba(245,158,11,0.5)' : 'var(--card-border)'}; border-radius:5px; padding:1px 5px;">W${e.wk}${e.label ? ' ' + e.label : ''}</span>`).join(' ');
+    return list.map(e => `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${e.hot ? '#f59e0b' : 'var(--text-dim)'}; background:rgba(255,255,255,0.05); border:1px solid ${e.hot ? 'rgba(245,158,11,0.5)' : 'var(--card-border)'}; border-radius:5px; padding:1px 5px;">W${e.wk}${e.label ? ' ' + e.label : ''}</span>`).join(' ');
 }
 
 function recapAwardsView(events) {
@@ -12351,18 +12448,18 @@ hot: (a.key === 'gutsy' || a.key === 'overthink') && e.c.decisive
             })));
             const wins = (a.key === 'gutsy' || a.key === 'overthink') ? r.list.filter(e => e.c.decisive).length : 0;
                        return `<div class="recap-award-row" data-award="${a.key}" data-fid="${r.fid}" style="cursor:pointer; display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; margin-bottom:4px; background:rgba(0,0,0,0.2); border:1px solid ${r.fid === (typeof myFid !== 'undefined' ? myFid : fid) ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'};">
-                <span style="font-size:11px; font-weight:900; color:var(--text-dim); width:14px; text-align:center;">${i + 1}</span>
+                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); width:14px; text-align:center;">${i + 1}</span>
                 ${recapLogo(r.fid, 30)}
                 <div style="flex:1; min-width:0;">
                     <div style="display:flex;">${recapTeamName(r.fid, 11)}</div>
                     <div style="display:flex; flex-wrap:wrap; gap:3px; margin-top:4px;">${chips}</div>
                 </div>
                 <div style="text-align:right;">
-                    <div style="font-size:18px; font-weight:900; color:#fff;">${r.list.length}</div>
-                    ${wins ? `<div style="font-size:7px; font-weight:900; color:#f59e0b;">🏆 ${wins} GAME-WINNER${wins > 1 ? 'S' : ''}</div>` : ''}
+                    <div style="font-size:calc(18px * var(--ts,1)); font-weight:900; color:#fff;">${r.list.length}</div>
+                    ${wins ? `<div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b;">🏆 ${wins} GAME-WINNER${wins > 1 ? 'S' : ''}</div>` : ''}
                 </div>
             </div>`;
-        }).join('') : `<div style="font-size:10px; color:var(--text-dim);">None yet.</div>`;
+        }).join('') : `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">None yet.</div>`;
         return recapCard(a.title, a.icon, body, 'Tap a team for details');
     }).join('');
 }
@@ -12372,34 +12469,34 @@ function recapTeamView(events, selFid) {
     const counts = {};
     mine.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
     const summary = RECAP_AWARDS.map(a => `<div style="flex:1; min-width:62px; text-align:center; padding:6px 4px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border);">
-        <div style="font-size:15px; font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
-        <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${a.title}</div></div>`).join('');
-    const wkBadge = w => `<span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
+        <div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
+        <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${a.title}</div></div>`).join('');
+    const wkBadge = w => `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
     const rowsHtml = mine.map(e => {
         const a = RECAP_AWARDS.find(x => x.key === e.type);
         let body = '';
-        if (e.type === 'high') body = `<div style="font-size:12px; font-weight:900; color:#22c55e;">${e.score.toFixed(2)} pts — top score in the league</div>`;
-        else if (e.type === 'potw') body = recapPlayerRow(e.p, { accent: '#22c55e', right: `<div style="font-size:14px; font-weight:900; color:#22c55e;">${e.p.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">BEST ${e.pos}</div>` });
-        else if (e.type === 'blowout') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
-        else if (e.type === 'close') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
-        else if (e.type === 'upset') body = `<div style="font-size:11px; font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:9px; font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
+        if (e.type === 'high') body = `<div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#22c55e;">${e.score.toFixed(2)} pts — top score in the league</div>`;
+        else if (e.type === 'potw') body = recapPlayerRow(e.p, { accent: '#22c55e', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#22c55e;">${e.p.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">BEST ${e.pos}</div>` });
+        else if (e.type === 'blowout') body = `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
+        else if (e.type === 'close') body = `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
+        else if (e.type === 'upset') body = `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
                else if (e.type === 'gutsy') body = recapGutsyCard(e.c, false);
         else if (e.type === 'overthink') body = recapOverCard(e.c, false);
         return `<div style="display:flex; gap:10px; margin-bottom:8px;">
             <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}</div>
-            <div style="flex:1; min-width:0;"><div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">${a.title}${e.type === 'gutsy' && e.c.decisive ? ' · <span style="color:#f59e0b;">GAME-WINNER</span>' : ''}</div>${body}</div>
+            <div style="flex:1; min-width:0;"><div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">${a.title}${e.type === 'gutsy' && e.c.decisive ? ' · <span style="color:#f59e0b;">GAME-WINNER</span>' : ''}</div>${body}</div>
         </div>`;
     }).join('');
     return `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">${summary}</div>` +
-        (mine.length ? rowsHtml : `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No awards yet.</div>`);
+        (mine.length ? rowsHtml : `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No awards yet.</div>`);
 }
 
 function recapEventBody(e) {
-    if (e.type === 'high') return `<div style="font-size:12px; font-weight:900; color:#22c55e;">${e.score.toFixed(2)} pts${e.opp ? ` <span style="color:var(--text-dim); font-weight:700;">vs ${leagueFranchises[e.opp.fid] || e.opp.fid} ${e.opp.score.toFixed(1)}</span>` : ''}</div>`;
-    if (e.type === 'potw') return recapPlayerRow(e.p, { accent: '#22c55e', right: `<div style="font-size:14px; font-weight:900; color:#22c55e;">${e.p.score.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">BEST ${e.pos}</div>` });
-    if (e.type === 'blowout') return `<div style="font-size:11px; font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
-    if (e.type === 'close') return `<div style="font-size:11px; font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
-    if (e.type === 'upset') return `<div style="font-size:11px; font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:9px; font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
+    if (e.type === 'high') return `<div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#22c55e;">${e.score.toFixed(2)} pts${e.opp ? ` <span style="color:var(--text-dim); font-weight:700;">vs ${leagueFranchises[e.opp.fid] || e.opp.fid} ${e.opp.score.toFixed(1)}</span>` : ''}</div>`;
+    if (e.type === 'potw') return recapPlayerRow(e.p, { accent: '#22c55e', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#22c55e;">${e.p.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">BEST ${e.pos}</div>` });
+    if (e.type === 'blowout') return `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Beat ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#ef4444;">(+${e.d.toFixed(1)})</span></div>`;
+    if (e.type === 'close') return `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Edged ${leagueFranchises[e.l.fid] || e.l.fid} ${e.w.score.toFixed(1)}–${e.l.score.toFixed(1)} <span style="color:#f59e0b;">(+${e.d.toFixed(2)})</span></div>`;
+    if (e.type === 'upset') return `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
         if (e.type === 'gutsy') return recapGutsyCard(e.c, false);
     if (e.type === 'overthink') return recapOverCard(e.c, false);
     return '';
@@ -12412,7 +12509,7 @@ function openRecapAwardModal(awardKey, f) {
     const list = (window._recapEvents || []).filter(e => e.type === awardKey && e.fid === f).sort((a, b) => b.wk - a.wk);
     const wins = (awardKey === 'gutsy' || awardKey === 'overthink') ? list.filter(e => e.c.decisive).length : 0;
     const rows = list.map(e => `<div style="display:flex; gap:10px; margin-bottom:8px;">
-        <div style="width:40px; flex-shrink:0; text-align:center;"><span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${e.wk}</span></div>
+        <div style="width:40px; flex-shrink:0; text-align:center;"><span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${e.wk}</span></div>
         <div style="flex:1; min-width:0;">${recapEventBody(e).replace(/class="player-modal-trigger"/g, '')}</div>
     </div>`).join('');
     const html = `<div id="recap-award-modal" style="position:fixed; inset:0; z-index:99995; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; padding:16px;">
@@ -12421,11 +12518,11 @@ function openRecapAwardModal(awardKey, f) {
                 ${recapLogo(f, 34)}
                 <div style="flex:1; min-width:0;">
                     <div style="display:flex;">${recapTeamName(f, 12)}</div>
-                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${award.title} · ${list.length} ${list.length === 1 ? 'entry' : 'entries'}${wins ? ` · <span style="color:#f59e0b;">${wins} game-winner${wins > 1 ? 's' : ''}</span>` : ''}</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${award.title} · ${list.length} ${list.length === 1 ? 'entry' : 'entries'}${wins ? ` · <span style="color:#f59e0b;">${wins} game-winner${wins > 1 ? 's' : ''}</span>` : ''}</div>
                 </div>
-                <button class="recap-modal-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+                <button class="recap-modal-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer;">✕</button>
             </div>
-            <div style="padding:12px 14px; overflow-y:auto;">${rows || '<div style="font-size:11px; color:var(--text-dim);">No entries.</div>'}</div>
+            <div style="padding:12px 14px; overflow-y:auto;">${rows || '<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">No entries.</div>'}</div>
         </div></div>`;
     $('body').append(html);
     reapplyAllTeamStyles();
@@ -12441,9 +12538,9 @@ function recapTeamView2(events, selFid) {
     const counts = {};
     mine.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
     const summary = RECAP_AWARDS.map(a => `<div class="recap-team-tile" data-award="${a.key}" style="flex:1; min-width:62px; text-align:center; padding:6px 4px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); cursor:${counts[a.key] ? 'pointer' : 'default'}; opacity:${counts[a.key] ? 1 : 0.5};">
-        <div style="font-size:15px; font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
-        <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${a.title}</div></div>`).join('');
-    const wkBadge = w => `<span style="font-size:9px; font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
+        <div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff;">${counts[a.key] || 0}</div>
+        <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${a.title}</div></div>`).join('');
+    const wkBadge = w => `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--accent-blue); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:2px 6px;">W${w}</span>`;
     const groups = RECAP_AWARDS.filter(a => counts[a.key]).map(a => {
         const list = mine.filter(e => e.type === a.key).sort((x, y) => y.wk - x.wk);
         const hot = (a.key === 'gutsy' || a.key === 'overthink') ? list.filter(e => e.c && e.c.decisive).length : 0;
@@ -12454,7 +12551,7 @@ function recapTeamView2(events, selFid) {
         return `<div id="recap-grp-${a.key}">${recapCard(`${a.title} · ${list.length}${hotTxt}`, RECAP_ICONS[a.key] || '', rows)}</div>`;
     }).join('');
     return `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">${summary}</div>` +
-        (groups || `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No awards yet.</div>`);
+        (groups || `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No awards yet.</div>`);
 }
 
 
@@ -12492,20 +12589,20 @@ function computeMonthSummary(weeks, byWk) {
     return { weeks, top: pl.slice().sort(byTot).slice(0, 5), pos, bestGame: pl.slice().sort((a, b) => b.hi - a.hi)[0] || null, teams: tm.slice().sort((a, b) => b.w - a.w || b.pf - a.pf), pfTop: tm.slice().sort((a, b) => b.pf - a.pf) };
 }
 function recapMonthView(M, label, partial) {
-    if (!M.top.length) return '<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">No completed games this month.</div>';
-    const rowFor = (q, tag, accent) => recapPlayerRow(q.p, { accent, tag, sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(q.fid, 14)}<span style="font-size:8px; font-weight:800; color:var(--text-dim); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${lldChatEsc(leagueFranchises[q.fid] || q.fid)}</span></span>`, right: `<div style="font-size:15px; font-weight:900; color:${accent};">${q.tot.toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">${q.g} GM · ${(q.tot / q.g).toFixed(1)}/GM</div>` });
+    if (!M.top.length) return '<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No completed games this month.</div>';
+    const rowFor = (q, tag, accent) => recapPlayerRow(q.p, { accent, tag, sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(q.fid, 14)}<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${lldChatEsc(leagueFranchises[q.fid] || q.fid)}</span></span>`, right: `<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:${accent};">${q.tot.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${q.g} GM · ${(q.tot / q.g).toFixed(1)}/GM</div>` });
     const out = [];
     const best = M.top[0];
-    out.push(recapCard(`Player of the Month${partial ? ' · so far' : ''}`, '🏆', rowFor(best, 'POTM', '#f59e0b') + `<div style="font-size:9px; font-weight:800; color:var(--text-dim); margin-top:4px;">Most points while in a starting lineup, ${label}</div>`));
+    out.push(recapCard(`Player of the Month${partial ? ' · so far' : ''}`, '🏆', rowFor(best, 'POTM', '#f59e0b') + `<div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); margin-top:4px;">Most points while in a starting lineup, ${label}</div>`));
     out.push(recapCard('Top Five Players', '⭐', M.top.map((q, i) => rowFor(q, '#' + (i + 1), '#22c55e')).join('')));
     out.push(recapCard('Player of the Month by Position', '🎯', M.pos.map(z => rowFor(z.x, 'BEST ' + z.pos, '#22c55e')).join('')));
     const tp = M.teams[0], hp = M.pfTop[0];
     out.push(recapCard('Team of the Month', '👑', `
         <div style="display:flex; align-items:center; gap:12px;">${recapLogo(tp.fid, 48)}
-            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;">${recapTeamName(tp.fid, 13)}<span style="font-size:9px; font-weight:700; color:var(--text-dim);">${tp.w}-${tp.l} · ${tp.pf.toFixed(1)} PF · best week ${tp.best.toFixed(1)}</span></div>
-            <span style="font-size:24px; font-weight:900; color:#22c55e;">${tp.w}-${tp.l}</span></div>
-        ${hp.fid !== tp.fid ? `<div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">${recapLogo(hp.fid, 26)}<div style="flex:1; min-width:0;">${recapTeamName(hp.fid, 11)}<div style="font-size:8px; font-weight:900; color:var(--text-dim);">MOST POINTS · ${hp.pf.toFixed(1)}</div></div></div>` : ''}`));
-    out.push(recapCard('Month Standings', '📊', M.teams.map((t, i) => `<div style="display:flex; align-items:center; gap:8px; padding:4px 0;"><span style="width:16px; font-size:10px; font-weight:900; color:var(--text-dim);">${i + 1}</span>${recapTeamChip(t.fid, 20)}<span style="margin-left:auto; font-size:10px; font-weight:900; color:#fff;">${t.w}-${t.l}</span><span style="width:54px; text-align:right; font-size:10px; font-weight:800; color:var(--text-dim);">${t.pf.toFixed(1)}</span></div>`).join('')));
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;">${recapTeamName(tp.fid, 13)}<span style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:var(--text-dim);">${tp.w}-${tp.l} · ${tp.pf.toFixed(1)} PF · best week ${tp.best.toFixed(1)}</span></div>
+            <span style="font-size:calc(24px * var(--ts,1)); font-weight:900; color:#22c55e;">${tp.w}-${tp.l}</span></div>
+        ${hp.fid !== tp.fid ? `<div style="display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">${recapLogo(hp.fid, 26)}<div style="flex:1; min-width:0;">${recapTeamName(hp.fid, 11)}<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim);">MOST POINTS · ${hp.pf.toFixed(1)}</div></div></div>` : ''}`));
+    out.push(recapCard('Month Standings', '📊', M.teams.map((t, i) => `<div style="display:flex; align-items:center; gap:8px; padding:4px 0;"><span style="width:16px; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${i + 1}</span>${recapTeamChip(t.fid, 20)}<span style="margin-left:auto; font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">${t.w}-${t.l}</span><span style="width:54px; text-align:right; font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${t.pf.toFixed(1)}</span></div>`).join('')));
     return out.join('');
 }
 
@@ -12547,7 +12644,7 @@ async function injectTeamAwardsStrip(f, hostSel) {
     const counts = {};
     events.filter(e => e.fid === fx).forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
     const short = { high: 'TOP SCORE', potw: 'POTW', blowout: 'BLOWOUT', close: 'CLOSE', upset: 'UPSETS', gutsy: 'GUTSY', overthink: 'OVERTHINK' };
-    strip.html(`<div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:8px 4px 4px;">Season Awards</div>
+    strip.html(`<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:8px 4px 4px;">Season Awards</div>
         <div class="dashboard-row overflow-row">${RECAP_AWARDS.map(a => `<div class="dashboard-pill stacked-pill team-award-chip" data-award="${a.key}" data-fid="${fx}" style="min-width:45px; cursor:${counts[a.key] ? 'pointer' : 'default'}; opacity:${counts[a.key] ? 1 : 0.45}; border-bottom-color:${counts[a.key] ? '#f59e0b' : 'var(--card-border)'};"><span class="pill-label">${short[a.key] || a.title}</span><span class="pill-value">${counts[a.key] || 0}</span></div>`).join('')}</div>`);
 }
 
@@ -12555,10 +12652,10 @@ async function loadRecapsTab() {
     const token = ++window._recapToken;
     const st = window._recapState;
     const container = $('#league-content-container');
-    const btnStyle = (on) => `padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${on ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${on ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${on ? '#fff' : 'var(--text-dim)'};`;
+    const btnStyle = (on) => `padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${on ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${on ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${on ? '#fff' : 'var(--text-dim)'};`;
     const viewBar = `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">
         ${[['week', 'Weekly'], ['month', 'Monthly'], ['awards', 'By Award'], ['team', 'By Team']].map(([v, l]) => `<button class="recap-view-btn" data-view="${v}" style="${btnStyle(st.view === v)}">${l}</button>`).join('')}</div>`;
-    const loading = (txt) => container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">${txt}</div></div>`);
+    const loading = (txt) => container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">${txt}</div></div>`);
     loading('Loading Recaps...');
 
     try {
@@ -12566,7 +12663,7 @@ async function loadRecapsTab() {
         const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b);
         const latest = weeks.length ? weeks[weeks.length - 1] : 0;
         if (token !== window._recapToken) return;
-        if (!latest) { container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">No completed weeks yet.</div></div>`); return; }
+        if (!latest) { container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No completed weeks yet.</div></div>`); return; }
         if (!st.wk || st.wk > latest) st.wk = latest;
         if (!st.fid) st.fid = (typeof myFid !== 'undefined' && myFid) ? myFid : fid;
 
@@ -12575,13 +12672,13 @@ async function loadRecapsTab() {
             const S = await getRecapSummary(st.wk, allScores, latest);
             if (token !== window._recapToken) return;
             const pickerHtml = st.pickerOpen ? `<div style="display:flex; flex-wrap:wrap; gap:6px; padding:0 2px 10px; justify-content:center;">
-                ${weeks.map(w => `<div class="recap-wk-opt dashboard-pill stacked-pill" data-week="${w}" style="cursor:pointer; min-width:44px; border-bottom-color:${w === st.wk ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${w === st.wk ? '1' : '0.6'};"><span class="pill-value" style="font-size:12px; font-weight:900; color:${w === st.wk ? 'var(--accent-blue)' : '#fff'};">W${w}</span></div>`).join('')}</div>` : '';
-            const navBtn = (cls, t) => `<button class="${cls}" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer;">${t}</button>`;
+                ${weeks.map(w => `<div class="recap-wk-opt dashboard-pill stacked-pill" data-week="${w}" style="cursor:pointer; min-width:44px; border-bottom-color:${w === st.wk ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${w === st.wk ? '1' : '0.6'};"><span class="pill-value" style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:${w === st.wk ? 'var(--accent-blue)' : '#fff'};">W${w}</span></div>`).join('')}</div>` : '';
+            const navBtn = (cls, t) => `<button class="${cls}" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">${t}</button>`;
             inner = `<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
                 ${navBtn('recap-wk-prev', '‹')}
-                <div class="recap-wk-pill dashboard-pill stacked-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);"><span class="pill-label">WEEK ${st.pickerOpen ? '▲' : '▼'}</span><span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${st.wk}</span></div>
+                <div class="recap-wk-pill dashboard-pill stacked-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);"><span class="pill-label">WEEK ${st.pickerOpen ? '▲' : '▼'}</span><span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${st.wk}</span></div>
                 ${navBtn('recap-wk-next', '›')}
-                ${st.wk === latest ? '<span style="font-size:9px; font-weight:900; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:3px 8px;">Latest</span>' : ''}
+                ${st.wk === latest ? '<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:3px 8px;">Latest</span>' : ''}
             </div>${pickerHtml}${recapWeekView(S)}`;
         } else if (st.view === 'month') {
             const months = recapMonths(weeks);
@@ -12595,7 +12692,7 @@ async function loadRecapsTab() {
             }
             const M = computeMonthSummary(cur.weeks, byWk);
             const partial = cur.weeks.indexOf(latest) >= 0 && latest < 18 && recapMonthOf(latest + 1).key === cur.key;
-            const chips = months.map(m => `<div class="recap-mo-opt dashboard-pill stacked-pill" data-mo="${m.key}" style="cursor:pointer; min-width:64px; border-bottom-color:${m.key === cur.key ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${m.key === cur.key ? 1 : 0.7};"><span class="pill-label">${m.weeks.length > 1 ? 'W' + m.weeks[0] + '–' + m.weeks[m.weeks.length - 1] : 'W' + m.weeks[0]}</span><span class="pill-value" style="font-size:12px;">${m.label.slice(0, 3).toUpperCase()}</span></div>`).join('');
+            const chips = months.map(m => `<div class="recap-mo-opt dashboard-pill stacked-pill" data-mo="${m.key}" style="cursor:pointer; min-width:64px; border-bottom-color:${m.key === cur.key ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${m.key === cur.key ? 1 : 0.7};"><span class="pill-label">${m.weeks.length > 1 ? 'W' + m.weeks[0] + '–' + m.weeks[m.weeks.length - 1] : 'W' + m.weeks[0]}</span><span class="pill-value" style="font-size:calc(12px * var(--ts,1));">${m.label.slice(0, 3).toUpperCase()}</span></div>`).join('');
             inner = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; justify-content:${months.length > 4 ? 'flex-start' : 'center'};">${chips}</div>` + recapMonthView(M, cur.label, partial);
         } else {
             const summaries = [];
@@ -12611,7 +12708,7 @@ async function loadRecapsTab() {
             if (st.view === 'awards') inner = recapAwardsView(events);
             else {
                 const fids = Object.keys(leagueFranchises).filter(f => /^\d{4}$/.test(f)).sort();
-                const pills = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px;">${fids.map(f => `<div class="recap-team-pill" data-fid="${f}" style="flex-shrink:0; display:flex; align-items:center; gap:5px; padding:5px 9px; border-radius:8px; cursor:pointer; background:${f === st.fid ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${f === st.fid ? 'var(--accent-blue)' : 'var(--card-border)'};">${recapLogo(f, 20)}<span style="font-size:9px; font-weight:800; color:${f === st.fid ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${leagueFranchises[f]}</span></div>`).join('')}</div>`;
+                const pills = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px;">${fids.map(f => `<div class="recap-team-pill" data-fid="${f}" style="flex-shrink:0; display:flex; align-items:center; gap:5px; padding:5px 9px; border-radius:8px; cursor:pointer; background:${f === st.fid ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${f === st.fid ? 'var(--accent-blue)' : 'var(--card-border)'};">${recapLogo(f, 20)}<span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:${f === st.fid ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${leagueFranchises[f]}</span></div>`).join('')}</div>`;
                 inner = pills + recapTeamView2(events, st.fid);
             }
         }
@@ -12650,7 +12747,7 @@ function sortLiveScoreRoster(roster) {
 }
 
 function buildLiveScoreSectionHeader(label) {
-    return `<div class="lld-sec" style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:6px 4px 4px;">${label}</div>`;
+    return `<div class="lld-sec" style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:6px 4px 4px;">${label}</div>`;
 }
 
 window._liveScoreProjCache = window._liveScoreProjCache || {};async function fetchTeamProjectionsMap(fid2) {
@@ -12778,19 +12875,19 @@ const rowOpacity = '1';
             </div>
             <div style="flex:1; min-width:0;">
                 <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                    <span style="font-size:10px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
-                    <span class="pos-text-${pos.toLowerCase()}" style="font-size:7px; font-weight:900; flex-shrink:0;">${pos}</span>
+                    <span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
+                    <span class="pos-text-${pos.toLowerCase()}" style="font-size:calc(7px * var(--ts,1)); font-weight:900; flex-shrink:0;">${pos}</span>
                 </div>
                 <div style="display:inline-flex; align-items:center; gap:4px; margin-top:3px; background:linear-gradient(135deg, ${c1}30, ${c2}15); border:1px solid ${c1}40; border-radius:5px; padding:2px 6px;">
                     <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain; flex-shrink:0;">
                     ${oppAbbr ? `<img src="${getNFLLogoUrl(oppAbbr)}" onerror="this.style.display='none'" style="width:10px; height:10px; object-fit:contain; flex-shrink:0; opacity:0.85;">` : ''}
-                    <span style="font-size:8px; font-weight:800; color:#fff; white-space:nowrap;">${scoreDisplay || '—'}</span>
+                    <span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap;">${scoreDisplay || '—'}</span>
                 </div>
-                ${statLine ? `<div style="font-size:8px; color:var(--text-dim); margin-top:3px; line-height:1.4;">${statLine}</div>` : ''}
+                ${statLine ? `<div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:3px; line-height:1.4;">${statLine}</div>` : ''}
             </div>
                         <div style="text-align:right; flex-shrink:0;">
-                <div style="font-size:12px; font-weight:900; color:${valueColor};">${valueText}</div>
-                <div style="font-size:7px; font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; white-space:nowrap;">${showProj ? 'PROJ' : statusDisplay}</div>
+                <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:${valueColor};">${valueText}</div>
+                <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; white-space:nowrap;">${showProj ? 'PROJ' : statusDisplay}</div>
             </div>
         </div>`;
 }
@@ -12937,7 +13034,7 @@ function buildLiveScoreTabsHtml(matchups, activeIdx) {
             return `
             <div class="live-score-tab" data-idx="${i}" style="flex-shrink:0; scroll-snap-align:center; display:flex; align-items:center; gap:5px; padding:6px 10px; border-radius:8px; cursor:pointer; background:${isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${isActive ? 'var(--accent-blue)' : 'var(--card-border)'};">
                 <img src="${m.t1.logo}" onerror="this.style.display='none'" style="width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
-                <span style="font-size:9px; font-weight:900; color:${isActive ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${m.t1.score.toFixed(0)}–${m.t2.score.toFixed(0)}</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${isActive ? '#fff' : 'var(--text-dim)'}; white-space:nowrap;">${m.t1.score.toFixed(0)}–${m.t2.score.toFixed(0)}</span>
                 <img src="${m.t2.logo}" onerror="this.style.display='none'" style="width:20px; height:20px; border-radius:50%; object-fit:cover; background:var(--card-bg);">
                 ${m.isMe ? `<span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blue);flex-shrink:0;"></span>` : ''}
             </div>`;
@@ -12987,7 +13084,7 @@ function scoreTeamChipsOld(f) {
     const s = hdr[f] || {};
     const rec = s.record || (window._allRecords && window._allRecords[f]) || '';
     const n = Object.keys(hdr).length;
-    const chip = (label, val, color) => `<span style="display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:5px; padding:2px 5px;"><i style="font-style:normal; font-size:7px; font-weight:900; color:var(--text-dim);">${label}</i><b style="font-size:9px; font-weight:900; color:${color};">${val}</b></span>`;
+    const chip = (label, val, color) => `<span style="display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:5px; padding:2px 5px;"><i style="font-style:normal; font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${label}</i><b style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${color};">${val}</b></span>`;
     const out = [];
     if (rec) out.push(chip('REC', rec, '#fff'));
     if (s.rank) out.push(chip('RANK', pvOrd(s.rank) + (n ? '/' + n : ''), 'var(--accent-teal, #14b8a6)'));
@@ -12997,7 +13094,7 @@ function scoreTeamChipsOld(f) {
 }
 
 function pvWinProbHtml(p, color) {
-    return `<span style="font-size:9px; font-weight:900; color:${color}; text-transform:uppercase;">Win ${Math.round(p * 100)}%</span>`;
+    return `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${color}; text-transform:uppercase;">Win ${Math.round(p * 100)}%</span>`;
 }
 
 window._pvGamesCache = window._pvGamesCache || {};
@@ -13063,13 +13160,13 @@ async function pvFetchTransactions(y, trade) {
 
 function pvCard(title, bodyId) {
     return `<div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-bottom:10px;">
-        <div style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${title}</div>
-        <div id="${bodyId}"><div style="text-align:center; padding:10px; color:var(--text-dim); font-size:10px; font-weight:800; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div></div></div>`;
+        <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${title}</div>
+        <div id="${bodyId}"><div style="text-align:center; padding:10px; color:var(--text-dim); font-size:calc(10px * var(--ts,1)); font-weight:800; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div></div></div>`;
 }
 
 // MFL's written "Fantasy Times" matchup preview (options?O=207), matched to this matchup by team names
 async function pvLoadTimes(A, B, wk) {
-    const none = txt => `<div style="font-size:10px; color:var(--text-dim);">${txt}</div>`;
+    const none = txt => `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${txt}</div>`;
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=207&W=${wk}`, { credentials: 'include', cache: 'no-store' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
@@ -13093,7 +13190,7 @@ async function pvLoadTimes(A, B, wk) {
         const tmp = doc.createElement('div'); tmp.innerHTML = html;
         const paras = tmp.textContent.split(/\n+/).map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length > 30);
         if (!paras.length) return none('No written preview from MFL for this matchup yet.');
-        return paras.map((p, i) => `<p style="margin:0 0 9px; font-size:11px; line-height:1.55; color:${/^["“]/.test(p) ? 'var(--text-main, #fff)' : 'var(--text-dim)'}; ${/^["“]/.test(p) ? 'font-style:italic;' : ''}">${esc(p)}</p>`).join('') + `<div style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;">Source: MyFantasyLeague.com Fantasy Times</div>`;
+        return paras.map((p, i) => `<p style="margin:0 0 9px; font-size:calc(11px * var(--ts,1)); line-height:1.55; color:${/^["“]/.test(p) ? 'var(--text-main, #fff)' : 'var(--text-dim)'}; ${/^["“]/.test(p) ? 'font-style:italic;' : ''}">${esc(p)}</p>`).join('') + `<div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;">Source: MyFantasyLeague.com Fantasy Times</div>`;
     } catch (e) { return none('Could not load the MFL preview.'); }
 }
 async function openMatchupPreview() {
@@ -13108,11 +13205,11 @@ async function openMatchupPreview() {
     $('body').append(`<div id="matchup-preview-modal" style="position:fixed; inset:0; z-index:99995; background:rgba(0,0,0,0.78); display:flex; align-items:center; justify-content:center; padding:12px;">
         <div style="width:100%; max-width:520px; max-height:90vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
             <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--card-border);">
-                <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Week ${wk} Matchup Preview</span>
-                <button class="pv-close" style="width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+                <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Week ${wk} Matchup Preview</span>
+                <button class="pv-close" style="width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer;">✕</button>
             </div>
             <div style="padding:12px 14px; overflow-y:auto;">
-                <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:12px;">${side(A)}<div style="font-size:11px; font-weight:900; color:var(--text-dim); padding-top:16px;">vs</div>${side(B)}</div>
+                <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:12px;">${side(A)}<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); padding-top:16px;">vs</div>${side(B)}</div>
                 ${pvCard('Fantasy Times Preview', 'pv-times')}
                 ${pvCard('Team Comparison', 'pv-compare')}
                 ${pvCard('Head-to-Head History', 'pv-h2h')}
@@ -13125,7 +13222,7 @@ async function openMatchupPreview() {
     $('#matchup-preview-modal').on('click', function(e) { if (e.target === this) $(this).remove(); });
     $('#matchup-preview-modal .pv-close').on('click', function() { $('#matchup-preview-modal').remove(); });
     const put = (id, html) => { $('#' + id).html(html); reapplyAllTeamStyles(); };
-    const empty = txt => `<div style="font-size:10px; color:var(--text-dim);">${txt}</div>`;
+    const empty = txt => `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${txt}</div>`;
 
     pvLoadTimes(A, B, wk).then(html => put('pv-times', html));
     const projMap = await fetchWeekProjectedScoresMap(wk);
@@ -13135,9 +13232,9 @@ async function openMatchupPreview() {
         const wp = computeWinProb(A, B, projMap);
         const rows = [];
         const row = (label, va, vb, better) => rows.push(`<div style="display:grid; grid-template-columns:1fr 78px 1fr; align-items:center; gap:6px; padding:6px 0; border-top:1px solid rgba(255,255,255,0.04);">
-            <div style="text-align:right; font-size:12px; font-weight:900; color:${better === 'a' ? '#22c55e' : '#fff'};">${va}</div>
-            <div style="text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${label}</div>
-            <div style="text-align:left; font-size:12px; font-weight:900; color:${better === 'b' ? '#22c55e' : '#fff'};">${vb}</div></div>`);
+            <div style="text-align:right; font-size:calc(12px * var(--ts,1)); font-weight:900; color:${better === 'a' ? '#22c55e' : '#fff'};">${va}</div>
+            <div style="text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${label}</div>
+            <div style="text-align:left; font-size:calc(12px * var(--ts,1)); font-weight:900; color:${better === 'b' ? '#22c55e' : '#fff'};">${vb}</div></div>`);
         const cmp = (x, y, hi = true) => x === y ? '' : ((x > y) === hi ? 'a' : 'b');
         const rec = s => `${s.w}-${s.l}${s.t ? '-' + s.t : ''}`;
         const rk = f => hdrStats[f]?.rank ? pvOrd(hdrStats[f].rank) : '—';
@@ -13148,7 +13245,7 @@ async function openMatchupPreview() {
         row('Pts Against', sa.pa.toFixed(1), sb.pa.toFixed(1), cmp(sa.pa, sb.pa, false));
         row('Avg / Game', avg(sa).toFixed(1), avg(sb).toFixed(1), cmp(avg(sa), avg(sb)));
         row('High Score', sa.high.toFixed(1), sb.high.toFixed(1), cmp(sa.high, sb.high));
-        const dots = s => s.results.slice(-5).map(r => `<span style="display:inline-block; width:14px; height:14px; line-height:14px; text-align:center; border-radius:3px; font-size:8px; font-weight:900; color:#fff; background:${r === 'W' ? '#22c55e' : r === 'L' ? '#ef4444' : '#64748b'};">${r}</span>`).join(' ') || '—';
+        const dots = s => s.results.slice(-5).map(r => `<span style="display:inline-block; width:14px; height:14px; line-height:14px; text-align:center; border-radius:3px; font-size:calc(8px * var(--ts,1)); font-weight:900; color:#fff; background:${r === 'W' ? '#22c55e' : r === 'L' ? '#ef4444' : '#64748b'};">${r}</span>`).join(' ') || '—';
         row('Last 5', dots(sa), dots(sb), '');
         const pa = pvTeamModel(A.roster, projMap), pb = pvTeamModel(B.roster, projMap);
         row('Projected', pa.mean.toFixed(1), pb.mean.toFixed(1), cmp(pa.mean, pb.mean));
@@ -13165,18 +13262,18 @@ async function openMatchupPreview() {
             const sa = g.a === A.fid ? g.as : g.bs, sb = g.a === A.fid ? g.bs : g.as;
             apts += sa; bpts += sb;
             if (sa > sb) aw++; else if (sb > sa) bw++; else ties++;
-            return `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; border-top:1px solid rgba(255,255,255,0.04); font-size:10px; font-weight:800;">
+            return `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; border-top:1px solid rgba(255,255,255,0.04); font-size:calc(10px * var(--ts,1)); font-weight:800;">
                 <span style="color:var(--text-dim); min-width:62px;">${g.y} · Wk ${g.wk}</span>
                 <span style="color:${sa > sb ? '#22c55e' : '#fff'};">${sa.toFixed(1)}</span><span style="color:var(--text-dim);">–</span><span style="color:${sb > sa ? '#22c55e' : '#fff'};">${sb.toFixed(1)}</span></div>`;
         });
         const lead = aw === bw ? 'Series tied' : `${leagueFranchises[aw > bw ? A.fid : B.fid]} leads`;
-        put('pv-h2h', `<div style="text-align:center; margin-bottom:8px;"><span style="font-size:15px; font-weight:900; color:#fff;">${aw}–${bw}${ties ? '–' + ties : ''}</span>
-            <div style="font-size:9px; font-weight:800; color:var(--text-dim);">${lead} · avg ${(apts / meets.length).toFixed(1)} – ${(bpts / meets.length).toFixed(1)} · ${meets.length} meeting${meets.length === 1 ? '' : 's'}</div></div>
-            <div style="font-size:8px; font-weight:900; color:var(--text-dim); display:flex; justify-content:space-between; margin-bottom:2px;"><span></span><span>${leagueFranchises[A.fid]} – ${leagueFranchises[B.fid]}</span></div>${lines.slice(0, 8).join('')}`);
+        put('pv-h2h', `<div style="text-align:center; margin-bottom:8px;"><span style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff;">${aw}–${bw}${ties ? '–' + ties : ''}</span>
+            <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${lead} · avg ${(apts / meets.length).toFixed(1)} – ${(bpts / meets.length).toFixed(1)} · ${meets.length} meeting${meets.length === 1 ? '' : 's'}</div></div>
+            <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); display:flex; justify-content:space-between; margin-bottom:2px;"><span></span><span>${leagueFranchises[A.fid]} – ${leagueFranchises[B.fid]}</span></div>${lines.slice(0, 8).join('')}`);
     });
 
     const top = t => t.roster.filter(p => p.isStarter).sort((x, y) => (projMap[y.pid] || 0) - (projMap[x.pid] || 0)).slice(0, 3);
-    const keyCol = t => `<div style="flex:1; min-width:0;"><div style="display:flex; margin-bottom:6px;">${recapTeamName(t.fid, 10)}</div>${top(t).map(p => recapPlayerRow(p, { size: 30, right: `<div style="font-size:12px; font-weight:900; color:#f59e0b;">${(projMap[p.pid] || 0).toFixed(1)}</div><div style="font-size:7px; font-weight:900; color:var(--text-dim);">PROJ</div>` })).join('')}</div>`;
+    const keyCol = t => `<div style="flex:1; min-width:0;"><div style="display:flex; margin-bottom:6px;">${recapTeamName(t.fid, 10)}</div>${top(t).map(p => recapPlayerRow(p, { size: 30, right: `<div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#f59e0b;">${(projMap[p.pid] || 0).toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">PROJ</div>` })).join('')}</div>`;
     put('pv-key', `<div style="display:flex; gap:8px;">${keyCol(A)}${keyCol(B)}</div>`);
     const oppOf = p => ((p.opp || '').match(/(?:vs|@)\s*([A-Z]{2,3})/i) || [])[1]?.toUpperCase();
     const same = [];
@@ -13186,9 +13283,9 @@ async function openMatchupPreview() {
         if (ta === tb || oppOf(pa) === tb) same.push({ pa, pb, kind: ta === tb ? 'Teammates' : 'Opponents' });
     }));
     put('pv-same', same.length ? same.slice(0, 8).map(x => `<div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid rgba(255,255,255,0.04);">
-        <span style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.pa.name} <span style="color:var(--text-dim);">(${recapNormPos(x.pa)})</span></span>
-        <span style="font-size:8px; font-weight:900; color:#f59e0b; text-transform:uppercase;">${x.kind}</span>
-        <span style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.pb.name} <span style="color:var(--text-dim);">(${recapNormPos(x.pb)})</span></span></div>`).join('') : empty('No starters share an NFL game this week.'));
+        <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.pa.name} <span style="color:var(--text-dim);">(${recapNormPos(x.pa)})</span></span>
+        <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase;">${x.kind}</span>
+        <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; flex:1; min-width:0; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${x.pb.name} <span style="color:var(--text-dim);">(${recapNormPos(x.pb)})</span></span></div>`).join('') : empty('No starters share an NFL game this week.'));
 
     Promise.all(Array.from({ length: 8 }, (_, i) => pvFetchTransactions(yr - i, true).then(list => list.map(t => ({ ...t, _y: yr - i }))))).then(async all => {
         const trades = all.flat().filter(t => t.type === 'TRADE' && ((t.franchise === A.fid && t.franchise2 === B.fid) || (t.franchise === B.fid && t.franchise2 === A.fid)))
@@ -13202,9 +13299,9 @@ async function openMatchupPreview() {
             const aGave = t.franchise === A.fid ? t.franchise1_gave_up : t.franchise2_gave_up;
             const bGave = t.franchise === A.fid ? t.franchise2_gave_up : t.franchise1_gave_up;
             const d = new Date(parseInt(t.timestamp) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-            return `<div style="padding:7px 0; border-top:1px solid rgba(255,255,255,0.04);"><div style="font-size:8px; font-weight:900; color:var(--text-dim); margin-bottom:3px;">${d}</div>
-                <div style="font-size:10px; font-weight:700; color:#fff; line-height:1.5;"><b>${leagueFranchises[A.fid]}</b> sent: ${gave(aGave, t._y)}</div>
-                <div style="font-size:10px; font-weight:700; color:#fff; line-height:1.5;"><b>${leagueFranchises[B.fid]}</b> sent: ${gave(bGave, t._y)}</div></div>`;
+            return `<div style="padding:7px 0; border-top:1px solid rgba(255,255,255,0.04);"><div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); margin-bottom:3px;">${d}</div>
+                <div style="font-size:calc(10px * var(--ts,1)); font-weight:700; color:#fff; line-height:1.5;"><b>${leagueFranchises[A.fid]}</b> sent: ${gave(aGave, t._y)}</div>
+                <div style="font-size:calc(10px * var(--ts,1)); font-weight:700; color:#fff; line-height:1.5;"><b>${leagueFranchises[B.fid]}</b> sent: ${gave(bGave, t._y)}</div></div>`;
         }).join(''));
     });
 
@@ -13217,7 +13314,7 @@ async function openMatchupPreview() {
         const names = await pvPlayerNames([...ids]);
         const col = t => `<div style="flex:1; min-width:0;"><div style="display:flex; margin-bottom:6px;">${recapTeamName(t.fid, 10)}</div>${mine(t.fid).map(tx => {
             const p = parse(tx);
-            return `<div style="font-size:9px; font-weight:700; color:#fff; line-height:1.5; padding:3px 0; border-top:1px solid rgba(255,255,255,0.04);"><span style="color:var(--text-dim);">${kinds[tx.type]}</span>${p.add.length ? `<br><span style="color:#22c55e;">+ ${p.add.map(i => names[i] || i).join(', ')}</span>` : ''}${p.drop.length ? `<br><span style="color:#ef4444;">− ${p.drop.map(i => names[i] || i).join(', ')}</span>` : ''}</div>`;
+            return `<div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#fff; line-height:1.5; padding:3px 0; border-top:1px solid rgba(255,255,255,0.04);"><span style="color:var(--text-dim);">${kinds[tx.type]}</span>${p.add.length ? `<br><span style="color:#22c55e;">+ ${p.add.map(i => names[i] || i).join(', ')}</span>` : ''}${p.drop.length ? `<br><span style="color:#ef4444;">− ${p.drop.map(i => names[i] || i).join(', ')}</span>` : ''}</div>`;
         }).join('') || empty('None')}</div>`;
         put('pv-moves', `<div style="display:flex; gap:8px;">${col(A)}${col(B)}</div>`);
     });
@@ -13234,48 +13331,48 @@ function scoreTeamChips(f) {
     if (s.rank) out.push(`<b style="color:var(--accent-teal, #14b8a6);">#${s.rank}</b>`);
     const sm = (s.streak || '').match(/^([WLT])[a-z]*\s*(\d+)/i);
     if (sm) { const k = sm[1].toUpperCase(); out.push(`<b style="color:${k === 'W' ? '#22c55e' : k === 'L' ? '#ef4444' : 'var(--text-dim)'};">${k}${sm[2]}</b>`); }
-    return out.length ? `<div style="font-size:10px; font-weight:800; display:flex; gap:8px; justify-content:center; align-items:center;">${out.join('<span style="color:var(--card-border);">|</span>')}</div>` : '';
+    return out.length ? `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; display:flex; gap:8px; justify-content:center; align-items:center;">${out.join('<span style="color:var(--card-border);">|</span>')}</div>` : '';
 }
 
 function buildScoreHeaderHtmlOld(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian } = o;
-    const arrow = (v, m) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
+    const arrow = (v, m) => `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
     const team = (t, c, yts, other) => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; min-width:0;">
         <div style="position:relative; width:44px; height:44px;">
             <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);">
-            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:9px; border:1px solid var(--card-bg);">🏆</span>` : ''}
+            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; right:-4px; background:rgba(245,158,11,0.9); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:calc(9px * var(--ts,1)); border:1px solid var(--card-bg);">🏆</span>` : ''}
         </div>
-        <span data-team-style="${t.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
+        <span data-team-style="${t.fid}" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
         ${scoreTeamChips(t.fid)}
-        <span style="font-size:22px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.1;">${t.score.toFixed(2)}</span>
+        <span style="font-size:calc(22px * var(--ts,1)); font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.1;">${t.score.toFixed(2)}</span>
         ${arrow(t.score, leagueMedian)}
-        <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts}</span>
+        <span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase;">${yts}</span>
     </div>`;
     const a = Math.round(wp.p1 * 100), b = 100 - a;
     const projCol = (proj, t) => `<div style="flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;">
-        <span style="font-size:16px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span>${arrow(proj, projMedian)}</div>`;
+        <span style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span>${arrow(proj, projMedian)}</div>`;
     return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
         <div style="flex:1; min-width:0;">
             <div style="display:flex; align-items:flex-start; gap:6px;">
                 ${team(t1, c1, yts1, t2)}
                 <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:14px;">
-                    <div style="font-size:11px; font-weight:900; color:var(--text-dim);">vs</div>
-                    <button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button>
+                    <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim);">vs</div>
+                    <button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button>
                 </div>
                 ${team(t2, c2, yts2, t1)}
             </div>
             <div style="margin-top:12px; padding:10px; border-radius:10px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.25);">
-                <div style="text-align:center; font-size:8px; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">Projected Final</div>
+                <div style="text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">Projected Final</div>
                 <div style="display:flex; align-items:center; gap:6px;">${projCol(t1Proj, t1)}<div style="width:1px; align-self:stretch; background:rgba(245,158,11,0.25);"></div>${projCol(t2Proj, t2)}</div>
-                <div style="text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; margin:10px 0 4px;">Win Probability</div>
+                <div style="text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; margin:10px 0 4px;">Win Probability</div>
                 <div style="display:flex; height:16px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,0.08);">
-                    <div style="width:${a}%; background:#3b82f6; display:flex; align-items:center; justify-content:flex-start; padding-left:6px; font-size:9px; font-weight:900; color:#fff; min-width:${a > 0 ? 28 : 0}px;">${a}%</div>
-                    <div style="width:${b}%; background:#a855f7; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:9px; font-weight:900; color:#fff; min-width:${b > 0 ? 28 : 0}px;">${b}%</div>
+                    <div style="width:${a}%; background:#3b82f6; display:flex; align-items:center; justify-content:flex-start; padding-left:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; color:#fff; min-width:${a > 0 ? 28 : 0}px;">${a}%</div>
+                    <div style="width:${b}%; background:#a855f7; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; color:#fff; min-width:${b > 0 ? 28 : 0}px;">${b}%</div>
                 </div>
             </div>
         </div>
-        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v2 (compact identity row, projections between scores, team colors) ----------
@@ -13293,67 +13390,67 @@ function scoreTeamColors(f1, f2) {
 
 function buildScoreHeaderHtml2Old(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
-    const arrow = (v, m) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
+    const arrow = (v, m) => `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} Median</span>`;
     const logo = t => `<div style="position:relative; width:30px; height:30px; flex-shrink:0;">
         <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:30px; height:30px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1);"></div>`;
     const ident = (t, side) => {
         const al = side === 'left' ? 'flex-start' : 'flex-end';
         const text = `<div style="display:flex; flex-direction:column; align-items:${al}; gap:2px; min-width:0;">
-            <span data-team-style="${t.fid}" style="font-size:10px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
+            <span data-team-style="${t.fid}" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
             ${scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al)}</div>`;
         return `<div style="flex:1; display:flex; align-items:center; gap:6px; min-width:0; justify-content:${al};">${side === 'left' ? logo(t) + text : text + logo(t)}</div>`;
     };
     const score = (t, c, yts, other) => `<div style="flex-shrink:0; min-width:64px; display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center;">
-        <span style="font-size:22px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.1;">${t.score.toFixed(2)}${t.score > other.score ? ' <span title="Winning matchup" style="font-size:11px;">🏆</span>' : ''}</span>
+        <span style="font-size:calc(22px * var(--ts,1)); font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.1;">${t.score.toFixed(2)}${t.score > other.score ? ' <span title="Winning matchup" style="font-size:calc(11px * var(--ts,1));">🏆</span>' : ''}</span>
         ${arrow(t.score, leagueMedian)}
-        <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span>
+        <span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span>
     </div>`;
     const a = Math.round(wp.p1 * 100), b = 100 - a;
-    const proj = p => `<div style="flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;"><span style="font-size:15px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums; line-height:1.1;">${p.toFixed(1)}</span>${arrow(p, projMedian)}</div>`;
+    const proj = p => `<div style="flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;"><span style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums; line-height:1.1;">${p.toFixed(1)}</span>${arrow(p, projMedian)}</div>`;
     const center = `<div style="flex:1; min-width:0; padding:8px; border-radius:10px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.25);">
-        <div style="text-align:center; font-size:7px; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:4px;">Projected Final</div>
+        <div style="text-align:center; font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:4px;">Projected Final</div>
         <div style="display:flex; align-items:center; gap:4px;">${proj(t1Proj)}<div style="width:1px; align-self:stretch; background:rgba(245,158,11,0.25);"></div>${proj(t2Proj)}</div>
         <div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:rgba(255,255,255,0.08); margin-top:8px;">
-            <div style="width:${a}%; background:${tc1}; display:flex; align-items:center; justify-content:flex-start; padding-left:5px; font-size:8px; font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.7); min-width:${a > 0 ? 26 : 0}px;">${a}%</div>
-            <div style="width:${b}%; background:${tc2}; display:flex; align-items:center; justify-content:flex-end; padding-right:5px; font-size:8px; font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.7); min-width:${b > 0 ? 26 : 0}px;">${b}%</div>
+            <div style="width:${a}%; background:${tc1}; display:flex; align-items:center; justify-content:flex-start; padding-left:5px; font-size:calc(8px * var(--ts,1)); font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.7); min-width:${a > 0 ? 26 : 0}px;">${a}%</div>
+            <div style="width:${b}%; background:${tc2}; display:flex; align-items:center; justify-content:flex-end; padding-right:5px; font-size:calc(8px * var(--ts,1)); font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.7); min-width:${b > 0 ? 26 : 0}px;">${b}%</div>
         </div>
-        <div style="text-align:center; font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; margin-top:3px;">Win Probability</div>
+        <div style="text-align:center; font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; margin-top:3px;">Win Probability</div>
     </div>`;
     return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
         <div style="flex:1; min-width:0;">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
                 ${ident(t1, 'left')}
                 <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:4px;">
-                    <div style="font-size:10px; font-weight:900; color:var(--text-dim);">vs</div>
-                    <button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button>
+                    <div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim);">vs</div>
+                    <button class="scores-preview-btn" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue); border-radius:6px; padding:3px 8px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Preview</button>
                 </div>
                 ${ident(t2, 'right')}
             </div>
             <div style="display:flex; align-items:center; gap:8px;">${score(t1, c1, yts1, t2)}${center}${score(t2, c2, yts2, t1)}</div>
         </div>
-        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
 function buildScoreHeaderHtml3Old(o) {    
 const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
-    const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
+    const arrow = (v, m, label) => `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
     const card = (t, side, c, yts, proj, tc, pct, other) => {
         const left = side === 'left';
         const al = left ? 'flex-start' : 'flex-end';
         const logo = `<div style="position:relative; flex-shrink:0; width:38px; height:38px;">
             <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:2px solid ${tc}; box-sizing:border-box;">
-            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; ${left ? 'right' : 'left'}:-4px; background:rgba(245,158,11,0.95); border-radius:50%; width:15px; height:15px; display:flex; align-items:center; justify-content:center; font-size:8px; border:1px solid var(--card-bg);">🏆</span>` : ''}</div>`;
+            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; ${left ? 'right' : 'left'}:-4px; background:rgba(245,158,11,0.95); border-radius:50%; width:15px; height:15px; display:flex; align-items:center; justify-content:center; font-size:calc(8px * var(--ts,1)); border:1px solid var(--card-bg);">🏆</span>` : ''}</div>`;
         const text = `<div style="flex:1; min-width:0; display:flex; flex-direction:column; align-items:${al}; gap:2px;">
-            <span data-team-style="${t.fid}" style="font-size:11px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
-            ${scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al).replace('font-size:10px', 'font-size:9px')}</div>`;
+            <span data-team-style="${t.fid}" style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${t.name}</span>
+            ${scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al).replace('font-size:calc(10px * var(--ts,1))', 'font-size:calc(9px * var(--ts,1))')}</div>`;
         const scoreBlock = `<div style="display:flex; flex-direction:column; align-items:${al}; gap:1px; margin:8px 0 6px;">
-            <span style="font-size:26px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.05;">${t.score.toFixed(2)}</span>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:${al};">${arrow(t.score, leagueMedian)}<span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div></div>`;
+            <span style="font-size:calc(26px * var(--ts,1)); font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.05;">${t.score.toFixed(2)}</span>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:${al};">${arrow(t.score, leagueMedian)}<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div></div>`;
         const bar = `<div style="height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; display:flex; justify-content:${left ? 'flex-start' : 'flex-end'};"><div style="width:${pct}%; background:${tc}; border-radius:3px;"></div></div>`;
-        const pctEl = `<span style="font-size:11px; font-weight:900; color:#fff;">${pct}%</span>`;
-        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:11px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span>${arrow(proj, projMedian, 'Med')}</span>`;
+        const pctEl = `<span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${pct}%</span>`;
+        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span>${arrow(proj, projMedian, 'Med')}</span>`;
         return `<div style="flex:1; min-width:0; padding:12px 12px 10px; border-radius:20px; background:linear-gradient(${left ? '135deg' : '225deg'}, ${tc}22, rgba(255,255,255,0.02) 70%); border:1px solid ${tc}55;">
             <div style="display:flex; align-items:center; gap:8px; flex-direction:${left ? 'row' : 'row-reverse'};">${logo}${text}</div>
             ${scoreBlock}${bar}
@@ -13362,14 +13459,14 @@ const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian
     };
     const a = Math.round(wp.p1 * 100), b = 100 - a;
     return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
         <div style="flex:1; min-width:0; position:relative; display:flex; align-items:stretch; gap:4px; margin-bottom:16px;">
             ${card(t1, 'left', c1, yts1, t1Proj, tc1, a, t2)}
             ${card(t2, 'right', c2, yts2, t2Proj, tc2, b, t1)}
-            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:50%; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; color:var(--text-dim); z-index:2;">VS</div>
-            <button class="scores-preview-btn" style="position:absolute; left:50%; bottom:-18px; transform:translateX(-50%); white-space:nowrap; background:var(--card-bg); border:1px solid rgba(59,130,246,0.5); color:var(--accent-blue); border-radius:6px; padding:3px 9px; font-size:8px; font-weight:900; text-transform:uppercase; cursor:pointer; z-index:2;">Preview</button>
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:50%; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); z-index:2;">VS</div>
+            <button class="scores-preview-btn" style="position:absolute; left:50%; bottom:-18px; transform:translateX(-50%); white-space:nowrap; background:var(--card-bg); border:1px solid rgba(59,130,246,0.5); color:var(--accent-blue); border-radius:6px; padding:3px 9px; font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; z-index:2;">Preview</button>
         </div>
-        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
 }
 // ---------- SCOREBOARD HEADER v3 (Sleeper-style team cards with a VS badge) ----------
@@ -13476,22 +13573,22 @@ window.buildPairedRosterHtml = function () { return buildPairedRosterHtml.apply(
 window.buildScoresViewToggleHtml = function () { return buildScoresViewToggleHtml.apply(null, arguments); };
 function buildScoreHeaderHtml3Base(o) {
     const { t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 } = o;
-    const arrow = (v, m, label) => `<span style="font-size:8px; font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
+    const arrow = (v, m, label) => `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${v > m ? '#22c55e' : '#ef4444'}; text-transform:uppercase; white-space:nowrap;">${v > m ? '▲' : '▼'} ${label || 'Median'}</span>`;
     const card = (t, side, c, yts, proj, tc, pct, other) => {
         const left = side === 'left';
         const al = left ? 'flex-start' : 'flex-end';
         const logo = `<div style="position:relative; flex-shrink:0; width:34px; height:34px;">
             <img src="${t.logo}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width:34px; height:34px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:2px solid ${tc}; box-sizing:border-box;">
-            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; ${left ? 'right' : 'left'}:-4px; background:rgba(245,158,11,0.95); border-radius:50%; width:14px; height:14px; display:flex; align-items:center; justify-content:center; font-size:8px; border:1px solid var(--card-bg);">🏆</span>` : ''}</div>`;
-        const name = `<span data-team-style="${t.fid}" style="flex:1; min-width:0; font-size:11px; font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:${left ? 'left' : 'right'};">${t.name}</span>`;
-        const chips = scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al).replace('font-size:10px', 'font-size:9px; white-space:nowrap').replace('gap:8px', 'gap:5px');
+            ${t.score > other.score ? `<span title="Winning matchup" style="position:absolute; bottom:-4px; ${left ? 'right' : 'left'}:-4px; background:rgba(245,158,11,0.95); border-radius:50%; width:14px; height:14px; display:flex; align-items:center; justify-content:center; font-size:calc(8px * var(--ts,1)); border:1px solid var(--card-bg);">🏆</span>` : ''}</div>`;
+        const name = `<span data-team-style="${t.fid}" style="flex:1; min-width:0; font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:${left ? 'left' : 'right'};">${t.name}</span>`;
+        const chips = scoreTeamChips(t.fid).replace('justify-content:center', 'justify-content:' + al).replace('font-size:calc(10px * var(--ts,1))', 'font-size:calc(9px * var(--ts,1)); white-space:nowrap').replace('gap:8px', 'gap:5px');
         const scoreBlock = `<div style="display:flex; flex-direction:column; align-items:${al}; gap:1px; margin:8px 0 6px;">
-            <span style="font-size:26px; font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.05;">${t.score.toFixed(2)}</span>
+            <span style="font-size:calc(26px * var(--ts,1)); font-weight:900; color:${c}; font-variant-numeric:tabular-nums; line-height:1.05;">${t.score.toFixed(2)}</span>
             ${arrow(t.score, leagueMedian)}
-            <span style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div>`;
+            <span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${yts}</span></div>`;
         const bar = `<div style="height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; display:flex; justify-content:${left ? 'flex-start' : 'flex-end'};"><div style="width:${pct}%; background:${tc}; border-radius:3px;"></div></div>`;
-        const pctEl = `<span style="font-size:11px; font-weight:900; color:#fff;">${pct}% <span style="font-size:7px; font-weight:800; color:var(--text-dim); letter-spacing:0.5px;">WIN</span></span>`;
-        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap; max-width:100%; box-sizing:border-box; overflow:hidden; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:11px; font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span><span style="font-size:8px; font-weight:900; color:${proj > projMedian ? '#22c55e' : '#ef4444'};">${proj > projMedian ? '▲' : '▼'}</span></span>`;
+        const pctEl = `<span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${pct}% <span style="font-size:calc(7px * var(--ts,1)); font-weight:800; color:var(--text-dim); letter-spacing:0.5px;">WIN</span></span>`;
+        const projEl = `<span style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap; max-width:100%; box-sizing:border-box; overflow:hidden; background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:2px 6px;"><span style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b; letter-spacing:0.8px;">PROJ</span><span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</span><span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${proj > projMedian ? '#22c55e' : '#ef4444'};">${proj > projMedian ? '▲' : '▼'}</span></span>`;
         return `<div style="flex:1 1 0; min-width:0; padding:10px 10px 10px; border-radius:18px; background:linear-gradient(${left ? '135deg' : '225deg'}, ${tc}22, rgba(255,255,255,0.02) 70%); border:1px solid ${tc}55; display:flex; flex-direction:column; overflow:hidden;">
             <div style="display:flex; align-items:center; gap:6px; flex-direction:${left ? 'row' : 'row-reverse'};">${logo}${name}</div>
             <div style="margin-top:4px;">${chips}</div>
@@ -13501,14 +13598,14 @@ function buildScoreHeaderHtml3Base(o) {
     };
     const a = Math.round(wp.p1 * 100), b = 100 - a;
     return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <button class="live-score-prev" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
         <div style="flex:1; min-width:0; position:relative; display:flex; align-items:stretch; gap:4px; margin-bottom:16px;">
             ${card(t1, 'left', c1, yts1, t1Proj, tc1, a, t2)}
             ${card(t2, 'right', c2, yts2, t2Proj, tc2, b, t1)}
-            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:50%; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; color:var(--text-dim); z-index:2;">VS</div>
-            <button class="scores-preview-btn" style="position:absolute; left:50%; bottom:-18px; transform:translateX(-50%); white-space:nowrap; background:var(--card-bg); border:1px solid rgba(59,130,246,0.5); color:var(--accent-blue); border-radius:6px; padding:3px 9px; font-size:8px; font-weight:900; text-transform:uppercase; cursor:pointer; z-index:2;">Preview</button>
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:50%; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); z-index:2;">VS</div>
+            <button class="scores-preview-btn" style="position:absolute; left:50%; bottom:-18px; transform:translateX(-50%); white-space:nowrap; background:var(--card-bg); border:1px solid rgba(59,130,246,0.5); color:var(--accent-blue); border-radius:6px; padding:3px 9px; font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; z-index:2;">Preview</button>
         </div>
-        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+        <button class="live-score-next" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
     </div>`;
 }
 window.buildScoreHeaderHtml3Base = buildScoreHeaderHtml3Base;
@@ -13559,18 +13656,18 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
                 <span style="position:absolute; bottom:0; ${left ? 'right' : 'left'}:0; width:8px; height:8px; border-radius:50%; background:${status.color}; border:1px solid var(--card-bg); ${status.playing ? 'animation:pulse-blue 1.2s infinite;' : ''}"></span>
             </div>
             <div style="flex:1; min-width:0; text-align:${left ? 'left' : 'right'};">
-                <div style="font-size:11px; font-weight:800; color:#fff; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
-                <div style="font-size:9px; font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-left:4px;"></div>
+                <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-left:4px;"></div>
             </div>
             <div style="flex-shrink:0; text-align:${left ? 'right' : 'left'};">
-                <div style="font-size:15px; font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${val}</div>
-                ${showProj ? '<div style="font-size:7px; font-weight:900; color:#f59e0b; letter-spacing:0.5px;">PROJ</div>' : ''}
+                <div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${val}</div>
+                ${showProj ? '<div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b; letter-spacing:0.5px;">PROJ</div>' : ''}
             </div>
         </div>
         <div style="margin-top:6px; text-align:${left ? 'left' : 'right'};">
-            <div style="font-size:9px; font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1}</div>
-            <div style="font-size:8px; font-weight:800; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; line-height:1.3;">${line2}</div>
-            ${stat ? `<div style="font-size:8px; color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
+            <div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1}</div>
+            <div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; line-height:1.3;">${line2}</div>
+            ${stat ? `<div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
         </div>
     </div>`;
 }
@@ -13587,7 +13684,7 @@ function buildPairedRosterHtml(r1, r2, projMap, liveDetails, tc1, tc2) {
             const slotColor = (!fixedLabel && slot.length <= 2) ? `var(--pos-${slot.toLowerCase()}, #fff)` : '#fff';
             html += `<div style="position:relative; display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:6px;">
                 ${lsSideCard(p1, projMap, liveDetails, tc1, 'left')}${lsSideCard(p2, projMap, liveDetails, tc2, 'right')}
-                <div class="lld-slot" style="position:absolute; left:50%; top:22px; transform:translate(-50%,-50%); min-width:28px; height:28px; padding:0 3px; box-sizing:border-box; border-radius:14px; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:900; color:${slotColor}; pointer-events:none; z-index:2;">${slot}</div>
+                <div class="lld-slot" style="position:absolute; left:50%; top:22px; transform:translate(-50%,-50%); min-width:28px; height:28px; padding:0 3px; box-sizing:border-box; border-radius:14px; background:var(--card-bg); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:${slotColor}; pointer-events:none; z-index:2;">${slot}</div>
             </div>`;
         }
         return html;
@@ -13660,7 +13757,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
      function buildTeamRosterHtml(roster, projMap, teamColor) {
         const { starters, bench } = sortLiveScoreRoster(roster);
         if (starters.length === 0 && bench.length === 0) {
-            return '<div style="text-align:center; padding:10px; color:var(--text-dim); font-size:9px;">No lineup data</div>';
+            return '<div style="text-align:center; padding:10px; color:var(--text-dim); font-size:calc(9px * var(--ts,1));">No lineup data</div>';
         }
         let html = '';
         if (starters.length) {
@@ -13687,7 +13784,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                 const isActive = w === activeWk;
                 return `<div class="live-score-week-option dashboard-pill stacked-pill" data-week="${w}"
                     style="cursor:pointer; min-width:44px; border-bottom-color:${isActive ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${isActive ? '1' : '0.6'};">
-                    <span class="pill-value" style="font-size:12px; font-weight:900; color:${isActive ? 'var(--accent-blue)' : '#fff'};">W${w}</span>
+                    <span class="pill-value" style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:${isActive ? 'var(--accent-blue)' : '#fff'};">W${w}</span>
                     ${w === window._liveScoreCurrentWeek ? '<span class="pill-label" style="color:#ef4444;">LIVE</span>' : ''}
                 </div>`;
             }).join('')}
@@ -13697,13 +13794,13 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
                <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
             <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
-                <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+                <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
                 <div class="dashboard-pill stacked-pill" id="live-score-week-selector-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);">
                     <span class="pill-label">WEEK ${weekPickerOpen ? '▲' : '▼'}</span>
-                    <span class="pill-value" style="font-size:13px; font-weight:900; color:var(--accent-blue);">${activeWk}</span>
+                    <span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${activeWk}</span>
                 </div>
-                <button class="live-score-week-next" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:12px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
-                ${isLiveWk ? '<span style="font-size:9px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>' : '<span style="font-size:9px; font-weight:900; color:var(--text-dim); background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:3px 8px;">Final</span>'}
+                <button class="live-score-week-next" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+                ${isLiveWk ? '<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:3px 8px;">● Live</span>' : '<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:6px; padding:3px 8px;">Final</span>'}
             </div>
             ${weekPillsRowHtml}
 
@@ -13766,7 +13863,7 @@ function buildLiveNowHtml(t1, t2, pm) {
         return `<div class="lld-ln player-modal-trigger" data-pid="${p.pid}" data-team="${tm}" data-name="${p.name}" data-pos="${pos}" style="--tc:${color};"><span class="ln-img"><img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'"></span><span class="ln-m"><span class="ln-pt pos-text-${pos.toLowerCase()}">${pos} ${tm}</span><span class="ln-pj">proj ${pj}</span></span><b class="ln-sc">${(p.score || 0).toFixed(1)}</b></div>`;
     };
     const tiles = l1.map(p => chip(p, cols[0])).concat(l2.map(p => chip(p, cols[1]))).join('');
-    const sortBtn = (key, label) => `<button class="live-sort-btn" data-sort="${key}" style="padding:4px 8px; border-radius:6px; font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:0.4px; cursor:pointer; border:1px solid ${mode === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${mode === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${mode === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
+    const sortBtn = (key, label) => `<button class="live-sort-btn" data-sort="${key}" style="padding:4px 8px; border-radius:6px; font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; letter-spacing:0.4px; cursor:pointer; border:1px solid ${mode === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${mode === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${mode === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
     const total = l1.length + l2.length;
     const sbCur = lldGet('lld_sb', 'theme'), sbOpen = lldGet('lld_sbopen', '') === '1';
     const sbChip = (v, l) => `<button type="button" class="lld-sb-btn lld-sbchip ${sbCur === v ? 'on' : ''}" data-v="${v}">${l}</button>`;
@@ -13774,7 +13871,7 @@ function buildLiveNowHtml(t1, t2, pm) {
     return `<div id="live-now-strip" style="margin:0 0 12px;">
         ${sbBar}
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
-            <span style="font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:${total ? '#ef4444' : 'var(--text-dim)'};">${total ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:5px; animation: pulse-blue 1.2s infinite;"></span>Playing now · ${total}` : 'Nobody playing right now'}</span>
+            <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; letter-spacing:1px; color:${total ? '#ef4444' : 'var(--text-dim)'};">${total ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:5px; animation: pulse-blue 1.2s infinite;"></span>Playing now · ${total}` : 'Nobody playing right now'}</span>
             <div style="display:flex; gap:4px;">${sortBtn('slot', 'Lineup')}${sortBtn('live', 'Live first')}${sortBtn('ytp', 'To play')}</div>
         </div>
         ${total ? `<div class="lld-ln-grid" style="--rows:${total > 4 ? 2 : 1};">${tiles}</div>` : ''}
@@ -13810,7 +13907,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
     window._liveScoringDetailsCache = {};
     const weekChanged = weekOverride !== null && weekOverride !== window._liveScoreActiveWeek;
     if (!window._liveScoreMatchups) {
-        container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Live Scores...</div>');
+        container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Live Scores...</div>');
     }
 
     try {
@@ -13836,7 +13933,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
             console.error('liveScoring did not return JSON. Raw response:', liveRawText.slice(0, 300));
             if (window._liveScoreMatchups && window._liveScoreMatchups.length) return; // keep showing the last good scores
             const looksLoggedOut = /log\s?in|sign\s?in|password/i.test(liveRawText);
-            container.html(`<div style="text-align:center; padding: 20px; color: var(--text-dim);">${looksLoggedOut ? 'Not logged in.' : 'MFL is busy or live scoring is unavailable right now.'}<br><div style="margin-top:8px; font-size:9px; opacity:.8; word-break:break-all;">league ${lid} · year ${year} · ${MFL_ORIGIN}<br>${String(window._lldLiveDiag || '').replace(/[<>&]/g, ' ')}</div><button type="button" id="lld-live-retry" style="margin-top:10px; padding:8px 14px; border-radius:8px; border:1px solid var(--card-border); background:var(--accent-blue); color:#fff; font-weight:900; font-size:11px;">Try again</button></div>`);
+            container.html(`<div style="text-align:center; padding: 20px; color: var(--text-dim);">${looksLoggedOut ? 'Not logged in.' : 'MFL is busy or live scoring is unavailable right now.'}<br><div style="margin-top:8px; font-size:calc(9px * var(--ts,1)); opacity:.8; word-break:break-all;">league ${lid} · year ${year} · ${MFL_ORIGIN}<br>${String(window._lldLiveDiag || '').replace(/[<>&]/g, ' ')}</div><button type="button" id="lld-live-retry" style="margin-top:10px; padding:8px 14px; border-radius:8px; border:1px solid var(--card-border); background:var(--accent-blue); color:#fff; font-weight:900; font-size:calc(11px * var(--ts,1));">Try again</button></div>`);
             return;
         }
 
@@ -13993,7 +14090,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
 // ===================== STANDINGS: SEGMENTS (Standings / Next Year Order / Playoffs) =====================
 function standingsSegHtml(active) {
     const nextYear = parseInt(year, 10) + 1;
-    const btn = (key, label) => `<button class="standings-seg-btn" data-seg="${key}" style="flex:1; padding:8px 6px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
+    const btn = (key, label) => `<button class="standings-seg-btn" data-seg="${key}" style="flex:1; padding:8px 6px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
     return `<div style="display:flex; gap:6px; padding:10px 10px 0;">${btn('table', 'Standings')}${btn('order', nextYear + ' Order')}${btn('bracket', 'Playoffs')}</div>`;
 }
 
@@ -14009,7 +14106,7 @@ async function loadLeagueStandings() {
 // Projected playoff bracket: top 4 qualify, #1 v #4 and #2 v #3, single elimination
 async function renderPlayoffBracket(container) {
     const QUALIFIERS = 5, REG_WEEKS = 14;
-    container.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Playoff Picture...</div>');
+    container.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Playoff Picture...</div>');
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
@@ -14024,7 +14121,7 @@ async function renderPlayoffBracket(container) {
             teams.push({ fid: m[1].padStart(4, '0'), w, l, t, gp: w + l + t, pf: num(row.querySelector('td.pf')?.textContent) });
         });
         if (teams.length < QUALIFIERS) {
-            container.html('<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px;">Not enough standings data yet.</div>');
+            container.html('<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Not enough standings data yet.</div>');
             return;
         }
         const rec = t => `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`;
@@ -14035,31 +14132,31 @@ async function renderPlayoffBracket(container) {
         const teamRow = (t, seed) => {
             const mine = t.fid === myFid;
             return `<div style="display:flex; align-items:center; gap:10px; padding:9px 12px; background:${mine ? 'rgba(34,197,94,0.06)' : 'transparent'};">
-                <span style="font-size:11px; font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:18px;">${seed}</span>
+                <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:18px;">${seed}</span>
                 <img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.opacity='0'" style="width:26px; height:26px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
-                <span data-team-style="${t.fid}" style="font-size:12px; font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[t.fid] || t.fid}</span>
+                <span data-team-style="${t.fid}" style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[t.fid] || t.fid}</span>
                 <div style="text-align:right; flex-shrink:0;">
-                    <div style="font-size:11px; font-weight:900; color:#fff;">${rec(t)}</div>
-                    <div style="font-size:8px; font-weight:800; color:var(--text-dim);">${fmtPf(t.pf)} PF</div>
+                    <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${rec(t)}</div>
+                    <div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${fmtPf(t.pf)} PF</div>
                 </div>
             </div>`;
         };
         const tbdRow = label => `<div style="display:flex; align-items:center; gap:10px; padding:9px 12px;">
-            <span style="font-size:11px; font-weight:900; color:var(--text-dim); min-width:18px;">?</span>
+            <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); min-width:18px;">?</span>
             <span style="width:26px; height:26px; border-radius:50%; border:1px dashed var(--card-border); flex-shrink:0;"></span>
-            <span style="font-size:11px; font-weight:800; color:var(--text-dim);">${label}</span>
+            <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${label}</span>
         </div>`;
         const card = (title, sub, a, b) => `<div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
             <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border);">
-                <span style="font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${title}</span>
-                <span style="font-size:9px; font-weight:800; color:var(--text-dim); text-transform:uppercase;">${sub}</span>
+                <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">${title}</span>
+                <span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase;">${sub}</span>
             </div>
             ${a}<div style="height:1px; background:rgba(255,255,255,0.05);"></div>${b}
         </div>`;
 
         const s = teams;
         let html = `<div style="padding:10px;">
-            <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:12px; line-height:1.5;">${left > 0 ? `If the playoffs started today · ${left} regular-season game${left === 1 ? '' : 's'} left` : 'Final regular-season seeding'}. Top ${QUALIFIERS} qualify; ties broken by points scored.</div>
+            <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:12px; line-height:1.5;">${left > 0 ? `If the playoffs started today · ${left} regular-season game${left === 1 ? '' : 's'} left` : 'Final regular-season seeding'}. Top ${QUALIFIERS} qualify; ties broken by points scored.</div>
                        ${card('Round 1', 'Week 15', teamRow(s[3], 4), teamRow(s[4], 5))}
             ${card('Semifinal 1', 'Weeks 16–17', teamRow(s[0], 1), tbdRow('Winner of Round 1 (#4 vs #5)'))}
             ${card('Semifinal 2', 'Weeks 16–17', teamRow(s[1], 2), teamRow(s[2], 3))}
@@ -14068,12 +14165,12 @@ async function renderPlayoffBracket(container) {
         const cut = s[QUALIFIERS - 1];
         const bubble = s.slice(QUALIFIERS, QUALIFIERS + 3);
         if (bubble.length) {
-            html += `<div style="font-size:10px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 2px 8px;">On the bubble</div>
+            html += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:16px 2px 8px;">On the bubble</div>
             <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
             ${bubble.map((t, i) => {
                 const gb = ((cut.w - t.w) + (t.l - cut.l)) / 2;
                 const pfBack = cut.pf - t.pf;
-                return teamRow(t, QUALIFIERS + 1 + i).replace(/(<div style="text-align:right; flex-shrink:0;">)/, `$1<div style="font-size:8px; font-weight:900; color:#f59e0b; margin-bottom:2px;">${gb > 0 ? gb + ' GB' : 'Tied'}${pfBack > 0 ? ' · ' + fmtPf(pfBack) + ' PF back' : ''}</div>`);
+                return teamRow(t, QUALIFIERS + 1 + i).replace(/(<div style="text-align:right; flex-shrink:0;">)/, `$1<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#f59e0b; margin-bottom:2px;">${gb > 0 ? gb + ' GB' : 'Tied'}${pfBack > 0 ? ' · ' + fmtPf(pfBack) + ' PF back' : ''}</div>`);
             }).join('<div style="height:1px; background:rgba(255,255,255,0.05);"></div>')}
             </div>`;
         }
@@ -14100,7 +14197,7 @@ async function getDraftSegment() {
 function draftSegHtml(active) {
     return ''; // the Draft tab no longer has a Projected Order toggle
     const nextYear = parseInt(year, 10) + 1;
-    const btn = (key, label) => `<button class="draft-seg-btn" data-seg="${key}" style="flex:1; padding:8px 10px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
+    const btn = (key, label) => `<button class="draft-seg-btn" data-seg="${key}" style="flex:1; padding:8px 10px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
     return `<div style="display:flex; gap:6px; margin-bottom:12px; padding:0 5px;">${btn('projected', nextYear + ' Projected Order')}${btn('last', year + ' Draft')}</div>`;
 }
 
@@ -14108,7 +14205,7 @@ async function renderProjectedDraft(container) {
     const nextYear = parseInt(year, 10) + 1;
     const ROUNDS = 5;
     const asArr = v => (Array.isArray(v) ? v : (v ? [v] : []));
-    container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Projected Order...</div></div>`);
+    container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">Loading Projected Order...</div></div>`);
 
     const [stRes, fpRes] = await Promise.all([
         fetch(`${MFL_ORIGIN}/${year}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' }),
@@ -14145,7 +14242,7 @@ async function renderProjectedDraft(container) {
     });
 
     if (!teams.length || !teams.some(t => t.maxpf > 0)) {
-        container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:11px; line-height:1.6;">Couldn't find a Max PF column on the standings page.<br>Check the browser console for "[draft-proj]" to see which columns were found.</div></div>`);
+        container.html(`<div style="padding:10px 0;">${draftSegHtml('projected')}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1)); line-height:1.6;">Couldn't find a Max PF column on the standings page.<br>Check the browser console for "[draft-proj]" to see which columns were found.</div></div>`);
         return;
     }
 
@@ -14176,10 +14273,10 @@ async function renderProjectedDraft(container) {
     } catch (e) { console.warn('futureDraftPicks failed', e); }
 
     let board = `<div style="padding:0 5px;">
-        <div style="font-size:9px; font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:10px; line-height:1.5;">Lowest Max PF picks first. The league champion always picks last.${champFinal ? '' : ' Until the season ends, the current top seed is shown as the projected champion.'}${found ? '' : ' Pick trades for ' + nextYear + ' weren\'t found, so every team is shown with its own picks.'}</div>`;
+        <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-align:center; margin-bottom:10px; line-height:1.5;">Lowest Max PF picks first. The league champion always picks last.${champFinal ? '' : ' Until the season ends, the current top seed is shown as the projected champion.'}${found ? '' : ' Pick trades for ' + nextYear + ' weren\'t found, so every team is shown with its own picks.'}</div>`;
     for (let r = 1; r <= ROUNDS; r++) {
         board += `<div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
-            <div style="padding:10px 14px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border); font-size:11px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Round ${r}</div>`;
+            <div style="padding:10px 14px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border); font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Round ${r}</div>`;
         order.forEach((t, i) => {
             const ownerFid = (owner[r] && owner[r][t.fid]) || t.fid;
             const traded = ownerFid !== t.fid;
@@ -14187,13 +14284,13 @@ async function renderProjectedDraft(container) {
             const isChamp = t.fid === champFid;
             const key = `${r}.${String(i + 1).padStart(2, '0')}`;
             board += `<div style="display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); background:${mine ? 'rgba(34,197,94,0.04)' : 'transparent'};">
-                <span style="font-size:10px; font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:32px;">${key}</span>
+                <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:${mine ? '#22c55e' : 'var(--accent-blue)'}; min-width:32px;">${key}</span>
                 <img src="${getFranchiseLogoUrl(ownerFid)}" onerror="this.style.opacity='0'" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
-                <span data-team-style="${ownerFid}" style="font-size:11px; font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[ownerFid] || ownerFid}</span>
-                ${traded ? `<span style="display:inline-flex; align-items:center; gap:4px; flex-shrink:0;"><span style="font-size:9px; color:#f59e0b; font-weight:800;">from</span><img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg);"></span>` : ''}
+                <span data-team-style="${ownerFid}" style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${leagueFranchises[ownerFid] || ownerFid}</span>
+                ${traded ? `<span style="display:inline-flex; align-items:center; gap:4px; flex-shrink:0;"><span style="font-size:calc(9px * var(--ts,1)); color:#f59e0b; font-weight:800;">from</span><img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg);"></span>` : ''}
                 <div style="text-align:right; min-width:58px; flex-shrink:0;">
-                    <div style="font-size:10px; font-weight:800; color:${isChamp ? '#f59e0b' : 'var(--text-dim)'};">${isChamp ? (champFinal ? 'CHAMPION' : 'PROJ. CHAMP') : t.maxpf.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
-                    <div style="font-size:7px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${isChamp ? 'Picks last' : 'Max PF'}</div>
+                    <div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:${isChamp ? '#f59e0b' : 'var(--text-dim)'};">${isChamp ? (champFinal ? 'CHAMPION' : 'PROJ. CHAMP') : t.maxpf.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
+                    <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${isChamp ? 'Picks last' : 'Max PF'}</div>
                 </div>
             </div>`;
         });
@@ -14206,7 +14303,7 @@ async function renderProjectedDraft(container) {
 // =================== END DRAFT TAB: PROJECTED ORDER ===================
 
 async function loadDraftData() {    const container = $('#draft-content-container');
-    container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Draft Board...</div>');
+    container.html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Draft Board...</div>');
     try {
         if ((await getDraftSegment()) === 'projected') { await renderProjectedDraft(container); return; }
         const [res, picksRes] = await Promise.all([
@@ -14395,18 +14492,18 @@ localStorage.setItem(onClockKey, onClockPick);
               <div id="draft-pick-sheet" style="position:fixed; bottom:0; left:0; right:0; height:65vh; background:#0f1117; border-top:1px solid var(--card-border); border-radius:16px 16px 0 0; z-index:9999; transform:translateY(100%); transition:transform 0.3s ease; display:flex; flex-direction:column;">
                     <div style="padding:12px 16px; border-bottom:1px solid var(--card-border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
                         <div>
-                            <div id="pick-sheet-title" style="font-size:13px; font-weight:900; color:#fff; text-transform:uppercase;"></div>
-                            <div id="pick-sheet-subtitle" style="font-size:10px; color:var(--text-dim); margin-top:2px;"></div>
+                            <div id="pick-sheet-title" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase;"></div>
+                            <div id="pick-sheet-subtitle" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:2px;"></div>
                         </div>
-                        <button id="pick-sheet-close" style="background:rgba(255,255,255,0.08); border:none; color:#fff; border-radius:8px; padding:6px 12px; font-size:11px; font-weight:900; cursor:pointer;">✕ Close</button>
+                        <button id="pick-sheet-close" style="background:rgba(255,255,255,0.08); border:none; color:#fff; border-radius:8px; padding:6px 12px; font-size:calc(11px * var(--ts,1)); font-weight:900; cursor:pointer;">✕ Close</button>
                     </div>
                     <div style="padding:8px 12px; border-bottom:1px solid var(--card-border); flex-shrink:0;">
                         <div style="display:flex; gap:6px; flex-wrap:wrap;" id="pick-sheet-pos-filters">
-                            <button class="pick-pos-btn active" data-pos="ALL" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">All</button>
-                            <button class="pick-pos-btn" data-pos="QB" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">QB</button>
-                            <button class="pick-pos-btn" data-pos="RB" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">RB</button>
-                            <button class="pick-pos-btn" data-pos="WR" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">WR</button>
-                            <button class="pick-pos-btn" data-pos="TE" style="padding:4px 10px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">TE</button>
+                            <button class="pick-pos-btn active" data-pos="ALL" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">All</button>
+                            <button class="pick-pos-btn" data-pos="QB" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">QB</button>
+                            <button class="pick-pos-btn" data-pos="RB" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">RB</button>
+                            <button class="pick-pos-btn" data-pos="WR" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">WR</button>
+                            <button class="pick-pos-btn" data-pos="TE" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">TE</button>
                         </div>
                     </div>
                     <div id="pick-sheet-list" style="overflow-y:auto; flex:1; padding:8px 12px;"></div>
@@ -14536,25 +14633,25 @@ const isTaken = player.ownerFid !== null && player.ownerFid !== undefined;      
                 return `
                     <div class="adp-row" data-pos="${player.pos}" style="display:flex; align-items:center; gap:10px; padding:8px; margin-bottom:4px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-left:3px solid var(--pos-${player.pos.toLowerCase()}, #3b82f6); opacity:${isTaken ? '0.4' : '1'};">
                         
-                        <span style="font-size:9px; font-weight:900; color:var(--text-dim); min-width:20px; text-align:center; flex-shrink:0;">${player.rank}</span>
+                        <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); min-width:20px; text-align:center; flex-shrink:0;">${player.rank}</span>
 
                         <div class="player-modal-trigger" data-pid="${player.pid}" data-ppos="${player.pos}" data-pteam="${player.team}" data-pname="${player.name}" style="width:38px; height:38px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">
                             <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${player.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                         </div>
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; gap:5px; margin-bottom:3px;">
-                                <span style="font-size:12px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${shortName}</span>
-                               <span class="pos-text-${player.pos.toLowerCase()}" style="font-size:8px; font-weight:900; flex-shrink:0;">${player.pos}</span>
+                                <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${shortName}</span>
+                               <span class="pos-text-${player.pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900; flex-shrink:0;">${player.pos}</span>
                             </div>
                            <div style="display:flex; align-items:center; gap:5px;">
                                 <img src="${getNFLLogoUrl(player.team)}" onerror="this.style.display='none'" style="width:14px; height:14px; object-fit:contain; flex-shrink:0;">
-                                <span style="font-size:9px; color:var(--text-dim);">Avg: ${player.avgPick}</span>
+                                <span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim);">Avg: ${player.avgPick}</span>
                             </div>
                         </div>
 
-                        ${isTaken ? `<span style="font-size:9px; color:var(--accent-blue); font-weight:800; flex-shrink:0;">Rostered</span>` : `
+                        ${isTaken ? `<span style="font-size:calc(9px * var(--ts,1)); color:var(--accent-blue); font-weight:800; flex-shrink:0;">Rostered</span>` : `
                         <button class="target-btn" data-pid="${player.pid}" data-pick="${pickKey}"
-                            style="padding:6px 10px; border-radius:6px; font-size:9px; font-weight:900; cursor:pointer; flex-shrink:0;
+                            style="padding:6px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; flex-shrink:0;
                             background:${isTargeted ? 'rgba(234,179,8,0.2)' : 'rgba(255,255,255,0.05)'};
                             color:${isTargeted ? '#eab308' : 'var(--text-dim)'};
                             border:1px solid ${isTargeted ? 'rgba(234,179,8,0.4)' : 'var(--card-border)'};">
@@ -14576,12 +14673,12 @@ function openDraftSheet(pickKey) {
 
     // Override the pos filter bar with tabs
     $('#pick-sheet-pos-filters').html(`
-        <button class="draft-sheet-tab active" data-tab="adp" style="padding:6px 14px; border-radius:6px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">ADP Board</button>
-        <button class="draft-sheet-tab" data-tab="mylist" style="padding:6px 14px; border-radius:6px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">⭐ My List</button>
+        <button class="draft-sheet-tab active" data-tab="adp" style="padding:6px 14px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">ADP Board</button>
+        <button class="draft-sheet-tab" data-tab="mylist" style="padding:6px 14px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">⭐ My List</button>
     `);
 
     function buildDraftRows(players) {
-        if (!players.length) return `<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:11px;">No players available.</div>`;
+        if (!players.length) return `<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No players available.</div>`;
         return players.map(player => {
             const nameParts = player.name.split(' ');
             const shortName = nameParts.length > 1 ? nameParts[0].charAt(0) + '. ' + nameParts.slice(1).join(' ') : player.name;
@@ -14592,16 +14689,16 @@ function openDraftSheet(pickKey) {
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; gap:5px; margin-bottom:3px;">
-                            <span style="font-size:12px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${shortName}</span>
-                         <span class="pos-text-${player.pos.toLowerCase()}" style="font-size:8px; font-weight:900; flex-shrink:0;">${player.pos}</span>
+                            <span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${shortName}</span>
+                         <span class="pos-text-${player.pos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900; flex-shrink:0;">${player.pos}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:5px;">
                             <img src="${getNFLLogoUrl(player.team)}" onerror="this.style.display='none'" style="width:14px; height:14px; object-fit:contain; flex-shrink:0;">
-                            <span style="font-size:9px; color:var(--text-dim);">Avg: ${player.avgPick}</span>
+                            <span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim);">Avg: ${player.avgPick}</span>
                         </div>
                     </div>
                     <button class="draft-player-btn" data-pid="${player.pid}" data-pick="${pickKey}"
-                        style="padding:8px 14px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; flex-shrink:0;
+                        style="padding:8px 14px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; flex-shrink:0;
                         background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.4);">
                         Draft
                     </button>
@@ -14726,13 +14823,13 @@ const hours = Math.floor(secondsLeft / 3600);
                             <div style="display:flex; align-items:center; gap:10px;">
                                 ${onClockFid ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${onClockFid}.png" style="width:28px; height:28px; border-radius:50%; object-fit:cover; background:var(--card-bg);">` : ''}
                                 <div>
-                                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">On The Clock</div>
-                                    <div style="font-size:12px; font-weight:900; color:${isMyTurn ? '#22c55e' : '#fff'};">${isMyTurn ? '🏈 Your Pick!' : (onClockName || 'Unknown')}</div>
+                                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">On The Clock</div>
+                                    <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:${isMyTurn ? '#22c55e' : '#fff'};">${isMyTurn ? '🏈 Your Pick!' : (onClockName || 'Unknown')}</div>
                                 </div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Time Left</div>
-                                <div id="draft-clock-display" data-seconds="${secondsLeft}" style="font-size:18px; font-weight:900; color:${urgentColor}; font-variant-numeric:tabular-nums;">${timeStr}</div>
+                                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Time Left</div>
+                                <div id="draft-clock-display" data-seconds="${secondsLeft}" style="font-size:calc(18px * var(--ts,1)); font-weight:900; color:${urgentColor}; font-variant-numeric:tabular-nums;">${timeStr}</div>
                             </div>
                         </div>`;
                 }
@@ -14749,12 +14846,12 @@ const hours = Math.floor(secondsLeft / 3600);
                         clockHtml = `
                             <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; margin-bottom:10px; background:rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:8px;">
                                 <div>
-                                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Draft Starts In</div>
-                                    <div style="font-size:16px; font-weight:900; color:var(--accent-blue);">${countdownStr}</div>
+                                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Draft Starts In</div>
+                                    <div style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${countdownStr}</div>
                                 </div>
                                 <div style="text-align:right;">
-                                    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">Draft Date</div>
-                                    <div style="font-size:12px; font-weight:900; color:#fff;">${draftEvent.date.toLocaleDateString([], { month:'short', day:'numeric' })}</div>
+                                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Draft Date</div>
+                                    <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">${draftEvent.date.toLocaleDateString([], { month:'short', day:'numeric' })}</div>
                                 </div>
                             </div>`;
                     }
@@ -14763,20 +14860,20 @@ const hours = Math.floor(secondsLeft / 3600);
 
 const toggleHtml = `
     <div style="display:flex; gap:6px; margin-bottom:14px; padding: 0 5px; align-items:center;">
-        <button class="draft-view-btn" data-view="grid" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${viewMode==='grid' ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${viewMode==='grid' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${viewMode==='grid' ? '#fff' : 'var(--text-dim)'};">⊞ Grid</button>
-        <button class="draft-view-btn" data-view="list" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${viewMode==='list' ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${viewMode==='list' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${viewMode==='list' ? '#fff' : 'var(--text-dim)'};">☰ List</button>
+        <button class="draft-view-btn" data-view="grid" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${viewMode==='grid' ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${viewMode==='grid' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${viewMode==='grid' ? '#fff' : 'var(--text-dim)'};">⊞ Grid</button>
+        <button class="draft-view-btn" data-view="list" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${viewMode==='list' ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${viewMode==='list' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${viewMode==='list' ? '#fff' : 'var(--text-dim)'};">☰ List</button>
         ${myPickIsOnClock ? `
-            <button id="open-draft-btn" style="margin-left:auto; padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid rgba(34,197,94,0.5); background:rgba(34,197,94,0.15); color:#22c55e; animation:pulse-blue 1.5s infinite;">🏈 Draft Now</button>
-            <button id="open-draft-list-btn" style="padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid rgba(234,179,8,0.4); background:rgba(234,179,8,0.1); color:#eab308;">⭐ List</button>
+            <button id="open-draft-btn" style="margin-left:auto; padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid rgba(34,197,94,0.5); background:rgba(34,197,94,0.15); color:#22c55e; animation:pulse-blue 1.5s infinite;">🏈 Draft Now</button>
+            <button id="open-draft-list-btn" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid rgba(234,179,8,0.4); background:rgba(234,179,8,0.1); color:#eab308;">⭐ List</button>
         ` : `
-            <button id="open-draft-list-btn" style="margin-left:auto; padding:6px 14px; border-radius:8px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid rgba(234,179,8,0.4); background:rgba(234,179,8,0.1); color:#eab308;">⭐ Draft List</button>
+            <button id="open-draft-list-btn" style="margin-left:auto; padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid rgba(234,179,8,0.4); background:rgba(234,179,8,0.1); color:#eab308;">⭐ Draft List</button>
         `}
     </div>`;
 
             let boardHtml = '';
 
             if (viewMode === 'grid') {
-let headerCells = `<div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; padding:6px 2px; text-align:center;">RD</div>`;
+let headerCells = `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; padding:6px 2px; text-align:center;">RD</div>`;
             round1Order.forEach((p, i) => {
                 headerCells += `
                     <div style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px;">
@@ -14788,7 +14885,7 @@ let headerCells = `<div style="font-size:9px; font-weight:900; color:var(--text-
                         ${headerCells}`;
 
                 for (let r = 1; r <= 5; r++) {
-                    boardHtml += `<div style="display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; color:var(--accent-blue);">${r}</div>`;
+                    boardHtml += `<div style="display:flex; align-items:center; justify-content:center; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${r}</div>`;
                     for (let p = 1; p <= 10; p++) {
                         const key = `${r}.${String(p).padStart(2,'0')}`;
                         const pick = picks[key];
@@ -14803,12 +14900,12 @@ boardHtml += `
     <div class="pick-cell" data-pick="${key}" style="background:rgba(255,255,255,0.03); border:1px solid ${isMyPick ? 'rgba(34,197,94,0.3)' : 'var(--card-border)'}; border-radius:6px; min-height:58px; display:flex; flex-direction:column; padding:4px; gap:2px; position:relative; cursor:pointer; box-sizing:border-box;">
         
         ${onClockPick === key ? `<div style="position:absolute;inset:0;border-radius:6px;border:2px solid #f59e0b;pointer-events:none;"></div>` : ''}
-${(() => { const realFid2 = (myFid === '0000' ? fid : myFid).padStart(4,'0'); const fpKey2 = `FP_${realFid2}_${year}_${r}`; const dpParts = key.split('.'); const dpKey2 = `DP_${parseInt(dpParts[0])-1}_${parseInt(dpParts[1])-1}`; return (tradeBlockPids.has(fpKey2) || tradeBlockPids.has(dpKey2)) ? `<div style="position:absolute;top:2px;right:3px;font-size:9px;">${BLOCK_ICON}</div>` : ''; })()}        ${hasTargets ? `<div style="position:absolute;bottom:2px;right:3px;font-size:9px;">⭐</div>` : ''}
+${(() => { const realFid2 = (myFid === '0000' ? fid : myFid).padStart(4,'0'); const fpKey2 = `FP_${realFid2}_${year}_${r}`; const dpParts = key.split('.'); const dpKey2 = `DP_${parseInt(dpParts[0])-1}_${parseInt(dpParts[1])-1}`; return (tradeBlockPids.has(fpKey2) || tradeBlockPids.has(dpKey2)) ? `<div style="position:absolute;top:2px;right:3px;font-size:calc(9px * var(--ts,1));">${BLOCK_ICON}</div>` : ''; })()}        ${hasTargets ? `<div style="position:absolute;bottom:2px;right:3px;font-size:calc(9px * var(--ts,1));">⭐</div>` : ''}
 
 <div style="display:flex; align-items:center; gap:3px;">
-            <span style="font-size:8px; font-weight:900; color:${isMyPick ? '#22c55e' : 'var(--text-dim)'}; line-height:1;">${key}</span>
+            <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:${isMyPick ? '#22c55e' : 'var(--text-dim)'}; line-height:1;">${key}</span>
             ${traded ? `
-                <span style="font-size:7px; font-weight:800; color:#f59e0b;">to</span>
+                <span style="font-size:calc(7px * var(--ts,1)); font-weight:800; color:#f59e0b;">to</span>
                 <img src="${pick?.logoUrl}" onerror="this.style.display='none'" style="width:14px;height:14px;border-radius:50%;object-fit:cover;background:var(--card-bg);">
             ` : ''}
         </div>
@@ -14818,9 +14915,9 @@ ${pick?.draftedPlayer ? `
                 <div style="width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--card-bg); border:1px solid rgba(34,197,94,0.4); flex-shrink:0;">
                     <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pick.draftedPlayer.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                 </div>
-                <span style="font-size:7px; font-weight:800; color:#22c55e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46px; line-height:1.2; text-align:center;">${pick.draftedPlayer.shortName}</span>
+                <span style="font-size:calc(7px * var(--ts,1)); font-weight:800; color:#22c55e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46px; line-height:1.2; text-align:center;">${pick.draftedPlayer.shortName}</span>
                 <div style="display:flex; align-items:center; gap:2px;">
-                    <span class="pos-text-${pick.draftedPlayer.pos.toLowerCase()}" style="font-size:6px; font-weight:900; flex-shrink:0;">${pick.draftedPlayer.pos}</span>
+                    <span class="pos-text-${pick.draftedPlayer.pos.toLowerCase()}" style="font-size:calc(6px * var(--ts,1)); font-weight:900; flex-shrink:0;">${pick.draftedPlayer.pos}</span>
                     <img src="${getNFLLogoUrl(pick.draftedPlayer.team)}" onerror="this.style.display='none'" style="width:10px; height:10px; object-fit:contain; flex-shrink:0;">
                 </div>
             </div>
@@ -14829,9 +14926,9 @@ ${pick?.draftedPlayer ? `
                 <div style="width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">
                     <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${proj.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                 </div>
-                <span style="font-size:7px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46px; line-height:1.2; text-align:center;">${projShort}</span>
+                <span style="font-size:calc(7px * var(--ts,1)); font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46px; line-height:1.2; text-align:center;">${projShort}</span>
                 <div style="display:flex; align-items:center; gap:2px;">
-                   <span class="pos-text-${proj.pos.toLowerCase()}" style="font-size:6px; font-weight:900; flex-shrink:0;">${proj.pos}</span>
+                   <span class="pos-text-${proj.pos.toLowerCase()}" style="font-size:calc(6px * var(--ts,1)); font-weight:900; flex-shrink:0;">${proj.pos}</span>
                     <img src="${getNFLLogoUrl(proj.team)}" onerror="this.style.display='none'" style="width:10px; height:10px; object-fit:contain; flex-shrink:0;">
                 </div>
             </div>
@@ -14846,7 +14943,7 @@ ${pick?.draftedPlayer ? `
                 for (let r = 1; r <= 5; r++) {
                     boardHtml += `
                         <div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
-                            <div style="padding:10px 14px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border); font-size:11px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Round ${r}</div>`;
+                            <div style="padding:10px 14px; background:rgba(59,130,246,0.08); border-bottom:1px solid var(--card-border); font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px;">Round ${r}</div>`;
                     for (let p = 1; p <= 10; p++) {
                         const key = `${r}.${String(p).padStart(2,'0')}`;
                         const pick = picks[key];
@@ -14854,18 +14951,18 @@ ${pick?.draftedPlayer ? `
                         const hasTargets = (allTargets[key] || []).length > 0;
                         boardHtml += `
                             <div class="pick-cell" data-pick="${key}" style="display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); background:${isMyPick ? 'rgba(34,197,94,0.04)' : 'transparent'}; cursor:pointer;">
-                                <span style="font-size:10px; font-weight:900; color:${isMyPick ? '#22c55e' : 'var(--accent-blue)'}; min-width:32px;">${key}</span>
+                                <span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:${isMyPick ? '#22c55e' : 'var(--accent-blue)'}; min-width:32px;">${key}</span>
                                ${pick ? `<img src="${pick.logoUrl}" onerror="this.style.opacity='0'" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:var(--card-bg);flex-shrink:0;">` : ''}
-                                <span style="font-size:11px; font-weight:800; color:#fff; flex:1;">${pick?.teamName || leagueFranchises[pick?.fid] || '—'}</span>
+                                <span style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; flex:1;">${pick?.teamName || leagueFranchises[pick?.fid] || '—'}</span>
 ${pick?.draftedPlayer ? `
                                     <div style="display:flex; align-items:center; gap:8px;">
                                         <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; background:var(--card-bg); border:1px solid rgba(34,197,94,0.4); flex-shrink:0;">
                                             <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pick.draftedPlayer.pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                                         </div>
                                         <div style="display:flex; flex-direction:column;">
-                                            <span style="font-size:11px; font-weight:900; color:#22c55e;">${pick.draftedPlayer.shortName}</span>
+                                            <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#22c55e;">${pick.draftedPlayer.shortName}</span>
                                             <div style="display:flex; align-items:center; gap:3px;">
-                                                <span class="pos-text-${pick.draftedPlayer.pos.toLowerCase()}" style="font-size:7px; font-weight:900;">${pick.draftedPlayer.pos}</span>
+                                                <span class="pos-text-${pick.draftedPlayer.pos.toLowerCase()}" style="font-size:calc(7px * var(--ts,1)); font-weight:900;">${pick.draftedPlayer.pos}</span>
                                                 <img src="${getNFLLogoUrl(pick.draftedPlayer.team)}" style="width:12px; height:12px; object-fit:contain;">
                                             </div>
                                         </div>
@@ -14876,9 +14973,9 @@ ${pick?.draftedPlayer ? `
                                             <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${projectionMap[key].pid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                                         </div>
                                         <div style="display:flex; flex-direction:column;">
-                                            <span style="font-size:11px; font-weight:700; color:#fff;">${(() => { const n = projectionMap[key].name.split(' '); return n.length > 1 ? n[0].charAt(0) + '. ' + n.slice(1).join(' ') : projectionMap[key].name; })()}</span>
+                                            <span style="font-size:calc(11px * var(--ts,1)); font-weight:700; color:#fff;">${(() => { const n = projectionMap[key].name.split(' '); return n.length > 1 ? n[0].charAt(0) + '. ' + n.slice(1).join(' ') : projectionMap[key].name; })()}</span>
                                             <div style="display:flex; align-items:center; gap:3px;">
-                                              <span class="pos-text-${projectionMap[key].pos.toLowerCase()}" style="font-size:7px; font-weight:900;">${projectionMap[key].pos}</span>
+                                              <span class="pos-text-${projectionMap[key].pos.toLowerCase()}" style="font-size:calc(7px * var(--ts,1)); font-weight:900;">${projectionMap[key].pos}</span>
                                                 <img src="${getNFLLogoUrl(projectionMap[key].team)}" style="width:12px; height:12px; object-fit:contain;">
                                             </div>
                                         </div>
@@ -14886,11 +14983,11 @@ ${pick?.draftedPlayer ? `
                                 ` : ''}
                                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                     ${pick?.traded ? `
-                                        <span style="font-size:9px; color:#f59e0b; font-weight:800;">from</span>
+                                        <span style="font-size:calc(9px * var(--ts,1)); color:#f59e0b; font-weight:800;">from</span>
                                         <img src="${pick?.originalLogoUrl}" onerror="this.style.display='none'" style="width:18px;height:18px;border-radius:50%;object-fit:cover;background:var(--card-bg);">
                                     ` : ''}
-${(() => { const realFid2 = (myFid === '0000' ? fid : myFid).padStart(4,'0'); const fpKey2 = `FP_${realFid2}_${year}_${r}`; const dpParts = key.split('.'); const dpKey2 = `DP_${parseInt(dpParts[0])-1}_${parseInt(dpParts[1])-1}`; return (tradeBlockPids.has(fpKey2) || tradeBlockPids.has(dpKey2)) ? `<span style="font-size:9px; color:#a855f7; font-weight:800;">${BLOCK_ICON} Block</span>` : ''; })()}                                </div>
-                                ${hasTargets ? `<span style="font-size:9px; color:#eab308; font-weight:800;">⭐ ${allTargets[key].length}</span>` : ''}
+${(() => { const realFid2 = (myFid === '0000' ? fid : myFid).padStart(4,'0'); const fpKey2 = `FP_${realFid2}_${year}_${r}`; const dpParts = key.split('.'); const dpKey2 = `DP_${parseInt(dpParts[0])-1}_${parseInt(dpParts[1])-1}`; return (tradeBlockPids.has(fpKey2) || tradeBlockPids.has(dpKey2)) ? `<span style="font-size:calc(9px * var(--ts,1)); color:#a855f7; font-weight:800;">${BLOCK_ICON} Block</span>` : ''; })()}                                </div>
+                                ${hasTargets ? `<span style="font-size:calc(9px * var(--ts,1)); color:#eab308; font-weight:800;">⭐ ${allTargets[key].length}</span>` : ''}
 
                             </div>`;
                     }
@@ -15255,7 +15352,7 @@ const titleAttr = teamLink?.getAttribute('title') || '';
     const ownerMatch = titleAttr.match(/Owner:\s*([^,]+)/i);
     window._allOwners[rowFid] = ownerMatch ? ownerMatch[1].trim() : '';
     if (rowFid === myFid) {
-        $('#switcher-subtitle').html(window._allOwners[rowFid] ? `<span style="font-size:10px; font-weight:800; color:var(--text-dim);">${window._allOwners[rowFid]}</span>` : '');
+        $('#switcher-subtitle').html(window._allOwners[rowFid] ? `<span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${window._allOwners[rowFid]}</span>` : '');
     }
 }
                     });
@@ -15357,13 +15454,13 @@ function newsBodyHtml(body) {
     const i = body.search(/\bAnalysis:/);
     const report = i >= 0 ? body.slice(0, i).trim() : body;
     const analysis = i >= 0 ? body.slice(i + 9).trim() : '';
-    return `<div style="font-size:12px; font-weight:600; color:#fff; line-height:1.6;">${newsEsc(report)}</div>` +
-        (analysis ? `<div style="font-size:8px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:12px 0 4px;">Analysis</div><div style="font-size:12px; font-weight:500; color:#cbd5e1; line-height:1.6;">${newsEsc(analysis)}</div>` : '');
+    return `<div style="font-size:calc(12px * var(--ts,1)); font-weight:600; color:#fff; line-height:1.6;">${newsEsc(report)}</div>` +
+        (analysis ? `<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:12px 0 4px;">Analysis</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:500; color:#cbd5e1; line-height:1.6;">${newsEsc(analysis)}</div>` : '');
 }
 
 async function loadModalNews(pid) {
     const container = $('#modal-news-container');
-    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     const name = String(window._modalCurrentName || '');
     let last = '';
     if (name.includes(',')) last = name.split(',')[0].trim();
@@ -15408,16 +15505,16 @@ async function loadModalNews(pid) {
         }
         if (window._modalCurrentPid !== pid) return;
         if (!items.length) {
-            container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px; font-weight:700;">No recent news for this player.</div>');
+            container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1)); font-weight:700;">No recent news for this player.</div>');
             return;
         }
         window._newsOpen = items;
         container.html(items.slice(0, 15).map((n, i) => `<div class="news-item-row" data-i="${i}" style="display:flex; align-items:center; gap:8px; padding:10px; margin-bottom:6px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); cursor:pointer;">
-            <span style="flex:1; min-width:0; font-size:11px; font-weight:800; color:#fff; line-height:1.4;">${newsEsc(n.head)}</span>
-            <span style="flex-shrink:0; color:var(--text-dim); font-size:14px;">›</span></div>`).join(''));
+            <span style="flex:1; min-width:0; font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.4;">${newsEsc(n.head)}</span>
+            <span style="flex-shrink:0; color:var(--text-dim); font-size:calc(14px * var(--ts,1));">›</span></div>`).join(''));
     } catch (e) {
         console.warn('[news] failed', e);
-        container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">Could not load news.</div>');
+        container.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Could not load news.</div>');
     }
 }
 
@@ -15430,11 +15527,11 @@ $(document).off('click touchend', '.news-item-row').on('click touchend', '.news-
     $('body').append(`<div id="news-story-modal" style="position:fixed; inset:0; z-index:100000; background:rgba(0,0,0,0.78); display:flex; align-items:center; justify-content:center; padding:14px;">
         <div style="width:100%; max-width:480px; max-height:85vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
             <div style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-bottom:1px solid var(--card-border);">
-                <div style="flex:1; font-size:13px; font-weight:900; color:#fff; line-height:1.35;">${newsEsc(n.head)}</div>
-                <button class="news-story-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:14px; font-weight:900; cursor:pointer;">✕</button>
+                <div style="flex:1; font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; line-height:1.35;">${newsEsc(n.head)}</div>
+                <button class="news-story-close" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(14px * var(--ts,1)); font-weight:900; cursor:pointer;">✕</button>
             </div>
-                       <div style="padding:14px; overflow-y:auto;">${n.age ? `<div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">${newsEsc(n.age)} ago</div>` : ''}<div id="news-story-body">${newsBodyHtml(n.body)}${n.more ? '<div style="margin-top:10px; font-size:9px; font-weight:800; color:var(--text-dim);">Loading full story…</div>' : ''}</div>
-                ${n.href ? `<a href="${n.href}" target="_blank" rel="noopener" style="display:inline-block; margin-top:12px; font-size:10px; font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Full article ›</a>` : ''}</div>
+                       <div style="padding:14px; overflow-y:auto;">${n.age ? `<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">${newsEsc(n.age)} ago</div>` : ''}<div id="news-story-body">${newsBodyHtml(n.body)}${n.more ? '<div style="margin-top:10px; font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim);">Loading full story…</div>' : ''}</div>
+                ${n.href ? `<a href="${n.href}" target="_blank" rel="noopener" style="display:inline-block; margin-top:12px; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase;">Full article ›</a>` : ''}</div>
                </div></div>`);
     if (n.more) {
         (async () => {
@@ -15467,14 +15564,14 @@ $(document).off('click', '#news-story-modal, .news-story-close').on('click', '#n
 });
 async function loadModalGameLog(pid) {
     const container = $('#modal-gamelog-container');
-    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     
     let activeYear = parseInt(year);
     let activeLogTab = 'stats';
 
     async function fetchAndRender() {
 
-        container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+        container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
         try {
             const [statsRes, projRes] = await Promise.all([
                 fetch(`${MFL_ORIGIN}/${year}/player?L=${lid}&P=${pid}&YEAR=${activeYear}&DISPLAY_TYPE=stats&PROJSRC=mfl`, { credentials: 'include' }),
@@ -15539,7 +15636,7 @@ function buildWeekRows() {
     });
 
     if (!Object.values(mergedMap).some(v => v && (v.pts || v.opp))) {
-        return `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:11px;">No data available.</div>`;
+        return `<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No data available.</div>`;
     }
 
     // Build column headers from headerCells
@@ -15551,13 +15648,13 @@ function buildWeekRows() {
     );
 
 let html = `
-        <table style="width:100%; border-collapse:collapse; font-size:10px;">
+        <table style="width:100%; border-collapse:collapse; font-size:calc(10px * var(--ts,1));">
             <thead>
                 <tr style="border-bottom:1px solid var(--card-border);">
-                    <th style="padding:6px 8px; text-align:left; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; position:sticky; left:0; background:var(--page-bg); z-index:2;">Wk</th>
-<th style="padding:6px 8px; text-align:left; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; position:sticky; left:28px; background:var(--page-bg); z-index:2;">vs</th>                    <th style="padding:6px 8px; text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">Pts</th>
-                    <th style="padding:6px 8px; text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">PA Rank</th>
-                    ${shortLabels.map(l => `<th style="padding:6px 4px; text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${l}</th>`).join('')}
+                    <th style="padding:6px 8px; text-align:left; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; position:sticky; left:0; background:var(--page-bg); z-index:2;">Wk</th>
+<th style="padding:6px 8px; text-align:left; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; position:sticky; left:28px; background:var(--page-bg); z-index:2;">vs</th>                    <th style="padding:6px 8px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">Pts</th>
+                    <th style="padding:6px 8px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">PA Rank</th>
+                    ${shortLabels.map(l => `<th style="padding:6px 4px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap;">${l}</th>`).join('')}
                 </tr>
             </thead>
             <tbody>`;
@@ -15577,8 +15674,8 @@ let html = `
         if (isBye) {
             html += `
 <tr style="border-bottom:1px solid rgba(255,255,255,0.04); opacity:${rowOpacity};">
-                    <td style="padding:7px 8px; font-size:10px; font-weight:900; color:var(--text-dim); position:sticky; left:0; background:var(--page-bg); z-index:1;">${w}</td>
-                    <td style="padding:7px 8px; font-size:10px; color:var(--text-dim); position:sticky; left:28px; background:var(--page-bg); z-index:1; font-weight:900;" colspan="${3 + shortLabels.length - 1}">BYE</td>
+                    <td style="padding:7px 8px; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); position:sticky; left:0; background:var(--page-bg); z-index:1;">${w}</td>
+                    <td style="padding:7px 8px; font-size:calc(10px * var(--ts,1)); color:var(--text-dim); position:sticky; left:28px; background:var(--page-bg); z-index:1; font-weight:900;" colspan="${3 + shortLabels.length - 1}">BYE</td>
                 </tr>`;
             return;
         }
@@ -15586,9 +15683,9 @@ let html = `
         if (!d) {
             html += `
 <tr style="border-bottom:1px solid rgba(255,255,255,0.04); opacity:${rowOpacity};">
-                    <td style="padding:7px 8px; font-size:10px; font-weight:900; color:var(--text-dim); position:sticky; left:0; background:var(--page-bg); z-index:1;">${w}</td>
-                    <td style="padding:7px 8px; font-size:10px; color:var(--text-dim); position:sticky; left:28px; background:var(--page-bg); z-index:1;">—</td>
-                    <td style="padding:7px 8px; font-size:10px; color:var(--text-dim); text-align:right;">—</td>
+                    <td style="padding:7px 8px; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); position:sticky; left:0; background:var(--page-bg); z-index:1;">${w}</td>
+                    <td style="padding:7px 8px; font-size:calc(10px * var(--ts,1)); color:var(--text-dim); position:sticky; left:28px; background:var(--page-bg); z-index:1;">—</td>
+                    <td style="padding:7px 8px; font-size:calc(10px * var(--ts,1)); color:var(--text-dim); text-align:right;">—</td>
                     ${shortLabels.map(() => `<td style="padding:7px 4px; text-align:right; color:var(--text-dim);">—</td>`).join('')}
                 </tr>`;
             return;
@@ -15596,17 +15693,17 @@ let html = `
 
 html += `
             <tr style="border-bottom:1px solid rgba(255,255,255,0.04); ${isProj ? 'opacity:0.7;' : ''}">
-                <td style="padding:7px 8px; font-size:10px; font-weight:900; color:var(--text-dim); white-space:nowrap; position:sticky; left:0; background:var(--page-bg); z-index:1;">${w}${isProj ? '<span style="font-size:7px; color:#f59e0b; margin-left:2px;">P</span>' : ''}</td>
+                <td style="padding:7px 8px; font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); white-space:nowrap; position:sticky; left:0; background:var(--page-bg); z-index:1;">${w}${isProj ? '<span style="font-size:calc(7px * var(--ts,1)); color:#f59e0b; margin-left:2px;">P</span>' : ''}</td>
 <td style="padding:7px 8px; position:sticky; left:28px; background:var(--page-bg); z-index:1; white-space:nowrap;">${(() => {
     const isHome = !opp.startsWith('at');
     const teamMatch = opp.match(/([A-Za-z]+)$/);
     const nflMap = { Cardinals:'ARI', Falcons:'ATL', Ravens:'BAL', Bills:'BUF', Panthers:'CAR', Bears:'CHI', Bengals:'CIN', Browns:'CLE', Cowboys:'DAL', Broncos:'DEN', Lions:'DET', Packers:'GBP', Texans:'HOU', Colts:'IND', Jaguars:'JAC', Chiefs:'KCC', Raiders:'LVR', Chargers:'LAC', Rams:'LAR', Dolphins:'MIA', Vikings:'MIN', Patriots:'NEP', Saints:'NOS', Giants:'NYG', Jets:'NYJ', Eagles:'PHI', Steelers:'PIT', '49ers':'SFO', Seahawks:'SEA', Buccaneers:'TBB', Titans:'TEN', Commanders:'WAS' };
     const abbr = teamMatch ? (nflMap[teamMatch[1]] || teamMatch[1].toUpperCase()) : 'NFL';
     return `<div style="display:flex; align-items:center; gap:4px;">
-        <span style="font-size:8px; font-weight:900; color:var(--text-dim);">${isHome ? 'vs' : '@'}</span>
+        <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${isHome ? 'vs' : '@'}</span>
         <img src="${getNFLLogoUrl(abbr)}" onerror="this.style.display='none'" style="width:20px; height:20px; object-fit:contain;">
     </div>`;
-})()}</td>               <td style="padding:7px 8px; font-size:13px; font-weight:900; color:${ptsColor}; text-align:center; white-space:nowrap;">${pts || '—'}</td>
+})()}</td>               <td style="padding:7px 8px; font-size:calc(13px * var(--ts,1)); font-weight:900; color:${ptsColor}; text-align:center; white-space:nowrap;">${pts || '—'}</td>
                 ${(() => {
                     const nflMap = { Cardinals:'ARI', Falcons:'ATL', Ravens:'BAL', Bills:'BUF', Panthers:'CAR', Bears:'CHI', Bengals:'CIN', Browns:'CLE', Cowboys:'DAL', Broncos:'DEN', Lions:'DET', Packers:'GBP', Texans:'HOU', Colts:'IND', Jaguars:'JAC', Chiefs:'KCC', Raiders:'LVR', Chargers:'LAC', Rams:'LAR', Dolphins:'MIA', Vikings:'MIN', Patriots:'NEP', Saints:'NOS', Giants:'NYG', Jets:'NYJ', Eagles:'PHI', Steelers:'PIT', '49ers':'SFO', Seahawks:'SEA', Buccaneers:'TBB', Titans:'TEN', Commanders:'WAS' };
                     const teamMatch = opp.match(/([A-Za-z]+)$/);
@@ -15614,13 +15711,13 @@ html += `
                     const pos = $('#modal-pos').text().trim();
                     const rankNum = abbr && pointsAllowedRankMap[pos] ? pointsAllowedRankMap[pos][abbr] : null;
                     const rankColor = rankNum >= 24 ? '#22c55e' : rankNum <= 9 ? '#ef4444' : 'var(--text-dim)';
-                    const rankDisplay = rankNum ? `<span style="font-size:10px; font-weight:900; color:${rankColor};">#${rankNum}</span>` : `<span style="color:var(--text-dim);">—</span>`;
+                    const rankDisplay = rankNum ? `<span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:${rankColor};">#${rankNum}</span>` : `<span style="color:var(--text-dim);">—</span>`;
                     return `<td style="padding:7px 8px; text-align:center; white-space:nowrap;">${rankDisplay}</td>`;
                 })()}
                 ${shortLabels.map((_, i) => {
                     const val = statCells[i + 1];
                     const clean = val && val.trim() && val.trim() !== '\u00a0' ? (parseFloat(val) % 1 === 0 ? val : parseFloat(val).toFixed(1)) : '—';
-                    return `<td style="padding:7px 4px; font-size:10px; font-weight:800; color:${isProj ? '#f59e0b' : 'var(--text-dim)'}; text-align:center; white-space:nowrap;">${clean}</td>`;
+                    return `<td style="padding:7px 4px; font-size:calc(10px * var(--ts,1)); font-weight:800; color:${isProj ? '#f59e0b' : 'var(--text-dim)'}; text-align:center; white-space:nowrap;">${clean}</td>`;
                 }).join('')}
             </tr>`;
     });
@@ -15634,9 +15731,9 @@ html += `
                 const colHeaders = Array.from(projDoc.querySelectorAll('table.biohistory th')).map(th => th.textContent.trim()).filter(t => t && t !== '\u00a0');
                 return `
                     <div style="overflow-x:auto;" class="hide-scroll">
-                        <table style="width:100%; border-collapse:collapse; font-size:10px;">
+                        <table style="width:100%; border-collapse:collapse; font-size:calc(10px * var(--ts,1));">
                             <thead>
-                                <tr>${colHeaders.map(h => `<th style="padding:5px 8px; text-align:center; font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; border-bottom:1px solid var(--card-border);">${h}</th>`).join('')}</tr>
+                                <tr>${colHeaders.map(h => `<th style="padding:5px 8px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; border-bottom:1px solid var(--card-border);">${h}</th>`).join('')}</tr>
                             </thead>
                             <tbody>
                                 ${careerRows.map(r => `
@@ -15646,7 +15743,7 @@ html += `
                                     </tr>`).join('')}
                             </tbody>
                         </table>
-                        ${careerRows.some(r => r.isProjected) ? `<div style="font-size:9px; color:var(--text-dim); padding:8px; text-align:center;">* Projected</div>` : ''}
+                        ${careerRows.some(r => r.isProjected) ? `<div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); padding:8px; text-align:center;">* Projected</div>` : ''}
                     </div>`;
             }
 
@@ -15663,8 +15760,8 @@ html += `
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:10px;">
                         ${fields.map(f => `
                             <div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:8px 10px;">
-                                <div style="font-size:8px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:3px;">${f.label}</div>
-                                <div style="font-size:11px; font-weight:800; color:#fff; line-height:1.3;">${bioRows[f.key]}</div>
+                                <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:3px;">${f.label}</div>
+                                <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.3;">${bioRows[f.key]}</div>
                             </div>`).join('')}
                     </div>` : '<div style="text-align:center; padding:20px; color:var(--text-dim);">No bio data.</div>';
             }
@@ -15682,13 +15779,13 @@ function getTabContent() {
             container.html(`
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-bottom:1px solid var(--card-border); background:rgba(0,0,0,0.2);">
                     <div style="display:flex; gap:4px;">
-                        <button class="gl-year-btn" data-yr="${currentYearInt}" style="padding:4px 10px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid ${activeYear===currentYearInt?'var(--accent-blue)':'var(--card-border)'}; background:${activeYear===currentYearInt?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${activeYear===currentYearInt?'#fff':'var(--text-dim)'};">${currentYearInt}</button>
-                        <button class="gl-year-btn" data-yr="${priorYear}" style="padding:4px 10px; border-radius:6px; font-size:10px; font-weight:900; cursor:pointer; border:1px solid ${activeYear===priorYear?'var(--accent-blue)':'var(--card-border)'}; background:${activeYear===priorYear?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${activeYear===priorYear?'#fff':'var(--text-dim)'};">${priorYear}</button>
+                        <button class="gl-year-btn" data-yr="${currentYearInt}" style="padding:4px 10px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid ${activeYear===currentYearInt?'var(--accent-blue)':'var(--card-border)'}; background:${activeYear===currentYearInt?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${activeYear===currentYearInt?'#fff':'var(--text-dim)'};">${currentYearInt}</button>
+                        <button class="gl-year-btn" data-yr="${priorYear}" style="padding:4px 10px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid ${activeYear===priorYear?'var(--accent-blue)':'var(--card-border)'}; background:${activeYear===priorYear?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${activeYear===priorYear?'#fff':'var(--text-dim)'};">${priorYear}</button>
                     </div>
                     <div style="display:flex; gap:0; overflow-x:auto;" class="hide-scroll" id="gamelog-tabs">
-${'<div class="gl-tab" data-tab="stats" style="flex-shrink:0; padding:8px 12px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:' + (activeLogTab==='stats'?'#fff':'var(--text-dim)') + '; border-bottom:2px solid ' + (activeLogTab==='stats'?'var(--accent-blue)':'transparent') + ';">Stats</div>'}
-<div class="gl-tab" data-tab="career" style="flex-shrink:0; padding:8px 12px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:${activeLogTab==='career'?'#fff':'var(--text-dim)'}; border-bottom:2px solid ${activeLogTab==='career'?'var(--accent-blue)':'transparent'};">Career</div>
-<div class="gl-tab" data-tab="bio" style="flex-shrink:0; padding:8px 12px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; color:${activeLogTab==='bio'?'#fff':'var(--text-dim)'}; border-bottom:2px solid ${activeLogTab==='bio'?'var(--accent-blue)':'transparent'};">Bio</div>                    </div>
+${'<div class="gl-tab" data-tab="stats" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:' + (activeLogTab==='stats'?'#fff':'var(--text-dim)') + '; border-bottom:2px solid ' + (activeLogTab==='stats'?'var(--accent-blue)':'transparent') + ';">Stats</div>'}
+<div class="gl-tab" data-tab="career" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:${activeLogTab==='career'?'#fff':'var(--text-dim)'}; border-bottom:2px solid ${activeLogTab==='career'?'var(--accent-blue)':'transparent'};">Career</div>
+<div class="gl-tab" data-tab="bio" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:${activeLogTab==='bio'?'#fff':'var(--text-dim)'}; border-bottom:2px solid ${activeLogTab==='bio'?'var(--accent-blue)':'transparent'};">Bio</div>                    </div>
                 </div>
                 <div id="gamelog-content" style="max-height:350px; overflow-y:auto;">
                     ${getTabContent()}
@@ -15737,7 +15834,7 @@ async function resolvePlayerOwner(pid) {
 
 async function loadModalContract(pid) {const realContainer = $('#modal-actions-container');
     // Same container, but writes are skipped while a Block/Resign form is open
-    const container = { length: realContainer.length, html: (h) => { if (!window._modalActionsLock) realContainer.html(h); return realContainer; } };    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    const container = { length: realContainer.length, html: (h) => { if (!window._modalActionsLock) realContainer.html(h); return realContainer; } };    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const ownerFid = await resolvePlayerOwner(pid);
         if (ownerFid === '') {
@@ -15801,7 +15898,7 @@ async function loadModalContract(pid) {const realContainer = $('#modal-actions-c
             drawerRows = salaries.slice(start, end).map((entry, i) => {
                 const idx = start + i;
                 const isTarget = idx === targetRank - 1;
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);background:${isTarget?'rgba(245,158,11,0.12)':'transparent'};"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:9px;font-weight:900;color:${isTarget?'#f59e0b':'var(--text-dim)'};min-width:20px;">#${idx+1}</span><span style="font-size:11px;font-weight:${isTarget?'900':'700'};color:${isTarget?'#f59e0b':'#fff'};">${entry.name}</span></div><span style="font-size:11px;font-weight:900;color:${isTarget?'#f59e0b':'#fff'};white-space:nowrap;">$${entry.sal}m${isTarget?' ← floor':''}</span></div>`;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);background:${isTarget?'rgba(245,158,11,0.12)':'transparent'};"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:calc(9px * var(--ts,1));font-weight:900;color:${isTarget?'#f59e0b':'var(--text-dim)'};min-width:20px;">#${idx+1}</span><span style="font-size:calc(11px * var(--ts,1));font-weight:${isTarget?'900':'700'};color:${isTarget?'#f59e0b':'#fff'};">${entry.name}</span></div><span style="font-size:calc(11px * var(--ts,1));font-weight:900;color:${isTarget?'#f59e0b':'#fff'};white-space:nowrap;">$${entry.sal}m${isTarget?' ← floor':''}</span></div>`;
             }).join('');
         } catch(e) { console.warn('Could not fetch dynasty rank', e); }
 
@@ -15814,12 +15911,12 @@ async function loadModalContract(pid) {const realContainer = $('#modal-actions-c
             const isFirst = i === 0;
             capHitRows += `
                 <div style="flex:1;min-width:70px;background:${isFirst?'rgba(59,130,246,0.08)':'rgba(0,0,0,0.2)'};border:1px solid ${isFirst?'rgba(59,130,246,0.3)':'rgba(255,255,255,0.05)'};border-radius:6px;padding:7px;text-align:center;">
-                    <div style="font-size:10px;font-weight:900;color:${isFirst?'var(--accent-blue)':'var(--text-dim)'};margin-bottom:5px;">${yearLabel}</div>
-                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Salary</div>
-                    <div style="font-size:11px;font-weight:900;color:#22c55e;margin-bottom:4px;">${salary}</div>
-                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Dead Cap</div>
-                    <div style="font-size:11px;font-weight:900;color:#ef4444;">$${capHitAmt.toFixed(1)}m</div>
-                    <div style="font-size:8px;color:var(--text-dim);margin-top:3px;">${remainingYears} yr${remainingYears!==1?'s':''} left</div>
+                    <div style="font-size:calc(10px * var(--ts,1));font-weight:900;color:${isFirst?'var(--accent-blue)':'var(--text-dim)'};margin-bottom:5px;">${yearLabel}</div>
+                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Salary</div>
+                    <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#22c55e;margin-bottom:4px;">${salary}</div>
+                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Dead Cap</div>
+                    <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#ef4444;">$${capHitAmt.toFixed(1)}m</div>
+                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);margin-top:3px;">${remainingYears} yr${remainingYears!==1?'s':''} left</div>
                 </div>`;
         }
         capHitRows += '</div>';
@@ -15836,53 +15933,53 @@ let capUsed = window.currentTeamCapUsed || 0;
 
         container.html(`
             <div style="animation:fadeIn 0.3s ease;">
-                <div style="font-size:11px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:10px;text-align:center;">${$('#modal-name').text().trim()}</div>
+                <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:10px;text-align:center;">${$('#modal-name').text().trim()}</div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
                     ${dynastyRank ? `
                     <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="contract-floor-toggle">
                         <div>
-                            <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Dynasty Rank</div>
-                            <div style="font-size:13px;font-weight:900;color:var(--accent-blue);">#${dynastyRank}</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Dynasty Rank</div>
+                            <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:var(--accent-blue);">#${dynastyRank}</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Floor</div>
-                            <div style="font-size:13px;font-weight:900;color:#f59e0b;">${baseFloor ? '$'+baseFloor+'m' : '—'}</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Floor</div>
+                            <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:#f59e0b;">${baseFloor ? '$'+baseFloor+'m' : '—'}</div>
                         </div>
                     </div>` : '<div></div>'}
                     <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;">
-                        <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;text-align:center;">Contract</div>
-                        <div style="font-size:13px;font-weight:900;color:#22c55e;text-align:center;">${salary}/yr</div>
-                        <div style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:3px;">${yrsNum} yr${yrsNum!==1?'s':''} · ${guar} · expires ${expirationYear}</div>
+                        <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;text-align:center;">Contract</div>
+                        <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:#22c55e;text-align:center;">${salary}/yr</div>
+                        <div style="font-size:calc(9px * var(--ts,1));color:var(--text-dim);text-align:center;margin-top:3px;">${yrsNum} yr${yrsNum!==1?'s':''} · ${guar} · expires ${expirationYear}</div>
                     </div>
                 </div>
 
                 ${drawerRows ? `
                 <div id="contract-floor-drawer" style="display:none;background:rgba(0,0,0,0.2);border-radius:6px;overflow:hidden;margin-bottom:10px;">
-                    <div style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);">${posGroup} salaries — floor reference</div>
+                    <div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);">${posGroup} salaries — floor reference</div>
                     ${drawerRows}
                 </div>` : ''}
 
                 <div id="contract-yearly-drawer" style="margin-bottom:10px;">
-                    <div style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:7px 0 6px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:4px;">Dead Cap by Year</div>
+                    <div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:7px 0 6px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:4px;">Dead Cap by Year</div>
                     ${capHitRows}
                 </div>
 
                 <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:7px 10px;">
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;">Cap</span>
+                        <span style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;">Cap</span>
                         <div style="flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
                             <div style="height:100%;width:${capPct}%;background:${barColor};border-radius:10px;"></div>
                         </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;margin-top:5px;">
                         <div>
-                            <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Used</div>
-                            <div style="font-size:11px;font-weight:900;color:${barColor};">$${capUsed.toFixed(1)}m</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Used</div>
+                            <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:${barColor};">$${capUsed.toFixed(1)}m</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Remaining</div>
-                            <div style="font-size:11px;font-weight:900;color:${parseFloat(capRemaining) < 0 ? '#ef4444' : 'var(--text-dim)'};">$${capRemaining}m</div>
+                            <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;">Remaining</div>
+                            <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:${parseFloat(capRemaining) < 0 ? '#ef4444' : 'var(--text-dim)'};">$${capRemaining}m</div>
                         </div>
                     </div>
                 </div>
@@ -15903,7 +16000,7 @@ let capUsed = window.currentTeamCapUsed || 0;
 async function loadLeagueCalendar() {
     const modal = $('#calendar-modal');
     const content = $('#calendar-modal-content');
-    content.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading Calendar...</div>');
+    content.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading Calendar...</div>');
     modal.css('display','flex').hide().fadeIn(200);
     $('body').css('overflow','hidden');
 
@@ -15953,19 +16050,19 @@ async function loadLeagueCalendar() {
         window._calendarEvents = allEvents;
 
         if (allEvents.length === 0) {
-            content.html('<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:12px;">No upcoming events found.</div>');
+            content.html('<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:calc(12px * var(--ts,1));">No upcoming events found.</div>');
             return;
         }
 
         // Color/icon map by event class
 function getEventStyle(cls) {
-            if (cls.includes('auction')) return { icon: '<i class="fas fa-tag" style="font-size:13px;"></i>', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' };
-            if (cls.includes('draft')) return { icon: '<i class="fas fa-football" style="font-size:13px;"></i>', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' };
-            if (cls.includes('trade')) return { icon: '<i class="fas fa-right-left" style="font-size:13px;"></i>', color: '#a855f7', bg: 'rgba(168,85,247,0.1)', border: 'rgba(168,85,247,0.3)' };
-            if (cls.includes('waiver') || cls.includes('free')) return { icon: '<i class="fas fa-clipboard-list" style="font-size:13px;"></i>', color: '#00ceb8', bg: 'rgba(0,206,184,0.1)', border: 'rgba(0,206,184,0.3)' };
-            if (cls.includes('playoff') || cls.includes('champion')) return { icon: '<i class="fas fa-trophy" style="font-size:13px;"></i>', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' };
-            if (cls.includes('season')) return { icon: '<i class="fas fa-bolt" style="font-size:13px;"></i>', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)' };
-            return { icon: '<i class="fas fa-calendar-day" style="font-size:13px;"></i>', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' };
+            if (cls.includes('auction')) return { icon: '<i class="fas fa-tag" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' };
+            if (cls.includes('draft')) return { icon: '<i class="fas fa-football" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' };
+            if (cls.includes('trade')) return { icon: '<i class="fas fa-right-left" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#a855f7', bg: 'rgba(168,85,247,0.1)', border: 'rgba(168,85,247,0.3)' };
+            if (cls.includes('waiver') || cls.includes('free')) return { icon: '<i class="fas fa-clipboard-list" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#00ceb8', bg: 'rgba(0,206,184,0.1)', border: 'rgba(0,206,184,0.3)' };
+            if (cls.includes('playoff') || cls.includes('champion')) return { icon: '<i class="fas fa-trophy" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' };
+            if (cls.includes('season')) return { icon: '<i class="fas fa-bolt" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)' };
+            return { icon: '<i class="fas fa-calendar-day" style="font-size:calc(13px * var(--ts,1));"></i>', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' };
         }
 
         // Group by month
@@ -15980,7 +16077,7 @@ function getEventStyle(cls) {
 
         let html = '';
         Object.entries(grouped).forEach(([monthLabel, events]) => {
-            html += `<div style="font-size:9px; font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:2px; padding:10px 0 6px; border-bottom:1px solid var(--card-border); margin-bottom:10px;">${monthLabel}</div>`;
+            html += `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:2px; padding:10px 0 6px; border-bottom:1px solid var(--card-border); margin-bottom:10px;">${monthLabel}</div>`;
             events.forEach(ev => {
                 const style = getEventStyle(ev.cls);
                 const evMs = ev.date.setHours(0,0,0,0);
@@ -15989,23 +16086,23 @@ function getEventStyle(cls) {
                 const dayName = ev.date.toLocaleString('default', { weekday: 'short' });
                 const dayNum = ev.dayNum;
                 const opacity = isPast ? '0.4' : '1';
-                const todayBadge = isToday ? `<span style="font-size:8px; font-weight:900; color:#ef4444; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:4px; padding:1px 5px; margin-left:6px;">TODAY</span>` : '';
+                const todayBadge = isToday ? `<span style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#ef4444; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:4px; padding:1px 5px; margin-left:6px;">TODAY</span>` : '';
 
                 html += `
                     <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:${style.bg}; border:1px solid ${style.border}; border-radius:8px; margin-bottom:6px; opacity:${opacity};">
                         <div style="flex-shrink:0; width:38px; text-align:center;">
-                            <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase;">${dayName}</div>
-                            <div style="font-size:20px; font-weight:900; color:${style.color}; line-height:1.1;">${dayNum}</div>
+                            <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${dayName}</div>
+                            <div style="font-size:calc(20px * var(--ts,1)); font-weight:900; color:${style.color}; line-height:1.1;">${dayNum}</div>
                         </div>
                         <div style="width:1px; height:36px; background:${style.border}; flex-shrink:0;"></div>
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
 <span style="color:${style.color};">${style.icon}</span>
-                                <span style="font-size:12px; font-weight:800; color:#fff;">${ev.text}</span>
+                                <span style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">${ev.text}</span>
                                 ${todayBadge}
                             </div>
                         </div>
-                        ${isPast ? `<span style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; flex-shrink:0;">Done</span>` : ''}
+                        ${isPast ? `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; flex-shrink:0;">Done</span>` : ''}
                     </div>`;
             });
             html += `<div style="margin-bottom:14px;"></div>`;
@@ -16027,8 +16124,8 @@ if ($('#calendar-modal').length === 0) {
                 <button class="player-modal-close" id="close-calendar-modal">✕</button>
                 <div class="settings-header" style="background:linear-gradient(to bottom, rgba(96,165,250,0.15), transparent); padding:20px 20px 14px;">
 <div style="display:flex; align-items:center; gap:10px;">
-                        <i class="fas fa-calendar-days" style="font-size:20px; color:#60a5fa;"></i>
-                        <h2 style="margin:0; color:#fff; font-size:16px; font-weight:900; text-transform:uppercase; letter-spacing:1px;">League Calendar</h2>
+                        <i class="fas fa-calendar-days" style="font-size:calc(20px * var(--ts,1)); color:#60a5fa;"></i>
+                        <h2 style="margin:0; color:#fff; font-size:calc(16px * var(--ts,1)); font-weight:900; text-transform:uppercase; letter-spacing:1px;">League Calendar</h2>
                     </div>
                 </div>
                 <div id="calendar-modal-content" class="settings-content-area hide-scroll" style="max-height:65vh; overflow-y:auto; padding:14px 16px;"></div>
@@ -16050,7 +16147,7 @@ $(document).off('click', '#close-calendar-modal, #calendar-modal').on('click', '
 });
 async function loadModalHistory(pid) {
     const container = $('#modal-history-container');
-    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/player_history?L=${lid}&PLAYERS=${pid}&PROJSRC=mfl`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
@@ -16077,14 +16174,14 @@ async function loadModalHistory(pid) {
             html += `
                 <div style="padding:10px 12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-left:3px solid ${typeColor}; border-radius:8px; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                        <span style="font-size:9px; font-weight:900; color:${typeColor}; text-transform:uppercase;">${typeLabel}</span>
-                        <span style="font-size:9px; color:var(--text-dim);">${yr} · ${date.replace(/:\d{2}\s+[ap]\.m\.\s+ET\s+\d{4}/i,'').trim()}</span>
+                        <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${typeColor}; text-transform:uppercase;">${typeLabel}</span>
+                        <span style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim);">${yr} · ${date.replace(/:\d{2}\s+[ap]\.m\.\s+ET\s+\d{4}/i,'').trim()}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         ${logoUrl ? `<img src="${logoUrl}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); flex-shrink:0;">` : ''}
-                        <span style="font-size:11px; font-weight:900; color:#fff;">${franchise}</span>
+                        <span style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${franchise}</span>
                     </div>
-                    ${tx ? `<div style="font-size:10px; color:var(--text-dim); margin-top:5px; line-height:1.4;">${tx}</div>` : ''}
+                    ${tx ? `<div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:5px; line-height:1.4;">${tx}</div>` : ''}
                 </div>`;
         });
         container.html(html);
@@ -16112,16 +16209,16 @@ ${fid === '0001' ? `<div style="position:absolute; bottom:-4px; right:-8px; back
         <path d="M7 17h10v2H7v-2z" fill="#f59e0b"/>
     </svg>
 </div>` : ''}
-${myFid === '0000' ? `<div style="position:absolute; top:-4px; right:-8px; background:#f59e0b; color:#000; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; border:1px solid #000; z-index:10;">C</div>` : ''}
+${myFid === '0000' ? `<div style="position:absolute; top:-4px; right:-8px; background:#f59e0b; color:#000; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:calc(9px * var(--ts,1)); font-weight:900; border:1px solid #000; z-index:10;">C</div>` : ''}
                         
                         <div style="position: absolute; bottom: -6px; right: -8px; background: var(--card-bg); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.4);">
-                            <span id="switcher-arrow" style="font-size: 9px; color: var(--text-dim); transition: transform 0.2s;">▼</span>
+                            <span id="switcher-arrow" style="font-size: calc(9px * var(--ts,1)); color: var(--text-dim); transition: transform 0.2s;">▼</span>
                         </div>
                     </div>
                     <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; justify-content: center;">
-                        <span id="switcher-team-name" data-team-style="${fid}"  style="font-size: 18px; font-weight: 900; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px;">${activeTeamName}</span>
+                        <span id="switcher-team-name" data-team-style="${fid}"  style="font-size: calc(18px * var(--ts,1)); font-weight: 900; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px;">${activeTeamName}</span>
 <div id="switcher-subtitle" style="display:flex; flex-direction:column; gap:1px; margin-top:4px;">
-    ${window._myOwnerName ? `<span style="font-size:10px; font-weight:800; color:var(--text-dim);">${window._myOwnerName}</span>` : ''}
+    ${window._myOwnerName ? `<span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${window._myOwnerName}</span>` : ''}
 </div>
                         <div id="team-info-panel-wrapper"></div>
                     </div>
@@ -16182,7 +16279,7 @@ ${myFid === '0000' ? `<div style="position:absolute; top:-4px; right:-8px; backg
         </svg>
     </div>` : ''}
 </div>
-                        <span class="team-selector-text" data-team-style="${id.padStart(4,'0')}"  style="color: ${textColor}; font-weight: 800; font-size: 8px; text-align: center; margin-top: 6px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase;">${leagueFranchises[id]}</span>
+                        <span class="team-selector-text" data-team-style="${id.padStart(4,'0')}"  style="color: ${textColor}; font-weight: 800; font-size: calc(8px * var(--ts,1)); text-align: center; margin-top: 6px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase;">${leagueFranchises[id]}</span>
                         ${isMe ? '<div style="background:var(--accent-blue); width:4px; height:4px; border-radius:50%; margin-top:2px;"></div>' : ''}
                     </div>
                 `;
@@ -16225,7 +16322,7 @@ $('#switcher-team-name').text(leagueFranchises[fid] || "My Franchise");
 $('#switcher-team-name').attr('data-team-style', fid);
 const newOwner = window._allOwners?.[newFid] || '';
 $('#switcher-subtitle').html(`
-    ${newOwner ? `<span style="font-size:10px; font-weight:800; color:var(--text-dim);">${newOwner}</span>` : ''}
+    ${newOwner ? `<span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${newOwner}</span>` : ''}
 `);
 $('#team-info-panel-wrapper').html(buildTeamInfoPanel(newFid));
                 
@@ -16275,7 +16372,7 @@ $(document).on('click', '.player-mode-btn', function() {
         const st = playerSeason[pid];
         const avg = playerAverages[pid] || (st ? st.avg : 0);
         const diff = avg ? proj - avg : null;
-        const stat = (label, val, color) => `<div style="flex:1; min-width:0; background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:10px; padding:10px 6px; text-align:center;"><div style="font-size:16px; font-weight:900; color:${color || '#fff'}; font-variant-numeric:tabular-nums;">${val}</div><div style="font-size:8px; font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px;">${label}</div></div>`;
+        const stat = (label, val, color) => `<div style="flex:1; min-width:0; background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:10px; padding:10px 6px; text-align:center;"><div style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:${color || '#fff'}; font-variant-numeric:tabular-nums;">${val}</div><div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px;">${label}</div></div>`;
         let matchup = '';
         if (opp) {
             const paPos = pos === 'DT' || pos === 'DE' ? pos : pos;
@@ -16283,17 +16380,17 @@ $(document).on('click', '.player-mode-btn', function() {
             const rk = pointsAllowedRankMap[paPos] ? pointsAllowedRankMap[paPos][opp] : 0;
             const cls = rk >= 24 ? '#22c55e' : (rk && rk <= 9) ? '#ef4444' : '#f59e0b';
             const verdict = rk >= 24 ? 'Favorable' : (rk && rk <= 9) ? 'Tough' : 'Neutral';
-            matchup = `<div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:10px; padding:10px 12px;"><img src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'" style="width:26px; height:26px; object-fit:contain;"><div style="flex:1; min-width:0;"><div style="font-size:12px; font-weight:900; color:#fff;">${oppM[1].toLowerCase() === 'vs' ? 'vs' : '@'} ${opp}</div>${pts && rk ? `<div style="font-size:10px; font-weight:800; color:var(--text-dim);">Allows ${Math.round(parseFloat(pts))} pts to ${paPos} (#${rk})</div>` : ''}</div>${pts && rk ? `<span style="font-size:10px; font-weight:900; color:${cls};">${verdict}</span>` : ''}</div>`;
+            matchup = `<div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:10px; padding:10px 12px;"><img src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'" style="width:26px; height:26px; object-fit:contain;"><div style="flex:1; min-width:0;"><div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff;">${oppM[1].toLowerCase() === 'vs' ? 'vs' : '@'} ${opp}</div>${pts && rk ? `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);">Allows ${Math.round(parseFloat(pts))} pts to ${paPos} (#${rk})</div>` : ''}</div>${pts && rk ? `<span style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:${cls};">${verdict}</span>` : ''}</div>`;
         }
         $('#proj-popup-overlay').remove();
         const html = `<div id="proj-popup-overlay" style="position:fixed; inset:0; z-index:100001; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; padding:16px;">
             <div style="width:100%; max-width:340px; background:var(--card-bg, #12161f); border:1px solid var(--card-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:12px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.display='none'" style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#000;">
-                    <div style="flex:1; min-width:0;"><div style="font-size:14px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div><div style="font-size:10px; font-weight:800; color:var(--text-dim);">${pos}${playerRanks[pid] ? ' #' + playerRanks[pid] : ''}</div></div>
-                    <button id="proj-popup-close" style="background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; padding:4px 8px;">✕</button>
+                    <div style="flex:1; min-width:0;"><div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div><div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${pos}${playerRanks[pid] ? ' #' + playerRanks[pid] : ''}</div></div>
+                    <button id="proj-popup-close" style="background:none; border:none; color:var(--text-dim); font-size:calc(20px * var(--ts,1)); cursor:pointer; padding:4px 8px;">✕</button>
                 </div>
-                <div style="text-align:center;"><div style="font-size:38px; font-weight:900; color:var(--accent-teal); line-height:1; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</div><div style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:1px; margin-top:4px;">PROJECTED POINTS</div></div>
+                <div style="text-align:center;"><div style="font-size:calc(38px * var(--ts,1)); font-weight:900; color:var(--accent-teal); line-height:1; font-variant-numeric:tabular-nums;">${proj.toFixed(1)}</div><div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); letter-spacing:1px; margin-top:4px;">PROJECTED POINTS</div></div>
                 <div style="display:flex; gap:8px;">
                     ${stat('Season AVG', avg ? avg.toFixed(1) : '–')}
                     ${stat('vs AVG', diff === null ? '–' : (diff >= 0 ? '+' : '') + diff.toFixed(1), diff === null ? '#fff' : diff >= 0 ? '#22c55e' : '#ef4444')}
@@ -16322,13 +16419,13 @@ $(document).on('click', '.player-mode-btn', function() {
         const teamLogoHtml = `<img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width: 26px; height: 26px; border-radius: 50%; background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); object-fit: contain; padding: 2px;">`;
         
         // THE FIX: Removed 'pos-badge-overlay' class to prevent CSS conflicts, but kept the color class
-       const posBadgeHtml = `<span class="pos-text-${safePos.toLowerCase()}" style="display: inline-flex; align-items: center; justify-content: center; height: 22px; font-size: 11px; font-weight: 900; border-radius: 4px; padding: 0 8px; text-transform: uppercase;">${safePos}</span>`;
+       const posBadgeHtml = `<span class="pos-text-${safePos.toLowerCase()}" style="display: inline-flex; align-items: center; justify-content: center; height: 22px; font-size: calc(11px * var(--ts,1)); font-weight: 900; border-radius: 4px; padding: 0 8px; text-transform: uppercase;">${safePos}</span>`;
         
         $('#pa-modal-title').html(`
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                 ${teamLogoHtml}
-                <b style="font-size:15px; font-weight:900; color:#fff;">${String(team || '').toUpperCase()}</b>
-                <span style="color: var(--text-dim); font-size: 12px; font-weight: 800; text-transform: lowercase;">vs</span>
+                <b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff;">${String(team || '').toUpperCase()}</b>
+                <span style="color: var(--text-dim); font-size: calc(12px * var(--ts,1)); font-weight: 800; text-transform: lowercase;">vs</span>
                 ${posBadgeHtml}
             </div>
         `);
@@ -16422,15 +16519,15 @@ $(document).on('click', '.player-mode-btn', function() {
                                     <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'" style="width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 50%;">
                                     <img src="${getNFLLogoUrl(p.team)}" onerror="this.style.display='none'" style="position: absolute; bottom: -2px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: #000; border: 1px solid var(--card-bg);">
                                 </div>
-                                <span style="font-size: 11px; font-weight: 700; color: #fff;">${p.name}</span>
+                                <span style="font-size: calc(11px * var(--ts,1)); font-weight: 700; color: #fff;">${p.name}</span>
                             </div>
-                            <span style="font-size: 12px; font-weight: 900; color: var(--text-dim);">${p.pts}</span>
+                            <span style="font-size: calc(12px * var(--ts,1)); font-weight: 900; color: var(--text-dim);">${p.pts}</span>
                         </div>
                     `;
                 });
 
                 let pointerEvent = 'cursor: pointer;';
-                let arrowHtml = `<span class="pa-toggle-icon" style="font-size: 10px; color: rgba(255,255,255,0.4); transition: transform 0.2s; display: inline-block; transform: rotate(-90deg); margin-left: 4px;">▼</span>`;
+                let arrowHtml = `<span class="pa-toggle-icon" style="font-size: calc(10px * var(--ts,1)); color: rgba(255,255,255,0.4); transition: transform 0.2s; display: inline-block; transform: rotate(-90deg); margin-left: 4px;">▼</span>`;
                 let contentHtml = `<div class="pa-week-content" style="display: none; padding: 8px 8px 5px;">${playersHtml}</div>`;
                 let nameTag = '';
                 
@@ -16449,7 +16546,7 @@ $(document).on('click', '.player-mode-btn', function() {
                                 <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${singlePlayer.pid}.png" onerror="this.style.display='none'" style="width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 50%;">
                                 <img src="${getNFLLogoUrl(singlePlayer.team)}" onerror="this.style.display='none'" style="position: absolute; bottom: -2px; right: -4px; width: 10px; height: 10px; border-radius: 50%; background: #000; border: 1px solid var(--card-bg);">
                             </div>
-                            <span style="font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${singlePlayer.name}</span>
+                            <span style="font-size: calc(11px * var(--ts,1)); font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${singlePlayer.name}</span>
                         </div>
                     `;
                 } else if (weekData.players.length > 1) {
@@ -16591,13 +16688,13 @@ $(document).on('click', '.fa-bid-btn, .fa-nominate-btn', async function(e) {    
             <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px 16px 0 0; padding:20px 20px 36px; width:100%; max-width:480px; max-height:85vh; overflow-y:auto;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                     <div>
-                        <div style="font-size:11px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:2px;">Contract Offer</div>
-                        <div style="font-size:16px; font-weight:900; color:#fff;">${name}</div>
+                        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:2px;">Contract Offer</div>
+                        <div style="font-size:calc(16px * var(--ts,1)); font-weight:900; color:#fff;">${name}</div>
                     </div>
-                    <button id="fa-modal-cancel" style="background:rgba(255,255,255,0.08); border:none; color:#fff; border-radius:8px; padding:6px 12px; font-weight:900; font-size:11px; cursor:pointer;">✕</button>
+                    <button id="fa-modal-cancel" style="background:rgba(255,255,255,0.08); border:none; color:#fff; border-radius:8px; padding:6px 12px; font-weight:900; font-size:calc(11px * var(--ts,1)); cursor:pointer;">✕</button>
                 </div>
                 <div id="fa-resign-container">
-                    <div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:11px; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading contract data...</div>
+                    <div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading contract data...</div>
                 </div>
             </div>
         </div>`);
@@ -16644,41 +16741,41 @@ try {
         const drawerRows = salaries.slice(start, end).map((entry, i) => {
             const idx = start + i;
             const isTarget = idx === targetRank - 1;
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);background:${isTarget?'rgba(245,158,11,0.12)':'transparent'};"><span style="font-size:9px;font-weight:900;color:${isTarget?'#f59e0b':'var(--text-dim)'};min-width:20px;">#${idx+1}</span><span style="font-size:11px;font-weight:${isTarget?'900':'700'};color:${isTarget?'#f59e0b':'#fff'};flex:1;padding:0 8px;">${entry.name}</span><span style="font-size:11px;font-weight:900;color:${isTarget?'#f59e0b':'#fff'};">$${entry.sal}m${isTarget?' ←':''}</span></div>`;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);background:${isTarget?'rgba(245,158,11,0.12)':'transparent'};"><span style="font-size:calc(9px * var(--ts,1));font-weight:900;color:${isTarget?'#f59e0b':'var(--text-dim)'};min-width:20px;">#${idx+1}</span><span style="font-size:calc(11px * var(--ts,1));font-weight:${isTarget?'900':'700'};color:${isTarget?'#f59e0b':'#fff'};flex:1;padding:0 8px;">${entry.name}</span><span style="font-size:calc(11px * var(--ts,1));font-weight:900;color:${isTarget?'#f59e0b':'#fff'};">$${entry.sal}m${isTarget?' ←':''}</span></div>`;
         }).join('');
 
         $('#fa-resign-container').html(`
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
                 <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;cursor:pointer;" id="fa-floor-toggle">
-                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Dynasty Rank</div>
-                    <div style="font-size:13px;font-weight:900;color:var(--accent-blue);">#${dynastyRank}</div>
-                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-top:4px;">Floor</div>
-                    <div style="font-size:13px;font-weight:900;color:#f59e0b;">$${baseFloor}m</div>
+                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:2px;">Dynasty Rank</div>
+                    <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:var(--accent-blue);">#${dynastyRank}</div>
+                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-top:4px;">Floor</div>
+                    <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:#f59e0b;">$${baseFloor}m</div>
                 </div>
                 <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:7px;">
-                    <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;text-align:center;">Offer</div>
-                    <div style="font-size:13px;font-weight:900;color:#22c55e;text-align:center;" id="fa-final-sal">$${calcSalary(3,50).toFixed(1)}m/yr</div>
-                    <div style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:3px;" id="fa-proposal-summary">3 yrs · 50% guar</div>
+                    <div style="font-size:calc(8px * var(--ts,1));color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;text-align:center;">Offer</div>
+                    <div style="font-size:calc(13px * var(--ts,1));font-weight:900;color:#22c55e;text-align:center;" id="fa-final-sal">$${calcSalary(3,50).toFixed(1)}m/yr</div>
+                    <div style="font-size:calc(9px * var(--ts,1));color:var(--text-dim);text-align:center;margin-top:3px;" id="fa-proposal-summary">3 yrs · 50% guar</div>
                 </div>
             </div>
 
             <div id="fa-floor-drawer" style="display:none;background:rgba(0,0,0,0.2);border-radius:6px;overflow:hidden;margin-bottom:10px;">
-                <div style="font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);">${posGroup} salaries — floor at #${targetRank}</div>
+                <div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);">${posGroup} salaries — floor at #${targetRank}</div>
                 ${drawerRows}
             </div>
 
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
                 <div>
                     <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-                        <span style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;">Years</span>
-                        <span style="font-size:10px;font-weight:900;color:#fff;" id="fa-yrs-lbl">3 yrs</span>
+                        <span style="font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim);text-transform:uppercase;">Years</span>
+                        <span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;" id="fa-yrs-lbl">3 yrs</span>
                     </div>
                     <input type="range" id="fa-years" min="1" max="5" step="1" value="3" style="width:100%;">
                 </div>
                 <div>
                     <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-                        <span style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;">Guaranteed %</span>
-                        <span style="font-size:10px;font-weight:900;color:#fff;" id="fa-guar-lbl">50%</span>
+                        <span style="font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim);text-transform:uppercase;">Guaranteed %</span>
+                        <span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;" id="fa-guar-lbl">50%</span>
                     </div>
                     <input type="range" id="fa-guar" min="10" max="100" step="5" value="50" style="width:100%;">
 </div>
@@ -16686,19 +16783,19 @@ try {
 
 <div>
     <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-        <span style="font-size:10px;font-weight:800;color:var(--accent-blue);text-transform:uppercase;">MFL Bid</span>
-        <span style="font-size:10px;font-weight:900;color:var(--accent-blue);" id="fa-bid-lbl">$${Math.max(Math.round(calcSalary(3,50))+1, Math.round(minBid/1000000)+1)}m</span>
+        <span style="font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--accent-blue);text-transform:uppercase;">MFL Bid</span>
+        <span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--accent-blue);" id="fa-bid-lbl">$${Math.max(Math.round(calcSalary(3,50))+1, Math.round(minBid/1000000)+1)}m</span>
     </div>
     <input type="range" id="fa-bid-amount" min="${Math.max(Math.round(calcSalary(3,50))+1, Math.round(minBid/1000000)+1)}" max="50" step="1" value="${Math.max(Math.round(calcSalary(3,50))+1, Math.round(minBid/1000000)+1)}" style="width:100%;">
-    <div style="font-size:9px;color:var(--text-dim);margin-top:3px;">This is the winning bid submitted to MFL — must be ≥ $${Math.max(Math.round(calcSalary(3,50))+1, Math.round(minBid/1000000)+1)}m</div>
+    <div style="font-size:calc(9px * var(--ts,1));color:var(--text-dim);margin-top:3px;">This is the winning bid submitted to MFL — must be ≥ $${Math.max(Math.round(calcSalary(3,50))+1, Math.round(minBid/1000000)+1)}m</div>
 </div>
 
 <div style="margin-bottom:10px;">
-    <div style="font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:5px;">Contract Note (optional)</div>
+    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; margin-bottom:5px;">Contract Note (optional)</div>
     <input id="fa-contract-comment" type="text" value="$${Math.round(calcSalary(3,50))+1}m bid · $${calcSalary(3,50).toFixed(1)}m/yr · 3yrs · 50%guar"
-        style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 10px; color:#fff; font-size:11px; font-weight:700; box-sizing:border-box; outline:none; margin-bottom:10px;">
+        style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 10px; color:#fff; font-size:calc(11px * var(--ts,1)); font-weight:700; box-sizing:border-box; outline:none; margin-bottom:10px;">
 </div>
-<button id="fa-confirm-offer" data-basesalary="${calcSalary(3,50)}" style="width:100%;padding:14px;border-radius:10px;background:#22c55e;color:#000;font-weight:900;font-size:13px;text-transform:uppercase;border:none;cursor:pointer;margin-bottom:8px;">Submit Offer · $${(Math.round(calcSalary(3,50))+1)}m bid</button>
+<button id="fa-confirm-offer" data-basesalary="${calcSalary(3,50)}" style="width:100%;padding:14px;border-radius:10px;background:#22c55e;color:#000;font-weight:900;font-size:calc(13px * var(--ts,1));text-transform:uppercase;border:none;cursor:pointer;margin-bottom:8px;">Submit Offer · $${(Math.round(calcSalary(3,50))+1)}m bid</button>
         `);
 
         // Floor drawer toggle
@@ -16828,7 +16925,7 @@ $(document).on('input', '#player-search-input', function() {
         if (anyVisible) return;
 
         // Nothing in the already-loaded list matched — fall back to a live search
-        container.find('.roster-grid').last().append('<div id="player-search-no-results" style="text-align:center; padding: 20px; color: var(--accent-blue); font-weight: 800; font-size: 11px; text-transform: uppercase;">Searching more players...</div>');
+        container.find('.roster-grid').last().append('<div id="player-search-no-results" style="text-align:center; padding: 20px; color: var(--accent-blue); font-weight: 800; font-size: calc(11px * var(--ts,1)); text-transform: uppercase;">Searching more players...</div>');
 
         try {
             const res = await fetch(`${MFL_ORIGIN}/${year}/player_search?L=${lid}&NAME=${encodeURIComponent(q)}`, { credentials: 'include' });
@@ -16989,18 +17086,18 @@ const panel = $(`
     <div id="notif-backdrop" style="position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:99997;"></div>
     <div id="notif-panel" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:99998; width:90%; max-width:400px; max-height:80vh; background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; box-shadow:0 15px 35px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden;">
         <div style="padding:16px 20px; border-bottom:1px solid var(--card-border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
-            <div style="font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">🔔 Notifications</div>
-            <button id="notif-panel-close" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-dim); width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+            <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">🔔 Notifications</div>
+            <button id="notif-panel-close" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-dim); width:28px; height:28px; border-radius:50%; font-size:calc(16px * var(--ts,1)); cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
         </div>
         <div style="display:flex; border-bottom:1px solid var(--card-border); flex-shrink:0;">
-            <button class="notif-tab-btn active" data-tab="notifs" style="flex:1; padding:10px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--accent-blue); border-bottom:2px solid var(--accent-blue);">Notifications</button>
-            <button class="notif-tab-btn" data-tab="activity" style="flex:1; padding:10px; font-size:10px; font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim); border-bottom:2px solid transparent;">League Activity</button>
+            <button class="notif-tab-btn active" data-tab="notifs" style="flex:1; padding:10px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--accent-blue); border-bottom:2px solid var(--accent-blue);">Notifications</button>
+            <button class="notif-tab-btn" data-tab="activity" style="flex:1; padding:10px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim); border-bottom:2px solid transparent;">League Activity</button>
         </div>
         <div id="notif-panel-content" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding:16px; flex:1;">
-            <div style="text-align:center; color:var(--text-dim); font-size:11px; padding:20px;">Loading...</div>
+            <div style="text-align:center; color:var(--text-dim); font-size:calc(11px * var(--ts,1)); padding:20px;">Loading...</div>
         </div>
         <div id="notif-activity-content" style="display:none; overflow-y:auto; flex:1;">
-            <div style="text-align:center; color:var(--text-dim); font-size:11px; padding:20px;">Loading activity...</div>
+            <div style="text-align:center; color:var(--text-dim); font-size:calc(11px * var(--ts,1)); padding:20px;">Loading activity...</div>
         </div>
     </div>
 `);
@@ -17043,13 +17140,13 @@ trades.filter(t => t.offeredto === myFid).forEach(t => {
 
 const html = (items.length ? items.map(item => `
     <div class="notif-item" style="display:flex; align-items:flex-start; gap:10px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; cursor:pointer; border-left:3px solid ${item.color};">
-        <span style="font-size:16px; flex-shrink:0;">${item.icon}</span>
+        <span style="font-size:calc(16px * var(--ts,1)); flex-shrink:0;">${item.icon}</span>
         <div style="flex:1; min-width:0;">
-            <div style="font-size:11px; font-weight:900; color:#fff;">${item.title}</div>
-            <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${item.desc}</div>
+            <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${item.title}</div>
+            <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:2px;">${item.desc}</div>
         </div>
     </div>
-`).join('') : '<div style="text-align:center; color:var(--text-dim); font-size:11px; padding:20px;">No new notifications</div>');
+`).join('') : '<div style="text-align:center; color:var(--text-dim); font-size:calc(11px * var(--ts,1)); padding:20px;">No new notifications</div>');
 
 $('#notif-panel-content').html(html);
 $('#notif-badge').toggle(items.length > 0);
@@ -17073,7 +17170,7 @@ $(document).on('click', '.notif-tab-btn', function() {
 
 async function loadFranchiseActivity() {
     const container = $('#notif-activity-content');
-    container.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-size:11px; font-weight:800; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
+    container.html('<div style="text-align:center; padding:30px; color:var(--accent-blue); font-size:calc(11px * var(--ts,1)); font-weight:800; text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/reports?L=${lid}&R=FSUMMARY`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
@@ -17124,14 +17221,14 @@ async function loadFranchiseActivity() {
                         <div style="position:absolute; bottom:0; right:0; width:9px; height:9px; border-radius:50%; background:${status.color}; border:1.5px solid var(--card-bg);"></div>
                     </div>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-size:12px; font-weight:${isMe ? '900' : '800'}; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${e.teamName}${isMe ? ' <span style="font-size:8px; color:var(--accent-blue);">(you)</span>' : ''}</div>
-                        <div style="font-size:10px; color:${status.color}; font-weight:800; margin-top:2px;">⏱ ${e.lastAccess}</div>
+                        <div style="font-size:calc(12px * var(--ts,1)); font-weight:${isMe ? '900' : '800'}; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${e.teamName}${isMe ? ' <span style="font-size:calc(8px * var(--ts,1)); color:var(--accent-blue);">(you)</span>' : ''}</div>
+                        <div style="font-size:calc(10px * var(--ts,1)); color:${status.color}; font-weight:800; margin-top:2px;">⏱ ${e.lastAccess}</div>
                     </div>
                 </div>`;
         }).join('');
 
         container.html(`
-            <div style="padding:10px 14px; font-size:9px; font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--card-border);">
+            <div style="padding:10px 14px; font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--card-border);">
                 🟢 Today �🟡 This week �🔴 This month �⚫ Inactive
             </div>
             ${html}
@@ -17168,14 +17265,14 @@ function checkLoginStatus() {
 <div id="auth-overlay" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.95);">
     <div class="auth-box">
         <img id="auth-logo" src="${leagueLogoUrl}" style="width:100px; height:100px; object-fit:contain; margin-bottom:18px;">
-        <h2 style="color:#fff; font-size:22px; font-weight:900; margin:0 0 6px;">Welcome Back</h2>
-        <p style="color:var(--text-dim,#94a3b8); font-size:13px; margin-bottom:28px;">Please log in to manage your team.</p>
+        <h2 style="color:#fff; font-size:calc(22px * var(--ts,1)); font-weight:900; margin:0 0 6px;">Welcome Back</h2>
+        <p style="color:var(--text-dim,#94a3b8); font-size:calc(13px * var(--ts,1)); margin-bottom:28px;">Please log in to manage your team.</p>
         <form method="POST" action="${MFL_ORIGIN}/${year}/login">
             <input type="hidden" name="L" value="${lid}">
-            <input type="text" name="USERNAME" class="auth-input" placeholder="MFL Username or Email" required style="font-size:16px; padding:14px 16px; margin-bottom:12px;">
-            <input type="password" name="PASSWORD" class="auth-input" placeholder="Password" required style="font-size:16px; padding:14px 16px; margin-bottom:20px;">
-<button type="submit" class="auth-btn" style="font-size:16px; padding:14px;">Sign In</button>
-<button type="button" id="auth-guest-btn" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:var(--text-dim); border:1px solid rgba(255,255,255,0.1); border-radius:10px; font-size:13px; font-weight:800; cursor:pointer;">Browse as Guest →</button>        </form>
+            <input type="text" name="USERNAME" class="auth-input" placeholder="MFL Username or Email" required style="font-size:calc(16px * var(--ts,1)); padding:14px 16px; margin-bottom:12px;">
+            <input type="password" name="PASSWORD" class="auth-input" placeholder="Password" required style="font-size:calc(16px * var(--ts,1)); padding:14px 16px; margin-bottom:20px;">
+<button type="submit" class="auth-btn" style="font-size:calc(16px * var(--ts,1)); padding:14px;">Sign In</button>
+<button type="button" id="auth-guest-btn" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:var(--text-dim); border:1px solid rgba(255,255,255,0.1); border-radius:10px; font-size:calc(13px * var(--ts,1)); font-weight:800; cursor:pointer;">Browse as Guest →</button>        </form>
     </div>
 </div>`;
         $('body').append(loginHtml);
