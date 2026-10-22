@@ -17880,6 +17880,12 @@ async function lldChatCheckNew() {
         const seen = lldChatSeenGet(), me = String(myFid).padStart(4, '0');
         window._lldChatNewOther = a.items.filter(it => it.ms > seen && !(it.offer && it.incoming) && !(it.kind === 'post' && it.fid === me) && !(it.kind === 'tx' && it.fid === me && !it.fid2 && !it.incoming)).length;
         lldChatBadgeUpdate();
+        // once per page load: a new preview, recap, trade offer or completed trade since the last visit opens the chat by itself
+        if (!window._lldChatAutoDone) {
+            window._lldChatAutoDone = true;
+            const hit = a.items.some(it => it.ms > seen && (it.kind === 'digest' || (it.kind === 'tx' && (it.offer || it.label === 'Trade'))));
+            if (hit && !$('#lld-story').length && !$('#lld-chat').hasClass('open')) lldChatShowList();
+        }
     } catch (e) { console.warn('chat check', e); }
 }
 $(document).on('visibilitychange', () => { if (!document.hidden && Date.now() - (window._lldChatAct ? window._lldChatAct.t : 0) > 120000) lldChatCheckNew(); });
