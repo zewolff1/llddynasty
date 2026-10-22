@@ -135,16 +135,23 @@ function lldSetTicker(items) {
     sp.style.animationDuration = Math.max(24, Math.round(txt.length * 0.32)) + 's';
 }
 async function lldTickJson(url) {
-    for (let a = 0; a < 3; a++) {
-        if (a) await new Promise(r => setTimeout(r, 900 * a));
-        try { const r = await fetch(url, { credentials: 'include', cache: 'no-store' }); return JSON.parse(await r.text()); } catch (e) {}
+    for (let a = 0; a < 5; a++) {
+        if (a) await new Promise(r => setTimeout(r, 1200 * a));
+        try {
+            const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
+            if (r.status === 429) { await new Promise(x => setTimeout(x, 2500)); continue; } // MFL is throttling, wait and retry
+            const j = JSON.parse(await r.text()); if (j && !j.error) return j;
+        } catch (e) { }
     }
     return null;
 }
 // Live ticker: this week's scores + the latest league transactions, straight from MFL
 // the ticker shows league standings for now (the scores/moves feed is kept below as lldFillTickerFeed)
-async function lldFillTicker(staticItems) {
-    lldSetTicker(['LOADING STANDINGS…']);
+async function lldFillTicker(staticItems, attempt) {
+    attempt = attempt || 0;
+    if (!attempt) { if (window._lldTickBusy && Date.now() - window._lldTickBusy < 20000) return; window._lldTickBusy = Date.now(); }
+    let cached = null; try { cached = JSON.parse(localStorage.getItem('lld_tick_std') || 'null'); } catch (e) { }
+    if (!attempt) lldSetTicker(cached && cached.length ? cached : ['LOADING STANDINGS…']); // last good standings show instantly while fresh ones load
     // year/lid are declared further down the file, so work them out here
     const yr = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
     try {
@@ -158,8 +165,15 @@ async function lldFillTicker(staticItems) {
         const nm = f => { const id = String(f).padStart(4, '0'); const n = (window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id)); return n.length > 20 ? n.slice(0, 19).trim() + '.' : n; };
         const rows = fr.map(f => ({ id: f.id, w: parseInt(f.h2hw, 10) || 0, l: parseInt(f.h2hl, 10) || 0, t: parseInt(f.h2ht, 10) || 0, pf: parseFloat(f.pf) || 0 })).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
         if (!rows.length) throw new Error('no standings');
-        lldSetTicker(['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. ${nm(r.id).toUpperCase()} ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`)));
-    } catch (e) { console.warn('ticker standings', e); lldSetTicker(['STANDINGS UNAVAILABLE RIGHT NOW']); }
+        const items = ['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. ${nm(r.id).toUpperCase()} ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`));
+        lldSetTicker(items); try { localStorage.setItem('lld_tick_std', JSON.stringify(items)); } catch (e) { }
+    } catch (e) {
+        console.warn('ticker standings', e);
+        // never show an error: keep the last good standings (or a loading line) and try again in a bit
+        if (!(cached && cached.length)) lldSetTicker(['LOADING STANDINGS…']);
+        if (attempt < 8) setTimeout(() => lldFillTicker(staticItems, attempt + 1), 15000 + attempt * 10000);
+        else if (!(cached && cached.length)) lldSetTicker(['LLD DYNASTY']);
+    }
 }
 async function lldFillTickerFeed(staticItems) {
     if (staticItems) { lldSetTicker(staticItems); return; }
@@ -304,12 +318,16 @@ function lldChatTxHtml(it, ctx) {
         ? `<div class="cm-tl2">${logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>')}</div><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`
         : `<div class="cm-tm1"><img class="cm-av m" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><div><b>${lldChatEsc(ctx.nm(it.fid))}</b>${/^(add\/drop|waiver|blind bid)/i.test(it.label) ? '' : `<span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`}</div></div>`;
     const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color)).join('')}</div></div>`);
-    return `<div class="cm-tx"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}${it.offer && it.tid && (it.incoming || it.mine) ? `<div class="cm-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}</div>`;
+    return `<div class="cm-tx" style="--cm-c:${it.color || '#64748b'}"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}${it.offer && it.tid && (it.incoming || it.mine) ? `<div class="cm-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}</div>`;
 }
 function lldChatPostHtml(it, ctx) {
     const who = it.fid ? ctx.nm(it.fid) : '';
     const prev = lldChatText(it.preview || '').replace(/\s+/g, ' ').slice(0, 140);
     return `<button type="button" class="cm-row cm-pc" data-tid="${lldChatEsc(it.id)}"><img class="cm-av" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><span class="cm-mid"><span class="cm-who2">${lldChatEsc(who)}<i>${lldChatClock(it.ms)}</i></span><span class="cm-sub">💬 ${lldChatEsc(it.subject || '(no subject)')}</span>${prev ? `<span class="cm-prev">${lldChatEsc(prev)}</span>` : ''}</span>${it.replies ? `<span class="cm-cnt">${it.replies}</span>` : ''}</button>`;
+}
+function lldChatDigestHtml(it) {
+    const rc = it.type === 'recap';
+    return `<button type="button" class="cm-rc" data-dk="${it.type}" data-wk="${it.wk}" style="--rc:${rc ? '#facc15' : '#38bdf8'}"><span class="rc-ic">${rc ? '🏆' : '🔭'}</span><span class="rc-mid"><span class="rc-t">Week ${it.wk} ${rc ? 'Recap' : 'Preview'}</span><span class="rc-s">${rc ? 'Awards, players of the week, upsets and more' : 'Projected scores and win odds for every matchup'}</span><span class="rc-time">${lldChatClock(it.ms)}</span></span><span class="rc-go">${rc ? 'Read' : 'Preview'}</span></button>`;
 }
 function lldChatFeedHtml(items, block, ctx) {
     let out = '';
@@ -321,7 +339,7 @@ function lldChatFeedHtml(items, block, ctx) {
     items.forEach(it => {
         const day = lldChatDay(it.ms, ctx.now);
         if (day !== lastDay) { out += `<div class="cm-day"><span>${lldChatEsc(day)}</span></div>`; lastDay = day; }
-        out += it.kind === 'post' ? lldChatPostHtml(it, ctx) : lldChatTxHtml(it, ctx);
+        out += it.kind === 'post' ? lldChatPostHtml(it, ctx) : it.kind === 'digest' ? lldChatDigestHtml(it) : lldChatTxHtml(it, ctx);
     });
     return out;
 }
@@ -1766,6 +1784,7 @@ function getPlayerFilterBarHtml(isFAView) {
                 <div style="display:flex; gap:6px 10px; flex-wrap:wrap; justify-content:center;">
                     ${sorts.map(buildSortBtn).join('')}
                 </div>
+                <button type="button" class="player-gloss-btn" data-fa="${isFAView ? 1 : 0}">ⓘ Guide</button>
                 ${!isFAView ? `
                 <button id="player-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">
                     ⊘ Filter${filterBadge}
@@ -5526,8 +5545,34 @@ function projTopHtml(v) {
     return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;">${v} PROJ</span>`;
 }
 
-function contractPillHtml(hit, yrs, guar) {
-    return `<span style="color:#f59e0b;">$${parseFloat(hit || 0).toFixed(1)}m</span><span style="color:var(--text-dim);">HIT</span><span style="color:var(--text-dim);">·</span><span>${yrs}YR</span><span style="color:var(--text-dim);">·</span><span>${guar} <span style="color:var(--text-dim);">GUAR</span></span>`;
+
+// ===== PLAYER LIST GUIDE: explains every number on a player row =====
+function lldGlossHtml(fa) {
+    const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
+    const ly = parseInt(year) - 1;
+    return `<div class="gl-note"><span class="sort-hl">Gold highlight</span> marks the number the list is currently sorted by.</div>`
+        + `<h4>On every row</h4>`
+        + t('PROJ', 'MFL\u2019s projected fantasy points for this week.')
+        + t('PTS', 'Total fantasy points so far this season (shown when you sort by Pts).')
+        + t('Logos by the name', 'The first is his NFL team. If he is on a roster, the second is the fantasy team that owns him.')
+        + (fa ? `<h4>Free agents</h4>` + t('Opponent pill', 'His NFL opponent this week and kickoff time, with that defense\u2019s rank against his position (green = easy, red = tough).')
+              + t('X% of weeks he starts', 'How often he would crack your starting lineup, and how many points per week he would add over the player he replaces. Tap it to see which weeks.')
+          : `<h4>Contract</h4>` + t('$ HIT', 'Cap hit: salary \u00d7 guaranteed % \u00d7 years. What it costs you if he is cut.')
+              + t('YR', 'Years left on the contract.')
+              + t('GUAR', 'Percent of the salary that is guaranteed.')
+              + t('SAL', 'Yearly salary in millions ($m).')
+              + t('QB#1 CTR', 'Contract rank: where his salary ranks among players at his position (1 = highest paid).')
+              + t('QB#3 DYN', 'Dynasty rank: his long-term value rank at that position (NR = not ranked).'));
+}
+$(document).on('click', '.player-gloss-btn', function () {
+    $('#lld-gloss').remove();
+    $('body').append(`<div id="lld-gloss"><div class="gl-box"><div class="gl-top"><b>Player list guide</b><button type="button" class="gl-x">\u2715</button></div><div class="gl-body">${lldGlossHtml(String($(this).data('fa')) === '1')}</div></div></div>`);
+});
+$(document).on('click', '#lld-gloss .gl-x', () => $('#lld-gloss').remove());
+$(document).on('click', '#lld-gloss', function (e) { if (e.target === this) $(this).remove(); });
+function contractPillHtml(hit, yrs, guar, hl) {
+    const c = k => hl === k ? ' class="sort-hl"' : '';
+    return `<span${c('caphit')}><span style="color:#f59e0b;">$${parseFloat(hit || 0).toFixed(1)}m</span> <span style="color:var(--text-dim);">HIT</span></span><span style="color:var(--text-dim);">·</span><span${c('years')}>${yrs}YR</span><span style="color:var(--text-dim);">·</span><span${c('guar')}>${guar} <span style="color:var(--text-dim);">GUAR</span></span>`;
 }
 function rankLineHtml(pid, pos, salNum) {
     const g = dynGrp(pos), cr = contractRankFor(pos, salNum);
@@ -9207,10 +9252,14 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
-                    pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : oppPillHtml(p.team, p.realPos, nflSched),
-                    topRight: p.salary
-                        ? `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>${p.projVal > 0 ? `<span style="margin-left:8px; white-space:nowrap;"><b style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>` : ''}`
-                        : `<span class="proj-popup-trigger" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b> <small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">PROJ</small></span>`,
+                    pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy) : oppPillHtml(p.team, p.realPos, nflSched),
+                    topRight: (() => {
+                        const hl = k => playerSortBy === k ? ' sort-hl' : '';
+                        const sal = p.salary ? `<span class="srt${hl('salary')}"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small></span>` : '';
+                        const proj = (p.salary && !(p.projVal > 0)) ? '' : `<span class="srt proj-popup-trigger${hl('proj')}" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(${p.salary ? 13 : 15}px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>`;
+                        const pt = (playerSortBy === 'pts') ? `<span class="srt sort-hl"><b style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${(((playerSeason[p.pid] || {}).pts) || 0).toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PTS</small></span>` : '';
+                        return sal + proj + pt;
+                    })(),
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
                                                 : `<span style="font-size:calc(9px * var(--ts,1)); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
@@ -12651,13 +12700,131 @@ async function injectTeamAwardsStrip(f, hostSel) {
         <div class="dashboard-row overflow-row">${RECAP_AWARDS.map(a => `<div class="dashboard-pill stacked-pill team-award-chip" data-award="${a.key}" data-fid="${fx}" style="min-width:45px; cursor:${counts[a.key] ? 'pointer' : 'default'}; opacity:${counts[a.key] ? 1 : 0.45}; border-bottom-color:${counts[a.key] ? '#f59e0b' : 'var(--card-border)'};"><span class="pill-label">${short[a.key] || a.title}</span><span class="pill-value">${counts[a.key] || 0}</span></div>`).join('')}</div>`);
 }
 
+
+// ===== WEEKLY PREVIEW (projected scores and win odds for the coming week) =====
+async function lldBuildPreview(pw) {
+    let ms = [], proj = {};
+    try { [ms, proj] = await Promise.all([fetchRecapWeek(pw, false), fetchWeekProjectedScoresMap(pw)]); } catch (e) { console.warn('preview', e); }
+    const games = ms.map(m => { const w = computeWinProb(m.t1, m.t2, proj); return { t1: m.t1, t2: m.t2, p1: w.p1, m1: w.mean1, m2: w.mean2 }; });
+    const players = [];
+    ms.forEach(m => [m.t1, m.t2].forEach(t => t.roster.forEach(p => { if (p.isStarter && proj[p.pid] > 0) players.push({ p, fid: t.fid, proj: proj[p.pid] }); })));
+    players.sort((a, b) => b.proj - a.proj);
+    return { pw, games, players: players.slice(0, 5), noProj: !Object.keys(proj).length };
+}
+function lldPvGame(g) {
+    const a = Math.round(g.p1 * 100), b = 100 - a;
+    const side = (f, m, right) => `<div style="flex:1; min-width:0; display:flex; flex-direction:column; align-items:${right ? 'flex-end' : 'flex-start'}; gap:3px;">${recapLogo(f, 30)}<div style="max-width:100%; display:flex;">${recapTeamName(f, 11)}</div><b style="font-size:calc(15px * var(--ts,1)); color:#fff;">${m.toFixed(1)}</b></div>`;
+    return `<div style="padding:10px; border-radius:10px; margin-bottom:8px; background:rgba(255,255,255,0.015); border:1px solid var(--card-border);">
+        <div style="display:flex; gap:8px; align-items:flex-start;">${side(g.t1.fid, g.m1, false)}<span style="align-self:center; font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim);">VS</span>${side(g.t2.fid, g.m2, true)}</div>
+        <div style="display:flex; height:6px; border-radius:3px; overflow:hidden; margin-top:8px; background:rgba(255,255,255,0.08);"><div style="width:${a}%; background:#3b82f6;"></div><div style="width:${b}%; background:#a855f7;"></div></div>
+        <div style="display:flex; justify-content:space-between; font-size:calc(9px * var(--ts,1)); font-weight:900; margin-top:4px;"><span style="color:#3b82f6;">${a}% win</span><span style="color:#a855f7;">${b}% win</span></div></div>`;
+}
+function lldPreviewView(P) {
+    if (!P.games.length) return `<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Week ${P.pw} matchups are not available yet. Check back once lineups and projections are posted.</div>`;
+    const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
+    const mine = P.games.find(g => g.t1.fid === me || g.t2.fid === me);
+    const byClose = P.games.slice().sort((a, b) => Math.abs(a.p1 - .5) - Math.abs(b.p1 - .5));
+    const gotw = byClose[0], mismatch = byClose[byClose.length - 1];
+    const fav = g => (g.p1 >= .5 ? g.t1.fid : g.t2.fid);
+    const hi = P.games.reduce((best, g) => { [[g.t1.fid, g.m1], [g.t2.fid, g.m2]].forEach(([f, m]) => { if (!best || m > best.m) best = { f, m }; }); return best; }, null);
+    const out = [];
+    out.push(`<div style="text-align:center; margin-bottom:10px;"><button type="button" class="lld-play" data-k="preview" data-wk="${P.pw}">▶ Play Week ${P.pw} preview</button></div>`);
+    if (P.noProj) out.push(`<div style="font-size:calc(10px * var(--ts,1)); color:#f59e0b; text-align:center; margin-bottom:8px;">MFL has not posted projections for this week yet, so odds are rough.</div>`);
+    if (mine) out.push(recapCard('Your Matchup', '🎯', lldPvGame(mine)));
+    out.push(recapCard('Game of the Week', '🍿', lldPvGame(gotw), 'Closest projected matchup'));
+    if (mismatch !== gotw) out.push(recapCard('Biggest Mismatch', '🧨', lldPvGame(mismatch), `${leagueFranchises[fav(mismatch)] || fav(mismatch)} is the heavy favorite`));
+    if (hi) out.push(recapCard('Highest Projected Score', '🔥', `<div style="display:flex; align-items:center; gap:12px;">${recapLogo(hi.f, 40)}<div style="flex:1; min-width:0; display:flex;">${recapTeamName(hi.f, 13)}</div><b style="font-size:calc(24px * var(--ts,1)); color:#22c55e;">${hi.m.toFixed(1)}</b></div>`));
+    if (P.players.length) out.push(recapCard('Players to Watch', '⭐', P.players.map(x => recapPlayerRow(x.p, { accent: '#22c55e', sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(x.fid, 14)}<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${leagueFranchises[x.fid] || x.fid}</span></span>`, right: `<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${x.proj.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">PROJ</div>` })).join(''), 'Top projected starters'));
+    out.push(recapCard('All Matchups', '📋', P.games.map(lldPvGame).join('')));
+    return out.join('');
+}
+$(document).on('click', '.pv-wk-prev', function () { const s = window._recapState; s.pwk = Math.max(1, (s.pwk || 1) - 1); loadRecapsTab(); });
+$(document).on('click', '.pv-wk-next', function () { const s = window._recapState; s.pwk = Math.min(18, (s.pwk || 1) + 1); loadRecapsTab(); });
+
+// ===== STORY MODE: full-screen animated recap / preview (tap to skip, hold to pause) =====
+const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0 };
+function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" style="width:${s}px;height:${s}px">`; }
+function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
+function stSlide(c1, c2, html) { return { bg: `radial-gradient(120% 90% at 20% 0%, ${c1}, ${c2})`, html }; }
+function stNum(v, dec, cls) { return `<div class="st-big st-a ${cls || ''}" data-count="${v}" data-dec="${dec}" style="--d:.35s">0</div>`; }
+async function lldStorySlides(kind, wk) {
+    const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
+    const out = [];
+    const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind}" data-wk="${wk}">Open the full ${label}</button>`));
+    if (kind === 'recap') {
+        const [allScores] = await Promise.all([fetchAllWeekScores()]);
+        const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
+        const S = await getRecapSummary(wk, allScores, latest);
+        let ms = []; try { ms = await fetchRecapWeek(wk, wk < latest); } catch (e) { }
+        out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Recap</div>`));
+        const mg = ms.find(m => m.t1.fid === me || m.t2.fid === me);
+        if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; out.push(stSlide(won ? '#15803d' : '#b91c1c', '#050505', `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
+        if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
+        if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.p.score.toFixed(1)}</i></div>`).join('')}`));
+        if (S.blowout) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">BIGGEST BLOWOUT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.blowout.w.fid, 72)}<span>def.</span>${stLogo(S.blowout.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.blowout.w.fid)}</div>${stNum(S.blowout.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
+        if (S.close) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">CLOSEST GAME</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.close.w.fid, 72)}<span>def.</span>${stLogo(S.close.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.close.w.fid)}</div>${stNum(S.close.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
+        if (S.upsets && S.upsets.length) { const u = S.upsets[0]; out.push(stSlide('#be185d', '#14020a', `<div class="st-k st-a">🚨 UPSET ALERT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(u.w.fid, 72)}<span>stunned</span>${stLogo(u.l.fid, 72)}</div><div class="st-h st-a" style="--d:.35s">${stName(u.w.fid)}</div><div class="st-sub st-a" style="--d:.6s">${u.w.score.toFixed(1)} – ${u.l.score.toFixed(1)}</div>`)); }
+        if (S.calls && S.calls.length) { const c = S.calls[0]; out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">GUTSIEST CALL</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.g.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.g.name)}</b><span>started over ${lldChatEsc(c.d.name)}</span></div><i>${c.g.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">+${c.margin.toFixed(1)} pts${c.decisive ? ' · won the game' : ''} for ${stName(c.fid)}</div>`)); }
+        if (S.overs && S.overs.length) { const c = S.overs[0]; out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">THE OVERTHINKER 🤡</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.d.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.d.name)}</b><span>sat on ${stName(c.fid)}'s bench</span></div><i>${c.d.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">−${c.margin.toFixed(1)} pts${c.decisive ? ' · cost the game' : ''}</div>`)); }
+        outro('recap');
+    } else {
+        const P = await lldBuildPreview(wk);
+        out.push(stSlide('#0369a1', '#010a14', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Preview</div>`));
+        if (P.games.length) {
+            const pg = g => { const a = Math.round(g.p1 * 100); return `<div class="st-vs st-a" style="--d:.2s">${stLogo(g.t1.fid, 70)}<span>vs</span>${stLogo(g.t2.fid, 70)}</div><div class="st-row2 st-a" style="--d:.35s"><b>${stName(g.t1.fid)}</b><i>${g.m1.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:.5s"><b>${stName(g.t2.fid)}</b><i>${g.m2.toFixed(1)}</i></div><div class="st-bar st-a" style="--d:.7s"><u style="width:${a}%"></u></div><div class="st-sub st-a" style="--d:.8s">${a}% / ${100 - a}% win odds</div>`; };
+            const mine = P.games.find(g => g.t1.fid === me || g.t2.fid === me);
+            const byClose = P.games.slice().sort((a, b) => Math.abs(a.p1 - .5) - Math.abs(b.p1 - .5));
+            if (mine) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">YOUR MATCHUP</div>${pg(mine)}`));
+            out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">🍿 GAME OF THE WEEK</div>${pg(byClose[0])}`));
+            const mm = byClose[byClose.length - 1]; if (mm !== byClose[0]) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">🧨 BIGGEST MISMATCH</div>${pg(mm)}`));
+            const hi = P.games.reduce((best, g) => { [[g.t1.fid, g.m1], [g.t2.fid, g.m2]].forEach(([f, m]) => { if (!best || m > best.m) best = { f, m }; }); return best; }, null);
+            if (hi) out.push(stSlide('#15803d', '#011208', `<div class="st-k st-a">HIGHEST PROJECTED</div>${stLogo(hi.f, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hi.f)}</div>${stNum(hi.m, 1, 'gold')}`));
+        } else out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchups are not posted yet</div><div class="st-sub st-a" style="--d:.3s">Check back once lineups and projections are in.</div>`));
+        if (P.players.length) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">PLAYERS TO WATCH</div>${P.players.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.proj.toFixed(1)}</i></div>`).join('')}`));
+        outro('preview');
+    }
+    return out;
+}
+function stShow(i) {
+    const S = LLD_ST; if (i < 0) i = 0; if (i >= S.slides.length) { stClose(); return; }
+    S.i = i; const sl = S.slides[i], box = $('#lld-story');
+    box.find('.st-bars').html(S.slides.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'cur' : ''}"><u></u></span>`).join(''));
+    box.find('.st-stage').css('background', sl.bg).html(`<div class="st-in">${sl.html}</div>`);
+    box.find('[data-count]').each(function () {
+        const el = this, to = parseFloat(el.dataset.count) || 0, dec = parseInt(el.dataset.dec, 10) || 0, t0 = performance.now() + 350, dur = 1100;
+        (function tick(t) { const p = Math.max(0, Math.min(1, (t - t0) / dur)); el.textContent = (to * (1 - Math.pow(1 - p, 3))).toFixed(dec); if (p < 1 && document.body.contains(el)) requestAnimationFrame(tick); })(performance.now());
+    });
+    box.toggleClass('paused', S.pause);
+}
+function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; }
+async function lldOpenStory(kind, wk) {
+    $('#lld-story').remove();
+    $('body').append(`<div id="lld-story"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
+    try { LLD_ST.slides = await lldStorySlides(kind, wk); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
+    catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
+}
+$(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10)); });
+$(document).on('animationend', '#lld-story .st-bars .cur u', () => stShow(LLD_ST.i + 1));
+$(document).on('click', '#lld-story .st-x', stClose);
+$(document).on('click', '#lld-story .st-zr', () => stShow(LLD_ST.i + 1));
+$(document).on('click', '#lld-story .st-zl', () => stShow(LLD_ST.i - 1));
+$(document).on('pointerdown', '#lld-story .st-zl, #lld-story .st-zr', function () { window._stHold = setTimeout(() => { LLD_ST.pause = true; $('#lld-story').addClass('paused'); window._stHeld = true; }, 260); });
+$(document).on('pointerup pointercancel pointerleave', '#lld-story .st-zl, #lld-story .st-zr', function () { clearTimeout(window._stHold); if (LLD_ST.pause) { LLD_ST.pause = false; $('#lld-story').removeClass('paused'); setTimeout(() => { window._stHeld = false; }, 50); } });
+$(document).on('click', '#lld-story .st-zl, #lld-story .st-zr', function (e) { if (window._stHeld) { e.stopImmediatePropagation(); } });
+$(document).on('click', '#lld-story .st-cta', function () {
+    const k = $(this).data('kind'), w = parseInt($(this).data('wk'), 10), st = window._recapState;
+    stClose(); if (k === 'recap') { st.view = 'week'; st.wk = w; } else { st.view = 'preview'; st.pwk = w; }
+    $('.tab-btn').filter(function () { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
+    setTimeout(() => { ensureRecapsSubTab(); $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Recaps'; }).trigger('click'); }, 300);
+});
+
 async function loadRecapsTab() {
     const token = ++window._recapToken;
     const st = window._recapState;
     const container = $('#league-content-container');
     const btnStyle = (on) => `padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${on ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${on ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'}; color:${on ? '#fff' : 'var(--text-dim)'};`;
     const viewBar = `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">
-        ${[['week', 'Weekly'], ['month', 'Monthly'], ['awards', 'By Award'], ['team', 'By Team']].map(([v, l]) => `<button class="recap-view-btn" data-view="${v}" style="${btnStyle(st.view === v)}">${l}</button>`).join('')}</div>`;
+        ${[['week', 'Weekly'], ['preview', 'Preview'], ['month', 'Monthly'], ['awards', 'By Award'], ['team', 'By Team']].map(([v, l]) => `<button class="recap-view-btn" data-view="${v}" style="${btnStyle(st.view === v)}">${l}</button>`).join('')}</div>`;
     const loading = (txt) => container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:30px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase; letter-spacing:1px; animation: pulse-blue 1.5s infinite;">${txt}</div></div>`);
     loading('Loading Recaps...');
 
@@ -12666,7 +12833,7 @@ async function loadRecapsTab() {
         const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b);
         const latest = weeks.length ? weeks[weeks.length - 1] : 0;
         if (token !== window._recapToken) return;
-        if (!latest) { container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No completed weeks yet.</div></div>`); return; }
+        if (!latest && st.view !== 'preview') { container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">No completed weeks yet.</div></div>`); return; }
         if (!st.wk || st.wk > latest) st.wk = latest;
         if (!st.fid) st.fid = (typeof myFid !== 'undefined' && myFid) ? myFid : fid;
 
@@ -12682,7 +12849,15 @@ async function loadRecapsTab() {
                 <div class="recap-wk-pill dashboard-pill stacked-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);"><span class="pill-label">WEEK ${st.pickerOpen ? '▲' : '▼'}</span><span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${st.wk}</span></div>
                 ${navBtn('recap-wk-next', '›')}
                 ${st.wk === latest ? '<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:3px 8px;">Latest</span>' : ''}
-            </div>${pickerHtml}${recapWeekView(S)}`;
+            </div>${pickerHtml}${S.top ? `<div style="text-align:center; margin-bottom:10px;"><button type="button" class="lld-play" data-k="recap" data-wk="${st.wk}">▶ Play Week ${st.wk} recap</button></div>` : ''}${recapWeekView(S)}`;
+        } else if (st.view === 'preview') {
+            const pw = Math.max(1, Math.min(18, st.pwk || (latest + 1)));
+            st.pwk = pw;
+            loading(`Loading Week ${pw} preview...`);
+            const P = await lldBuildPreview(pw);
+            if (token !== window._recapToken) return;
+            const navBtn = (cls, t) => `<button class="${cls}" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); cursor:pointer; line-height:1;">${t}</button>`;
+            inner = `<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">${navBtn('pv-wk-prev', '‹')}<div class="dashboard-pill stacked-pill" style="border-bottom-color:var(--accent-blue);"><span class="pill-label">WEEK</span><span class="pill-value">${pw}</span></div>${navBtn('pv-wk-next', '›')}${pw === latest + 1 ? '<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:3px 7px;">THIS WEEK</span>' : ''}</div>` + lldPreviewView(P);
         } else if (st.view === 'month') {
             const months = recapMonths(weeks);
             let cur = months.find(m => m.key === st.month) || months[months.length - 1];
@@ -17560,10 +17735,41 @@ async function lldChatLoadActivity() {
     // message board threads sit in the same feed
     const threads = await lldChatLoadThreads(); window._lldChatThreads = threads;
     threads.slice(0, 25).forEach(t => { if (t.ms) items.push({ kind: 'post', ms: t.ms, id: t.id, subject: t.subject, fid: t.lastFid || t.fid, preview: t.preview, replies: t.replies }); });
+    try { (await lldDigestItems()).forEach(d => items.push(d)); } catch (e) { console.warn('digests', e); }
     items.sort((a, b) => a.ms - b.ms);
     const block = baits.map(b => ({ fid: String(b.franchise_id || b.franchise || '').padStart(4, '0'), give: strOf(b.willGiveUp), want: String(b.inExchangeFor || '').replace(/^\s*$/, '') })).filter(b => b.fid && b.fid !== '0000');
     return { items, block };
 }
+
+// Weekly Preview (Thursday morning) and Weekly Recap (Tuesday morning) cards for the message board
+async function lldFirstKickoff() {
+    const k = 'lld_c_wk1kick_' + year; const c = lldLsGet(k, 30 * 86400000); if (c) return c;
+    let m = {}; try { m = await fetchNflScheduleForWeek(1); } catch (e) { }
+    const ks = Object.keys(m || {}).map(t => m[t].kickoffMs).filter(Boolean);
+    if (!ks.length) return null;
+    const v = Math.min.apply(null, ks); lldLsSet(k, v); return v;
+}
+async function lldDigestItems() {
+    const k0 = await lldFirstKickoff(); if (!k0) return [];
+    const base = new Date(k0); base.setHours(6, 0, 0, 0); base.setDate(base.getDate() - ((base.getDay() - 4 + 7) % 7)); // Thursday 6am of week 1
+    const now = Date.now(), out = [];
+    for (let w = 1; w <= 18; w++) {
+        const th = new Date(base); th.setDate(th.getDate() + 7 * (w - 1));
+        const tu = new Date(th); tu.setDate(tu.getDate() + 5);
+        if (th.getTime() <= now) out.push({ kind: 'digest', type: 'preview', wk: w, ms: th.getTime() });
+        if (tu.getTime() <= now) out.push({ kind: 'digest', type: 'recap', wk: w, ms: tu.getTime() });
+    }
+    const last = t => out.filter(x => x.type === t).slice(-2);
+    return last('preview').concat(last('recap'));
+}
+$(document).on('click', '#lld-chat .cm-rc', function () {
+    const t = $(this).data('dk'), w = parseInt($(this).data('wk'), 10), st = window._recapState;
+    lldChatClose();
+    if (t === 'recap') { st.view = 'week'; st.wk = w; } else { st.view = 'preview'; st.pwk = w; }
+    st.pickerOpen = false;
+    $('.tab-btn').filter(function () { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
+    setTimeout(() => { ensureRecapsSubTab(); $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Recaps'; }).trigger('click'); }, 300);
+});
 async function lldChatShowList() {
     const box = lldChatMount();
     $('#lld-chat').addClass('open');
