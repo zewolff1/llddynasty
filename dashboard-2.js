@@ -336,9 +336,11 @@ function lldChatFeedHtml(items, block, ctx) {
     }
     if (!items.length) return out + `<div class="cm-empty">No recent activity.</div>`;
     let lastDay = '';
+    let newShown = false;
     items.forEach(it => {
         const day = lldChatDay(it.ms, ctx.now);
         if (day !== lastDay) { out += `<div class="cm-day"><span>${lldChatEsc(day)}</span></div>`; lastDay = day; }
+        if (ctx.seen && !newShown && it.ms > ctx.seen) { newShown = true; out += `<div class="cm-new"><span>New since your last visit</span></div>`; }
         out += it.kind === 'post' ? lldChatPostHtml(it, ctx) : it.kind === 'digest' ? lldChatDigestHtml(it) : lldChatTxHtml(it, ctx);
     });
     return out;
@@ -17699,7 +17701,7 @@ async function lldChatJson(extra) {
     window._lldChatDiag = last; return null;
 }
 function lldChatCtx() {
-    return { nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, nfl: t => getNFLLogoUrl(String(t).toUpperCase()), me: myFid, now: Date.now() };
+    return { seen: window._lldChatPrevSeen || 0, nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, nfl: t => getNFLLogoUrl(String(t).toUpperCase()), me: myFid, now: Date.now() };
 }
 function lldChatOpenUrl() { return `${MFL_ORIGIN}/${year}/message_board?L=${lid}`; }
 async function lldChatLoadThreads() {
@@ -17846,11 +17848,33 @@ $(document).on('click', '#lld-chat .cm-rc', function () {
     lldChatClose();
     lldOpenStory(t === 'recap' ? 'recap' : 'preview', w); // plays the animation; its last slide opens the full page
 });
+
+// ===== unread badge on the message board button =====
+function lldChatSeenKey() { return `lld_chat_seen_${lid}_${myFid}`; }
+function lldChatSeenGet() { try { const v = parseInt(localStorage.getItem(lldChatSeenKey()), 10); if (v) return v; localStorage.setItem(lldChatSeenKey(), String(Date.now() - 24 * 3600 * 1000)); return Date.now() - 24 * 3600 * 1000; } catch (e) { return Date.now() - 24 * 3600 * 1000; } }
+function lldChatSeenSet() { try { localStorage.setItem(lldChatSeenKey(), String(Date.now())); } catch (e) { } }
+function lldChatBadgeSet(n) {
+    const b = $('#lld-chat-btn'); if (!b.length) return;
+    b.toggleClass('has-new', n > 0); b.find('.cm-badge').remove();
+    if (n > 0) b.append(`<span class="cm-badge">${n > 9 ? '9+' : n}</span>`);
+}
+async function lldChatCheckNew() {
+    if (!$('#lld-chat-btn').length || $('#lld-chat').hasClass('open')) return;
+    try {
+        const a = await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a };
+        const seen = lldChatSeenGet(), me = String(myFid).padStart(4, '0');
+        const n = a.items.filter(it => it.ms > seen && !(it.kind === 'post' && it.fid === me) && !(it.kind === 'tx' && it.fid === me && !it.fid2 && !it.incoming)).length;
+        lldChatBadgeSet(n);
+    } catch (e) { console.warn('chat check', e); }
+}
+$(document).on('visibilitychange', () => { if (!document.hidden && Date.now() - (window._lldChatAct ? window._lldChatAct.t : 0) > 120000) lldChatCheckNew(); });
 async function lldChatShowList() {
     const box = lldChatMount();
     $('#lld-chat').addClass('open');
     box.html(lldChatShellHtml('League Chat', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl()));
-    let a; try { a = await lldChatLoadActivity(); } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
+    window._lldChatPrevSeen = lldChatSeenGet();
+    let a; try { a = (window._lldChatAct && Date.now() - window._lldChatAct.t < 45000) ? window._lldChatAct.a : await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a }; } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
+    lldChatSeenSet(); lldChatBadgeSet(0);
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
     box.html(lldChatShellHtml('League Chat', false, note || lldChatFeedHtml(a.items, a.block, lldChatCtx()), lldChatOpenUrl()));
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
@@ -17895,6 +17919,7 @@ function lldChatInit() {
     const btn = `<button id="lld-chat-btn" aria-label="Message board" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_CHAT_ICON}</button>`;
     const s = document.querySelector('.open-settings-btn');
     if (s) s.insertAdjacentHTML('beforebegin', btn); else $('.header-right-controls').prepend(btn);
+    setTimeout(lldChatCheckNew, 4000); if (!window._lldChatIv) window._lldChatIv = setInterval(lldChatCheckNew, 300000);
 }
 
 // ===== STATS TAB: loads MFL data, then hands it to lldStatsBuild / lldStatsViews (inside the wrapper: needs lid/year/leagueFranchises) =====
