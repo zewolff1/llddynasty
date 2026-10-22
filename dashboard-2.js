@@ -298,11 +298,11 @@ function lldChatThreadHtml(thread, posts, ctx) {
     });
     return out;
 }
-function lldChatShellHtml(title, back, listHtml, openUrl, tab) {
+function lldChatShellHtml(title, back, listHtml, openUrl, tab, footHtml) {
     const tabs = false ? `<div class="cm-tabs"><button type="button" class="cm-tab${tab === 'board' ? ' on' : ''}" data-tab="board">Board</button><button type="button" class="cm-tab${tab === 'activity' ? ' on' : ''}" data-tab="activity">Activity</button></div>` : '';
     return `<div class="cm-top"><button type="button" class="cm-back"${back ? '' : ' style="visibility:hidden"'}>‹</button><div class="cm-title">${lldChatEsc(title)}</div><button type="button" class="cm-x">✕</button></div>${tabs}
 <div class="cm-body">${listHtml}</div>
-<div class="cm-foot"><span>Read-only</span><a href="${lldChatEsc(openUrl)}" target="_blank" rel="noopener">Reply on MFL ↗</a></div>`;
+${footHtml != null ? footHtml : `<div class="cm-foot"><button type="button" class="cm-newpost">✎ New post</button><a href="${lldChatEsc(openUrl)}" target="_blank" rel="noopener">Open on MFL ↗</a></div>`}`;
 }
 // feed items (oldest first): {kind:'post', ms, id, subject, fid, preview, replies}
 //   or {kind:'tx', ms, fid, fid2, label, color, cols:[{label, color, ents:[{id,name,pos,team}|{pick}]}]}; block: [{fid, give, want}]
@@ -17858,13 +17858,25 @@ function lldChatBadgeSet(n) {
     b.toggleClass('has-new', n > 0); b.find('.cm-badge').remove();
     if (n > 0) b.append(`<span class="cm-badge">${n > 9 ? '9+' : n}</span>`);
 }
+function lldChatBadgeUpdate() { lldChatBadgeSet((window._lldChatNewOther || 0) + (window._lldChatOffers || 0)); }
+// trade offers waiting on you always count until you accept or decline them (one small request, checked often)
+async function lldChatCheckOffers() {
+    if (!$('#lld-chat-btn').length) return;
+    try {
+        const pd = await lldChatJson('TYPE=pendingTrades');
+        const me = String(myFid).padStart(4, '0');
+        window._lldChatOffers = lldChatArr(pd && pd.pendingTrades && pd.pendingTrades.pendingTrade).filter(o => String(o.offeredto || o.offeredTo || '').padStart(4, '0') === me).length;
+        if (!$('#lld-chat').hasClass('open')) lldChatBadgeUpdate();
+    } catch (e) { console.warn('offer check', e); }
+}
 async function lldChatCheckNew() {
     if (!$('#lld-chat-btn').length || $('#lld-chat').hasClass('open')) return;
+    lldChatCheckOffers();
     try {
         const a = await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a };
         const seen = lldChatSeenGet(), me = String(myFid).padStart(4, '0');
-        const n = a.items.filter(it => it.ms > seen && !(it.kind === 'post' && it.fid === me) && !(it.kind === 'tx' && it.fid === me && !it.fid2 && !it.incoming)).length;
-        lldChatBadgeSet(n);
+        window._lldChatNewOther = a.items.filter(it => it.ms > seen && !(it.offer && it.incoming) && !(it.kind === 'post' && it.fid === me) && !(it.kind === 'tx' && it.fid === me && !it.fid2 && !it.incoming)).length;
+        lldChatBadgeUpdate();
     } catch (e) { console.warn('chat check', e); }
 }
 $(document).on('visibilitychange', () => { if (!document.hidden && Date.now() - (window._lldChatAct ? window._lldChatAct.t : 0) > 120000) lldChatCheckNew(); });
@@ -17874,7 +17886,7 @@ async function lldChatShowList() {
     box.html(lldChatShellHtml('League Chat', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl()));
     window._lldChatPrevSeen = lldChatSeenGet();
     let a; try { a = (window._lldChatAct && Date.now() - window._lldChatAct.t < 45000) ? window._lldChatAct.a : await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a }; } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
-    lldChatSeenSet(); lldChatBadgeSet(0);
+    lldChatSeenSet(); window._lldChatNewOther = 0; window._lldChatOffers = a.items.filter(it => it.offer && it.incoming).length; lldChatBadgeUpdate();
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
     box.html(lldChatShellHtml('League Chat', false, note || lldChatFeedHtml(a.items, a.block, lldChatCtx()), lldChatOpenUrl()));
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
@@ -17884,9 +17896,39 @@ async function lldChatShowThread(id) {
     const t = (window._lldChatThreads || []).find(x => String(x.id) === String(id)) || { id, subject: 'Thread' };
     box.html(lldChatShellHtml(t.subject, true, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl() + '&THREAD=' + encodeURIComponent(id)));
     const posts = await lldChatLoadPosts(id);
-    box.html(lldChatShellHtml(t.subject, true, lldChatThreadHtml(t, posts, lldChatCtx()), lldChatOpenUrl() + '&THREAD=' + encodeURIComponent(id)));
+    const comp = `<div class="cm-foot cm-comp"><textarea class="cm-ta" rows="1" placeholder="Reply…"></textarea><button type="button" class="cm-send" data-tid="${lldChatEsc(id)}">Send</button></div>`;
+    box.html(lldChatShellHtml(t.subject, true, lldChatThreadHtml(t, posts, lldChatCtx()), lldChatOpenUrl() + '&THREAD=' + encodeURIComponent(id), null, comp));
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
 }
+// post to the MFL message board (new thread, or a reply when a thread id is given)
+async function lldChatPost(body, thread, subject) {
+    const params = new URLSearchParams(); params.set('TYPE', 'messageBoard'); params.set('L', lid);
+    if (thread) params.set('THREAD', thread); else params.set('SUBJECT', subject || '');
+    params.set('BODY', lldChatEsc(body).replace(/\n/g, '<br>'));
+    const res = await fetch(`${MFL_ORIGIN}/${year}/import`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const txt = await res.text(); const m = txt.match(/<error[^>]*>([\s\S]*?)<\/error>/i);
+    if (m) throw new Error(m[1].trim()); if (!res.ok) throw new Error('HTTP ' + res.status);
+    window._lldChatAct = null; window._lldChatThreadCache = null;
+}
+function lldChatShowCompose() {
+    const box = lldChatMount();
+    box.html(lldChatShellHtml('New post', true, `<div class="cm-form"><input type="text" class="cm-subj" maxlength="100" placeholder="Subject"><textarea class="cm-ta big" rows="7" placeholder="Write your message…"></textarea><button type="button" class="cm-post">Post to the message board</button></div>`, lldChatOpenUrl(), null, `<div class="cm-foot"><span>Posts as your team on MFL</span><a href="${lldChatEsc(lldChatOpenUrl())}" target="_blank" rel="noopener">Open on MFL ↗</a></div>`));
+}
+$(document).on('click', '#lld-chat .cm-newpost', lldChatShowCompose);
+$(document).on('click', '#lld-chat .cm-send', async function () {
+    const btn = $(this), ta = $('#lld-chat .cm-comp .cm-ta'), txt = ta.val().trim(), tid = btn.data('tid');
+    if (!txt) return; btn.prop('disabled', true).text('Sending…'); ta.prop('disabled', true);
+    try { await lldChatPost(txt, tid); setTimeout(() => lldChatShowThread(tid), 600); }
+    catch (e) { alert('MFL: ' + (e.message || 'could not post that')); btn.prop('disabled', false).text('Send'); ta.prop('disabled', false); }
+});
+$(document).on('click', '#lld-chat .cm-post', async function () {
+    const btn = $(this), subj = $('#lld-chat .cm-subj').val().trim(), txt = $('#lld-chat .cm-form .cm-ta').val().trim();
+    if (!subj || !txt) { alert('Add a subject and a message first.'); return; }
+    btn.prop('disabled', true).text('Posting…');
+    try { await lldChatPost(txt, null, subj); setTimeout(lldChatShowList, 700); }
+    catch (e) { alert('MFL: ' + (e.message || 'could not post that')); btn.prop('disabled', false).text('Post to the message board'); }
+});
+$(document).on('input', '#lld-chat .cm-comp .cm-ta', function () { this.style.height = 'auto'; this.style.height = Math.min(120, this.scrollHeight) + 'px'; });
 function lldChatClose() { $('#lld-chat').removeClass('open'); document.body.style.overflow = ''; }
 async function lldChatTradeAct(tid, action, comments) {
     const params = new URLSearchParams(); params.set('LEAGUE_ID', lid); params.set('TRADE_ID', tid); params.set('ACTION', action); params.set('COMMENTS', comments || '');
@@ -17919,7 +17961,7 @@ function lldChatInit() {
     const btn = `<button id="lld-chat-btn" aria-label="Message board" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_CHAT_ICON}</button>`;
     const s = document.querySelector('.open-settings-btn');
     if (s) s.insertAdjacentHTML('beforebegin', btn); else $('.header-right-controls').prepend(btn);
-    setTimeout(lldChatCheckNew, 4000); if (!window._lldChatIv) window._lldChatIv = setInterval(lldChatCheckNew, 300000);
+    setTimeout(lldChatCheckNew, 4000); if (!window._lldChatIv) { window._lldChatIv = setInterval(lldChatCheckNew, 300000); window._lldChatIv2 = setInterval(lldChatCheckOffers, 60000); }
 }
 
 // ===== STATS TAB: loads MFL data, then hands it to lldStatsBuild / lldStatsViews (inside the wrapper: needs lid/year/leagueFranchises) =====
