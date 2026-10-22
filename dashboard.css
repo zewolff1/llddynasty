@@ -3645,3 +3645,6 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 #lld-story .st-edge u.win{background:#facc15;color:#000}
 #lld-story .st-legend{width:100%;display:flex;justify-content:space-between;gap:8px;font-size:calc(10px * var(--ts,1));font-weight:800;color:rgba(255,255,255,.75)}
 .lld-play.sm{padding:6px 12px;font-size:calc(9px * var(--ts,1))}
+
+#lld-story .st-sp,#lld-story .st-end{background:rgba(255,255,255,.16);border:none;color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;border-radius:999px;padding:5px 10px;cursor:pointer}
+#open-calendar-btn{display:none!important}
