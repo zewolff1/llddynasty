@@ -3671,19 +3671,20 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 #lld-chat .cm-ta.big { border-radius: 10px; max-height: none; min-height: 140px; }
 #lld-chat .cm-post { padding: 13px; border-radius: 10px; border: none; background: var(--accent-blue); color: #fff; font-size: calc(14px * var(--ts,1)); font-weight: 900; cursor: pointer; }
 /* ===== seasonal background animation ===== */
-#lld-fx { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
-#lld-fx .fx-p { position: absolute; top: 0; left: var(--x); width: var(--sz); height: var(--sz); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: .3; animation: fxfall var(--d) linear var(--delay) infinite; will-change: transform; }
-#lld-fx .fx-p.feather { height: calc(var(--sz) * 2.1); opacity: .26; }
+#lld-fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+#lld-fx .fx-p { position: absolute; top: -30%; left: var(--x); width: var(--sz); height: var(--sz); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: .55; animation: fxfall var(--d) linear var(--delay) infinite; will-change: top, transform; }
+#lld-fx .fx-p.feather { height: calc(var(--sz) * 2.1); opacity: .5; }
 @keyframes fxfall {
-    0% { transform: translate3d(0, -12vh, 0) rotate(0deg); }
-    25% { transform: translate3d(calc(var(--dx) * .7), 24vh, 0) rotate(calc(var(--rot) * .3)); }
-    50% { transform: translate3d(calc(var(--dx) * -.3), 50vh, 0) rotate(calc(var(--rot) * .55)); }
-    75% { transform: translate3d(calc(var(--dx) * .6), 76vh, 0) rotate(calc(var(--rot) * .8)); }
-    100% { transform: translate3d(calc(var(--dx) * -.2), 112vh, 0) rotate(var(--rot)); }
+    0% { top: -30%; transform: translate3d(0, 0, 0) rotate(0deg); }
+    25% { top: 15%; transform: translate3d(calc(var(--dx) * .7), 0, 0) rotate(calc(var(--rot) * .3)); }
+    50% { top: 45%; transform: translate3d(calc(var(--dx) * -.3), 0, 0) rotate(calc(var(--rot) * .55)); }
+    75% { top: 75%; transform: translate3d(calc(var(--dx) * .6), 0, 0) rotate(calc(var(--rot) * .8)); }
+    100% { top: 108%; transform: translate3d(calc(var(--dx) * -.2), 0, 0) rotate(var(--rot)); }
 }
-#lld-fx .fx-bat { position: absolute; top: var(--y); left: 0; width: var(--sz); height: calc(var(--sz) / 2); background-size: contain; background-repeat: no-repeat; opacity: .3; animation: fxbat var(--d) linear var(--delay) infinite, fxflap .5s ease-in-out infinite; }
+}
+#lld-fx .fx-bat { position: absolute; top: var(--y); left: 0; width: var(--sz); height: calc(var(--sz) / 2); background-size: contain; background-repeat: no-repeat; opacity: .5; animation: fxbat var(--d) linear var(--delay) infinite, fxflap .5s ease-in-out infinite; }
 @keyframes fxbat {
-    0% { transform: translate3d(calc(var(--dir) * -1 * 60vw - 60px), 0, 0) scaleX(var(--dir)); }
+    0% { transform: translate3d(calc(var(--dir) * -1 * 55vw - 60px), 0, 0) scaleX(var(--dir)); }
     25% { transform: translate3d(0, var(--bob), 0) scaleX(var(--dir)); }
     50% { transform: translate3d(0, calc(var(--bob) * -1), 0) scaleX(var(--dir)); }
     100% { transform: translate3d(calc(var(--dir) * 60vw + 60px), 0, 0) scaleX(var(--dir)); }
