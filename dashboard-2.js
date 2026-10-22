@@ -10817,6 +10817,7 @@ window._teamDataDirty = true;
 case 'league-schedule': loadLeagueSchedule(); break;
 case 'transactions': loadLeagueTransactions(); break;            case 'league-stats': lldStatsOpen('league'); break;case 'trades': loadTradeHub(); break;
             case 'recaps': loadRecapsTab(); break;
+            case 'tradeblock': loadTradeBlockTab(); break;
         }
     };
 async function loadTradeHub(targetFid = null, targetPid = null, presetGive = [], presetReceive = []) {
@@ -12196,6 +12197,7 @@ window._recapToken = window._recapToken || 0;
 window._schedScoresCache = window._schedScoresCache || null;
 
 function ensureRecapsSubTab() {
+    try { lldEnsureBlockTab(); } catch (e) { }
     const bar = $('#subtabs-league');
     if (!bar.length || bar.find('.sub-tab-btn').filter(function () { return $(this).text().trim() === 'Recaps'; }).length) return;
     const last = bar.find('.sub-tab-btn').last();
@@ -17797,7 +17799,8 @@ function lldChatCtx() {
     return { seen: window._lldChatPrevSeen || 0, nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, nfl: t => getNFLLogoUrl(String(t).toUpperCase()), me: myFid, now: Date.now() };
 }
 function lldChatOpenUrl() { return `${MFL_ORIGIN}/${year}/message_board?L=${lid}`; }
-async function lldChatLoadThreads() {
+async function lldChatLoadThreads() { return (await lldChatLoadThreadsRaw()).filter(t => t.subject !== LLDTB_SUBJ); } // the trade block's data thread stays out of the chat
+async function lldChatLoadThreadsRaw() {
     await lldEnsureFranchiseNames();
     const j = await lldChatJson('TYPE=messageBoard');
     const mb = j && (j.messageBoard || j.messageboard || j);
@@ -18063,6 +18066,198 @@ $(document).on('click', '#lld-chat .cm-tab', function () { lldChatShowList($(thi
 $(document).on('click', '#lld-chat .cm-bh', function () { $(this).closest('.cm-block').toggleClass('open'); });
 $(document).on('click', '#lld-chat .cm-row', function () { lldChatShowThread($(this).data('tid')); });
 $(document).on('click', '#lld-chat', function (e) { if (e.target === this) lldChatClose(); });
+// ===== TRADE BLOCK v2: four labels per player + team outlook, saved to a hidden message board thread =====
+const LLDTB_SUBJ = '[LLD-DATA] Trade Block';
+const LLDTB_ST = { S: ['Seeking Trades', '#22c55e', 'Seeking'], W: ['Willing to Trade', '#38bdf8', 'Willing'], U: ['Unlikely to Trade', '#f59e0b', 'Unlikely'], N: ['Unavailable for Trade', '#ef4444', 'Unavail.'] };
+const LLDTB_MODES = { W: ['Win Now', 'Going for it this season', '#ef4444'], B: ['Balanced', 'Competing now and building', '#38bdf8'], N: ['Next Year', 'Aiming to peak next season', '#f59e0b'], R: ['Rebuild', 'Collecting youth and picks', '#a78bfa'] };
+const LLDTB_TIERS = { QB: [3, 5, 10], RB: [5, 10, 12], WR: [5, 10, 12], TE: [3, 5, 10], DL: [5, 10], LB: [5, 10], DB: [5, 10] };
+//LLDTB-PURE-START
+function lldTbEnc(o) { return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function lldTbDec(t) {
+    const m = /LLDTB1:([A-Za-z0-9_\-]+)/.exec(String(t || '')); if (!m) return null;
+    try { let b = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '='; return JSON.parse(decodeURIComponent(escape(atob(b)))); } catch (e) { return null; }
+}
+// a stored label is "S", or "S:R1,QB5" (status, then up to two asks: R# = draft pick round, POS# = top-N at a position)
+function lldTbParseLabel(v) { const s = String(v || ''); const a = s.indexOf(':') > 0 ? s.slice(s.indexOf(':') + 1).split(',').filter(Boolean) : []; return { s: s.charAt(0), a: a.slice(0, 2) }; }
+function lldTbMakeLabel(s, a) { return s + (a && a.length ? ':' + a.slice(0, 2).join(',') : ''); }
+function lldTbAskText(a) {
+    const m = /^R(\d)$/.exec(a); if (m) { const n = +m[1]; return (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : n + 'th') + ' round pick'; }
+    const t = /^([A-Z]{2})(\d+)$/.exec(a); return t ? 'Top ' + t[2] + ' ' + t[1] : a;
+}
+//LLDTB-PURE-END
+async function lldTbLoad(force) {
+    if (!force && window._lldTb && Date.now() - window._lldTb.t < 60000) return window._lldTb.d;
+    const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTB_SUBJ);
+    const by = {};
+    for (const t of th) {
+        const posts = await lldChatLoadPosts(t.id);
+        posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); if (!by[f] || p.ms >= by[f].ms) by[f] = { ms: p.ms, m: o.m || '', p: o.p || {} }; });
+    }
+    const d = { by, tid: th.length ? th[th.length - 1].id : null };
+    window._lldTb = { t: Date.now(), d }; return d;
+}
+async function lldTbBaits() {
+    const bd = await lldChatJson('TYPE=tradeBait&INCLUDE_DRAFT_PICKS=1');
+    const out = {};
+    lldChatArr(bd && bd.tradeBaits && bd.tradeBaits.tradeBait).forEach(b => { const f = String(b.franchise_id || b.franchise || '').padStart(4, '0'); out[f] = { give: String(b.willGiveUp || '').split(',').map(x => x.trim()).filter(Boolean), want: b.inExchangeFor || '' }; });
+    return out;
+}
+async function lldTbSave(m, p) {
+    const d = await lldTbLoad(true);
+    await lldChatPost('LLDTB1:' + lldTbEnc({ m, p }), d.tid, LLDTB_SUBJ);
+    window._lldTb = null;
+    // keep MFL's own trade block in step: Seeking and Willing players are "on the block"
+    try {
+        const bait = (await lldTbBaits())[String(myFid).padStart(4, '0')] || { give: [] };
+        const keep = bait.give.filter(x => !/^\d+$/.test(x)); // draft picks stay as they were
+        const give = Object.keys(p).filter(id => /^[SW]/.test(p[id]));
+        const asks = []; Object.keys(p).forEach(id => { const l = lldTbParseLabel(p[id]); if (l.s === 'S') l.a.forEach(a => { const t = lldTbAskText(a); if (asks.indexOf(t) < 0) asks.push(t); }); });
+        const q = new URLSearchParams(); q.set('TYPE', 'tradeBait'); q.set('L', lid); q.set('WILL_GIVE_UP', give.concat(keep).join(','));
+        const want = asks.length ? 'Seeking: ' + asks.join(', ') : ''; if (want) q.set('IN_EXCHANGE_FOR', want.slice(0, 250));
+        const r = await fetch(`${MFL_ORIGIN}/${year}/import`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: q.toString() });
+        await r.text();
+    } catch (e) { console.warn('trade block mirror', e); }
+}
+async function lldTbContracts() {
+    if (window._lldTbC && Date.now() - window._lldTbC.t < 300000) return window._lldTbC.m;
+    const m = {};
+    try {
+        const j = await lldChatJson('TYPE=rosters');
+        lldChatArr(j && j.rosters && j.rosters.franchise).forEach(f => lldChatArr(f.player).forEach(p => {
+            const sal = parseFloat(String(p.salary || '').replace(/[^0-9.]/g, '')) || 0, yrs = parseInt(p.contractYear, 10) || 0, gu = parseFloat(String(p.contractInfo || '').replace(/[^0-9.]/g, ''));
+            m[String(p.id)] = { sal, yrs, gu: isNaN(gu) ? null : gu, own: String(f.id).padStart(4, '0') };
+        }));
+    } catch (e) { }
+    window._lldTbC = { t: Date.now(), m }; return m;
+}
+function lldTbShort(n) { n = String(n || ''); if (n.indexOf(',') > 0) { const a = n.split(','); return (a[1].trim().charAt(0) + '. ' + a[0].trim()).trim(); } return n.replace(/^(\S)\S*\s+/, '$1. '); }
+async function lldTbData() {
+    const S = await lldStatsLoad(), con = await lldTbContracts(), tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({}));
+    const D = S.D, me = String(myFid).padStart(4, '0');
+    // season-points rank within position
+    const tot = {}, byPos = {};
+    Object.keys(S.pl).forEach(pid => { const t = S.pl[pid].g.reduce((a, b) => a + (b || 0), 0); const pos = lldSxPos(S.posOf(pid)); tot[pid] = t; if (t > 0) (byPos[pos] = byPos[pos] || []).push(pid); });
+    Object.keys(byPos).forEach(p => byPos[p].sort((a, b) => tot[b] - tot[a]));
+    const grps = {}; ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'].forEach(g => { grps[g] = getDynRankMap(g); });
+    const dyn = {}; for (const g of Object.keys(grps)) dyn[g] = await grps[g];
+    const fi = Object.keys(S.D.rosters || {});
+    const mi = S.mi;
+    const info = pid => {
+        const pi = D.pinfo[pid] || {}, pos = lldSxPos(pi.pos || S.posOf(pid)), c = con[pid] || {};
+        const rk = (byPos[pos] || []).indexOf(pid) + 1, grp = typeof dynGrp === 'function' ? dynGrp(pi.pos || pos) : pos;
+        let fit = null, oth = null; try { fit = S.fit(pid); } catch (e) { } try { oth = S.startsForOthers(pid); } catch (e) { }
+        const hit = c.sal && c.gu != null && c.yrs ? c.sal * (c.gu / 100) * c.yrs : null;
+        return { pid, name: lldTbShort(pi.name || pid), pos, team: pi.team || '', rk: rk ? pos + '#' + rk : pos + '#NR', dyn: (dyn[grp] && dyn[grp][pid]) ? grp + '#' + dyn[grp][pid] : 'NR', sal: c.sal || null, yrs: c.yrs, gu: c.gu, hit, own: c.own || '',
+            pct: oth && oth.of ? Math.round(oth.teams / oth.of * 100) : null, wk: fit ? (fit.rn ? fit.rosStart + '/' + fit.rn : fit.inOpt + '/' + fit.n) : null };
+    };
+    // snapshot
+    let snap = null;
+    try {
+        const gp = S.gp[mi], w = S.wins[mi], order = S.F.map((f, i) => ({ f, w: S.wins[i], pf: S.pf[i] })).sort((a, b) => b.w - a.w || b.pf - a.pf);
+        snap = { rec: w + '-' + (gp - w), rank: order.findIndex(o => o.f === S.me) + 1, po: S.base[mi].po, fin: S.base[mi].rk };
+    } catch (e) { }
+    const recOf = f => { try { const i = S.F.indexOf(f); const o = S.F.map((x, j) => ({ f: x, w: S.wins[j], pf: S.pf[j] })).sort((a, b) => b.w - a.w || b.pf - a.pf); return { rec: S.wins[i] + '-' + (S.gp[i] - S.wins[i]), po: S.base[i].po, rank: o.findIndex(z => z.f === f) + 1 }; } catch (e) { return null; } };
+    return { S, tb, baits, info, snap, recOf, me, mine: S.cur[S.me] || [], rosters: D.rosters };
+}
+function lldTbLabels(d, f) {
+    // saved labels, plus anyone already on that team's MFL block who has no label yet counts as Willing
+    const out = {}; const sv = (d.tb.by[f] || {}).p || {};
+    Object.keys(sv).forEach(id => { out[id] = sv[id]; });
+    ((d.baits[f] || {}).give || []).forEach(id => { if (/^\d+$/.test(id) && !out[id] && (d.rosters[f] || []).indexOf(id) >= 0) out[id] = 'W'; });
+    return out;
+}
+function lldTbRow(x, st, asks, edit, open) {
+    const T = LLDTB_ST[st], c = T ? T[1] : '#94a3b8', e = lldChatEsc;
+    const posC = { QB: '#ff4d79', RB: '#2dd4bf', WR: '#60a5fa', TE: '#fbbf24' }[x.pos] || '#a78bfa';
+    const mny = v => v == null ? '–' : '$' + v.toFixed(1) + 'm';
+    const wants = st === 'S' && asks.length ? `<div class="tb-w">Wants ${e(asks.map(lldTbAskText).join(' or '))}</div>` : `<span class="tb-gm">${T ? T[0] : 'No trade label yet'}</span>`;
+    const badge = `<button type="button" class="tb-badge" ${edit ? `data-tbopen="${x.pid}"` : 'disabled'} style="--c:${c}">${T ? T[2] : 'Set<br>status'}</button>`;
+    let h = `<div class="tb-row" data-pid="${x.pid}" style="--c:${c}"><div class="tb-rr">${badge}<div class="tb-sep"></div><img class="tb-hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${x.pid}.png" onerror="this.style.visibility='hidden'">`
+        + `<div class="tb-mid"><div class="tb-nm"><span class="tb-n">${e(x.name)}</span><span style="color:${posC};font-size:calc(12px * var(--ts,1));font-weight:900">${e(x.pos)}</span>${x.team ? `<img class="tb-nfl" src="${e(typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(x.team) : '')}" onerror="this.style.display='none'">` : ''}</div>${wants}</div>`
+        + `<div class="tb-rt"><b>${e(x.rk)}</b><span>POS RANK</span></div></div>`
+        + `<div class="tb-info"><div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
+        + `<div class="tb-st"><div><b>${x.pct == null ? '–' : x.pct + '%'}</b><span>of teams he would start for</span></div><div><b>${x.wk == null ? '–' : x.wk}</b><span>weeks he ${x.own === window._lldTbMe ? 'starts for you' : 'would start for you'}</span></div></div></div>`;
+    if (edit && open) h += `<div class="tb-pick">${Object.keys(LLDTB_ST).map(k => `<button type="button" data-tbset="${k}" data-pid="${x.pid}" style="--c:${LLDTB_ST[k][1]}" class="${st === k ? 'on' : ''}">${LLDTB_ST[k][0]}</button>`).join('')}${st ? `<button type="button" class="tb-clear" data-tbset="" data-pid="${x.pid}">Clear label</button>` : ''}</div>`;
+    if (edit && st === 'S') {
+        const tiers = Object.keys(LLDTB_TIERS).map(p => LLDTB_TIERS[p].map(n => `<option value="${p.slice(0, 2)}${n}">Top ${n} ${p}</option>`).join('')).join('');
+        h += `<div class="tb-ask"><h4>What do you want for him?</h4><div class="tb-chips">${asks.map(a => `<button type="button" class="tb-chip on" data-tbrm="${a}" data-pid="${x.pid}">${e(lldTbAskText(a))} ✕</button>`).join('') || '<span class="tb-sub">Add up to 2 things you would like back</span>'}</div>`
+            + (asks.length < 2 ? `<div class="tb-chips"><select data-tbadd="1" data-pid="${x.pid}"><option value="">Top tier at a position…</option>${tiers}</select><select data-tbadd="1" data-pid="${x.pid}"><option value="">Draft pick…</option>${[1, 2, 3, 4].map(r => `<option value="R${r}">${lldTbAskText('R' + r)}</option>`).join('')}</select></div>` : '') + `</div>`;
+    }
+    return h + '</div>';
+}
+function lldTbMain() { return $('#league-content-container'); }
+function lldTbDraw() {
+    const X = window._tbX; if (!X) return;
+    const e = lldChatEsc, D = X.d, dr = X.draft;
+    const head = `<div class="tb-tabs"><button type="button" data-tbview="mine" class="${X.view === 'mine' ? 'on' : ''}">My players</button><button type="button" data-tbview="mkt" class="${X.view === 'mkt' ? 'on' : ''}">League market</button></div>`;
+    let h = '<div class="tb">' + head;
+    window._lldTbMe = D.me;
+    if (X.view === 'mine') {
+        const sn = D.snap;
+        if (sn) h += `<div class="tb-snap"><div class="tb-sh"><span>${e(leagueFranchises[D.me] || 'My team')}</span></div><div class="tb-sg"><div><b>${e(sn.rec)}</b><span>RECORD</span></div><div><b>${sn.rank}</b><span>RANK</span></div><div><b>${(sn.fin || 0).toFixed(1)}</b><span>PROJ. FINISH</span></div><div><b class="g">${sn.po}%</b><span>PLAYOFFS</span></div></div><div class="tb-pb"><i style="width:${Math.max(2, sn.po)}%"></i></div><div class="tb-sub">Playoff chance simulates the rest of the schedule from projected scores. It is an estimate.</div></div>`;
+        h += `<div class="tb-out"><h4>Your team outlook</h4><div class="tb-mseg">${Object.keys(LLDTB_MODES).map(k => `<button type="button" data-tbmode="${k}" style="--c:${LLDTB_MODES[k][2]}" class="${dr.m === k ? 'on' : ''}"><b>${LLDTB_MODES[k][0]}</b><span>${LLDTB_MODES[k][1]}</span></button>`).join('')}</div></div>`;
+        h += `<div class="tb-legend">${Object.keys(LLDTB_ST).map(k => `<span><i style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</span>`).join('')}</div>`;
+        const pos = ['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'];
+        h += `<div class="tb-fl">${pos.map(p => `<button type="button" data-tbpos="${p}" class="${X.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
+        const order = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'PK'];
+        const list = X.mineInfo.filter(x => X.pos === 'ALL' || x.pos === X.pos).sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || (parseInt(a.rk.split('#')[1], 10) || 999) - (parseInt(b.rk.split('#')[1], 10) || 999));
+        list.forEach(x => { const l = lldTbParseLabel(dr.p[x.pid]); h += lldTbRow(x, dr.p[x.pid] ? l.s : '', l.a, true, X.open === x.pid); });
+        if (!list.length) h += '<div class="tb-sub" style="text-align:center;padding:16px">No players here.</div>';
+        h += `<div class="tb-save ${X.dirty ? 'show' : ''}"><span>${X.saving ? 'Saving…' : 'Unsaved changes'}</span><button type="button" class="tb-savebtn" ${X.saving ? 'disabled' : ''}>Save</button></div>`;
+    } else {
+        const fids = Object.keys(leagueFranchises).filter(f => f).sort();
+        let any = false;
+        fids.forEach(f => {
+            const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => /^[SWUN]/.test(lab[id]));
+            const mdl = f === D.me ? dr.m : (D.tb.by[f] || {}).m, M = LLDTB_MODES[mdl], rc = D.recOf(f);
+            if (!ids.length && !M) return; any = true;
+            h += `<div class="tb-team"><div class="tb-th"><span class="tb-tn">${e(leagueFranchises[f] || f)}${f === D.me ? ' (you)' : ''}${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' · ' + rc.po + '% playoffs · ' : ''}${ids.length} labeled</span></div>`;
+            ['S', 'W', 'U', 'N'].forEach(k => {
+                const g = ids.filter(id => lldTbParseLabel(lab[id]).s === k); if (!g.length) return;
+                h += `<div class="tb-grp" style="--c:${LLDTB_ST[k][1]}"><div class="tb-gl">${LLDTB_ST[k][0]}</div>${g.map(id => { const l = lldTbParseLabel(lab[id]); return lldTbRow(D.info(id), k, l.a, false, false); }).join('')}</div>`;
+            });
+            h += '</div>';
+        });
+        if (!any) h += '<div class="tb-sub" style="text-align:center;padding:24px">Nobody has set a trade label yet. Open My players to be the first.</div>';
+    }
+    lldTbMain().html(h + '</div>');
+}
+async function loadTradeBlockTab() {
+    const box = lldTbMain().html('<div style="text-align:center; padding:40px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase;">Loading trade block…</div>');
+    try {
+        const d = await lldTbData(), mine = d.mine.slice();
+        const lab = lldTbLabels(d, d.me), draftP = {}; mine.forEach(id => { if (lab[id]) draftP[id] = lab[id]; });
+        Object.keys(lab).forEach(id => { if (mine.indexOf(id) < 0) return; });
+        window._tbX = { d, view: (window._tbX && window._tbX.view) || 'mine', pos: 'ALL', open: null, dirty: false, saving: false, mineInfo: mine.map(id => d.info(id)), draft: { m: (d.tb.by[d.me] || {}).m || '', p: draftP } };
+        lldTbDraw();
+    } catch (e) { console.warn('trade block', e); box.html('<div style="text-align:center;padding:30px;color:#ef4444">Could not load the trade block. <button type="button" class="tb-retry">Try again</button></div>'); }
+}
+$(document).on('click', '.tb-retry', loadTradeBlockTab);
+$(document).on('click', '.tb [data-tbview]', function () { window._tbX.view = this.dataset.tbview; lldTbDraw(); });
+$(document).on('click', '.tb [data-tbpos]', function () { window._tbX.pos = this.dataset.tbpos; lldTbDraw(); });
+$(document).on('click', '.tb [data-tbopen]', function () { const X = window._tbX; X.open = X.open === this.dataset.tbopen ? null : this.dataset.tbopen; lldTbDraw(); });
+$(document).on('click', '.tb [data-tbmode]', function () { const X = window._tbX; X.draft.m = X.draft.m === this.dataset.tbmode ? '' : this.dataset.tbmode; X.dirty = true; lldTbDraw(); });
+$(document).on('click', '.tb [data-tbset]', function () {
+    const X = window._tbX, pid = this.dataset.pid, k = this.dataset.tbset, cur = lldTbParseLabel(X.draft.p[pid]);
+    if (!k) delete X.draft.p[pid]; else X.draft.p[pid] = lldTbMakeLabel(k, k === 'S' ? cur.a : []);
+    X.open = null; X.dirty = true; lldTbDraw();
+});
+$(document).on('click', '.tb [data-tbrm]', function () { const X = window._tbX, pid = this.dataset.pid, l = lldTbParseLabel(X.draft.p[pid]); X.draft.p[pid] = lldTbMakeLabel('S', l.a.filter(a => a !== this.dataset.tbrm)); X.dirty = true; lldTbDraw(); });
+$(document).on('change', '.tb select[data-tbadd]', function () {
+    if (!this.value) return; const X = window._tbX, pid = this.dataset.pid, l = lldTbParseLabel(X.draft.p[pid]); if (l.a.indexOf(this.value) < 0) l.a.push(this.value);
+    X.draft.p[pid] = lldTbMakeLabel('S', l.a); X.dirty = true; lldTbDraw();
+});
+$(document).on('click', '.tb .tb-savebtn', async function () {
+    const X = window._tbX; if (!X || X.saving) return; X.saving = true; lldTbDraw();
+    try { await lldTbSave(X.draft.m, X.draft.p); X.dirty = false; } catch (e) { alert('MFL: ' + (e.message || 'could not save')); }
+    X.saving = false; lldTbDraw();
+});
+function lldEnsureBlockTab() {
+    const bar = $('#subtabs-league'); if (!bar.length || bar.find('.sub-tab-btn').filter(function () { return $(this).text().trim() === 'Trade Block'; }).length) return;
+    const last = bar.find('.sub-tab-btn').last(); if (!last.length) return;
+    last.clone().removeClass('active').text('Trade Block').attr('onclick', "openLeagueSubTab(event,'tradeblock')").insertAfter(last);
+}
+
 // ===== quick theme sheet: a palette icon beside settings; the page stays visible so changes can be seen live =====
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
 function lldQtHtml() {
