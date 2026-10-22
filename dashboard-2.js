@@ -17816,7 +17816,10 @@ async function lldFirstKickoff() {
     const k = 'lld_c_wk1kick_' + year; const c = lldLsGet(k, 30 * 86400000); if (c) return c;
     let m = {}; try { m = await fetchNflScheduleForWeek(1); } catch (e) { }
     const ks = Object.keys(m || {}).map(t => m[t].kickoffMs).filter(Boolean);
-    if (!ks.length) return null;
+    if (!ks.length) { // schedule request failed or was throttled: fall back to the Thursday after Labor Day (the NFL's usual opener) so the cards still show
+        const d = new Date(Date.UTC(parseInt(year, 10), 8, 1)); while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1); // Labor Day
+        d.setUTCDate(d.getUTCDate() + 3); return lldEtMs(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 20, 20); // not cached, so a later good fetch wins
+    }
     const v = Math.min.apply(null, ks); lldLsSet(k, v); return v;
 }
 // wall-clock time in US Eastern (handles daylight saving) -> UTC milliseconds
