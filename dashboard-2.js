@@ -12705,11 +12705,13 @@ async function injectTeamAwardsStrip(f, hostSel) {
 async function lldBuildPreview(pw) {
     let ms = [], proj = {};
     try { [ms, proj] = await Promise.all([fetchRecapWeek(pw, false), fetchWeekProjectedScoresMap(pw)]); } catch (e) { console.warn('preview', e); }
-    const games = ms.map(m => { const w = computeWinProb(m.t1, m.t2, proj); return { t1: m.t1, t2: m.t2, p1: w.p1, m1: w.mean1, m2: w.mean2 }; });
+    const games = ms.map((m, i) => { const w = computeWinProb(m.t1, m.t2, proj); return { i, wk: pw, t1: m.t1, t2: m.t2, p1: w.p1, m1: w.mean1, m2: w.mean2 }; });
     const players = [];
     ms.forEach(m => [m.t1, m.t2].forEach(t => t.roster.forEach(p => { if (p.isStarter && proj[p.pid] > 0) players.push({ p, fid: t.fid, proj: proj[p.pid] }); })));
     players.sort((a, b) => b.proj - a.proj);
-    return { pw, games, players: players.slice(0, 5), noProj: !Object.keys(proj).length };
+    const P = { pw, games, proj, players: players.slice(0, 5), noProj: !Object.keys(proj).length };
+    window._pvCache = window._pvCache || {}; window._pvCache[pw] = P;
+    return P;
 }
 function lldPvGame(g) {
     const a = Math.round(g.p1 * 100), b = 100 - a;
@@ -12717,7 +12719,8 @@ function lldPvGame(g) {
     return `<div style="padding:10px; border-radius:10px; margin-bottom:8px; background:rgba(255,255,255,0.015); border:1px solid var(--card-border);">
         <div style="display:flex; gap:8px; align-items:flex-start;">${side(g.t1.fid, g.m1, false)}<span style="align-self:center; font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim);">VS</span>${side(g.t2.fid, g.m2, true)}</div>
         <div style="display:flex; height:6px; border-radius:3px; overflow:hidden; margin-top:8px; background:rgba(255,255,255,0.08);"><div style="width:${a}%; background:#3b82f6;"></div><div style="width:${b}%; background:#a855f7;"></div></div>
-        <div style="display:flex; justify-content:space-between; font-size:calc(9px * var(--ts,1)); font-weight:900; margin-top:4px;"><span style="color:#3b82f6;">${a}% win</span><span style="color:#a855f7;">${b}% win</span></div></div>`;
+        <div style="display:flex; justify-content:space-between; font-size:calc(9px * var(--ts,1)); font-weight:900; margin-top:4px;"><span style="color:#3b82f6;">${a}% win</span><span style="color:#a855f7;">${b}% win</span></div>
+        <div style="text-align:center; margin-top:8px;"><button type="button" class="lld-play sm" data-k="matchup" data-wk="${g.wk}" data-i="${g.i}">▶ Matchup story</button></div></div>`;
 }
 function lldPreviewView(P) {
     if (!P.games.length) return `<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Week ${P.pw} matchups are not available yet. Check back once lineups and projections are posted.</div>`;
@@ -12728,7 +12731,7 @@ function lldPreviewView(P) {
     const fav = g => (g.p1 >= .5 ? g.t1.fid : g.t2.fid);
     const hi = P.games.reduce((best, g) => { [[g.t1.fid, g.m1], [g.t2.fid, g.m2]].forEach(([f, m]) => { if (!best || m > best.m) best = { f, m }; }); return best; }, null);
     const out = [];
-    out.push(`<div style="text-align:center; margin-bottom:10px;"><button type="button" class="lld-play" data-k="preview" data-wk="${P.pw}">▶ Play Week ${P.pw} preview</button></div>`);
+    out.push(`<div style="text-align:center; margin-bottom:10px;"><button type="button" class="lld-play" data-k="preview" data-wk="${P.pw}">▶ League preview</button></div>`);
     if (P.noProj) out.push(`<div style="font-size:calc(10px * var(--ts,1)); color:#f59e0b; text-align:center; margin-bottom:8px;">MFL has not posted projections for this week yet, so odds are rough.</div>`);
     if (mine) out.push(recapCard('Your Matchup', '🎯', lldPvGame(mine)));
     out.push(recapCard('Game of the Week', '🍿', lldPvGame(gotw), 'Closest projected matchup'));
@@ -12741,16 +12744,33 @@ function lldPreviewView(P) {
 $(document).on('click', '.pv-wk-prev', function () { const s = window._recapState; s.pwk = Math.max(1, (s.pwk || 1) - 1); loadRecapsTab(); });
 $(document).on('click', '.pv-wk-next', function () { const s = window._recapState; s.pwk = Math.min(18, (s.pwk || 1) + 1); loadRecapsTab(); });
 
+
+// Head-to-head standings after a given week, built from MFL's schedule (counts every game, including double-header weeks)
+async function lldStandingsThrough(wk) {
+    if (!window._lldSchedFull) {
+        const d = await lldSxJson('schedule');
+        window._lldSchedFull = lldSxArr(d && d.schedule && d.schedule.weeklySchedule).map(w => ({ wk: parseInt(w.week, 10), m: lldSxArr(w.matchup).map(m => lldSxArr(m.franchise).map(f => ({ id: String(f.id).padStart(4, '0'), sc: parseFloat(f.score) }))) }));
+    }
+    const T = {};
+    Object.keys(leagueFranchises || {}).forEach(f => { T[f] = { id: f, w: 0, l: 0, t: 0, pf: 0 }; });
+    window._lldSchedFull.forEach(w => { if (w.wk > wk) return; w.m.forEach(fr => {
+        if (fr.length < 2 || !(fr[0].sc > 0) || !(fr[1].sc > 0)) return;
+        fr.forEach(f => { T[f.id] = T[f.id] || { id: f.id, w: 0, l: 0, t: 0, pf: 0 }; T[f.id].pf += f.sc; });
+        const a = T[fr[0].id], b = T[fr[1].id];
+        if (fr[0].sc > fr[1].sc) { a.w++; b.l++; } else if (fr[0].sc < fr[1].sc) { b.w++; a.l++; } else { a.t++; b.t++; }
+    }); });
+    return Object.values(T).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
+}
 // ===== STORY MODE: full-screen animated recap / preview (tap to skip, hold to pause) =====
 const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0 };
 function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" style="width:${s}px;height:${s}px">`; }
 function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
 function stSlide(c1, c2, html) { return { bg: `radial-gradient(120% 90% at 20% 0%, ${c1}, ${c2})`, html }; }
 function stNum(v, dec, cls) { return `<div class="st-big st-a ${cls || ''}" data-count="${v}" data-dec="${dec}" style="--d:.35s">0</div>`; }
-async function lldStorySlides(kind, wk) {
+async function lldStorySlides(kind, wk, idx) {
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
-    const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind}" data-wk="${wk}">Open the full ${label}</button>`));
+    const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind === 'matchup' ? 'preview' : kind}" data-wk="${wk}">Open the full ${label}</button>`));
     if (kind === 'recap') {
         const [allScores] = await Promise.all([fetchAllWeekScores()]);
         const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
@@ -12766,11 +12786,34 @@ async function lldStorySlides(kind, wk) {
         if (S.upsets && S.upsets.length) { const u = S.upsets[0]; out.push(stSlide('#be185d', '#14020a', `<div class="st-k st-a">🚨 UPSET ALERT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(u.w.fid, 72)}<span>stunned</span>${stLogo(u.l.fid, 72)}</div><div class="st-h st-a" style="--d:.35s">${stName(u.w.fid)}</div><div class="st-sub st-a" style="--d:.6s">${u.w.score.toFixed(1)} – ${u.l.score.toFixed(1)}</div>`)); }
         if (S.calls && S.calls.length) { const c = S.calls[0]; out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">GUTSIEST CALL</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.g.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.g.name)}</b><span>started over ${lldChatEsc(c.d.name)}</span></div><i>${c.g.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">+${c.margin.toFixed(1)} pts${c.decisive ? ' · won the game' : ''} for ${stName(c.fid)}</div>`)); }
         if (S.overs && S.overs.length) { const c = S.overs[0]; out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">THE OVERTHINKER 🤡</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.d.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.d.name)}</b><span>sat on ${stName(c.fid)}'s bench</span></div><i>${c.d.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">−${c.margin.toFixed(1)} pts${c.decisive ? ' · cost the game' : ''}</div>`)); }
+        try {
+            const now = await lldStandingsThrough(wk), prev = wk > 1 ? await lldStandingsThrough(wk - 1) : null;
+            if (now.length && now.some(t => t.w + t.l + t.t > 0)) {
+                const pi = {}; (prev || now).forEach((t, i) => { pi[t.id] = i; });
+                const rows = now.map((t, i) => { const from = prev ? pi[t.id] : i, d = from - i; return `<div class="st-srow" data-from="${from}" data-to="${i}"><span class="st-sn">${i + 1}</span>${stLogo(t.id, 30).replace('st-logo st-a', 'st-logo')}<b>${stName(t.id)}</b><em>${t.w}-${t.l}${t.t ? '-' + t.t : ''}</em><u class="${d > 0 ? 'up' : d < 0 ? 'dn' : ''}" style="opacity:0">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : '–'}</u></div>`; }).join('');
+                out.push(stSlide('#0f172a', '#1e1b4b', `<div class="st-k st-a">${prev ? 'STANDINGS AFTER WEEK ' + wk : 'STANDINGS'}</div><div class="st-stand st-a" style="--d:.2s;--n:${now.length};--rh:${Math.max(30, Math.min(48, Math.floor((window.innerHeight - 190) / now.length)))}px">${rows}</div>`));
+            }
+        } catch (e) { console.warn('story standings', e); }
         outro('recap');
+    } else if (kind === 'matchup') {
+        const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk), g = P.games[idx];
+        if (!g) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchup not found</div>`)); return out; }
+        const a = Math.round(g.p1 * 100), fav = g.p1 >= .5 ? g.t1 : g.t2, favP = g.p1 >= .5 ? a : 100 - a;
+        out.push(stSlide('#0369a1', '#010a14', `<div class="st-k st-a">WEEK ${wk} MATCHUP</div><div class="st-vs st-a" style="--d:.15s">${stLogo(g.t1.fid, 96)}<span>vs</span>${stLogo(g.t2.fid, 96)}</div><div class="st-row2 st-a" style="--d:.4s"><b>${stName(g.t1.fid)}</b></div><div class="st-row2 st-a" style="--d:.55s"><b>${stName(g.t2.fid)}</b></div>`));
+        out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PROJECTED SCORES</div><div class="st-two"><div class="st-col">${stLogo(g.t1.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t1.fid)}</div>${stNum(g.m1, 1, g.m1 >= g.m2 ? 'gold' : '')}</div><div class="st-col">${stLogo(g.t2.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t2.fid)}</div>${stNum(g.m2, 1, g.m2 > g.m1 ? 'gold' : '')}</div></div>`));
+        out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">WIN ODDS</div>${stLogo(fav.fid, 90)}<div class="st-h st-a" style="--d:.2s">${stName(fav.fid)}</div>${stNum(favP, 0, 'gold').replace('data-dec="0"', 'data-dec="0" data-suf="%"')}<div class="st-bar st-a" style="--d:.5s"><u class="st-grow" style="width:${a}%"></u></div><div class="st-sub st-a" style="--d:.7s">${a}% – ${100 - a}%</div>`));
+        const top = t => t.roster.filter(p => p.isStarter && P.proj[p.pid] > 0).sort((x, y) => P.proj[y.pid] - P.proj[x.pid]).slice(0, 3);
+        [g.t1, g.t2].forEach(t => out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">${stName(t.fid)} · TOP PROJECTED</div>${top(t).map((p, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(p.name)}</b><span>${lldChatEsc(recapNormPos(p))}</span></div><i>${P.proj[p.pid].toFixed(1)}</i></div>`).join('')}`)));
+        const POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], sum = (t, ps) => t.roster.filter(p => p.isStarter && recapNormPos(p) === ps).reduce((x, p) => x + (P.proj[p.pid] || 0), 0);
+        const edge = POS.map((ps, i) => { const x = sum(g.t1, ps), y = sum(g.t2, ps), m = Math.max(x, y, 1); return `<div class="st-edge st-a" style="--d:${0.2 + i * .12}s"><span>${ps}</span><div><u class="${x >= y ? 'win' : ''}" style="width:${Math.round(x / m * 100)}%">${x.toFixed(1)}</u></div><div><u class="${y > x ? 'win' : ''}" style="width:${Math.round(y / m * 100)}%">${y.toFixed(1)}</u></div></div>`; }).join('');
+        out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">POSITION BY POSITION</div><div class="st-legend st-a" style="--d:.1s"><span>${stName(g.t1.fid)}</span><span>${stName(g.t2.fid)}</span></div>${edge}`));
+        outro('matchup preview');
     } else {
         const P = await lldBuildPreview(wk);
         out.push(stSlide('#0369a1', '#010a14', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Preview</div>`));
         if (P.games.length) {
+            const tot = P.games.reduce((x, g) => x + g.m1 + g.m2, 0), avg = tot / (P.games.length * 2), toss = P.games.filter(g => Math.abs(g.p1 - .5) < .1).length;
+            out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">THE WEEK AHEAD</div>${stNum(P.games.length, 0)}<div class="st-sub st-a" style="--d:.4s">matchups</div><div class="st-two st-a" style="--d:.55s"><div class="st-col"><div class="st-mid">${avg.toFixed(1)}</div><div class="st-sub">avg projected score</div></div><div class="st-col"><div class="st-mid">${toss}</div><div class="st-sub">toss-ups</div></div></div>`));
             const pg = g => { const a = Math.round(g.p1 * 100); return `<div class="st-vs st-a" style="--d:.2s">${stLogo(g.t1.fid, 70)}<span>vs</span>${stLogo(g.t2.fid, 70)}</div><div class="st-row2 st-a" style="--d:.35s"><b>${stName(g.t1.fid)}</b><i>${g.m1.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:.5s"><b>${stName(g.t2.fid)}</b><i>${g.m2.toFixed(1)}</i></div><div class="st-bar st-a" style="--d:.7s"><u style="width:${a}%"></u></div><div class="st-sub st-a" style="--d:.8s">${a}% / ${100 - a}% win odds</div>`; };
             const mine = P.games.find(g => g.t1.fid === me || g.t2.fid === me);
             const byClose = P.games.slice().sort((a, b) => Math.abs(a.p1 - .5) - Math.abs(b.p1 - .5));
@@ -12792,18 +12835,24 @@ function stShow(i) {
     box.find('.st-stage').css('background', sl.bg).html(`<div class="st-in">${sl.html}</div>`);
     box.find('[data-count]').each(function () {
         const el = this, to = parseFloat(el.dataset.count) || 0, dec = parseInt(el.dataset.dec, 10) || 0, t0 = performance.now() + 350, dur = 1100;
-        (function tick(t) { const p = Math.max(0, Math.min(1, (t - t0) / dur)); el.textContent = (to * (1 - Math.pow(1 - p, 3))).toFixed(dec); if (p < 1 && document.body.contains(el)) requestAnimationFrame(tick); })(performance.now());
+        (function tick(t) { const p = Math.max(0, Math.min(1, (t - t0) / dur)); el.textContent = (to * (1 - Math.pow(1 - p, 3))).toFixed(dec) + (el.dataset.suf || ''); if (p < 1 && document.body.contains(el)) requestAnimationFrame(tick); })(performance.now());
     });
     box.toggleClass('paused', S.pause);
+    box.find('.st-stand').each(function () {
+        const wrap = this, rh = parseInt(getComputedStyle(wrap).getPropertyValue('--rh'), 10) || 40;
+        $(wrap).css('height', (wrap.children.length * rh) + 'px');
+        [].forEach.call(wrap.children, r => { r.style.transition = 'none'; r.style.top = (r.dataset.from * rh) + 'px'; });
+        setTimeout(() => { [].forEach.call(wrap.children, r => { r.style.transition = 'top 1.3s cubic-bezier(.65,0,.25,1)'; r.style.top = (r.dataset.to * rh) + 'px'; r.querySelector('u').style.opacity = 1; r.classList.toggle('moved', r.dataset.from !== r.dataset.to); }); }, 1100);
+    });
 }
 function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; }
-async function lldOpenStory(kind, wk) {
+async function lldOpenStory(kind, wk, idx) {
     $('#lld-story').remove();
     $('body').append(`<div id="lld-story"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
-    try { LLD_ST.slides = await lldStorySlides(kind, wk); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
+    try { LLD_ST.slides = await lldStorySlides(kind, wk, idx); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
-$(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10)); });
+$(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10), parseInt($(this).data('i'), 10)); });
 $(document).on('animationend', '#lld-story .st-bars .cur u', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-x', stClose);
 $(document).on('click', '#lld-story .st-zr', () => stShow(LLD_ST.i + 1));
@@ -17749,15 +17798,26 @@ async function lldFirstKickoff() {
     if (!ks.length) return null;
     const v = Math.min.apply(null, ks); lldLsSet(k, v); return v;
 }
+// wall-clock time in US Eastern (handles daylight saving) -> UTC milliseconds
+function lldEtMs(y, mo, d, h, mi) {
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+    let t = Date.UTC(y, mo, d, h, mi);
+    for (let i = 0; i < 2; i++) { const o = {}; fmt.formatToParts(new Date(t)).forEach(x => { o[x.type] = parseInt(x.value, 10); }); t += Date.UTC(y, mo, d, h, mi) - Date.UTC(o.year, o.month - 1, o.day, o.hour, o.minute); }
+    return t;
+}
 async function lldDigestItems() {
     const k0 = await lldFirstKickoff(); if (!k0) return [];
-    const base = new Date(k0); base.setHours(6, 0, 0, 0); base.setDate(base.getDate() - ((base.getDay() - 4 + 7) % 7)); // Thursday 6am of week 1
+    const q = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date(k0)).forEach(x => { q[x.type] = parseInt(x.value, 10); });
+    const kd = new Date(Date.UTC(q.year, q.month - 1, q.day)); // the kickoff's calendar day in Eastern time
+    kd.setUTCDate(kd.getUTCDate() - ((kd.getUTCDay() - 4 + 7) % 7)); // Thursday of week 1
     const now = Date.now(), out = [];
     for (let w = 1; w <= 18; w++) {
-        const th = new Date(base); th.setDate(th.getDate() + 7 * (w - 1));
-        const tu = new Date(th); tu.setDate(tu.getDate() + 5);
-        if (th.getTime() <= now) out.push({ kind: 'digest', type: 'preview', wk: w, ms: th.getTime() });
-        if (tu.getTime() <= now) out.push({ kind: 'digest', type: 'recap', wk: w, ms: tu.getTime() });
+        const th = new Date(kd); th.setUTCDate(th.getUTCDate() + 7 * (w - 1));
+        const tu = new Date(th); tu.setUTCDate(tu.getUTCDate() + 5);
+        const pm = lldEtMs(th.getUTCFullYear(), th.getUTCMonth(), th.getUTCDate(), 13, 30); // Thursday 1:30 PM ET
+        const rm = lldEtMs(tu.getUTCFullYear(), tu.getUTCMonth(), tu.getUTCDate(), 11, 0);  // Tuesday 11:00 AM ET
+        if (pm <= now) out.push({ kind: 'digest', type: 'preview', wk: w, ms: pm });
+        if (rm <= now) out.push({ kind: 'digest', type: 'recap', wk: w, ms: rm });
     }
     const last = t => out.filter(x => x.type === t).slice(-2);
     return last('preview').concat(last('recap'));
