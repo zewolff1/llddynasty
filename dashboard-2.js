@@ -8513,10 +8513,7 @@ $('body').append(`
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal${lldSeasonNow() ? ' (' + LLD_STYLES[lldSeasonNow()].name + ')' : ''}</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
                     <div id="lld-fx-row" style="display:${LLD_FX_MAP[lldEffStyle()] ? 'block' : 'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Seasonal background animation</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')!=='0'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')==='0'?'on':''}" data-v="off">Off</button></div></div>
                     <div class="lld-wide-row"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Page width (computers)</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'':'on'}" data-v="std">Standard</button><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'on':''}" data-v="wide">Wide</button></div></div>
-                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;">
-                        ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
-                    </div>
+                    
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
@@ -12832,7 +12829,20 @@ async function lldStandingsThrough(wk) {
 }
 // ===== STORY MODE: full-screen animated recap / preview (tap to skip, hold to pause) =====
 // Music for the animations. Paste the MFL file URL (the one you get after uploading an mp3) between the quotes; leave '' for silence.
-const LLD_STORY_MUSIC = { recap: '', preview: '' };
+const LLD_STORY_MUSIC = {
+    // The song follows the week's top team: the highest score in a recap, the highest projection in a preview or matchup story.
+    // 1) one file per franchise: upload song files to MFL, copy one file's URL, and put {fid} where the franchise number is
+    //    e.g. 'https://www45.myfantasyleague.com/fflnetdynamic2026/63085_song_{fid}.mp3'  (so 63085_song_0001.mp3 is franchise 0001)
+    template: '',
+    // 2) or list individual files (these win over the template): { '0001': 'https://...mp3', '0003': 'https://...mp3' }
+    teams: {},
+    // 3) plays when that team has no song
+    fallback: ''
+};
+function lldMusicUrl(fid) {
+    const f = String(fid || '').padStart(4, '0'), M = LLD_STORY_MUSIC;
+    return (M.teams && M.teams[f]) || (M.template ? M.template.replace(/\{fid\}/g, f) : '') || M.fallback || '';
+}
 const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0, speed: 1, popup: false };
 function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" style="width:${s}px;height:${s}px">`; }
 function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
@@ -12850,6 +12860,7 @@ async function lldStorySlides(kind, wk, idx) {
         out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Recap</div>`));
         const mg = ms.find(m => m.t1.fid === me || m.t2.fid === me);
         if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; out.push(stSlide(won ? '#15803d' : '#b91c1c', '#050505', `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
+        if (S.top) LLD_ST.topFid = S.top.fid;
         if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
         if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.p.score.toFixed(1)}</i></div>`).join('')}`));
         if (S.blowout) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">BIGGEST BLOWOUT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.blowout.w.fid, 72)}<span>def.</span>${stLogo(S.blowout.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.blowout.w.fid)}</div>${stNum(S.blowout.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
@@ -12869,6 +12880,7 @@ async function lldStorySlides(kind, wk, idx) {
     } else if (kind === 'matchup') {
         const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk), g = P.games[idx];
         if (!g) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchup not found</div>`)); return out; }
+        LLD_ST.topFid = (g.m1 >= g.m2 ? g.t1 : g.t2).fid;
         const a = Math.round(g.p1 * 100), fav = g.p1 >= .5 ? g.t1 : g.t2, favP = g.p1 >= .5 ? a : 100 - a;
         out.push(stSlide('#0369a1', '#010a14', `<div class="st-k st-a">WEEK ${wk} MATCHUP</div><div class="st-vs st-a" style="--d:.15s">${stLogo(g.t1.fid, 96)}<span>vs</span>${stLogo(g.t2.fid, 96)}</div><div class="st-row2 st-a" style="--d:.4s"><b>${stName(g.t1.fid)}</b></div><div class="st-row2 st-a" style="--d:.55s"><b>${stName(g.t2.fid)}</b></div>`));
         out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PROJECTED SCORES</div><div class="st-two"><div class="st-col">${stLogo(g.t1.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t1.fid)}</div>${stNum(g.m1, 1, g.m1 >= g.m2 ? 'gold' : '')}</div><div class="st-col">${stLogo(g.t2.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t2.fid)}</div>${stNum(g.m2, 1, g.m2 > g.m1 ? 'gold' : '')}</div></div>`));
@@ -12892,6 +12904,7 @@ async function lldStorySlides(kind, wk, idx) {
             out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">🍿 GAME OF THE WEEK</div>${pg(byClose[0])}`));
             const mm = byClose[byClose.length - 1]; if (mm !== byClose[0]) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">🧨 BIGGEST MISMATCH</div>${pg(mm)}`));
             const hi = P.games.reduce((best, g) => { [[g.t1.fid, g.m1], [g.t2.fid, g.m2]].forEach(([f, m]) => { if (!best || m > best.m) best = { f, m }; }); return best; }, null);
+            if (hi) LLD_ST.topFid = hi.f;
             if (hi) out.push(stSlide('#15803d', '#011208', `<div class="st-k st-a">HIGHEST PROJECTED</div>${stLogo(hi.f, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hi.f)}</div>${stNum(hi.m, 1, 'gold')}`));
         } else out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchups are not posted yet</div><div class="st-sub st-a" style="--d:.3s">Check back once lineups and projections are in.</div>`));
         if (P.players.length) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">PLAYERS TO WATCH</div>${P.players.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.proj.toFixed(1)}</i></div>`).join('')}`));
@@ -12917,19 +12930,20 @@ function stShow(i) {
     });
 }
 function stMusicStop() { const a = window._stAudio; window._stAudio = null; if (!a) return; let v = a.volume; const f = setInterval(() => { v -= .1; if (v <= .02) { clearInterval(f); try { a.pause(); } catch (e) { } } else a.volume = v; }, 60); }
-function stMusicStart(kind) {
+function stMusicStart(fid) {
     stMusicStop();
-    const url = kind === 'recap' ? LLD_STORY_MUSIC.recap : LLD_STORY_MUSIC.preview; if (!url) return false;
+    const url = lldMusicUrl(fid); if (!url) return false;
     let muted = false; try { muted = localStorage.getItem('lld_st_mute') === '1'; } catch (e) { }
     const a = new Audio(url); a.loop = true; a.volume = .55; a.muted = muted; window._stAudio = a;
-    a.play().catch(e => console.warn('music', e)); return true;
+    a.addEventListener('error', () => { if (window._stAudio === a && LLD_STORY_MUSIC.fallback && a.src.indexOf(LLD_STORY_MUSIC.fallback) < 0) { a.src = LLD_STORY_MUSIC.fallback; a.play().catch(() => { }); } }); // that team's file isn't there: use the fallback
+    a.play().catch(e => console.warn('music', e));
+    $('#lld-story .st-mu').show().text(muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'); return true;
 }
 function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop(); }
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup;
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
-    if (stMusicStart(kind)) { const m = window._stAudio.muted; $('#lld-story .st-mu').show().text(m ? '🔇' : '🔊'); }
-    try { LLD_ST.slides = await lldStorySlides(kind, wk, idx); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
+    try { LLD_ST.topFid = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if ($('#lld-story').length) stMusicStart(LLD_ST.topFid); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
 $(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10), parseInt($(this).data('i'), 10)); });
@@ -17717,7 +17731,7 @@ const result = await applyAuctionContract(pid, commentText);
 checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
-lldApplyHdrMode(lldGet('lld_hdr', 'auto'));
+lldApplyHdrMode('auto'); // the header always shrinks as you scroll
 $(document).on('click', '.lld-style-btn', function () { lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
 loadSavedTheme();
@@ -18049,7 +18063,36 @@ $(document).on('click', '#lld-chat .cm-tab', function () { lldChatShowList($(thi
 $(document).on('click', '#lld-chat .cm-bh', function () { $(this).closest('.cm-block').toggleClass('open'); });
 $(document).on('click', '#lld-chat .cm-row', function () { lldChatShowThread($(this).data('tid')); });
 $(document).on('click', '#lld-chat', function (e) { if (e.target === this) lldChatClose(); });
+// ===== quick theme sheet: a palette icon beside settings; the page stays visible so changes can be seen live =====
+const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
+function lldQtHtml() {
+    const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
+    const styles = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${v.name}</button>`).join('')
+        + `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">Seasonal${sea ? ' (' + LLD_STYLES[sea].name + ')' : ''}</button>`;
+    const lab = t => `<div class="qt-l">${t}</div>`;
+    const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
+    return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
+        + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
+        + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
+        + lab('NFL logos') + `<div class="qt-row"><button type="button" class="logo-style-btn" data-style="modern">Modern</button><button type="button" class="logo-style-btn" data-style="throwback">Throwback</button></div>`
+        + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
+}
+function lldQtOpen() {
+    if (document.getElementById('lld-qt')) { $('#lld-qt').remove(); return; }
+    $('body').append(`<div id="lld-qt">${lldQtHtml()}</div>`);
+    try { updateLogoStyleButtons(); } catch (e) { }
+}
+$(document).on('click', '#lld-qt-btn', lldQtOpen);
+$(document).on('click', '#lld-qt .qt-done', () => $('#lld-qt').remove());
+$(document).on('click', '#lld-qt .lld-style-btn, #lld-qt .lld-fx-btn', function () { setTimeout(() => { if ($('#lld-qt').length) { $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } } }, 80); });
+function lldQuickInit() {
+    if (document.getElementById('lld-qt-btn')) return;
+    const btn = `<button id="lld-qt-btn" aria-label="Change theme" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_QT_ICON}</button>`;
+    const s = document.querySelector('.open-settings-btn');
+    if (s) s.insertAdjacentHTML('beforebegin', btn); else $('.header-right-controls').prepend(btn);
+}
 function lldChatInit() {
+    try { lldQuickInit(); } catch (e) { }
     if (!myFid || document.getElementById('lld-chat-btn')) return; // every signed-in owner gets the message board
     const btn = `<button id="lld-chat-btn" aria-label="Message board" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_CHAT_ICON}</button>`;
     const s = document.querySelector('.open-settings-btn');
