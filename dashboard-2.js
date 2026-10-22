@@ -942,9 +942,9 @@ function lldFxBuild(kind, host) {
     const small = Math.min(window.innerWidth, 700) < 600;
     if (kind === 'fall' || kind === 'thanksgiving') {
         const cols = kind === 'fall' ? ['#e8731c', '#c2410c', '#f0a030', '#9a3412', '#d9a21b'] : ['#b8412a', '#d9822b', '#e3b23c', '#7a4a21', '#a33a2c'];
-        const n = small ? 12 : 22;
+        const n = small ? 9 : 16;
         for (let k = 0; k < n; k++) {
-            const d = kind === 'fall' ? r(9, 17) : r(14, 24), sz = kind === 'fall' ? r(16, 28) : r(18, 30);
+            const d = kind === 'fall' ? r(9, 17) : r(14, 24), sz = kind === 'fall' ? r(12, 20) : r(12, 20);
             add('fx-p ' + (kind === 'fall' ? 'leaf' : 'feather'), { '--x': r(-2, 98).toFixed(1) + '%', '--sz': sz.toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--dx': r(-90, 90).toFixed(0) + 'px', '--rot': r(-360, 360).toFixed(0) + 'deg' }, kind === 'fall' ? lldFxLeaf(cols[k % cols.length]) : lldFxFeather(cols[k % cols.length]));
         }
     } else if (kind === 'halloween') {
@@ -952,7 +952,7 @@ function lldFxBuild(kind, host) {
         const n = small ? 3 : 5;
         for (let k = 0; k < n; k++) {
             const d = r(16, 28);
-            add('fx-bat', { '--y': r(4, 55).toFixed(0) + '%', '--sz': r(26, 44).toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--bob': r(10, 26).toFixed(0) + 'px', '--dir': k % 2 ? 1 : -1 }, LLD_FX_BAT);
+            add('fx-bat', { '--y': r(6, 55).toFixed(0) + '%', '--sz': r(22, 34).toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--bob': r(10, 26).toFixed(0) + 'px', '--dir': k % 2 ? 1 : -1 }, LLD_FX_BAT);
         }
     } else if (kind === 'christmas') {
         const build = () => {
@@ -965,7 +965,7 @@ function lldFxBuild(kind, host) {
         };
         build(); window._lldFxRz = () => { clearTimeout(window._lldFxT); window._lldFxT = setTimeout(build, 200); }; window.addEventListener('resize', window._lldFxRz);
     }
-    (host || document.body).appendChild(el);
+    (host || document.querySelector('.app-header') || document.body).appendChild(el);
 }
 //LLDFX-PURE-END
 
