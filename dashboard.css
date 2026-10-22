@@ -3539,3 +3539,15 @@ body.lld-native-clean { padding: 0 !important; margin: 0 !important; }
 .lld-sched .sg-sum.o td b{color:#facc15}
 .lld-sched .sg-sum.d td b{color:#22c55e}
 .lld-sched .sg-sum td{padding:7px 2px}
+
+/* message board: let the list scroll by touch (flex children need min-height:0 or they grow past the box) */
+#lld-chat .cm-box { min-height: 0; overflow: hidden; }
+#lld-chat .cm-body { min-height: 0; overscroll-behavior: contain; touch-action: pan-y; }
+#lld-chat .cm-box { height: 100%; height: 100dvh; }
+#lld-chat .cm-body { overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+
+/* stats: headshot + NFL logo beside player names */
+.lld-stats .pnh{display:inline-flex;align-items:center;gap:5px;vertical-align:middle;max-width:100%}
+.lld-stats .pnh .hs{width:24px;height:24px;border-radius:50%;object-fit:cover;object-position:top;background:rgba(255,255,255,.07);flex:0 0 auto}
+.lld-stats .pnh .lg{width:15px;height:15px;object-fit:contain;flex:0 0 auto}
+.lld-stats .pnh .pnt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
