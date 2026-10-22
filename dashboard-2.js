@@ -635,6 +635,7 @@ function lldStatsViews(S) {
     const f1 = x => (x == null || isNaN(x) ? '–' : x.toFixed(1)), pct = x => (x == null || isNaN(x) ? '–' : Math.round(x * 100) + '%');
     const nm = i => esc(D.names[F[i]] || F[i]);
     const pn = pid => esc((D.pinfo[pid] && D.pinfo[pid].name) || pid);
+    const pnh = pid => { const i = D.pinfo[pid] || {}, nmx = esc(i.name || pid), tm = String(i.team || '').toUpperCase(); return `<span class="pnh"><img class="hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${esc(pid)}.png" onerror="this.style.visibility='hidden'">${tm && tm !== 'FA' ? `<img class="lg" src="${typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(tm) : 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/' + tm + '.svg'}" onerror="this.style.display='none'">` : ''}<span class="pnt">${nmx}</span></span>`; };
     const POS = LLDS_POS.filter(p => S.allScores[p].length);
     const attr = pid => { const pi = D.pinfo[pid] || {}; return `class="sx-pr player-modal-trigger" data-pid="${esc(pid)}" data-name="${esc(pi.name || pid)}" data-pos="${esc(pi.pos || '')}" data-team="${esc(pi.team || '')}"`; };
     const ord = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
@@ -713,7 +714,7 @@ function lldStatsViews(S) {
     function tBoom() {
         const list = myAll.filter(pid => S.pl[pid].st.some((v, wi) => v && S.pl[pid].tm[wi] === me)).sort((a, b) => POS.indexOf(S.pl[a].pos) - POS.indexOf(S.pl[b].pos));
         let h = '<h2>Your players, week by week</h2><div class="card">';
-        list.forEach(pid => { const st = S.stat(pid), p = S.pl[pid]; h += `<div class="pl"><div class="n">${pn(pid)}<i>${llsLbl(p.pos)}</i></div>${dots(pid)}<div class="st">avg ${f1(st.avg)} · range ${f1(st.lo)}–${f1(st.hi)}</div><div class="st" style="text-align:right"><span class="good">${st.boom} boom</span> · <span class="bad">${st.bust} bust</span></div></div>`; });
+        list.forEach(pid => { const st = S.stat(pid), p = S.pl[pid]; h += `<div class="pl"><div class="n">${pnh(pid)}<i>${llsLbl(p.pos)}</i></div>${dots(pid)}<div class="st">avg ${f1(st.avg)} · range ${f1(st.lo)}–${f1(st.hi)}</div><div class="st" style="text-align:right"><span class="good">${st.boom} boom</span> · <span class="bad">${st.bust} bust</span></div></div>`; });
         return h + `<div class="legend"><span class="b">Boom week</span><span class="x">Bust week</span><span>In between</span></div></div><div class="sub">Boom is a week in the top 25% of scores at that position across your league; bust is the bottom 25%. Cutoffs: ${POS.map(p => llsLbl(p) + ' ' + Math.round(S.THR[p][0]) + '+ / ' + Math.round(S.THR[p][1]) + '-').join(', ')}.</div>`;
     }
     function netSection() {
@@ -738,22 +739,22 @@ function lldStatsViews(S) {
         myAll.filter(pid => S.pl[pid].tm.some(t => t === me)).sort((a, b) => POS.indexOf(S.pl[a].pos) - POS.indexOf(S.pl[b].pos)).forEach(pid => {
             const p = S.pl[pid], idxs = p.tm.map((t, i) => t === me ? i : -1).filter(i => i >= 0), n = idxs.length || 1; const cnt = arr => idxs.filter(i => arr[i]).length / n;
             const ok = cnt(p.ok);
-            h += `<tr ${attr(pid)}><td class="tm" style="max-width:118px">${pn(pid)} <span class="sub" style="display:inline">${llsLbl(p.pos)}</span></td><td>${pct(cnt(p.st))}</td><td>${pct(cnt(p.op))}</td><td class="${ok >= .8 ? 'good' : ok < .6 ? 'bad' : 'warn'}">${pct(ok)}</td>${hasProj ? `<td>${pct(cnt(p.pk))}</td>` : ''}</tr>`;
+            h += `<tr ${attr(pid)}><td class="tm" style="max-width:118px">${pnh(pid)} <span class="sub" style="display:inline">${llsLbl(p.pos)}</span></td><td>${pct(cnt(p.st))}</td><td>${pct(cnt(p.op))}</td><td class="${ok >= .8 ? 'good' : ok < .6 ? 'bad' : 'warn'}">${pct(ok)}</td>${hasProj ? `<td>${pct(cnt(p.pk))}</td>` : ''}</tr>`;
         });
         return h + '</table></div><div class="sub"><b>Started</b>: how often you started him while he was on your team. <b>Should</b>: how often he belonged in your best possible lineup. <b>Right</b>: how often your choice matched. <b>By proj.</b>: how often following projections would have been right.</div>';
     }
     function tValue() {
         const list = myPl.filter(pid => S.stat(pid).n > 0).sort((a, b) => S.cons(b) - S.cons(a));
         let h = '<h2>How steady is each player?</h2><div class="card">';
-        list.forEach(pid => { const p = S.pl[pid], st = S.stat(pid), c = S.cons(pid), lab = c >= .67 ? ['Steady', 'good'] : c <= .33 ? ['Volatile', 'bad'] : ['Average', 'warn']; h += `<div class="pl sx-row" ${attr(pid)}><div class="n">${pn(pid)}<i>${llsLbl(p.pos)}</i></div><div style="text-align:right;font-weight:800" class="${lab[1]}">${lab[0]}</div><div class="st">avg ${f1(st.avg)} · ±${f1(st.sd)}</div><div class="st" style="text-align:right">more consistent than ${Math.round(c * 100)}% of ${llsLbl(p.pos)}s</div><div style="grid-column:1/3">${spark(pid)}</div></div>`; });
+        list.forEach(pid => { const p = S.pl[pid], st = S.stat(pid), c = S.cons(pid), lab = c >= .67 ? ['Steady', 'good'] : c <= .33 ? ['Volatile', 'bad'] : ['Average', 'warn']; h += `<div class="pl sx-row" ${attr(pid)}><div class="n">${pnh(pid)}<i>${llsLbl(p.pos)}</i></div><div style="text-align:right;font-weight:800" class="${lab[1]}">${lab[0]}</div><div class="st">avg ${f1(st.avg)} · ±${f1(st.sd)}</div><div class="st" style="text-align:right">more consistent than ${Math.round(c * 100)}% of ${llsLbl(p.pos)}s</div><div style="grid-column:1/3">${spark(pid)}</div></div>`; });
         h += '</div><div class="legend"><span class="b">Above boom line</span><span class="x">Below bust line</span></div><div class="sub">Dashed lines are your league’s boom and bust cutoffs for that position. Compared with other relevant players at the same position.</div>';
         h += '<h2>Would he start for other teams?</h2><div class="card">';
         const so = list.map(pid => ({ pid, s: S.startsForOthers(pid) })).sort((a, b) => b.s.teams - a.s.teams || b.s.pct - a.s.pct);
-        so.forEach(x => { h += `<div class="pos sx-row" ${attr(x.pid)} style="grid-template-columns:1fr 100px 62px"><div><b style="font-size:calc(13px * var(--ts,1))">${pn(x.pid)}</b> <span class="sub" style="display:inline">${llsLbl(S.pl[x.pid].pos)}</span><div class="sub">${pct(x.s.pct)} of team-weeks</div></div>${pbar(x.s.teams / x.s.of, x.s.teams >= x.s.of * .7 ? 'var(--accent-teal)' : x.s.teams >= x.s.of * .35 ? '#f59e0b' : '#ef4444')}<small>${x.s.teams} of ${x.s.of}</small></div>`; });
+        so.forEach(x => { h += `<div class="pos sx-row" ${attr(x.pid)} style="grid-template-columns:1fr 100px 62px"><div><b style="font-size:calc(13px * var(--ts,1))">${pnh(x.pid)}</b> <span class="sub" style="display:inline">${llsLbl(S.pl[x.pid].pos)}</span><div class="sub">${pct(x.s.pct)} of team-weeks</div></div>${pbar(x.s.teams / x.s.of, x.s.teams >= x.s.of * .7 ? 'var(--accent-teal)' : x.s.teams >= x.s.of * .35 ? '#f59e0b' : '#ef4444')}<small>${x.s.teams} of ${x.s.of}</small></div>`; });
         h += '</div>';
         const chips = so.filter(x => x.s.teams >= Math.ceil((N - 1) * .35) && S.pl[x.pid].st.filter((v, i) => v && S.pl[x.pid].tm[i] === me).length < W / 2);
         if (chips.length) h += `<div class="card" style="border-color:var(--accent-blue)"><b>Trade chips</b><div class="sub" style="margin-top:4px">Players you mostly bench who would start for several other teams: ${chips.map(x => pn(x.pid) + ' (' + x.s.teams + ' teams)').join(', ')}.</div></div>`;
-        h += `<h2>Would start for you, benched elsewhere</h2><div class="card">${S.targets.length ? S.targets.slice(0, 15).map(t => `<div class="pl sx-row" ${attr(t.pid)}><div class="n">${pn(t.pid)}<i>${llsLbl(S.posOf(t.pid))}${t.owner ? ' · ' + esc(D.names[t.owner] || '') : ''}</i></div><div style="text-align:right;font-weight:900" class="good">${pct(t.forMe)}</div><div class="st">started ${pct(t.own)} of weeks for them</div><div class="st" style="text-align:right">of your weeks</div></div>`).join('') : '<div class="sub">No one fits yet.</div>'}</div><div class="sub">Players on other teams who would have cracked your best lineup in at least half the weeks while starting for their own team less than half the time. Good trade targets.</div>`;
+        h += `<h2>Would start for you, benched elsewhere</h2><div class="card">${S.targets.length ? S.targets.slice(0, 15).map(t => `<div class="pl sx-row" ${attr(t.pid)}><div class="n">${pnh(t.pid)}<i>${llsLbl(S.posOf(t.pid))}${t.owner ? ' · ' + esc(D.names[t.owner] || '') : ''}</i></div><div style="text-align:right;font-weight:900" class="good">${pct(t.forMe)}</div><div class="st">started ${pct(t.own)} of weeks for them</div><div class="st" style="text-align:right">of your weeks</div></div>`).join('') : '<div class="sub">No one fits yet.</div>'}</div><div class="sub">Players on other teams who would have cracked your best lineup in at least half the weeks while starting for their own team less than half the time. Good trade targets.</div>`;
         return h;
     }
     function tOutlook() {
@@ -761,7 +762,7 @@ function lldStatsViews(S) {
         const b = S.base[mi];
         let h = `<div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk), 'now #' + (S.standing.indexOf(mi) + 1))}${tile('Proj. record', Math.round(b.w) + '-' + (S.totG[mi] - Math.round(b.w)), 'after ' + S.reg + ' weeks')}${tile('Proj. pts / wk', f1(S.rosLineup(mine)), 'your best lineup')}</div>`;
         h += '<h2>Your players, rest of season</h2><div class="card scroll"><table><tr><th>Player</th><th>Proj/wk</th><th>Starts</th><th>Finish</th></tr>';
-        mine.filter(pid => S.posOf(pid)).sort((a, b) => POS.indexOf(S.posOf(a)) - POS.indexOf(S.posOf(b))).forEach(pid => { const rs = S.rosStarts(mine, pid), avg = llsMean(S.rosW.map(wk => S.rosP(pid, wk))); h += `<tr ${attr(pid)}><td class="tm" style="max-width:130px">${pn(pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(pid))}</span></td><td>${f1(avg)}</td><td>${rs} of ${S.rosW.length}</td><td>#${S.posFinish(pid)} ${llsLbl(S.posOf(pid))}</td></tr>`; });
+        mine.filter(pid => S.posOf(pid)).sort((a, b) => POS.indexOf(S.posOf(a)) - POS.indexOf(S.posOf(b))).forEach(pid => { const rs = S.rosStarts(mine, pid), avg = llsMean(S.rosW.map(wk => S.rosP(pid, wk))); h += `<tr ${attr(pid)}><td class="tm" style="max-width:130px">${pnh(pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(pid))}</span></td><td>${f1(avg)}</td><td>${rs} of ${S.rosW.length}</td><td>#${S.posFinish(pid)} ${llsLbl(S.posOf(pid))}</td></tr>`; });
         return h + `</table></div><div class="sub">Tap a player for the full breakdown. Starts is how many of the ${S.rosW.length} remaining weeks he is projected to be in your lineup. Finish is where his full-season total is projected to rank at his position.</div>`;
     }
     function tAwards() { return `<div class="sx-recap" data-kind="team" data-fid="${esc(F[mi])}"><div class="sub" style="padding:24px 10px;text-align:center">Loading awards…</div></div>`; }
@@ -786,7 +787,7 @@ function lldStatsViews(S) {
     function tFA() {
         if (!S.faList.length) return '<div class="sub" style="padding:30px 10px;text-align:center">No free agent data yet.</div>';
         let h = `<h2>Free agents, fit for your team</h2><div class="card scroll"><table><tr><th>Player</th><th>Best lineup</th>${hasProj ? '<th>Proj. starter</th>' : ''}${S.hasRos ? '<th>Rest of season</th><th>Adds/wk</th>' : ''}</tr>`;
-        S.faList.slice(0, 25).forEach(x => { const f = x.fit; h += `<tr ${attr(x.pid)}><td class="tm" style="max-width:120px">${pn(x.pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(x.pid))}</span></td><td>${pct(f.inOptP)}</td>${hasProj ? `<td>${pct(f.projStartP)}</td>` : ''}${S.hasRos ? `<td class="hp ${f.rosStartP >= .5 ? 'good' : ''}" data-fa="${esc(x.pid)}" style="text-decoration:underline dotted">${pct(f.rosStartP)}</td><td class="${f.rosGainWk > .05 ? 'good' : ''}">${f.rosGainWk > .05 ? '+' + f1(f.rosGainWk) : '—'}${f.repl ? `<div class="sub" style="margin:0">for ${esc((D.pinfo[f.repl] || {}).name || '')}</div>` : ''}</td>` : ''}</tr>`; });
+        S.faList.slice(0, 25).forEach(x => { const f = x.fit; h += `<tr ${attr(x.pid)}><td class="tm" style="max-width:120px">${pnh(x.pid)} <span class="sub" style="display:inline">${llsLbl(S.posOf(x.pid))}</span></td><td>${pct(f.inOptP)}</td>${hasProj ? `<td>${pct(f.projStartP)}</td>` : ''}${S.hasRos ? `<td class="hp ${f.rosStartP >= .5 ? 'good' : ''}" data-fa="${esc(x.pid)}" style="text-decoration:underline dotted">${pct(f.rosStartP)}</td><td class="${f.rosGainWk > .05 ? 'good' : ''}">${f.rosGainWk > .05 ? '+' + f1(f.rosGainWk) : '—'}${f.repl ? `<div class="sub" style="margin:0">for ${esc((D.pinfo[f.repl] || {}).name || '')}</div>` : ''}</td>` : ''}</tr>`; });
         return h + '</table></div><div class="sub"><b>Best lineup</b>: past weeks where he would have been in your best possible lineup. <b>Proj. starter</b>: past weeks he would have been projected to start for you. <b>Rest of season</b>: share of the remaining weeks he is projected to start for you. <b>Adds/wk</b>: points per week your best lineup gains, which is his projection minus the player he replaces. Tap a player to see everything.</div>';
     }
     // trade lab (interactive; selections live in S._trade)
@@ -799,7 +800,7 @@ function lldStatsViews(S) {
         let h = `<h2>Trade lab</h2><div class="card"><div class="sub">You give</div><select id="sx-give" multiple size="5" style="width:100%;margin:6px 0 10px;padding:6px;border-radius:10px;background:var(--card-hover);color:var(--text-main);border:1px solid var(--card-border)">${opt(mine.filter(pid => S.posOf(pid)).sort((a, b) => POS.indexOf(S.posOf(a)) - POS.indexOf(S.posOf(b))), T.give)}</select><div class="sub">Trade partner</div><select id="sx-tid" style="width:100%;margin:6px 0 10px;padding:8px;border-radius:10px;background:var(--card-hover);color:var(--text-main);border:1px solid var(--card-border)">${others.map(f => `<option value="${esc(f)}"${f === T.tid ? ' selected' : ''}>${esc(D.names[f] || f)}</option>`).join('')}</select><div class="sub">You get</div><select id="sx-get" multiple size="5" style="width:100%;margin:6px 0;padding:6px;border-radius:10px;background:var(--card-hover);color:var(--text-main);border:1px solid var(--card-border)">${opt(theirs, T.get)}</select><div class="sub">Hold Ctrl or Cmd to choose more than one player.</div></div>`;
         if (T.give.length || T.get.length) {
             const r = S.trade(T.give, T.get), b = r.base, a = r.after;
-            h += `<h2>Trade impact</h2><div class="tiles">${tile('Pts / wk, rest of season', (r.d >= 0 ? '+' : '') + f1(r.d), '', r.d >= 0 ? 'good' : 'bad')}${tile('Playoff odds', (a.po - b.po >= 0 ? '+' : '') + (a.po - b.po) + '%', b.po + '% → ' + a.po + '%', a.po >= b.po ? 'good' : 'bad')}${tile('Proj. final rank', '#' + Math.round(b.rk) + ' → #' + Math.round(a.rk))}</div><h2>Projected finish</h2><div class="card"><div style="display:flex;justify-content:space-between"><span>Projected wins</span><b>${f1(b.w)} → ${f1(a.w)}</b></div><div style="display:flex;justify-content:space-between;margin-top:6px"><span>Bye odds</span><b>${b.bye}% → ${a.bye}%</b></div>${r.startsGot.map(g => `<div style="display:flex;justify-content:space-between;margin-top:6px"><span>${pn(g.pid)} would start</span><b>${g.n} of ${S.rosW.length} weeks</b></div>`).join('')}</div><div class="sub">Compares your best projected lineup for the rest of the season with and without the trade, then re-simulates your finish.</div>`;
+            h += `<h2>Trade impact</h2><div class="tiles">${tile('Pts / wk, rest of season', (r.d >= 0 ? '+' : '') + f1(r.d), '', r.d >= 0 ? 'good' : 'bad')}${tile('Playoff odds', (a.po - b.po >= 0 ? '+' : '') + (a.po - b.po) + '%', b.po + '% → ' + a.po + '%', a.po >= b.po ? 'good' : 'bad')}${tile('Proj. final rank', '#' + Math.round(b.rk) + ' → #' + Math.round(a.rk))}</div><h2>Projected finish</h2><div class="card"><div style="display:flex;justify-content:space-between"><span>Projected wins</span><b>${f1(b.w)} → ${f1(a.w)}</b></div><div style="display:flex;justify-content:space-between;margin-top:6px"><span>Bye odds</span><b>${b.bye}% → ${a.bye}%</b></div>${r.startsGot.map(g => `<div style="display:flex;justify-content:space-between;margin-top:6px"><span>${pnh(g.pid)} would start</span><b>${g.n} of ${S.rosW.length} weeks</b></div>`).join('')}</div><div class="sub">Compares your best projected lineup for the rest of the season with and without the trade, then re-simulates your finish.</div>`;
         }
         return h;
     }
@@ -822,7 +823,7 @@ function lldStatsViews(S) {
     function lAwards() { return `<div class="sx-recap" data-kind="league"><div class="sub" style="padding:24px 10px;text-align:center">Loading awards…</div></div>`; }
     function lPlayers() {
         const rel = Object.keys(S.pl).filter(pid => S.stat(pid).n >= Math.min(3, W) && S.pl[pid].st.some(x => x));
-        const list = (title, arr, val) => `<h2>${title}</h2><div class="card">${arr.map((pid, i) => `<div class="lead sx-row" ${attr(pid)}><span class="r">${i + 1}</span><span class="t">${pn(pid)}<div class="sub">${llsLbl(S.pl[pid].pos)}${S.lastOwner(pid) ? ' · ' + esc(D.names[S.lastOwner(pid)] || '') : ''}</div></span><span class="v">${val(pid)}</span></div>`).join('') || '<div class="sub">Not enough games yet.</div>'}</div>`;
+        const list = (title, arr, val) => `<h2>${title}</h2><div class="card">${arr.map((pid, i) => `<div class="lead sx-row" ${attr(pid)}><span class="r">${i + 1}</span><span class="t">${pnh(pid)}<div class="sub">${llsLbl(S.pl[pid].pos)}${S.lastOwner(pid) ? ' · ' + esc(D.names[S.lastOwner(pid)] || '') : ''}</div></span><span class="v">${val(pid)}</span></div>`).join('') || '<div class="sub">Not enough games yet.</div>'}</div>`;
         const boomy = rel.slice().sort((a, b) => S.stat(b).boom - S.stat(a).boom || S.stat(b).hi - S.stat(a).hi).slice(0, 5);
         const medAvg = {}; POS.forEach(p => { const a = rel.filter(x => S.pl[x].pos === p).map(x => S.stat(x).avg).sort((x, y) => x - y); medAvg[p] = a.length ? a[Math.floor(a.length / 2)] : 0; });
         const cons = rel.filter(pid => S.stat(pid).avg >= medAvg[S.pl[pid].pos]).sort((a, b) => S.stat(a).cv - S.stat(b).cv).slice(0, 5);
@@ -1014,7 +1015,7 @@ function lldBuildField() {
     });
     host.innerHTML = `<div class="f-turf"><div class="f-ez top"><span>DEFENSE</span></div><div class="f-los"><span>LINE OF SCRIMMAGE</span></div><div class="f-ez bot"><span>OFFENSE</span></div></div>${tiles}`;
 }
-function lldInitField() {
+function lldInitField() { return; // "View on field" button removed
     const sec = document.querySelector('.lineup-section[data-section="starters"]');
     if (!sec || sec.querySelector('.lld-lvtog')) return;
     sec.insertAdjacentHTML('afterbegin', '<div class="lld-lvtog"><span>Starting lineup</span><button type="button" class="lld-fv-open">View on field</button></div>');
@@ -1700,18 +1701,18 @@ function buildTeamInfoPanel(targetFid) {
 }
 function getPlayerFilterBarHtml(isFAView) {
     const lyLabel = "'" + String(parseInt(year) - 1).slice(-2) + ' Avg';
-    const statSorts = [{ id: 'pts', label: 'Pts' }, { id: 'lyavg', label: lyLabel }];
+    const statSorts = [{ id: 'pts', label: 'Pts' }];
     const faSorts = [
-        { id: 'own', label: 'Own %' }, { id: 'add', label: 'Add %' }, { id: 'proj', label: 'Proj' }
+        { id: 'proj', label: 'Proj' }
     ].concat(statSorts);
     const rosterSorts = [
         { id: 'salary', label: 'Salary' }, { id: 'caphit', label: 'Cap Hit' },
-        { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }
+        { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }, { id: 'proj', label: 'Proj' }
     ].concat(statSorts);
     const sorts = isFAView ? faSorts : rosterSorts;
 
-    if (isFAView && !['own','add','proj','pts','lyavg'].includes(playerSortBy)) playerSortBy = 'own';
-    if (!isFAView && !['salary','caphit','guar','years','pts','lyavg'].includes(playerSortBy)) playerSortBy = 'salary';
+    if (isFAView && !['proj','pts'].includes(playerSortBy)) playerSortBy = 'proj';
+    if (!isFAView && !['salary','caphit','guar','years','proj','pts'].includes(playerSortBy)) playerSortBy = 'salary';
 
     const activeFilterCount = playerFiltersActive ? (
         (playerFilters.years[0] > 1 || playerFilters.years[1] < 5 ? 1 : 0) +
@@ -3559,13 +3560,10 @@ $(document).on('click touchend', '.open-settings-btn', function() {
     // Remove any existing banner first
     $('#style-commish-banner').remove();
 
-    // Hide commish controls for non-commish users
-    if (!LLD.adminFids.includes(myFid)) {
-        $('#toggle-resign-btn, #toggle-fa-mode-btn').closest('div[style*="border-top"]').hide();
-    }
-
-    // Sync commish toggle states for commish users
-    if (myFid === '0000') {
+    // League controls (re-signing on/off, offseason/in-season) for the commissioner
+    const _isCommish = LLD.adminFids.includes(myFid) || myFid === '0000' || myFid === '0001';
+    $('#league-controls-block').toggle(_isCommish);
+    if (_isCommish) {
         const resignOpen = localStorage.getItem(`resign_open_${lid}`) !== 'false';
         updateResignToggleUI(resignOpen);
         const faMode = localStorage.getItem(`fa_mode_${lid}`) !== 'false';
@@ -5634,7 +5632,7 @@ function buildCompactUniversalRow(data, opts) {
                 <span class="short-name" style="display:none; font-size:calc(13px * var(--ts,1)); font-weight:800; color:#fff;">${data.shortName || data.name}</span>
                 <span class="pos-text-${posL}" style="font-size:calc(11px * var(--ts,1)); font-weight:900; flex-shrink:0;">${data.pos || ''}</span>
                 <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:16px; height:16px; object-fit:contain; flex-shrink:0;">
-                               ${opts.ownerHtml || ''}                ${opts.ownerHtml || ''}${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
+                               ${opts.ownerHtml || ''}${statusBadge}${getInjuryHtml(data.pid)}${getRookieHtml(data.pid)}${getTradeBlockHtml(data.pid)}${opts.nameSuffix || ''}
                 ${opts.topRight ? `<span style="margin-left:auto; display:flex; align-items:baseline; gap:4px; flex-shrink:0; white-space:nowrap;">${opts.topRight}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
@@ -8357,8 +8355,20 @@ $('body').append(`
                    <button id="ts-save-btn" style="width:100%; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; letter-spacing:1px;">Save Changes</button>
 <div id="ts-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px;"></div>
 
-${(myFid === '0000') ? `
-<div style="margin-top:8px; padding-top:14px; border-top:1px solid var(--card-border); display:flex; flex-direction:column; gap:8px;">
+
+                </div>
+            </div>
+
+            <!-- MFL MENU TAB -->
+            <div id="tab-mflmenu" class="settings-tab-content" style="display:none;">
+                <div class="mflm-note">The MFL setup page opens on MFL's own site.</div>
+                <div id="mflm-list"></div>
+            </div>
+
+            <!-- DISPLAY TAB -->
+            <div id="tab-display" class="settings-tab-content">
+
+<div id="league-controls-block" style="display:none; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--card-border); display:flex; flex-direction:column; gap:8px;">
     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">League Controls</div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px;">
@@ -8376,18 +8386,7 @@ ${(myFid === '0000') ? `
         </div>
         <button id="toggle-fa-mode-btn" style="padding:8px 16px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; cursor:pointer; border:none; background:#22c55e; color:#000; text-transform:uppercase;">Offseason</button>
     </div>
-</div>` : ''}
-                </div>
-            </div>
-
-            <!-- MFL MENU TAB -->
-            <div id="tab-mflmenu" class="settings-tab-content" style="display:none;">
-                <div class="mflm-note">The MFL setup page opens on MFL's own site.</div>
-                <div id="mflm-list"></div>
-            </div>
-
-            <!-- DISPLAY TAB -->
-            <div id="tab-display" class="settings-tab-content">
+</div>
 
                 <!-- Display sub-tabs -->
               <div style="display:flex; gap:6px; background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; margin-bottom:14px;">
@@ -8399,7 +8398,7 @@ ${(myFid === '0000') ? `
                 <div class="display-sub-content" data-sub="theme">
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal (auto)</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal (auto) follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal${lldSeasonNow() ? ' (' + LLD_STYLES[lldSeasonNow()].name + ')' : ''}</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         ${Object.entries(LLD_HDR_MODES).map(([k, v]) => `<button class="lld-hdr-btn ${lldGet('lld_hdr','auto')===k?'on':''}" data-mode="${k}">${v.split(' (')[0]}</button>`).join('')}
@@ -8909,6 +8908,10 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
             statusText, ownerFid, salary, years, guar, salNum, yrsNum, guarNum, capHitNum };
     }).filter(p => p !== null);
 
+    if (!isFAView) {
+        let _pm = {}; try { _pm = await fetchWeekProjectedScoresMap(); } catch (e) { }
+        players.forEach(p => { p.projVal = (_pm && _pm[p.pid]) || 0; });
+    }
     // Sort
     players.sort((a, b) => {
         let comparison = 0;
@@ -9206,7 +9209,7 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                                         compact: true,
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: p.salary
-                        ? `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>`
+                        ? `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>${p.projVal > 0 ? `<span style="margin-left:8px; white-space:nowrap;"><b style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>` : ''}`
                         : `<span class="proj-popup-trigger" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b> <small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">PROJ</small></span>`,
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
@@ -17481,7 +17484,12 @@ async function lldChatLoadPosts(id) {
     })).sort((a, b) => a.ms - b.ms);
 }
 function lldChatMount() {
-    if (!document.getElementById('lld-chat')) $('body').append('<div id="lld-chat"><div class="cm-box"></div></div>');
+    if (!document.getElementById('lld-chat')) {
+        $('body').append('<div id="lld-chat"><div class="cm-box"></div></div>');
+        // keep the page's own touch handlers (MFL scripts, scroll locks) away from the board so the list can scroll by touch
+        const el = document.getElementById('lld-chat');
+        ['touchstart', 'touchmove', 'touchend', 'wheel'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+    }
     return $('#lld-chat .cm-box');
 }
 async function lldChatLoadActivity() {
@@ -17558,7 +17566,7 @@ async function lldChatLoadActivity() {
 }
 async function lldChatShowList() {
     const box = lldChatMount();
-    $('#lld-chat').addClass('open'); document.body.style.overflow = 'hidden';
+    $('#lld-chat').addClass('open');
     box.html(lldChatShellHtml('League Chat', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl()));
     let a; try { a = await lldChatLoadActivity(); } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
