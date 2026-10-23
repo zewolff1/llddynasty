@@ -1673,7 +1673,7 @@ async function loadNextOpponents() {
                     wk,
                     a: String(pair[0].id).padStart(4, '0'),
                     b: String(pair[1].id).padStart(4, '0'),
-                    played: pair.some(f => f.result || parseFloat(f.score) > 0)
+                    played: pair.some(f => !!f.result)
                 });
             });
         });
@@ -1746,7 +1746,7 @@ function refreshTeamInfoPanel() {
 }
 
 
-function lldHdrLayout() { return lldGet('lld_thl', 'banner') === 'compact' ? 'compact' : 'banner'; }
+function lldHdrLayout() { return 'banner'; }
 function lldHdrLayoutApply() {
     document.body.classList.toggle('th-banner', lldHdrLayout() === 'banner'); document.body.classList.toggle('th-compact', lldHdrLayout() === 'compact');
     document.body.classList.toggle('lld-show-owner', lldGet('lld_owner', '0') === '1');
@@ -1754,29 +1754,32 @@ function lldHdrLayoutApply() {
     document.querySelectorAll('.lld-own-btn').forEach(b => b.classList.toggle('on', b.dataset.v === (lldGet('lld_owner', '0') === '1' ? 'on' : 'off')));
 }
 document.addEventListener('DOMContentLoaded', lldHdrLayoutApply); setTimeout(lldHdrLayoutApply, 0);
-$(document).on('click', '.th-lay', function (e) { e.stopPropagation(); lldSet('lld_thl', lldHdrLayout() === 'banner' ? 'compact' : 'banner'); lldHdrLayoutApply(); refreshTeamInfoPanel(); });
-$(document).on('click', '.lld-thl-btn', function () { lldSet('lld_thl', this.dataset.v); lldHdrLayoutApply(); refreshTeamInfoPanel(); });
 $(document).on('click', '.lld-own-btn', function () { lldSet('lld_owner', this.dataset.v === 'on' ? '1' : '0'); lldHdrLayoutApply(); });
 function lldThSheet(title, body) {
     $('#th-sheet').remove();
     $('body').append(`<div id="th-sheet"><div class="th-sh"><h3>${title}</h3>${body}<button type="button" class="th-shx">Close</button></div></div>`);
 }
 $(document).on('click', '#th-sheet', function (e) { if (e.target.id === 'th-sheet' || $(e.target).hasClass('th-shx')) $('#th-sheet').remove(); });
-$(document).on('click', '.th-aw', function (e) {
-    e.stopPropagation(); const f = String(this.dataset.fid), POS = ['high', 'potw', 'blowout', 'gutsy', 'sunday', 'upset'], counts = {};
+$(document).on('lldaw', '.th-aw', function (e) {
+    const f = String(this.dataset.fid), POS = ['high', 'potw', 'blowout', 'gutsy', 'sunday', 'upset'], counts = {};
     (window._recapEventsFull || []).filter(x => x.fid === f && POS.indexOf(x.type) >= 0).forEach(x => { counts[x.type] = (counts[x.type] || 0) + 1; });
     const rows = RECAP_AWARDS.filter(a => counts[a.key]).map(a => `<div class="th-ar"><span>${RECAP_ICONS[a.key] || ''}</span><b>${a.title}</b><i>×${counts[a.key]}</i></div>`).join('');
     lldThSheet(`${lldChatEsc(leagueFranchises[f] || f)} · this season`, rows || '<div class="th-ar">No awards yet.</div>');
 });
-$(document).on('click', '.th-sk', async function (e) {
-    e.stopPropagation(); const f = String(this.dataset.fid);
-    lldThSheet('Seeking trades', '<div class="th-ar">Loading…</div>');
-    try {
-        const D = await lldTbData(), lab = lldTbLabels(D, f), ids = Object.keys(lab).filter(id => /^S/.test(lab[id]) && (D.rosters[f] || []).indexOf(id) >= 0);
-        const rows = ids.map(id => { const x = D.info(id), l = lldTbParseLabel(lab[id]); return `<div class="th-ar"><span>🔍</span><b>${lldChatEsc(x.name)} <em>${lldChatEsc(x.pos || '')}</em></b><i>${l.a.length ? 'Wants ' + lldChatEsc(l.a.map(lldTbAskText).join(' or ')) : 'Open to offers'}</i></div>`; }).join('');
-        lldThSheet(`${lldChatEsc(leagueFranchises[f] || f)} · seeking trades`, rows || '<div class="th-ar">Nobody is listed as seeking trades.</div>');
-    } catch (err) { lldThSheet('Seeking trades', '<div class="th-ar">Could not load.</div>'); }
-});
+function lldGoLeagueSub(label, cb) {
+    $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-league'); }).trigger('click');
+    setTimeout(() => { try { ensureRecapsSubTab(); } catch (e) { } $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === label; }).trigger('click'); if (cb) cb(); }, 350);
+}
+// header boxes sit inside the team-switcher button, so these listen first (capture) and keep the switcher from opening
+['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) {
+    const t = e.target.closest && e.target.closest('.th-rec, .th-op, .th-sk, .th-aw'); if (!t) return;
+    e.stopImmediatePropagation(); if (ev === 'touchend') return;
+    e.preventDefault();
+    if (t.classList.contains('th-rec')) lldGoLeagueSub('Standings');
+    else if (t.classList.contains('th-op')) $('#lld-hdr-pv').trigger('click');
+    else if (t.classList.contains('th-sk')) { const mine = String(t.dataset.fid) === String(myFid).padStart(4, '0'); window._tbX = { view: mine ? 'mine' : 'mkt' }; lldGoLeagueSub('Trades'); }
+    else if (t.classList.contains('th-aw')) $(t).trigger('lldaw');
+}, true));
 function buildTeamInfoPanel(targetFid) {
     targetFid = String(targetFid).padStart(4, '0');
     const isOffseason = localStorage.getItem(`fa_mode_${lid}`) !== 'false';
@@ -1834,17 +1837,17 @@ function buildTeamInfoPanel(targetFid) {
     let oppBox;
     if (nx && nx.opps.length) {
         const o = nx.opps[0];
-        oppBox = `<div class="th-bx"><i>WEEK ${nx.week} VS</i><div class="th-opp"><img src="${getFranchiseLogoUrl(o)}" onerror="this.style.display='none'"><b data-team-style="${o}">${leagueFranchises[o] || o}</b></div><button type="button" id="lld-hdr-pv" class="th-pv">▶ Preview</button></div>`;
+        oppBox = `<button type="button" class="th-bx th-op"><i>WEEK ${nx.week} VS</i><div class="th-opp"><img src="${getFranchiseLogoUrl(o)}" onerror="this.style.display='none'"><b data-team-style="${o}">${leagueFranchises[o] || o}</b></div><span id="lld-hdr-pv" class="th-pv">▶ Preview</span></button>`;
     } else oppBox = `<div class="th-bx"><i>NEXT</i><b>—</b><span>No game scheduled</span></div>`;
 
     const tbm = window._lldTbIc;
     const skN = tbm ? Object.keys(tbm).filter(pid => tbm[pid].s === 'S' && tbm[pid].f === targetFid).length : null;
     const rec = record ? `<b>${record}</b>` : '<b>—</b>';
     const rk = [s.rank ? ord(s.rank) : '', sm ? sm[1].toUpperCase() + sm[2] : ''].filter(Boolean).join(' · ');
-    const box1 = `<div class="th-bx"><i>${isOffseason ? "'" + String(parseInt(year) - 1).slice(-2) : 'RECORD'}</i>${rec}<span>${rk || '&nbsp;'}</span></div>`;
-    const box3 = `<button type="button" class="th-bx th-sk" data-fid="${targetFid}"><i>SEEKING TRADES</i><b style="color:#38bdf8">🔍 ${skN == null ? '–' : skN}</b><span>${skN ? 'tap to see' : 'nobody'}</span></button>`;
+    const box1 = `<button type="button" class="th-bx th-rec"><i>${isOffseason ? "'" + String(parseInt(year) - 1).slice(-2) : 'RECORD'}</i>${rec}<span>${rk || '&nbsp;'}</span></button>`;
+    const box3 = `<button type="button" class="th-bx th-sk" data-fid="${targetFid}"><i>SEEKING TRADES</i><b style="color:#38bdf8">🔍 ${skN == null ? '–' : skN}</b><span>${skN ? 'view trade block' : 'trade block'}</span></button>`;
     const lay = lldHdrLayout();
-    return `<div class="th th-${lay}"><div class="th-top">${awardsHtml}${awBadge}<button type="button" class="th-lay" title="Switch header layout">${lay === 'banner' ? 'Compact' : 'Banner'}</button></div><div class="th-boxes">${box1}${oppBox}${box3}</div></div>`;
+    return `<div class="th th-${lay}"><div class="th-top">${awardsHtml}${awBadge}</div><div class="th-boxes">${box1}${oppBox}${box3}</div></div>`;
 }
 function getPlayerFilterBarHtml(isFAView) {
     const lyLabel = "'" + String(parseInt(year) - 1).slice(-2) + ' Avg';
@@ -8611,8 +8614,6 @@ $('body').append(`
                     
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Chat view</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='classic'?'on':''}" data-v="classic">Classic</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='feed'?'on':''}" data-v="feed">News feed</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='paper'?'on':''}" data-v="paper">Newspaper</button></div>
-                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Team header layout</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-thl-btn ${lldHdrLayout()==='banner'?'on':''}" data-v="banner">Banner</button><button class="lld-hdr-btn lld-thl-btn ${lldHdrLayout()==='compact'?'on':''}" data-v="compact">Compact</button></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Owner name in team header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'':'on'}" data-v="off">Off</button></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
@@ -16871,6 +16872,7 @@ function buildInlineTeamSwitcher() {
                 <div id="active-team-switcher-btn" style="display: flex; align-items: center; gap: 15px; padding: 15px; cursor: pointer; width: 100%; box-sizing: border-box;">
                     <div style="position: relative; flex-shrink: 0;">
                        <img src="${activeLogoUrl}" onerror="this.src='https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg'" style="width: 55px; height: 55px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));">
+                       <div class="th-vo">View other teams</div>
 ${fid === '0001' ? `<div style="position:absolute; bottom:-4px; right:-8px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.5); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M6 2h12v6c0 3.31-2.69 6-6 6S6 11.31 6 8V2z" fill="#f59e0b"/>
@@ -18035,7 +18037,6 @@ const result = await applyAuctionContract(pid, commentText);
 
     function update() {
         ticking = false;
-        if (stage !== 0) setStage(0); return; // the team header no longer condenses while scrolling
         const y = window.scrollY;
         const room = document.documentElement.scrollHeight - window.innerHeight;
         let next;
