@@ -1623,7 +1623,6 @@ let prefixHtml = '';
         if (viewType === 'lineup') {
             prefixHtml = `
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-right: 4px;">
-                    <span class="header-icon-svg header-icon-bench"></span>
                     <span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 1px;">Bench</span>
                 </div>
                 <div style="width: 1px; height: 16px; background: var(--card-border); margin: 0 4px; flex-shrink: 0;"></div>
@@ -4553,7 +4552,7 @@ const lookupFid = fid === '0000' ? myFid : fid;
                }      else {
             renderLegacyLineupOrRoster(activeSub, rows, container);
             updateSectionCounts(activeSub);
-            if (activeSub === 'lineup') injectLiveStatusIntoLineupRows(fid);
+            if (activeSub === 'lineup') { injectLiveStatusIntoLineupRows(fid); lldLineupPlayedPass(fid); }
         }
 updateLineupNotifications(); updateSubmitButton();
         if (activeSub === 'lineup' && !window._projResync && syncProjFromDisplay() > 0) {
@@ -4629,7 +4628,7 @@ let swapIndicator = '';
 
 let rStat = irPids.has(pid) ? "IR" : taxiPids.has(pid) ? "TS" : "";
 const inlineStatusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
-                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}" style="font-size: calc(11px * var(--ts,1)); font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
+                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}${isL ? ' pos-open-menu' : ''}" style="font-size: calc(11px * var(--ts,1)); font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
                 
                 // Core Matchup UI Variables
                 let teamMatch = secondaryText.match(/(?:vs|@)\s*([A-Z]{2,3})/i);
@@ -4699,10 +4698,11 @@ if (isL) {
 }
 return `<div class="player-row pos-border-${pos.toLowerCase()} ${isChanged ? 'status-changed' : ''}"
              data-pid="${pid}" data-pname="${name}" data-pteam="${team}" data-ppos="${pos}">
+    <div class="row-wm"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"></div>
     ${btnHtml}
     <div class="player-img-wrapper" style="width: 30px; height: 30px; flex-shrink: 0; margin-right: 8px;">
         <div class="player-circle" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
-            <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
+            <img class="row-tiny" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
             <img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${pid}.png" onerror="this.style.opacity='0'" style="width:100%; height:100%; object-fit:cover; position:relative; z-index:2;">
         </div>
     </div>
@@ -4825,14 +4825,12 @@ container.append(`<div id="lineup-notifications"></div>
                 </div>
                 <div class="lineup-section" data-section="ir">
                     <h3 class="section-header">
-                        <span class="header-icon-svg header-icon-ir"></span> 
                         Injured Reserve
                     </h3>
                     <div class="roster-grid">${irBuffer || '<div class="empty-inactive-text">No players on IR</div>'}</div>
                 </div>
                 <div class="lineup-section" data-section="taxi">
                     <h3 class="section-header">
-                        <span class="header-icon-svg header-icon-taxi"></span> 
                         Taxi Squad
                     </h3>
                     <div class="roster-grid">${taxiBuffer || '<div class="empty-inactive-text">No players on Taxi Squad</div>'}</div>
@@ -5168,7 +5166,6 @@ optimizeBtnHtml = needsOptimization
 dashboardHtml = `<div class="roster-dashboard">
                 <div class="dashboard-header-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 12px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="header-icon-svg header-icon-starters"></span>
                         <span style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: calc(13px * var(--ts,1)); letter-spacing: 1px;">Starters</span>
                     </div>                    <div style="display: flex; align-items: center; gap: 12px;">
                         ${activeSub === 'roster' ? '<span class="dashboard-title" style="font-weight:800; color:#fff; text-transform:uppercase;">Total Roster</span>' : ''}
@@ -5626,7 +5623,7 @@ function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-
 
         let players = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow')).map(row => {
             const cb = row.querySelector('input[type="checkbox"]'); const pL = row.querySelector('td a[class*="position_"]');
-            if (!cb || !pL || irPids.has(cb.value) || taxiPids.has(cb.value)) return null;
+            if (!cb || !pL || irPids.has(cb.value) || taxiPids.has(cb.value) || (window._lldPlayedPids && window._lldPlayedPids.has(cb.value))) return null;
             
             // WE GRAB REALPOS HERE
             const { name, shortName, pos, realPos, team } = parseMFLName(pL.textContent);
@@ -5650,7 +5647,7 @@ function populateFillMenu(slot) {
         const allRows = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
         let players = allRows.map(row => {
             const cb = row.querySelector('input[type="checkbox"]'); const pL = row.querySelector('td a[class*="position_"]');
-            if (!cb || cb.checked || !pL || irPids.has(cb.value) || taxiPids.has(cb.value)) return null;
+            if (!cb || cb.checked || !pL || irPids.has(cb.value) || taxiPids.has(cb.value) || (window._lldPlayedPids && window._lldPlayedPids.has(cb.value))) return null;
             
             // WE GRAB REALPOS HERE
             const { name, shortName, pos, realPos, team } = parseMFLName(pL.textContent);
@@ -5823,10 +5820,11 @@ function buildCompactUniversalRow(data, opts) {
     const pill = opts.pill ? `<div style="display:flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:6px; background:linear-gradient(135deg, ${colors[0]}35, ${colors[1]}15); border:1px solid ${colors[0]}50; white-space:nowrap; flex-shrink:0; box-sizing:border-box; font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">${opts.pill}</div>` : '';
     hydrateDynRanks();
     return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row pos-border-${posL} ${opts.extraClasses || ''}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
+                <div class="row-wm"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"></div>
                 ${opts.leftContent ? `<div style="display:flex; align-items:center; flex-shrink:0; margin-right:8px;">${opts.leftContent}</div>` : ''}
         <div class="player-img-wrapper" style="width:30px; height:30px; flex-shrink:0; margin-right:8px;${(opts.isSwapView || opts.noPhotoTap) ? ' width:32px !important; height:32px !important;' : ''}${opts.noPhotoTap ? ' pointer-events:none;' : ''}">
             <div class="player-circle" style="width:100%; height:100%; position:relative; overflow:hidden;">
-                <img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
+                <img class="row-tiny" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="position:absolute; width:70%; height:70%; object-fit:contain; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.15; z-index:1;">
                 <img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'" style="width:100%; height:100%; object-fit:cover; position:relative; z-index:2;">
             </div>
         </div>
@@ -6182,6 +6180,21 @@ $(document).on('click', '.player-sort-btn', function() {
         }
     });
 
+// Tapping the position label next to a player's name opens the same set-lineup menu as the position button on the left
+(function () {
+    let posDown = null;
+    const hit = (e) => document.body.classList.contains('lld-posmenu') && e.target && e.target.closest && e.target.closest('.pos-open-menu');
+    document.addEventListener('touchstart', (e) => { posDown = hit(e) ? e.touches[0].clientY : null; }, { capture: true, passive: true });
+    const go = (e) => {
+        const el = hit(e); if (!el) return;
+        if (e.type === 'touchend' && (touchMoved || posDown === null)) return;
+        e.stopImmediatePropagation(); e.preventDefault();
+        const btn = $(el).closest('.player-row').find('.move-handle-btn').first();
+        if (btn.length) btn.trigger('click');
+    };
+    document.addEventListener('touchend', go, true);
+    document.addEventListener('click', (e) => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); e.preventDefault(); if (e.detail === 0 || !('ontouchstart' in window)) go(e); }, true);
+})();
 $(document).on('click touchend', '.move-handle-btn', function(e) {
         if (e.type === 'touchend' && touchMoved) return;
         if (!$('.sub-tab-btn.active').text().toLowerCase().includes('lineup')) return;
@@ -6191,6 +6204,7 @@ $(document).on('click touchend', '.move-handle-btn', function(e) {
         if (typeof myFid !== 'undefined' && fid !== myFid && !isCommish) return;
         
         activePlayerRow = $(this).closest('.player-row');
+        if (activePlayerRow.hasClass('lld-played')) { lldPlayedToast(activePlayerRow.hasClass('lld-live') ? 'In a game right now. Locked.' : 'Already played this week. Locked.'); return; }
         $('#menu-move-action').hide();
 
         if (activePlayerRow.hasClass('empty-slot')) {
@@ -8645,6 +8659,7 @@ $('body').append(`
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
                     </div>
+                    ${lldBetaHtml()}
                 <!-- Logos sub-content -->
                 <div style="margin-top:6px;">
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">NFL Team Logos</div>
@@ -11937,6 +11952,109 @@ function classifyGameStatusText(text) {
 }
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
+// ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
+function lldBdef(k) { return ({ wm: '2', lock: '1', pos: '1', anim: '1' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBeta() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; }
+function lldBv(k) { return lldGet('lld_b_' + k, lldBdef(k)); }
+function lldApplyBeta() {
+    const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
+    c.toggle('lld-wm', b && wm !== '0');
+    ['1', '2', '3'].forEach(n => c.toggle('lld-wm-' + n, b && wm === n));
+    c.toggle('lld-posmenu', b && lldBv('pos') !== '0');
+    c.toggle('lld-hdranim', b && lldBv('anim') !== '0');
+}
+setTimeout(lldApplyBeta, 300); setTimeout(lldApplyBeta, 2500); setInterval(lldApplyBeta, 5000);
+function lldBetaHtml() {
+    if (!lldBeta()) return '';
+    const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
+    const grp = (k, opts) => `<div style="display:flex; gap:6px; margin-bottom:16px;">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const onoff = k => grp(k, [['1', 'On'], ['0', 'Off']]);
+    return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
+        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Beta features</div>
+        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Only you can see these for now. The rest of the league keeps the current look.</div>
+        ${lab('Team logo behind player photos')}${grp('wm', [['0', 'Off'], ['1', 'Subtle'], ['2', 'Medium'], ['3', 'Strong']])}
+        ${lab('Lock players who already played (Scores-style rows)')}${onoff('lock')}
+        ${lab('Tap position label to open lineup menu')}${onoff('pos')}
+        ${lab('Smooth header shrink animation')}${onoff('anim')}
+    </div>`;
+}
+$(document).on('click', '.lld-b-btn', function () {
+    lldSet('lld_b_' + this.dataset.k, this.dataset.v);
+    $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
+    lldApplyBeta();
+    try { if (this.dataset.k === 'lock') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
+});
+// ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
+window._lldPlayedPids = window._lldPlayedPids || new Set();
+function lldPlayedToast(msg) {
+    $('#lld-played-toast').remove();
+    $('body').append(`<div id="lld-played-toast" style="position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:2147483000; background:#1e293b; color:#fff; border:1px solid var(--card-border); border-radius:999px; padding:10px 16px; font-weight:800; font-size:calc(12px * var(--ts,1)); box-shadow:0 8px 24px rgba(0,0,0,.5);">🔒 ${msg}</div>`);
+    setTimeout(() => $('#lld-played-toast').fadeOut(300, function () { $(this).remove(); }), 1800);
+}
+function lldNflGameState(team, sched) {
+    const key = String(team || '').toUpperCase();
+    const e = sched[key] || sched[NFL_ABBR_ALIAS[key]];
+    if (!e) return null;
+    const now = Date.now(), gsr = e.gsr;
+    if (gsr !== null && gsr !== undefined && !isNaN(gsr)) {
+        if (gsr <= 0) return { state: 'final', label: 'Final', e, key };
+        if (gsr < 3600) return { state: 'live', label: formatGameClock(gsr) || 'Live', e, key };
+        if (e.kickoffMs && now >= e.kickoffMs && now < e.kickoffMs + 4.5 * 3600 * 1000) return { state: 'live', label: 'Live', e, key };
+        return { state: 'pre', label: e.label, e, key };
+    }
+    if (e.kickoffMs) {
+        if (now < e.kickoffMs) return { state: 'pre', label: e.label, e, key };
+        if (now < e.kickoffMs + 4.5 * 3600 * 1000) return { state: 'live', label: 'Live', e, key };
+        return { state: 'final', label: 'Final', e, key };
+    }
+    return null;
+}
+async function lldFranchiseScores(f, wk) {
+    window._lldFsc = window._lldFsc || {};
+    const k = f + '|' + wk, c = window._lldFsc[k];
+    if (c && Date.now() - c.t < 20000) return c.m;
+    const m = {};
+    try {
+        const d = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=${wk}&JSON=1`) || {};
+        const asA = v => (Array.isArray(v) ? v : (v ? [v] : []));
+        let fr = [];
+        const mu = asA(d?.liveScoring?.matchup || d?.matchup);
+        if (mu.length) mu.forEach(x => fr.push(...asA(x.franchise))); else fr = asA(d?.liveScoring?.franchise || d?.franchise);
+        const mine = fr.find(x => String(x.id).padStart(4, '0') === String(f).padStart(4, '0'));
+        if (mine) { let pl = mine.players || mine.player || []; if (pl && !Array.isArray(pl) && pl.player) pl = pl.player; asA(pl).forEach(p => { m[String(p.id)] = parseFloat(p.score) || 0; }); }
+    } catch (e) { console.warn('lineup scores', e); }
+    window._lldFsc[k] = { t: Date.now(), m };
+    return m;
+}
+async function lldLineupPlayedPass(targetFid) {
+    if (!(lldBeta() && lldBv('lock') !== '0')) {
+        if (window._lldPlayedPids && window._lldPlayedPids.size) { window._lldPlayedPids = new Set(); $('.player-row.lld-played').removeClass('lld-played lld-live').find('.lld-pscore, .lld-ppill').remove(); }
+        return;
+    }
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    const wk = window._liveScoreCurrentWeek || '';
+    let sched = {}, sc = {};
+    try { [sched, sc] = await Promise.all([fetchNflScheduleForWeek(wk), lldFranchiseScores(targetFid, wk)]); } catch (e) { return; }
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    const played = new Set();
+    $('#slots-starters .player-row[data-pid], #slots-bench .player-row[data-pid]').each(function () {
+        const row = $(this); if (row.hasClass('empty-slot')) return;
+        const pid = String(row.data('pid')), g = lldNflGameState(row.data('pteam'), sched);
+        row.addClass('lld-pchk').find('.lld-pscore, .lld-ppill').remove();
+        row.removeClass('lld-played lld-live');
+        if (!g || g.state === 'pre') return;
+        played.add(pid);
+        const live = g.state === 'live', col = live ? '#ef4444' : '#94a3b8', e = g.e;
+        row.addClass('lld-played' + (live ? ' lld-live' : '')).css('--ps', col);
+        const pts = (sc[pid] != null ? sc[pid] : 0).toFixed(1), opp = e.opp || '';
+        const line = `${g.key} ${e.score}–${e.oppScore} ${opp}`;
+        row.find('.player-info').first().append(`<div class="lld-ppill"><img src="${getNFLLogoUrl(g.key)}" onerror="this.style.display='none'">${opp ? `<img class="o" src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'">` : ''}<span>${lldChatEsc(line)}</span></div>`);
+        row.append(`<div class="lld-pscore"><b style="color:${live ? '#22c55e' : '#fff'}">${pts}</b><i style="color:${col}">${live ? '● ' : ''}${lldChatEsc(g.label)}</i></div>`);
+    });
+    window._lldPlayedPids = played;
+}
+(function () { let t = null; new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (document.querySelector('#slots-starters .player-row[data-pid]:not(.lld-pchk), #slots-bench .player-row[data-pid]:not(.lld-pchk)')) lldLineupPlayedPass(window.fid || (typeof fid !== 'undefined' ? fid : '')); } catch (e) { } }, 450); }).observe(document.body, { childList: true, subtree: true }); })();
+setInterval(() => { try { if (document.querySelector('#slots-starters .player-row')) lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } catch (e) { } }, 45000);
 async function injectLiveStatusIntoLineupRows(targetFid) {
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
     const liveDetails = await fetchLiveScoringDetails(targetFid);
@@ -18159,7 +18277,17 @@ const result = await applyAuctionContract(pid, commentText);
             // condense only once the page has scrolled past that height, so growing it again never re-triggers
             if (y > D + 40 && room > D + 300) next = 1;
         } else if (y < 20) next = 0;
-        if (next !== stage) setStage(next);
+        if (next !== stage) {
+            // Morph the header between its sizes instead of snapping (browsers without View Transitions just snap)
+            if (document.body.classList.contains('lld-hdranim') && document.startViewTransition && !window._hdrVT && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+                window._hdrVT = true;
+                try {
+                    const vt = document.startViewTransition(() => setStage(next));
+                    const done = () => { window._hdrVT = false; update(); };
+                    vt.finished.then(done, done);
+                } catch (e) { window._hdrVT = false; setStage(next); }
+            } else if (!window._hdrVT) setStage(next);
+        }
     }
 
     window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
