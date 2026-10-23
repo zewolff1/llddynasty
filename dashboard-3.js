@@ -12912,6 +12912,7 @@ const LLD_TBI = { S: '🔍', W: '🤝', U: '🤔', N: '🚫' };
 window._lldTbIc = window._lldTbIc || null;
 async function lldTbIconLoad() {
     if (window._lldTbIcBusy) return; window._lldTbIcBusy = true;
+    if ($('#lld-chat').hasClass('open')) { window._lldTbIcBusy = false; setTimeout(lldTbIconLoad, 20000); return; }
     try { const d = await lldTbLoad(false), m = {}; Object.keys(d.by).forEach(f => { const pm = d.by[f].p || {}; Object.keys(pm).forEach(pid => { const l = lldTbParseLabel(pm[pid]); if (LLD_TBI[l.s]) m[pid] = { s: l.s, f }; }); }); window._lldTbIc = m; window._lldTbIcAt = Date.now(); lldTbIconDraw(); try { refreshTeamInfoPanel(); } catch (e) { } }
     catch (e) { console.warn('trade icons', e); window._lldTbIc = window._lldTbIc || {}; }
     window._lldTbIcBusy = false;
@@ -12933,7 +12934,7 @@ function lldTbIconDraw() {
 }
 let _lldTbiT = null;
 new MutationObserver(() => { clearTimeout(_lldTbiT); _lldTbiT = setTimeout(() => { try { if (!window._lldTbIc && !window._lldTbIcBusy) lldTbIconLoad(); lldTbIconDraw(); lldHdrPvSync(); } catch (e) { } }, 350); }).observe(document.body, { childList: true, subtree: true });
-setTimeout(lldTbIconLoad, 4000);
+setTimeout(lldTbIconLoad, 15000);
 setInterval(() => { if (Date.now() - (window._lldTbIcAt || 0) > 180000) { window._lldTbIcBusy = false; lldTbLoad(true).then(() => lldTbIconLoad()).catch(() => { }); } }, 60000);
 
 function lldHdrPvSync() { }
@@ -18474,7 +18475,7 @@ async function lldSeenPost(minGapMs) {
         await lldChatPost('LLDSN1:' + Date.now(), tid, LLDSN_SUBJ); window._lldSeen = null; window._lldChatAct = null;
     } catch (e) { console.warn('seen', e); }
 }
-setTimeout(() => lldSeenPost(2 * 3600 * 1000), 6000); // opening the dashboard counts as a visit
+setTimeout(() => { if (!$('#lld-chat').hasClass('open')) lldSeenPost(2 * 3600 * 1000); }, 25000); // opening the dashboard counts as a visit
 function lldSeenAssign(items, m) {
     items.forEach(it => { it._seen = []; });
     const sorted = items.slice().sort((a, b) => a.ms - b.ms);
@@ -18489,13 +18490,17 @@ function lldSeenRow(it, ctx) {
     return `<div class="cm-seen"><span>Seen by</span>${it._seen.map(f => `<img src="${lldChatEsc(ctx.av(f))}" title="${lldChatEsc(ctx.nm(f))} · ${lldChatEsc(new Date(m[f]).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}" onerror="this.style.display='none'">`).join('')}</div>`;
 }
 async function lldChatShowList() {
+    try { await lldChatShowListInner(); } catch (e) { console.warn('chat list', e); lldChatMount().html(lldChatShellHtml('League Chat', false, `<div class="cm-empty">Couldn't load the chat (${lldChatEsc((e && e.message) || 'unknown error')}). <button type="button" class="cm-retry">Try again</button></div>`, lldChatOpenUrl())); }
+}
+$(document).on('click', '#lld-chat .cm-retry', () => { window._lldChatAct = null; lldChatShowList(); });
+async function lldChatShowListInner() {
     const box = lldChatMount();
     $('#lld-chat').addClass('open');
     box.html(lldChatShellHtml('League Chat', false, '<div class="cm-empty">Loading…</div>', lldChatOpenUrl()));
     window._lldChatPrevSeen = lldChatSeenGet();
     let a; try { a = (window._lldChatAct && Date.now() - window._lldChatAct.t < 45000) ? window._lldChatAct.a : await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a }; } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
     lldChatSeenSet(); window._lldChatNewOther = 0; const inc = a.items.filter(it => it.offer && it.incoming).map(it => it.tid); lldChatOfferSeenSet(lldChatOfferSeenGet().concat(inc, window._lldChatOfferIds || [])); window._lldChatOffers = 0; lldChatBadgeUpdate();
-    try { lldSeenAssign(a.items, await lldSeenLoad()); } catch (e) { console.warn('seen load', e); }
+    try { lldSeenAssign(a.items, await Promise.race([lldSeenLoad(), new Promise((_, rj) => setTimeout(() => rj(new Error('seen timeout')), 2500))])); } catch (e) { console.warn('seen load', e); }
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
     const cv = lldChatView(), feedV = cv !== 'classic';
     box.html(lldChatShellHtml('League Chat', false, note || (cv === 'paper' ? lldChatPaperHtml(a.items, a.block, lldChatCtx()) : cv === 'feed' ? lldChatTweetsHtml(a.items, a.block, lldChatCtx()) : lldChatViewBar() + lldChatFeedHtml(a.items, a.block, lldChatCtx())), lldChatOpenUrl()));
