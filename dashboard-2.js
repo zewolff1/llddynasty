@@ -24,7 +24,7 @@ const LLD_SCRIPT_BASE = (() => {
     } catch (e) { return ''; }
 })();
 const LLD_STYLES = {
-    "classic": { name: "Classic", group: "Base", file: "", fonts: "", scene: null },
+    "classic": { name: "Default", group: "Base", file: "", fonts: "", scene: null },
     "sleeper": { name: "Sleeper", group: "Full themes", file: "sleeper", fonts: "", scene: {"title": "LEAGUE", "sub": "Week hub", "bg": "linear-gradient(180deg, #11161f 0%, #0b0e14 100%)", "font": "\"Inter\", sans-serif", "fw": 800, "none": true} },
     "lego": { name: "Brick Builder", group: "Full themes", file: "lego", fonts: "family=Fredoka:wght@500;600;700&family=Lilita+One", scene: {"title": "BRICK LEAGUE", "sub": "Build your dynasty", "bricks": ["#c4425e", "#e6c452", "#3f77c4", "#2f8a55"], "bg": "linear-gradient(180deg, #3f77c4 0%, #1d427e 100%)", "font": "\"Lilita One\", sans-serif", "fw": 400} },
     "sportscenter": { name: "90s Sports Desk", group: "Full themes", file: "sportscenter", fonts: "family=Anton&family=Oswald:wght@500;600;700", scene: {"title": "DYNASTY TONIGHT", "sub": "Scores and moves", "stripes": ["#e31837", "#ffffff"], "live": true, "tickBg": "#e31837", "tickFg": "#ffffff", "bg": "linear-gradient(180deg, #1d44c4 0%, #0a1330 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "italic": true} },
@@ -47,8 +47,25 @@ function lldSeasonNow(d) {
     if (md >= 901 && md <= 1114) return 'season_fall';
     return null;
 }
+// Default theme only: Halloween week and the Christmas / New Year's stretch switch the look automatically (can be turned off)
+function lldHolidayNow(d) {
+    d = d || new Date();
+    const md = (d.getMonth() + 1) * 100 + d.getDate();
+    if (md >= 1025 && md <= 1101) return 'season_halloween';
+    if (md >= 1220 || md <= 102) return 'season_christmas';
+    return null;
+}
+function lldAutoOn() { return lldGet('lld_auto', '1') !== '0'; }
+function lldRandomStyle() {
+    try { const v = sessionStorage.getItem('lld_rand'); if (v && LLD_STYLES[v]) return v; } catch (e) { }
+    const pool = Object.keys(LLD_STYLES).filter(k => !/^season_/.test(k)), pick = pool[Math.floor(Math.random() * pool.length)];
+    try { sessionStorage.setItem('lld_rand', pick); } catch (e) { }
+    return pick;
+}
 function lldEffStyle() {
     const raw = lldGet('lld_style', 'classic');
+    if (raw === 'random') return lldRandomStyle();
+    if (raw === 'classic' && lldAutoOn()) { const h = lldHolidayNow(); if (h) return h; }
     if (raw !== 'seasonal') return LLD_STYLES[raw] ? raw : 'classic';
     const s = lldSeasonNow();
     if (s) return s;
@@ -500,7 +517,7 @@ function lldStatsCompute(D) {
     S.sdTeam = Math.max(8, llsSd([].concat.apply([], S.sc.map((a, i) => a.map(x => x - S.avg[i])))) || 15);
     S.projMean = F.map((f, i) => { const base = S.avg[i] * .8 + S.leagueAvg * .2; if (!S.hasRos) return base; const pm = S.rosLineup(S.cur[f]); return pm > 0 ? pm * .6 + S.avg[i] * .4 : base; });
     S.sim = adj => {
-        const rg = llsRng(11), SIMS = 2000, res = F.map(() => ({ po: 0, bye: 0, w: 0, rk: 0, seed: new Array(D.playoffTeams || 6).fill(0), wd: {}, wp: {} })), PT = D.playoffTeams || 6, BY = D.byes || 2;
+        const rg = llsRng(11), SIMS = 2000, res = F.map(() => ({ po: 0, bye: 0, w: 0, rk: 0, seed: new Array(D.playoffTeams || 6).fill(0), wd: {}, wp: {} })), PT = D.playoffTeams || 6, BY = (D.byes == null ? 2 : D.byes);
         const g2 = (m, sd) => { const u = 1 - rg(), v = rg(); return m + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
         const rest = S.rosW;
         for (let q = 0; q < SIMS; q++) {
@@ -717,7 +734,7 @@ function lldStatsViews(S) {
         const b = S.base[mi], mx = Math.max.apply(0, S.sc[mi]) + 10, wd = Math.max(8, Math.min(30, Math.floor(270 / Math.max(1, W)) - 4)), gap = Math.max(4, Math.min(14, wd / 2)), tw = 16 + W * (wd + gap);
         let bars = ''; S.sc[mi].forEach((v, w) => { const h = v / mx * 110, x = 8 + w * (wd + gap); bars += `<rect x="${x}" y="${130 - h}" width="${wd}" height="${h}" rx="4" fill="${v >= S.leagueAvg ? '#00ceb8' : '#3b82f6'}"/><text x="${x + wd / 2}" y="${124 - h}" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">${Math.round(v)}</text><text x="${x + wd / 2}" y="146" text-anchor="middle" font-size="9" fill="#8a9ab5">W${D.weeks[w].wk}</text>`; });
         const ly = 130 - S.leagueAvg / mx * 110, ex = S.wins[mi] - S.expW(mi);
-        const byeN = D.byes || 2;
+        const byeN = (D.byes == null ? 2 : D.byes);
         let h = `<div class="tiles">${tile('Record', S.wins[mi] + '-' + S.losses[mi])}${tile('All-Play', f1(S.ap[mi]).replace('.0', '') + '-' + f1(S.apL[mi]).replace('.0', ''), pct(S.ap[mi] / (W * (N - 1))), 'good')}${tile('Power Rank', '#' + (S.power.indexOf(mi) + 1))}${tile('Avg Points', f1(S.avg[mi]), '#' + (S.rankPF.indexOf(mi) + 1) + ' of ' + N, 'good')}${tile('Playoffs', b.po + '%')}</div>`;
         h += `<h2>Seed odds</h2><div class="card">${b.seed.map((p, k) => prow('#' + (k + 1) + ' seed', p / 100, (Math.round(p * 10) / 10) + '%')).join('')}${prow('Miss playoffs', b.miss / 100, (Math.round(b.miss * 10) / 10) + '%')}</div>`;
         h += `<h2>Rest of season</h2><div class="tiles">${tile('Proj. final rank', '#' + Math.round(b.rk))}${tile('Proj. record', Math.round(b.w) + '-' + (S.totG[mi] - Math.round(b.w)))}${tile('Proj. playoffs', b.po + '%')}</div>`;
@@ -833,7 +850,7 @@ function lldStatsViews(S) {
     function lPlayoffs() {
         let h = '<h2>Playoff chances</h2><div class="card scroll"><table><tr><th>Team</th><th>Now</th><th style="width:34%">Make it</th><th>Bye</th></tr>';
         S.order((a, b) => S.base[b].po - S.base[a].po || S.wins[b] - S.wins[a]).forEach(t => { const o = S.base[t]; h += `<tr${t === mi ? ' class="me"' : ''} data-pg="${t}" style="cursor:pointer"><td class="tm">${nm(t)} <span class="sub" style="display:inline">›</span></td><td>${S.wins[t]}-${S.losses[t]}${S.ties[t] ? '-' + S.ties[t] : ''}</td><td><div style="display:flex;align-items:center;gap:8px">${pbar(o.po / 100, o.po > 66 ? 'var(--accent-teal)' : o.po > 25 ? '#f59e0b' : '#ef4444')}<b style="width:34px;text-align:right">${o.po}%</b></div></td><td>${o.bye}%</td></tr>`; });
-        return h + `</table></div><div class="sub">Based on 2,000 simulations of the remaining regular season. Top ${D.playoffTeams || 6} make the playoffs and the top ${D.byes || 2} get a bye. Tap a team to see its projected matchups.</div>`;
+        return h + `</table></div><div class="sub">Based on 2,000 simulations of the remaining regular season. Top ${D.playoffTeams || 6} make the playoffs and the top ${(D.byes == null ? 2 : D.byes)} get a bye. Tap a team to see its projected matchups.</div><div class="sub" style="margin-top:8px">Not right for your league? Playoff teams: ${[4, 5, 6, 7, 8].map(n => `<button type="button" class="sx-po-n" data-k="t" data-n="${n}" style="padding:4px 10px;margin:2px;border-radius:8px;border:1px solid ${n === (D.playoffTeams || 6) ? 'var(--accent-blue)' : 'var(--card-border)'};background:none;color:#fff;font-weight:800">${n}</button>`).join('')} Byes: ${[0, 1, 2, 3, 4].map(n => `<button type="button" class="sx-po-n" data-k="b" data-n="${n}" style="padding:4px 10px;margin:2px;border-radius:8px;border:1px solid ${n === (D.byes == null ? 2 : D.byes) ? 'var(--accent-blue)' : 'var(--card-border)'};background:none;color:#fff;font-weight:800">${n}</button>`).join('')}</div>`;
     }
     function lPositions() {
         let h = '<h2>Position strength, rank by team</h2><div class="card scroll"><table class="hm"><tr><th>Team</th>' + POS.map(p => `<th>${llsLbl(p)}</th>`).join('') + '</tr>';
@@ -986,12 +1003,12 @@ function lldHeaderName() {
 function lldApplyWide() { document.body.classList.toggle('lld-wide', lldGet('lld_wide', '0') === '1'); $('.lld-wide-btn').each(function () { $(this).toggleClass('on', (this.dataset.v === 'wide') === (lldGet('lld_wide', '0') === '1')); }); }
 $(document).on('click', '.lld-wide-btn', function () { lldSet('lld_wide', this.dataset.v === 'wide' ? '1' : '0'); lldApplyWide(); });
 function lldApplyStyle(name) {
-    if (name !== 'seasonal' && !LLD_STYLES[name]) name = 'classic';
+    if (name !== 'seasonal' && name !== 'random' && !LLD_STYLES[name]) name = 'classic';
     if (/^season_/.test(name)) name = 'seasonal'; // an old saved single holiday theme now follows the calendar
     lldSet('lld_style', name);
-    if (name !== 'seasonal') lldSet('lld_style_base', name);
+    if (name !== 'seasonal' && name !== 'random') lldSet('lld_style_base', name);
     const rawName = name;
-    if (name === 'seasonal') name = lldEffStyle();
+    if (name === 'seasonal' || name === 'random' || name === 'classic') name = lldEffStyle();
     Object.keys(LLD_STYLES).forEach(k => document.body.classList.toggle('theme-' + k, k === name));
     const def = LLD_STYLES[name];
     let link = document.getElementById('lld-theme-css');
@@ -2398,11 +2415,14 @@ function parseMFLName(raw) {
         } else {
             let nParts = namePart.trim().split(' ');
             lastName = nParts.length > 1 ? nParts.pop() : namePart.trim();
+            if (nParts.length > 1 && /^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(lastName)) lastName = nParts.pop();
         }
 
         const name = namePart.includes(',') ? namePart.split(', ').reverse().join(' ').trim() : namePart.trim();
         const nParts = name.split(' ');
-        const shortName = nParts.length > 1 ? nParts[0].charAt(0) + '. ' + nParts[nParts.length - 1] : name;
+        const SUF = /^(jr\.?|sr\.?|ii|iii|iv|v)$/i;
+        const lastTok = (nParts.length > 2 && SUF.test(nParts[nParts.length - 1])) ? nParts[nParts.length - 2] + ' ' + nParts[nParts.length - 1] : nParts[nParts.length - 1];
+        const shortName = nParts.length > 1 ? nParts[0].charAt(0) + '. ' + lastTok : name;
         
         // Handle UI labeling
         let pos = realPos;
@@ -5877,7 +5897,7 @@ function getBestBenchOption(slot) {
 
     // --- 9. EVENT LISTENERS ---
 $(document).on('click', '#edit-team-name-btn', function() {
-    const current = $('#settings-team-name').text();
+    const current = ($('#settings-team-name').text() || leagueFranchises[myFid] || '').trim();
     const parts = current.split(' ');
     // Try to split location from team name using saved location
     const savedLoc = localStorage.getItem(`franchise_location_${myFid}`) || '';
@@ -6480,6 +6500,17 @@ let wasWaiverClaim = false;
 } else {
     alert(wasWaiverClaim ? "Player is locked — submitted as a waiver claim (Round 1) instead." : "Transaction successful!");
     hideMenu();
+    try {
+        if (wasWaiverClaim) { btn.text('Claim sent').css({'opacity': '.6', 'pointer-events': 'none'}); }
+        else { btn.text('Added').css({'opacity': '.6', 'pointer-events': 'none'}); }
+        window._playerRowsCache = {};
+        const __fa = $('#players-content-container:visible');
+        if (__fa.length) {
+            const __sb = $('#subtabs-players .sub-tab-btn.active');
+            const __sid = __sb.length ? __sb.text().trim().toLowerCase().replace(' ', '-') : 'free-agents';
+            loadPlayersData(__sid);
+        }
+    } catch (_) {}
     await fetchMasterStatus(); 
 window._teamDataDirty = true;
     await loadTeamData();
@@ -8510,7 +8541,7 @@ $('body').append(`
                 <div class="display-sub-content" data-sub="theme">
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal${lldSeasonNow() ? ' (' + LLD_STYLES[lldSeasonNow()].name + ')' : ''}</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal${lldSeasonNow() ? ' (' + LLD_STYLES[lldSeasonNow()].name + ')' : ''}</button><button class="lld-style-btn ${lldGet('lld_style','classic')==='random'?'on':''}" data-style="random">\uD83C\uDFB2 Random</button></div><div class="lld-auto-row" style="display:${lldGet('lld_style','classic')==='classic'?'block':'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Holiday themes (Default style)</div><div style="display:flex; gap:6px; margin-bottom:6px;"><button class="lld-hdr-btn lld-auto-btn ${lldAutoOn()?'on':''}" data-v="on">Auto</button><button class="lld-hdr-btn lld-auto-btn ${lldAutoOn()?'':'on'}" data-v="off">Off</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Auto switches to Halloween Oct 25 to Nov 1 and to the holiday look Dec 20 to Jan 2.</div></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
                     <div id="lld-fx-row" style="display:${LLD_FX_MAP[lldEffStyle()] ? 'block' : 'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Seasonal background animation</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')!=='0'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')==='0'?'on':''}" data-v="off">Off</button></div></div>
                     <div class="lld-wide-row"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Page width (computers)</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'':'on'}" data-v="std">Standard</button><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'on':''}" data-v="wide">Wide</button></div></div>
                     
@@ -8833,9 +8864,9 @@ loadSavedTextScale();
 // Load current values into Team Settings tab when modal opens
 $(document).on('click touchend', '.open-settings-btn', async function() {
     try {
-        const r1 = await fetch(`${MFL_ORIGIN}/${year}/csetup?L=${lid}&C=FRANCHISE`, { credentials: 'include' });
+        const r1 = await fetch(`${MFL_ORIGIN}/${year}/csetup?L=${lid}&FRANCHISES=${Object.keys(leagueFranchises).join(',') || myFid}&C=FRANCHISE`, { credentials: 'include', cache: 'no-store' });
         const doc1 = new DOMParser().parseFromString(await r1.text(), 'text/html');
-const fullName = doc1.querySelector(`#FRANCHISE_NAME${myFid}`)?.value || '';
+const fullName = doc1.querySelector(`#FRANCHISE_NAME${myFid}`)?.value || leagueFranchises[myFid] || $('#settings-team-name').text().trim() || '';
 const savedLocation = localStorage.getItem(`franchise_location_${myFid}`) || '';
 $('#ts-owner-name').val(doc1.querySelector(`#FRANCHISE_OWNER_NAME${myFid}`)?.value || '');
 $('#ts-email').val(doc1.querySelector(`#FRANCHISE_EMAIL${myFid}`)?.value || '');
@@ -12850,6 +12881,95 @@ function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLog
 function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
 function stSlide(c1, c2, html) { return { bg: `radial-gradient(120% 90% at 20% 0%, ${c1}, ${c2})`, html }; }
 function stNum(v, dec, cls) { return `<div class="st-big st-a ${cls || ''}" data-count="${v}" data-dec="${dec}" style="--d:.35s">0</div>`; }
+// ===== extra story data: X-factor, alerts, rivalry, lineup spotlight =====
+async function lldXFactors(pw, ms, proj) {
+    window._xfCache = window._xfCache || {};
+    if (window._xfCache[pw]) return window._xfCache[pw];
+    const out = {};
+    let S = null; try { S = await lldStatsLoad(); } catch (e) { return out; }
+    if (!S || !S.D || !S.D.weeks) return out;
+    const hist = {};
+    S.D.weeks.forEach(w => Object.keys(w.teams).forEach(f => (w.teams[f].roster || []).forEach(p => { if (!p.isStarter && !p.score) return; (hist[p.pid] = hist[p.pid] || []).push(p.score || 0); })));
+    ms.forEach(m => [m.t1, m.t2].forEach(t => {
+        let best = null;
+        t.roster.forEach(p => {
+            if (!p.isStarter) return;
+            const pr = proj[p.pid] || 0, h = hist[p.pid] || [];
+            if (pr <= 0 || h.length < 3) return;
+            const avg = llsMean(h), sd = llsSd(h);
+            if (avg < 5) return;
+            const hi = Math.max.apply(null, h), lo = Math.min.apply(null, h);
+            const tough = avg >= 9 && pr <= avg * 0.8, tR = tough ? (avg - pr) * 1.4 : 0;
+            const rank = Math.max(sd, tR), kind = tR > sd ? 'tough' : 'boom';
+            if (!best || rank > best.rank) best = { p, pr, avg, sd, hi, lo, kind, rank, fid: t.fid };
+        });
+        if (best) out[t.fid] = best;
+    }));
+    window._xfCache[pw] = out;
+    return out;
+}
+function lldXfRow(x, i) {
+    const why = x.kind === 'tough' ? `Averages ${x.avg.toFixed(1)}, projected ${x.pr.toFixed(1)}` : `Swings ${x.lo.toFixed(0)} to ${x.hi.toFixed(0)} · avg ${x.avg.toFixed(1)}`;
+    return `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span><span>${why}</span></div><i>${x.kind === 'tough' ? '🧱' : '🎲'}</i></div>`;
+}
+async function lldPvAlerts(pw, ms) {
+    const res = [];
+    try {
+        const get = u => fetch(u, { credentials: 'include', cache: 'no-store' }).then(r => r.json());
+        const [ij, ns] = await Promise.all([get(`${MFL_ORIGIN}/${year}/export?TYPE=injuries&W=${pw}&JSON=1`).catch(() => null), get(`${MFL_ORIGIN}/${year}/export?TYPE=nflSchedule&W=${pw}&JSON=1`).catch(() => null)]);
+        const inj = {}; lldSxArr(ij && ij.injuries && ij.injuries.injury).forEach(x => { inj[String(x.id)] = String(x.status || ''); });
+        const playing = new Set(); lldSxArr(ns && ns.nflSchedule && ns.nflSchedule.matchup).forEach(m => lldSxArr(m.team).forEach(t => playing.add(t.id)));
+        const rank = s => /out|ir|susp/i.test(s) ? 3 : /doubt/i.test(s) ? 2 : /quest/i.test(s) ? 1 : 0;
+        ms.forEach(m => [m.t1, m.t2].forEach(t => t.roster.forEach(p => {
+            if (!p.isStarter) return;
+            const bye = playing.size > 8 && p.team && p.team !== 'NFL' && p.team !== 'FA' && !playing.has(p.team);
+            const st = inj[String(p.pid)] || '', r = bye ? 4 : rank(st);
+            if (r > 0) res.push({ fid: t.fid, p, why: bye ? 'BYE' : st, r });
+        })));
+    } catch (e) { console.warn('alerts', e); }
+    return res.sort((a, b) => b.r - a.r).slice(0, 5);
+}
+async function lldRivalHistory() {
+    const key = `lld_rival_${lid}`; let H = lldLsGet(key, 7 * 24 * 3600 * 1000);
+    if (H) return H;
+    H = {}; const y0 = parseInt(year, 10);
+    for (let y = y0; y >= y0 - 9; y--) {
+        try {
+            const d = await fetch(`${MFL_ORIGIN}/${y}/export?TYPE=schedule&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' }).then(r => r.json());
+            const ws = lldSxArr(d && d.schedule && d.schedule.weeklySchedule);
+            if (!ws.length) { if (y < y0) break; continue; }
+            H[y] = ws.map(w => ({ w: parseInt(w.week, 10), m: lldSxArr(w.matchup).map(m => lldSxArr(m.franchise).map(f => [String(f.id).padStart(4, '0'), parseFloat(f.score) || 0])).filter(x => x.length >= 2) }));
+        } catch (e) { if (y < y0) break; }
+    }
+    lldLsSet(key, H); return H;
+}
+async function lldRivalry(a, b, curWk) {
+    let H = {}; try { H = await lldRivalHistory(); } catch (e) { return null; }
+    let wa = 0, wb = 0, last = null, big = 0, n = 0;
+    Object.keys(H).map(Number).sort((x, y) => x - y).forEach(y => H[y].forEach(w => w.m.forEach(g => {
+        const A = g.find(z => z[0] === a), B = g.find(z => z[0] === b);
+        if (!A || !B || !(A[1] > 0) || !(B[1] > 0)) return;
+        if (y === parseInt(year, 10) && w.w >= curWk) return;
+        n++; if (A[1] > B[1]) wa++; else if (B[1] > A[1]) wb++;
+        big = Math.max(big, Math.abs(A[1] - B[1])); last = { y, w: w.w, sa: A[1], sb: B[1] };
+    })));
+    return n ? { wa, wb, n, last, big } : null;
+}
+function lldRivalSlide(a, b, R) {
+    const lead = R.wa === R.wb ? 'Series is tied' : `${stName(R.wa > R.wb ? a : b)} lead the all-time series`;
+    return stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">RIVALRY</div><div class="st-vs st-a" style="--d:.15s">${stLogo(a, 72)}<span>vs</span>${stLogo(b, 72)}</div><div class="st-h st-a" style="--d:.35s">${R.wa} – ${R.wb}</div><div class="st-sub st-a" style="--d:.5s">${lead}</div><div class="st-row2 st-a" style="--d:.8s"><b>Last meeting</b><i style="font-size:calc(15px * var(--ts,1))">${R.last.y} Wk ${R.last.w} · ${R.last.sa.toFixed(1)}–${R.last.sb.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1s"><b>Biggest margin</b><i style="font-size:calc(15px * var(--ts,1))">${R.big.toFixed(1)}</i></div>`);
+}
+function lldSpotlight(team) {
+    const pool = team.roster.map(p => ({ p, pid: p.pid, pos: recapNormPos(p), v: p.score || 0 }));
+    const starters = pool.filter(x => x.p.isStarter), bench = pool.filter(x => !x.p.isStarter);
+    if (!starters.length || !bench.length) return null;
+    const opt = llsOpt(pool, LLDS_SLOTS), optTot = pool.filter(x => opt.has(x.pid)).reduce((s, x) => s + x.v, 0), act = starters.reduce((s, x) => s + x.v, 0);
+    const right = starters.filter(x => opt.has(x.pid)).length;
+    const best = starters.slice().sort((a, b) => b.v - a.v)[0], worst = starters.slice().sort((a, b) => a.v - b.v)[0];
+    const miss = bench.filter(x => opt.has(x.pid)).sort((a, b) => b.v - a.v)[0] || null;
+    const swap = miss ? starters.filter(x => !opt.has(x.pid)).sort((a, b) => a.v - b.v)[0] : null;
+    return { left: Math.max(0, optTot - act), right, n: starters.length, best, worst, miss, swap };
+}
 async function lldStorySlides(kind, wk, idx) {
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
@@ -12862,6 +12982,10 @@ async function lldStorySlides(kind, wk, idx) {
         out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Recap</div>`));
         const mg = ms.find(m => m.t1.fid === me || m.t2.fid === me);
         if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; out.push(stSlide(won ? '#15803d' : '#b91c1c', '#050505', `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
+        try {
+            const mine = mg && (mg.t1.fid === me ? mg.t1 : mg.t2), sp = mine && lldSpotlight(mine);
+            if (sp) out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
+        } catch (e) { console.warn('spotlight', e); }
         if (S.top) LLD_ST.topFid = S.top.fid;
         if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
         if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.p.score.toFixed(1)}</i></div>`).join('')}`));
@@ -12891,6 +13015,11 @@ async function lldStorySlides(kind, wk, idx) {
         [g.t1, g.t2].forEach(t => out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">${stName(t.fid)} · TOP PROJECTED</div>${top(t).map((p, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(p.name)}</b><span>${lldChatEsc(recapNormPos(p))}</span></div><i>${P.proj[p.pid].toFixed(1)}</i></div>`).join('')}`)));
         const POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], sum = (t, ps) => t.roster.filter(p => p.isStarter && recapNormPos(p) === ps).reduce((x, p) => x + (P.proj[p.pid] || 0), 0);
         const edge = POS.map((ps, i) => { const x = sum(g.t1, ps), y = sum(g.t2, ps), m = Math.max(x, y, 1); return `<div class="st-edge st-a" style="--d:${0.2 + i * .12}s"><span>${ps}</span><div><u class="${x >= y ? 'win' : ''}" style="width:${Math.round(x / m * 100)}%">${x.toFixed(1)}</u></div><div><u class="${y > x ? 'win' : ''}" style="width:${Math.round(y / m * 100)}%">${y.toFixed(1)}</u></div></div>`; }).join('');
+        try {
+            const XF = await lldXFactors(wk, (P.games || []).map(q => ({ t1: q.t1, t2: q.t2 })), P.proj);
+            [g.t1, g.t2].forEach(t => { const x = XF[t.fid]; if (x) out.push(stSlide('#c2410c', '#1a0802', `<div class="st-k st-a">${stName(t.fid)} · X-FACTOR</div>${lldXfRow(x, 0)}<div class="st-sub st-a" style="--d:.8s">${x.kind === 'tough' ? 'A big producer facing a tough projection this week' : 'High boom-or-bust player who can swing this game'}</div>`)); });
+        } catch (e) { console.warn('xf', e); }
+        try { const R = await lldRivalry(g.t1.fid, g.t2.fid, wk); if (R) out.push(lldRivalSlide(g.t1.fid, g.t2.fid, R)); } catch (e) { console.warn('rival', e); }
         out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">POSITION BY POSITION</div><div class="st-legend st-a" style="--d:.1s"><span>${stName(g.t1.fid)}</span><span>${stName(g.t2.fid)}</span></div>${edge}`));
         outro('matchup preview');
     } else {
@@ -12910,6 +13039,26 @@ async function lldStorySlides(kind, wk, idx) {
             if (hi) out.push(stSlide('#15803d', '#011208', `<div class="st-k st-a">HIGHEST PROJECTED</div>${stLogo(hi.f, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hi.f)}</div>${stNum(hi.m, 1, 'gold')}`));
         } else out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchups are not posted yet</div><div class="st-sub st-a" style="--d:.3s">Check back once lineups and projections are in.</div>`));
         if (P.players.length) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">PLAYERS TO WATCH</div>${P.players.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.proj.toFixed(1)}</i></div>`).join('')}`));
+        try {
+            const ms = (P.games || []).map(g => ({ t1: g.t1, t2: g.t2 }));
+            const XF = await lldXFactors(wk, ms, P.proj), xl = Object.values(XF).sort((x, y) => y.rank - x.rank).slice(0, 4);
+            const mineX = XF[me]; if (mineX && !xl.includes(mineX)) xl[xl.length - 1] = mineX;
+            if (xl.length) out.push(stSlide('#c2410c', '#1a0802', `<div class="st-k st-a">X-FACTORS OF THE WEEK</div>${xl.map((x, i) => lldXfRow(x, i)).join('')}<div class="st-sub st-a" style="--d:1.3s">🎲 boom or bust &nbsp; 🧱 tough draw</div>`));
+            const AL = await lldPvAlerts(wk, ms);
+            if (AL.length) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">⚠ LINEUP ALERTS</div>${AL.map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .2}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i style="color:#fca5a5;font-size:calc(14px * var(--ts,1))">${lldChatEsc(String(x.why).toUpperCase())}</i></div>`).join('')}`));
+            const POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], sum = (t, ps) => t.roster.filter(p => p.isStarter && recapNormPos(p) === ps).reduce((q, p) => q + (P.proj[p.pid] || 0), 0);
+            const edges = []; (P.games || []).forEach(g => POS.forEach(ps => { const x = sum(g.t1, ps), y = sum(g.t2, ps); edges.push({ w: x >= y ? g.t1 : g.t2, l: x >= y ? g.t2 : g.t1, ps, d: Math.abs(x - y) }); }));
+            edges.sort((a, b) => b.d - a.d);
+            if (edges.length && P.noProj !== true) out.push(stSlide('#0369a1', '#010a14', `<div class="st-k st-a">BIGGEST POSITION EDGES</div>${edges.slice(0, 4).map((e, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s"><div class="st-rm"><b>${stName(e.w.fid)} · ${e.ps}</b><span>over ${stName(e.l.fid)}</span></div><i>+${e.d.toFixed(1)}</i></div>`).join('')}`));
+            let bestR = null;
+            for (const g of (P.games || [])) { const R = await lldRivalry(g.t1.fid, g.t2.fid, wk); if (R && (!bestR || R.n > bestR.R.n || (R.n === bestR.R.n && Math.abs(R.wa - R.wb) < Math.abs(bestR.R.wa - bestR.R.wb)))) bestR = { g, R }; }
+            if (bestR) out.push(lldRivalSlide(bestR.g.t1.fid, bestR.g.t2.fid, bestR.R));
+            try { const S = await lldStatsLoad(), rows = S.F.map((f, i) => ({ f, po: S.base[i].po, w: S.wins[i], l: S.losses[i] })).sort((a, b) => b.po - a.po);
+                const mid = rows.slice().sort((a, b) => Math.abs(a.po - 50) - Math.abs(b.po - 50))[0];
+                const show = rows.slice(0, 4); if (mid && !show.includes(mid)) show.push(mid);
+                out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">PLAYOFF RACE</div>${show.map((r, i) => `<div class="st-a" style="width:100%;--d:${0.25 + i * .2}s"><div class="st-row2"><b>${stName(r.f)} <small style="opacity:.7">${r.w}-${r.l}</small></b><i style="font-size:calc(18px * var(--ts,1))">${r.po}%</i></div><div class="st-bar"><u class="st-grow" style="width:${r.po}%;animation-delay:${0.5 + i * .2}s"></u></div></div>`).join('')}${mid ? `<div class="st-sub st-a" style="--d:1.6s">🫧 On the bubble: ${stName(mid.f)}</div>` : ''}`));
+            } catch (e) { console.warn('race', e); }
+        } catch (e) { console.warn('preview extras', e); }
         outro('preview');
     }
     return out;
@@ -17735,7 +17884,8 @@ checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
 lldApplyHdrMode('auto'); // the header always shrinks as you scroll
-$(document).on('click', '.lld-style-btn', function () { lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); });
+$(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
+$(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
@@ -18264,11 +18414,13 @@ const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
 function lldQtHtml() {
     const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
     const styles = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${v.name}</button>`).join('')
-        + `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">Seasonal${sea ? ' (' + LLD_STYLES[sea].name + ')' : ''}</button>`;
+        + `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">Seasonal${sea ? ' (' + LLD_STYLES[sea].name + ')' : ''}</button>`
+        + `<button type="button" class="lld-style-btn ${cur === 'random' ? 'on' : ''}" data-style="random">\uD83C\uDFB2 Random</button>`;
     const lab = t => `<div class="qt-l">${t}</div>`;
     const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
+        + (cur === 'classic' ? lab('Holiday themes') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-auto-btn ${lldAutoOn() ? 'on' : ''}" data-v="on">Auto</button><button type="button" class="lld-hdr-btn lld-auto-btn ${lldAutoOn() ? '' : 'on'}" data-v="off">Off</button></div>` : '')
         + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
         + lab('NFL logos') + `<div class="qt-row"><button type="button" class="logo-style-btn" data-style="modern">Modern</button><button type="button" class="logo-style-btn" data-style="throwback">Throwback</button></div>`
         + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
@@ -18280,7 +18432,7 @@ function lldQtOpen() {
 }
 $(document).on('click', '#lld-qt-btn', lldQtOpen);
 $(document).on('click', '#lld-qt .qt-done', () => $('#lld-qt').remove());
-$(document).on('click', '#lld-qt .lld-style-btn, #lld-qt .lld-fx-btn', function () { setTimeout(() => { if ($('#lld-qt').length) { $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } } }, 80); });
+$(document).on('click', '#lld-qt .lld-style-btn, #lld-qt .lld-fx-btn, #lld-qt .lld-auto-btn', function () { setTimeout(() => { if ($('#lld-qt').length) { $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } } }, 80); });
 function lldQuickInit() {
     if (document.getElementById('lld-qt-btn')) return;
     const btn = `<button id="lld-qt-btn" aria-label="Change theme" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_QT_ICON}</button>`;
@@ -18363,6 +18515,7 @@ async function lldStatsLoad(force) {
             if (L && !(LLD.stats && LLD.stats.reg)) { const r = n(L.lastRegularSeasonWeek); if (r) D.reg = r; }
             if (L && !(LLD.stats && LLD.stats.playoffTeams)) { const p = n(L.playoffTeams); if (p) D.playoffTeams = p; }
         } catch (e) { }
+        try { const ot = parseInt(lldGet('lld_po_teams', ''), 10), ob = parseInt(lldGet('lld_po_byes', ''), 10); if (ot > 0) D.playoffTeams = ot; if (ob >= 0 && lldGet('lld_po_byes', '') !== '') D.byes = ob; } catch (e) { }
         prog('Loading schedule…');
         // one schedule request feeds both the weekly scores and the remaining matchups
         const sc = await lldSxJson('schedule');
@@ -18497,6 +18650,7 @@ $(document).on('click touchend', '[data-fa], .lld-fa-fit', function (e) {
     $('#lld-sx-help').remove(); $('body').append('<div id="lld-sx-help" class="open"><div class="sheet"><b></b><div class="pgb"></div><button class="hx" type="button">Close</button></div></div>');
     $('#lld-sx-help b').text(nmp + ' · weeks he would start'); $('#lld-sx-help .pgb').html(vw.faSheet(pid));
 });
+$(document).on('click', '.sx-po-n', function () { lldSet(this.dataset.k === 't' ? 'lld_po_teams' : 'lld_po_byes', this.dataset.n); window._lldSX = null; window._lldSXp = null; lldStatsOpen(LLDSX.mode); });
 $(document).on('click', '.lld-stats [data-pg]', function () { const S = window._lldSX && window._lldSX.S; if (!S) return; const t = +this.dataset.pg; $('#lld-sx-help').remove(); $('body').append('<div id="lld-sx-help" class="open"><div class="sheet"><b></b><div class="pgb"></div><button class="hx" type="button">Close</button></div></div>'); $('#lld-sx-help b').text(S.nmOf(t).replace(/&amp;/g, '&') + ' · projected matchups'); $('#lld-sx-help .pgb').html(S.projSheet(t)); });
 $(document).on('click', '#lld-sx-help', function (e) { if (e.target === this || $(e.target).closest('.hx').length) $(this).remove(); });
 // tapping a player opens the normal player popup on its Stats tab
