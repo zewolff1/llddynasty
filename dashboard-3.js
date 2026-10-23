@@ -377,7 +377,7 @@ function lldChatFeedHtml(items, block, ctx) {
         const day = lldChatDay(it.ms, ctx.now);
         if (day !== lastDay) { out += `<div class="cm-day"><span>${lldChatEsc(day)}</span></div>`; lastDay = day; }
         if (ctx.seen && !newShown && it.ms > ctx.seen) { newShown = true; out += `<div class="cm-new"><span>New since your last visit</span></div>`; }
-        out += (it.kind === 'post' ? lldChatPostHtml(it, ctx) : it.kind === 'digest' ? lldChatDigestHtml(it) : lldChatTxHtml(it, ctx)) + lldSeenRow(it, ctx);
+        out += (it.kind === 'post' ? lldChatPostHtml(it, ctx) : it.kind === 'digest' ? lldChatDigestHtml(it) : lldChatTxHtml(it, ctx)) + (window.lldSeenRow ? window.lldSeenRow(it, ctx) : '');
     });
     return out;
 }
@@ -18453,7 +18453,7 @@ function lldChatPaperHtml(items, block, ctx) {
 }
 function lldChatTweetsHtml(items, block, ctx) {
     if (!items.length) return lldChatViewBar() + '<div class="cm-empty">No recent activity.</div>';
-    return lldChatViewBar() + items.slice().sort((a, b) => b.ms - a.ms).slice(0, 60).map(it => lldChatTweetHtml(it, ctx) + lldSeenRow(it, ctx)).join('');
+    return lldChatViewBar() + items.slice().sort((a, b) => b.ms - a.ms).slice(0, 60).map(it => lldChatTweetHtml(it, ctx) + (window.lldSeenRow ? window.lldSeenRow(it, ctx) : '')).join('');
 }
 $(document).on('click', '#lld-chat .cm-vw', function () { lldSet('lld_chatview', this.dataset.v); $('.lld-cv-btn').each(function () { $(this).toggleClass('on', this.dataset.v === lldChatView()); }); lldChatShowList(); });
 $(document).on('click touchend', '.player-modal-trigger', function () { window._lldPropOwner = $(this).data('owner') ? String($(this).data('owner')).padStart(4, '0') : ''; });
@@ -18484,11 +18484,11 @@ function lldSeenAssign(items, m) {
         if (hit) hit._seen.push(f);
     });
 }
-function lldSeenRow(it, ctx) {
+window.lldSeenRow = function lldSeenRow(it, ctx) {
     if (!it._seen || !it._seen.length) return '';
     const m = (window._lldSeen && window._lldSeen.m) || {};
     return `<div class="cm-seen"><span>Seen by</span>${it._seen.map(f => `<img src="${lldChatEsc(ctx.av(f))}" title="${lldChatEsc(ctx.nm(f))} · ${lldChatEsc(new Date(m[f]).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}" onerror="this.style.display='none'">`).join('')}</div>`;
-}
+};
 async function lldChatShowList() {
     try { await lldChatShowListInner(); } catch (e) { console.warn('chat list', e); lldChatMount().html(lldChatShellHtml('League Chat', false, `<div class="cm-empty">Couldn't load the chat (${lldChatEsc((e && e.message) || 'unknown error')}). <button type="button" class="cm-retry">Try again</button></div>`, lldChatOpenUrl())); }
 }
