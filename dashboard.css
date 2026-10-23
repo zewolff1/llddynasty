@@ -3948,3 +3948,14 @@ body.hdr-s1 #lld-league-name, body.hdr-s2 #lld-league-name { font-size: calc(14p
 .pos-group-header{cursor:default!important}
 .pos-group-wrapper.is-minimized .pos-group-content{display:block!important}
 #lld-hdr-pv{align-self:flex-start;margin-top:6px;padding:5px 12px;border-radius:999px;border:1px solid var(--accent-blue);background:color-mix(in srgb,var(--accent-blue) 18%,transparent);color:#fff;font-weight:900;font-size:calc(10px * var(--ts,1));letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+
+/* r31: read receipts + no arrows on touch screens (swipe instead) */
+#lld-chat .cm-seen{display:flex;align-items:center;gap:4px;justify-content:flex-end;padding:2px 12px 6px;font-size:calc(9px * var(--ts,1));color:var(--text-dim);font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+#lld-chat .cm-seen img{width:16px;height:16px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.25)}
+@media (hover:none) and (pointer:coarse){ .live-score-prev,.live-score-next{display:none!important} }
+
+/* r32: stadium clock */
+.lld-arena .a-time{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 2px;padding-top:8px;border-top:1px solid #1d2430}
+.lld-arena .a-time em{font-style:normal;font-size:calc(20px * var(--ts,1));font-weight:900;letter-spacing:.06em;color:#fde047;text-shadow:0 0 8px rgba(253,224,71,.5)}
+.lld-arena .a-time small{font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.18em;color:var(--text-dim)}
+.lld-arena .a-banner span{white-space:nowrap}
