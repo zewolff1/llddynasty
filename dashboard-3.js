@@ -9777,7 +9777,7 @@ try {
         window._tradeBlockCounts[bFid] = (b.willGiveUp || '').split(',').filter(Boolean).length;
     });
 
-    if (baits.length > 0) {
+    if (false && baits.length > 0) { // the trade block now lives under Trades, not in the transaction list
         uniqueTxTypes.add('Trade Block');
         for (const bait of baits) {
             const bFid = (bait.franchise_id || bait.franchise || '').padStart(4,'0');
@@ -13267,7 +13267,8 @@ function lldSttDeco(T, kind, wk) {
     return '';
 }
 function stShow(i) {
-    const S = LLD_ST; if (i < 0) i = 0; if (i >= S.slides.length) { stClose(); return; }
+    const S = LLD_ST; if (i < 0) i = 0; if (i >= S.slides.length) { if (S.embed) { $('#lld-story').addClass('emb-done'); return; } stClose(); return; }
+    $('#lld-story').removeClass('emb-done');
     S.i = i; const sl = S.slides[i], box = $('#lld-story');
     box.find('.st-bars').html(S.slides.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'cur' : ''}"><u></u></span>`).join(''));
     const T = S.stt || '';
@@ -13296,7 +13297,7 @@ function stMusicStart(fid) {
 }
 function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop(); }
 async function lldOpenStory(kind, wk, idx, popup) {
-    $('#lld-story').remove(); LLD_ST.popup = !!popup;
+    $('#lld-story').remove(); LLD_ST.popup = !!popup; LLD_ST.embed = false;
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
     try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if ($('#lld-story').length) stMusicStart(LLD_ST.topFid); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
@@ -13877,6 +13878,90 @@ async function pvLoadTimes(A, B, wk) {
     } catch (e) { return none('Could not load the MFL preview.'); }
 }
 
+// ===================== SCORES TABS: Preview / Recap vs Scoreboard =====================
+// 'pre' = before the early Sunday games kick off, 'live' = games underway, 'fin' = everything is done
+function lldMatchState(m) {
+    const wk = parseInt(window._liveScoreActiveWeek, 10), cur = parseInt(window._liveScoreCurrentWeek, 10);
+    if (cur && wk < cur) return 'fin';
+    if (cur && wk > cur) return 'pre';
+    const st = [].concat(m.t1.roster || [], m.t2.roster || []).filter(p => p.isStarter);
+    let anyLive = false, allDone = st.length > 0;
+    st.forEach(p => { const x = deriveLiveStatus(p); if (x.playing) anyLive = true; if (!x.done) allDone = false; });
+    if (allDone) return 'fin';
+    const sched = window._liveScoreNflSchedule || {}; let sun = 0;
+    try {
+        const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+        Object.keys(sched).forEach(k => { const ko = sched[k] && sched[k].kickoffMs; if (ko && fmt.format(new Date(ko)) === 'Sun' && (!sun || ko < sun)) sun = ko; });
+    } catch (e) { }
+    if (sun) return Date.now() >= sun ? 'live' : 'pre';
+    return anyLive ? 'live' : 'pre';
+}
+function lldScTabs(state, tab) {
+    const b = (t, l) => `<button type="button" class="lld-sc-tab ${tab === t ? 'on' : ''}" data-t="${t}">${l}</button>`;
+    return `<div class="lld-sc-tabs"><button type="button" class="live-score-prev lld-tabnav">‹</button>${b('first', state === 'pre' ? 'Preview' : 'Recap')}${b('sb', 'Scoreboard')}<button type="button" class="live-score-next lld-tabnav">›</button></div>`;
+}
+async function lldMatchRecapSlides(m, wk) {
+    const a = m.t1, b = m.t2, won = a.score >= b.score ? a : b, lost = won === a ? b : a, margin = Math.abs(a.score - b.score), out = [];
+    out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">WEEK ${wk} FINAL</div><div class="st-vs st-a" style="--d:.15s">${stLogo(a.fid, 84)}<span>vs</span>${stLogo(b.fid, 84)}</div><div class="st-row2 st-a" style="--d:.4s"><b>${stName(a.fid)}</b><i>${a.score.toFixed(2)}</i></div><div class="st-row2 st-a" style="--d:.55s"><b>${stName(b.fid)}</b><i>${b.score.toFixed(2)}</i></div>`));
+    out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">${margin < 10 ? 'DOWN TO THE WIRE' : margin >= 50 ? 'BLOWOUT' : 'THE WINNER'}</div>${stLogo(won.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(won.fid)}</div>${stNum(margin, 1, 'gold')}<div class="st-sub st-a" style="--d:.6s">point win over ${stName(lost.fid)}</div>`));
+    const starters = [];
+    [a, b].forEach(t => (t.roster || []).forEach(p => { if (p.isStarter) starters.push({ p, fid: t.fid }); }));
+    starters.sort((x, y) => y.p.score - x.p.score);
+    if (starters.length) { LLD_ST.topFid = starters[0].fid; out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE GAME</div>${starters.slice(0, 4).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`)); }
+    [a, b].forEach(t => {
+        const bn = (t.roster || []).filter(p => !p.isStarter).sort((x, y) => y.score - x.score)[0];
+        if (bn && bn.score > 0) out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">${stName(t.fid)} · BEST ON THE BENCH</div>${stPRow(bn, t.fid, bn.score.toFixed(1), 0.3)}<div class="st-sub st-a" style="--d:.8s">Points that never counted</div>`));
+    });
+    return out;
+}
+function lldMatchRecapBelow(m) {
+    const a = m.t1, b = m.t2;
+    const starters = []; [a, b].forEach(t => (t.roster || []).forEach(p => { if (p.isStarter) starters.push({ p, fid: t.fid }); }));
+    starters.sort((x, y) => y.p.score - x.p.score);
+    const row = (x, tag) => recapPlayerRow(x.p, { accent: '#22c55e', tag, sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(x.fid, 14)}</span>`, right: `<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</div>` });
+    const out = [];
+    if (starters.length) out.push(recapCard('Top Scorers', '⭐', starters.slice(0, 5).map((x, i) => row(x, i === 0 ? 'PLAYER OF THE GAME' : '')).join('')));
+    const bench = [];
+    [a, b].forEach(t => { const bn = (t.roster || []).filter(p => !p.isStarter).sort((x, y) => y.score - x.score)[0]; if (bn && bn.score > 0) bench.push({ p: bn, fid: t.fid }); });
+    if (bench.length) out.push(recapCard('Best on the Bench', '🪑', bench.map(x => row(x, '')).join(''), 'Points that never counted'));
+    const sum = (t, st) => (t.roster || []).filter(p => !!p.isStarter === st).reduce((x, p) => x + (p.score || 0), 0);
+    const cell = (l, x, y) => `<div style="display:grid; grid-template-columns:1fr 90px 1fr; gap:6px; padding:6px 0; border-top:1px solid rgba(255,255,255,0.04); align-items:center;"><div style="text-align:right; font-weight:900; font-size:calc(13px * var(--ts,1)); color:${x > y ? '#22c55e' : '#fff'};">${x.toFixed(1)}</div><div style="text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">${l}</div><div style="font-weight:900; font-size:calc(13px * var(--ts,1)); color:${y > x ? '#22c55e' : '#fff'};">${y.toFixed(1)}</div></div>`;
+    out.push(recapCard('By the Numbers', '📊', `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">${recapTeamName(a.fid, 10)}${recapTeamName(b.fid, 10)}</div>` + cell('Final', a.score, b.score) + cell('Starters', sum(a, true), sum(b, true)) + cell('Bench', sum(a, false), sum(b, false))));
+    return out.join('');
+}
+window._lldEmbCache = {};
+async function lldEmbedStory(host, kind, wk, idx, mref) {
+    $('#lld-story').remove(); LLD_ST.popup = false; LLD_ST.embed = true;
+    host.html(`<div id="lld-story" class="emb" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div><button type="button" class="emb-replay">↻ Replay</button></div>`);
+    try {
+        LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', 'emb' + (LLD_ST.stt ? ' stt stt-' + LLD_ST.stt : '')); if (LLD_ST.stt) lldSttFonts();
+        const key = kind + '|' + wk + '|' + idx + '|' + (mref ? mref.t1.fid + mref.t2.fid + mref.t1.score + mref.t2.score : '');
+        let slides = window._lldEmbCache[key];
+        if (!slides) { slides = kind === 'mrecap' ? await lldMatchRecapSlides(mref, wk) : await lldStorySlides(kind, wk, idx); slides = slides.filter(x => !/st-cta/.test(x.html)); window._lldEmbCache[key] = slides; }
+        if (!$('#lld-story.emb').length) return;
+        LLD_ST.slides = slides; LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; LLD_ST.embed = true; stShow(0);
+    } catch (e) { console.warn('embed story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-sub">Could not load this ${kind === 'mrecap' ? 'recap' : 'preview'}</div></div>`); }
+}
+$(document).on('click', '#lld-story .emb-replay', function (e) { e.stopPropagation(); if (LLD_ST.slides.length) stShow(0); });
+async function lldFillEmbed(m, state, wk, idx) {
+    const host = $('#lld-emb-host'), below = $('#lld-emb-below');
+    if (!host.length) return;
+    try {
+        if (state === 'pre') {
+            const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
+            if (window._liveScoreIndex !== idx || !$('#lld-emb-host').length) return;
+            const i = P.games.findIndex(g => (g.t1.fid === m.t1.fid && g.t2.fid === m.t2.fid) || (g.t1.fid === m.t2.fid && g.t2.fid === m.t1.fid));
+            if (i < 0) host.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Preview is not available for this matchup yet.</div>');
+            else lldEmbedStory(host, 'matchup', wk, i);
+            openMatchupPreview({ host: below });
+        } else {
+            lldEmbedStory(host, 'mrecap', wk, 0, m);
+            below.html(lldMatchRecapBelow(m));
+            reapplyAllTeamStyles();
+        }
+    } catch (e) { console.warn('embed fill', e); }
+}
+$(document).on('click', '.lld-sc-tab', function (e) { e.preventDefault(); const t = $(this).data('t'); if (window._scTab === t) return; window._scTab = t; renderLiveScoreCard(); });
 // Scores tab "Preview" button: play the matchup story, then offer the full preview popup
 async function lldScoresPreviewStory() {
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
@@ -13889,7 +13974,8 @@ async function lldScoresPreviewStory() {
         lldOpenStory('matchup', wk, i, true);
     } catch (e) { console.warn('preview story', e); openMatchupPreview(); }
 }
-async function openMatchupPreview() {
+async function openMatchupPreview(opts) {
+    const pvHost = opts && opts.host;
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
     if (!m) return;
     const A = m.t1, B = m.t2;
@@ -13898,6 +13984,8 @@ async function openMatchupPreview() {
     $('#matchup-preview-modal').remove();
     const hdrStats = (window._teamHdr && window._teamHdr.cur) || {};
     const side = t => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">${recapLogo(t.fid, 46)}<div style="max-width:100%; display:flex;">${recapTeamName(t.fid, 11)}</div>${scoreTeamChips(t.fid)}</div>`;
+    const pvCardsHtml = ['Fantasy Times Preview|pv-times', 'Team Comparison|pv-compare', 'Head-to-Head History|pv-h2h', 'Key Players This Week|pv-key', 'Same NFL Game|pv-same', 'Trades Between These Teams|pv-trades', 'Recent Moves|pv-moves'].map(x => pvCard(...x.split('|'))).join('');
+    if (pvHost) pvHost.html(pvCardsHtml); else
     $('body').append(`<div id="matchup-preview-modal" style="position:fixed; inset:0; z-index:99995; background:rgba(0,0,0,0.78); display:flex; align-items:center; justify-content:center; padding:12px;">
         <div style="width:100%; max-width:520px; max-height:90vh; display:flex; flex-direction:column; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; overflow:hidden;">
             <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--card-border);">
@@ -13906,13 +13994,7 @@ async function openMatchupPreview() {
             </div>
             <div style="padding:12px 14px; overflow-y:auto;">
                 <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:12px;">${side(A)}<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--text-dim); padding-top:16px;">vs</div>${side(B)}</div>
-                ${pvCard('Fantasy Times Preview', 'pv-times')}
-                ${pvCard('Team Comparison', 'pv-compare')}
-                ${pvCard('Head-to-Head History', 'pv-h2h')}
-                ${pvCard('Key Players This Week', 'pv-key')}
-                ${pvCard('Same NFL Game', 'pv-same')}
-                ${pvCard('Trades Between These Teams', 'pv-trades')}
-                ${pvCard('Recent Moves', 'pv-moves')}
+                ${pvCardsHtml}
             </div></div></div>`);
     reapplyAllTeamStyles();
     $('#matchup-preview-modal').on('click', function(e) { if (e.target === this) $(this).remove(); });
@@ -14487,6 +14569,12 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
             }).join('')}
         </div>` : '';
 
+    const mState = lldMatchState(matchups[idx]); window._scMatchState = mState;
+    const tabbed = mState !== 'live', scTab = tabbed ? (window._scTab || 'first') : 'sb';
+    const tabsBarHtml = tabbed ? lldScTabs(mState, scTab) : '';
+    const tabBody = scTab === 'first'
+        ? `<div id="lld-emb-host" class="lld-emb-host"><div class="lld-emb-load">Loading…</div></div><div id="lld-emb-below"></div>`
+        : buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 }) + buildPairedRosterHtml(t1.roster, t2.roster, sharedProjMap, liveDetails, tc1, tc2);
     const html = `
                <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
@@ -14503,15 +14591,15 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
 
             ${tabsHtml}
 
-            <div id="live-score-card-inner" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
-                ${buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 })}
-                                ${buildPairedRosterHtml(t1.roster, t2.roster, sharedProjMap, liveDetails, tc1, tc2)}
+            <div id="live-score-card-inner" class="${tabbed ? 'lld-sc-tabbed' : ''}" style="background:rgba(255,255,255,0.02); border:1px solid ${isMe ? 'rgba(59,130,246,0.4)' : 'var(--card-border)'}; border-radius:10px; padding:14px; ${isMe ? 'box-shadow:0 0 10px rgba(59,130,246,0.15);' : ''}">
+                ${tabsBarHtml}${tabBody}
             </div>
 
         </div>`;
 
         $('#scores-content-container').html(html);
     reapplyAllTeamStyles();
+    if (scTab === 'first') lldFillEmbed(matchups[idx], mState, parseInt(window._liveScoreActiveWeek, 10), idx);
     document.querySelector(`.live-score-tab[data-idx="${idx}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 }
 // ===================== LIVE GAME STATE (clock) + PLAYING NOW + SORT =====================
