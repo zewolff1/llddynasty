@@ -17314,6 +17314,7 @@ $(document).on('input', '#player-search-input', function() {
                         subText: ownerFid ? `On ${leagueFranchises[ownerFid]}` : 'Free Agent',
                         subTextColor: 'var(--accent-blue)',
                         rightContent: buildPlayerRightHtml(fakePlayerObj, true),
+                        leftContent: fakePlayerObj._actionBtn || '', // the Add / Offer / Bid button for free agents (set while building the right side)
                         rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
                     }
                 );
@@ -18124,7 +18125,7 @@ async function lldTbContracts() {
     try {
         const j = await lldChatJson('TYPE=rosters');
         lldChatArr(j && j.rosters && j.rosters.franchise).forEach(f => lldChatArr(f.player).forEach(p => {
-            const sal = parseFloat(String(p.salary || '').replace(/[^0-9.]/g, '')) || 0, yrs = parseInt(p.contractYear, 10) || 0, gu = parseFloat(String(p.contractInfo || '').replace(/[^0-9.]/g, ''));
+            let sal = parseFloat(String(p.salary || '').replace(/[^0-9.]/g, '')) || 0; if (sal >= 1000) sal = sal / 1e6; /* MFL sends whole dollars; show millions */ const yrs = parseInt(p.contractYear, 10) || 0, gu = parseFloat(String(p.contractInfo || '').replace(/[^0-9.]/g, ''));
             m[String(p.id)] = { sal, yrs, gu: isNaN(gu) ? null : gu, own: String(f.id).padStart(4, '0') };
         }));
     } catch (e) { }
