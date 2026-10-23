@@ -151,8 +151,8 @@ function lldSetTicker(items) {
     const yr0 = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg0 = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
     const html = esc(txt + txt).replace(/\[\[L:(\d+)\|([^\]]*)\]\]/g, (m, id) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">`);
     if (html.indexOf('tk-lg') >= 0) sp.innerHTML = html; else sp.textContent = txt + txt;
-    sp.style.setProperty('--tkdur', Math.max(24, Math.round(txt.length * 0.32)) + 's');
-    sp.style.animationDuration = Math.max(24, Math.round(txt.length * 0.32)) + 's';
+    sp.style.setProperty('--tkdur', Math.max(16, Math.round(txt.replace(/\[\[L:\d+\|[^\]]*\]\]/g, 'XXX').length * 0.2)) + 's');
+    sp.style.animationDuration = Math.max(16, Math.round(txt.replace(/\[\[L:\d+\|[^\]]*\]\]/g, 'XXX').length * 0.2)) + 's';
 }
 async function lldTickJson(url) {
     for (let a = 0; a < 5; a++) {
@@ -186,6 +186,22 @@ async function lldFillTicker(staticItems, attempt) {
         const rows = fr.map(f => ({ id: f.id, w: parseInt(f.h2hw, 10) || 0, l: parseInt(f.h2hl, 10) || 0, t: parseInt(f.h2ht, 10) || 0, pf: parseFloat(f.pf) || 0 })).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
         if (!rows.length) throw new Error('no standings');
         const items = ['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. [[L:${String(r.id).padStart(4, '0')}|${nm(r.id).toUpperCase()}]] ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`));
+        try {
+            const sd = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=schedule&L=${lg}&JSON=1`) || {};
+            const wks = [].concat(sd?.schedule?.weeklySchedule || []).filter(w => w && w.matchup);
+            const wkS = wks.find(w => [].concat(w.matchup).some(m => [].concat(m.franchise || []).some(f => !f.result))) || wks[wks.length - 1];
+            if (wkS) {
+                const pr = {}; [].concat(wkS.matchup).forEach(m => { const f = [].concat(m.franchise || []); if (f.length < 2) return; const a = String(f[0].id).padStart(4, '0'), b = String(f[1].id).padStart(4, '0'); pr[a] = [b]; pr[b] = [a]; });
+                window._tickWeek = { week: wkS.week, pairs: pr }; try { refreshTeamInfoPanel(); } catch (e) { }
+                const lg2 = id => `[[L:${String(id).padStart(4, '0')}|${nm(id).toUpperCase()}]]`;
+                items.push('WEEK ' + wkS.week + ' MATCHUPS');
+                [].concat(wkS.matchup).forEach(m => {
+                    const f = [].concat(m.franchise || []); if (f.length < 2) return;
+                    const a = parseFloat(f[0].score) || 0, b = parseFloat(f[1].score) || 0;
+                    items.push(a || b ? `${lg2(f[0].id)} ${a.toFixed(1)} \u2013 ${b.toFixed(1)} ${lg2(f[1].id)}` : `${lg2(f[0].id)} vs ${lg2(f[1].id)}`);
+                });
+            }
+        } catch (e) { console.warn('ticker matchups', e); }
         lldSetTicker(items); try { localStorage.setItem('lld_tick_std', JSON.stringify(items)); } catch (e) { }
     } catch (e) {
         console.warn('ticker standings', e);
@@ -1658,8 +1674,8 @@ async function loadNextOpponents() {
     window._nextOpp = {};
     try {
         const url = `${MFL_ORIGIN}/${year}/export?TYPE=schedule&L=${lid}&JSON=1`;
-        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
-        const data = await res.json();
+        const data = await lldTickJson(url);
+        if (!data) throw new Error('schedule not available');
         console.log('[hdr] schedule response (first 500 chars):', JSON.stringify(data).slice(0, 500));
 
         const asArray = v => (Array.isArray(v) ? v : (v ? [v] : []));
@@ -1833,7 +1849,15 @@ function buildTeamInfoPanel(targetFid) {
     if (window._recapEventsFull) window._recapEventsFull.filter(e => e.fid === targetFid && POS_AW.indexOf(e.type) >= 0).forEach(() => { awN++; });
     const awBadge = awN ? `<button type="button" class="th-aw" data-fid="${targetFid}">🏅 ${awN} award${awN === 1 ? '' : 's'}</button>` : '';
 
-    const nx = window._nextOpp?.[targetFid];
+    let nx = window._nextOpp?.[targetFid];
+    if (!nx || !nx.opps.length) { // fall back to this week's matchups from the ticker or the Scores tab
+        const tw = window._tickWeek;
+        if (tw && tw.pairs[targetFid]) nx = { week: tw.week, opps: tw.pairs[targetFid] };
+        else {
+            const lm = (window._liveScoreMatchups || []).find(m => m.t1.fid === targetFid || m.t2.fid === targetFid);
+            if (lm) nx = { week: window._liveScoreActiveWeek || '', opps: [lm.t1.fid === targetFid ? lm.t2.fid : lm.t1.fid] };
+        }
+    }
     let oppBox;
     if (nx && nx.opps.length) {
         const o = nx.opps[0];
@@ -18037,15 +18061,15 @@ const result = await applyAuctionContract(pid, commentText);
 
     function update() {
         ticking = false;
-        const y = window.scrollY;
-        const room = document.documentElement.scrollHeight - window.innerHeight;
-        let next;
+        const y = window.scrollY, room = document.documentElement.scrollHeight - window.innerHeight;
         if (document.body.classList.contains('hdr-mid')) { if (stage !== 0) setStage(0); return; }
-        if (room < (stage === 0 ? 520 : 380) || y < 30) next = 0;   // short pages never condense (avoids flicker)
-        else if (y < 90)  next = stage === 0 ? 0 : 1;
-        else if (y < 150) next = 1;
-        else if (y < 220) next = stage === 2 ? 2 : 1;
-        else              next = 2;
+        let next = stage;
+        if (stage === 0) {
+            const full = header.offsetHeight;
+            document.body.classList.add('hdr-s1'); const D = full - header.offsetHeight; document.body.classList.remove('hdr-s1'); // height the header gives back when condensed
+            // condense only once the page has scrolled past that height, so growing it again never re-triggers
+            if (y > D + 40 && room > D + 300) next = 1;
+        } else if (y < 20) next = 0;
         if (next !== stage) setStage(next);
     }
 
