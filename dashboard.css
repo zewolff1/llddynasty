@@ -4001,3 +4001,20 @@ body.th-banner .th-bx > b{font-size:calc(15px * var(--ts,1))}
 .th-vo{margin-top:4px;text-align:center;white-space:nowrap;font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
 body.hdr-s1 .th-vo,body.hdr-s2 .th-vo,body.hdr-s1 #team-info-panel-wrapper,body.hdr-s2 #team-info-panel-wrapper{display:none !important}
 body.hdr-s1 #active-team-switcher-btn,body.hdr-s2 #active-team-switcher-btn{flex-direction:row !important;flex-wrap:nowrap !important;background:none}
+
+/* r40: Scores tabs (Preview / Recap vs Scoreboard) */
+.lld-sc-tabs{display:flex;gap:6px;align-items:center;margin-bottom:12px}
+.lld-sc-tab{flex:1;padding:10px 6px;border-radius:999px;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--text-dim);font-weight:900;font-size:calc(11px * var(--ts,1));letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.lld-sc-tab.on{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
+.lld-tabnav{width:26px;height:26px;border-radius:50%;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:#fff;font-weight:900;cursor:pointer;flex:none}
+@media (hover:none),(pointer:coarse){.lld-tabnav{display:none}}
+.lld-sc-tabbed .scores-preview-btn{display:none!important}
+.lld-emb-host{margin-bottom:12px}.lld-emb-load{text-align:center;padding:40px 10px;color:var(--text-dim);font-weight:800;font-size:calc(11px * var(--ts,1));text-transform:uppercase;letter-spacing:1px}
+#lld-story.emb{position:relative;inset:auto;z-index:1;width:100%;height:auto;aspect-ratio:4/5;max-height:72vh;border-radius:16px;overflow:hidden;background:#000;border:1px solid var(--card-border)}
+#lld-story.emb .st-x,#lld-story.emb .st-sp,#lld-story.emb .st-end,#lld-story.emb .st-mu{display:none!important}
+#lld-story.emb .st-top{padding:10px 12px 0}
+#lld-story.emb .st-stage{padding:30px 12px 18px}
+#lld-story.emb .st-in{zoom:.6}
+#lld-story.emb .st-zl,#lld-story.emb .st-zr{top:24px}
+#lld-story .emb-replay{display:none}
+#lld-story.emb .emb-replay{display:block;position:absolute;right:10px;bottom:8px;z-index:6;background:rgba(0,0,0,.45);border:none;color:#fff;font-weight:900;font-size:calc(10px * var(--ts,1));border-radius:999px;padding:5px 11px;cursor:pointer}
