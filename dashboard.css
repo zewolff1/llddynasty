@@ -3959,3 +3959,33 @@ body.hdr-s1 #lld-league-name, body.hdr-s2 #lld-league-name { font-size: calc(14p
 .lld-arena .a-time em{font-style:normal;font-size:calc(20px * var(--ts,1));font-weight:900;letter-spacing:.06em;color:#fde047;text-shadow:0 0 8px rgba(253,224,71,.5)}
 .lld-arena .a-time small{font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.18em;color:var(--text-dim)}
 .lld-arena .a-banner span{white-space:nowrap}
+
+/* r33: new team header (Banner / Compact) */
+#active-team-switcher-btn > div:nth-child(2){display:contents}
+body.th-banner #active-team-switcher-btn{flex-direction:column !important;align-items:center !important;text-align:center;gap:8px !important;background:linear-gradient(165deg,color-mix(in srgb,var(--accent-blue) 22%,transparent),transparent 70%);border-radius:14px}
+body.th-compact #active-team-switcher-btn{flex-wrap:wrap !important;gap:8px 12px !important}
+body.th-compact #switcher-team-name{flex:1;min-width:0}
+#team-info-panel-wrapper{flex:0 0 100%;width:100%;min-width:0}
+body:not(.lld-show-owner) #switcher-subtitle{display:none !important}
+.th{display:flex;flex-direction:column;gap:8px;width:100%}
+.th-top{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap}
+body.th-compact .th-top{justify-content:flex-start}
+.th-top .team-awards{margin:0}
+.th-aw{padding:5px 11px;border-radius:999px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.12);color:#fcd34d;font-weight:900;font-size:calc(11px * var(--ts,1));cursor:pointer}
+.th-lay{margin-left:auto;padding:4px 10px;border-radius:999px;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--text-dim);font-weight:800;font-size:calc(9px * var(--ts,1));letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.th-boxes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+.th-bx{background:rgba(0,0,0,.28);border:1px solid var(--card-border);border-radius:12px;padding:8px 6px;display:flex;flex-direction:column;gap:3px;align-items:center;text-align:center;color:#fff;font:inherit;min-width:0}
+.th-bx i{font-style:normal;font-size:calc(8px * var(--ts,1));letter-spacing:.12em;color:var(--text-dim);font-weight:800}
+.th-bx > b{font-size:calc(16px * var(--ts,1));font-weight:900;max-width:100%}
+.th-bx > span{font-size:calc(10px * var(--ts,1));color:var(--text-dim);font-weight:700}
+.th-opp{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;max-width:100%}
+.th-opp img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.th-opp b{font-size:calc(10.5px * var(--ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.th-pv{margin-top:2px;padding:4px 9px;border-radius:999px;border:1px solid var(--accent-teal);background:rgba(45,212,191,.14);color:#fff;font-weight:900;font-size:calc(9px * var(--ts,1));letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+button.th-sk{cursor:pointer}
+#th-sheet{position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+#th-sheet .th-sh{width:100%;max-width:480px;max-height:80vh;overflow:auto;background:var(--card-bg);border:1px solid var(--card-border);border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;color:#fff}
+#th-sheet h3{margin:0 0 4px;font-size:calc(13px * var(--ts,1));letter-spacing:.1em;text-transform:uppercase}
+#th-sheet .th-ar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--card-border);font-size:calc(13px * var(--ts,1))}
+#th-sheet .th-ar span{font-size:20px}#th-sheet .th-ar b{flex:1;min-width:0}#th-sheet .th-ar em{font-style:normal;color:var(--text-dim);font-size:.8em;margin-left:4px}#th-sheet .th-ar i{font-style:normal;font-weight:900;color:#fcd34d;font-size:calc(12px * var(--ts,1));text-align:right}
+#th-sheet .th-shx{align-self:flex-end;padding:7px 14px;border-radius:999px;border:1px solid var(--card-border);background:none;color:#fff;font-weight:800;cursor:pointer}
