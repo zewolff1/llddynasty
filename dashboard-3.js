@@ -18195,11 +18195,14 @@ async function lldTbSeekEvents() {
     const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTB_SUBJ);
     for (const t of th) {
         const posts = await lldChatLoadPosts(t.id);
-        posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); (by[f] = by[f] || []).push({ ms: p.ms, p: o.p || {} }); });
+        posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); (by[f] = by[f] || []).push({ ms: p.ms, p: o.p || {}, m: o.m || '' }); });
     }
+    out.modes = []; window._lldTbLatest = {};
     Object.keys(by).forEach(f => {
-        let prev = {};
+        let prev = {}, prevM = '';
         by[f].sort((a, b) => a.ms - b.ms).forEach(st => {
+            if (st.m !== prevM && (st.m === 'W' || st.m === 'R') && st.ms >= cutoff) out.modes.push({ fid: f, ms: st.ms, mode: st.m });
+            prevM = st.m; window._lldTbLatest[f] = st.p;
             const fresh = [];
             Object.keys(st.p).forEach(id => { const l = lldTbParseLabel(st.p[id]), q = lldTbParseLabel(prev[id]); if (l.s === 'S' && q.s !== 'S') fresh.push({ id, asks: l.a }); });
             if (fresh.length && st.ms >= cutoff) out.push({ fid: f, ms: st.ms, fresh });
@@ -18223,6 +18226,8 @@ async function lldChatLoadActivity() {
     const grab = x => String(x || '').split(/[|,]/).forEach(i => { const p = pid(i); if (p) ids.add(p); });
     tx.forEach(t => { grab(t.transaction); grab(t.franchise1_gave_up); grab(t.franchise2_gave_up); }); baits.forEach(b => { grab(b.willGiveUp); }); offers.forEach(o => { grab(o.will_give_up || o.willGiveUp); grab(o.will_receive || o.willReceive); });
     let seeks = []; try { seeks = await lldTbSeekEvents(); seeks.forEach(e => e.fresh.forEach(x => grab(x.id))); } catch (e) { console.warn('seek events', e); }
+    // only players labeled Seeking Trades count as on the block
+    baits.forEach(b => { const f = String(b.franchise_id || b.franchise || '').padStart(4, '0'), lt = (window._lldTbLatest || {})[f]; if (lt) b.willGiveUp = String(b.willGiveUp || '').split(',').filter(id => !(lt[id.trim()] && !/^S/.test(lt[id.trim()]))).join(','); });
     const info = {}; const idl = [...ids];
     const put = p => { const n = String(p.name || '').split(',').map(x => x.trim()); info[p.id] = { id: p.id, name: n.length > 1 ? n[1] + ' ' + n[0] : n[0], pos: p.position || '', team: p.team || '' }; };
     for (let i = 0; i < idl.length; i += 60) {
@@ -18279,6 +18284,7 @@ async function lldChatLoadActivity() {
         if (asks.length) it.note = 'Looking for: ' + asks.join(', ');
         items.push(it);
     });
+    (seeks.modes || []).forEach(e => { items.push({ kind: 'tx', ms: e.ms, fid: e.fid, label: 'Team outlook', color: e.mode === 'W' ? '#ef4444' : '#a78bfa', mode: e.mode, cols: [], note: e.mode === 'W' ? 'All in. Going for it this season' : 'Sellers. Rebuilding and collecting youth and picks' }); });
     // fix up the trade columns: label each side with who sent it
     items.forEach(it => { if (it.label === 'Trade' || it.offer) { if (it.offer) { it.cols[0].label = 'Offered by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Offered by ' + (leagueFranchises[it.fid2] || it.fid2); } else { it.cols[0].label = 'Traded by ' + (leagueFranchises[it.fid] || it.fid); it.cols[1].label = 'Traded by ' + (leagueFranchises[it.fid2] || it.fid2); } } });
     // message board threads sit in the same feed
@@ -18286,7 +18292,7 @@ async function lldChatLoadActivity() {
     threads.slice(0, 25).forEach(t => { if (t.ms) items.push({ kind: 'post', ms: t.ms, id: t.id, subject: t.subject, fid: t.lastFid || t.fid, preview: t.preview, replies: t.replies }); });
     try { (await lldDigestItems()).forEach(d => items.push(d)); } catch (e) { console.warn('digests', e); }
     items.sort((a, b) => a.ms - b.ms);
-    const block = baits.map(b => ({ fid: String(b.franchise_id || b.franchise || '').padStart(4, '0'), give: strOf(b.willGiveUp), want: String(b.inExchangeFor || '').replace(/^\s*$/, '') })).filter(b => b.fid && b.fid !== '0000');
+    const block = baits.map(b => ({ fid: String(b.franchise_id || b.franchise || '').padStart(4, '0'), give: strOf(b.willGiveUp), want: String(b.inExchangeFor || '').replace(/^\s*$/, '') })).filter(b => b.fid && b.fid !== '0000' && (b.give || b.want));
     return { items, block };
 }
 
@@ -18405,6 +18411,10 @@ function lldChatTweetHtml(it, ctx) {
         const acts = it.tid && (it.incoming || it.mine) ? `<div class="cm-acts tw-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : '';
         return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">Trade offer on the table: ${A} would send ${lldChatEsc(lldTwEnts(it.cols[0].ents))} to ${B} for ${lldChatEsc(lldTwEnts(it.cols[1].ents))}.</div>` + chips(sides) + (it.note ? `<div class="tw-q">“${lldChatEsc(it.note)}”</div>` : '') + acts);
     }
+    if (it.label === 'Team outlook') {
+        const r = lldTwRep('block');
+        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">${it.mode === 'W' ? `Sources say ${A} are ALL IN this season and looking to win now.` : `Sources say ${A} are SELLERS and open to moving veterans.`} <span class="tw-tg">${it.mode === 'W' ? '#AllIn' : '#Sellers'}</span></div>`);
+    }
     if (it.label === 'Seeking trades') {
         const r = lldTwRep('block');
         return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">Hearing ${A} are shopping ${lldChatEsc(lldTwEnts(it.cols[0].ents))}. ${it.note ? lldChatEsc(it.note) + '.' : 'Phone lines are open.'} <span class="tw-tg">#TradeBlock</span></div>` + chips(sides));
@@ -18423,7 +18433,7 @@ function lldChatPaperHtml(items, block, ctx) {
     const nm = f => lldChatEsc(ctx.nm(f)), cl = ms => lldChatEsc(lldChatDay(ms, ctx.now) + ', ' + lldChatClock(ms));
     const news = items.slice().sort((a, b) => b.ms - a.ms);
     const trades = news.filter(i => i.kind === 'tx' && i.label === 'Trade'), offers = news.filter(i => i.kind === 'tx' && i.offer), seeks = news.filter(i => i.kind === 'tx' && i.label === 'Seeking trades');
-    const moves = news.filter(i => i.kind === 'tx' && !i.offer && i.label !== 'Trade' && i.label !== 'Seeking trades'), posts = news.filter(i => i.kind === 'post'), digs = news.filter(i => i.kind === 'digest');
+    const moves = news.filter(i => i.kind === 'tx' && !i.offer && i.label !== 'Trade' && i.label !== 'Seeking trades' && i.label !== 'Team outlook'), outs = news.filter(i => i.label === 'Team outlook'), posts = news.filter(i => i.kind === 'post'), digs = news.filter(i => i.kind === 'digest');
     const d = new Date(), date = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
     let h = lldChatViewBar() + `<div class="pp"><div class="pp-mast"><div class="pp-k">Late edition</div><h1>The Dynasty Gazette</h1><div class="pp-tag"><span>${lldChatEsc(String(year))} season</span><span>${lldChatEsc(date)}</span><span>Price: one pick</span></div></div>`;
     const lead = trades[0];
@@ -18431,10 +18441,12 @@ function lldChatPaperHtml(items, block, ctx) {
         const a = lead.cols[0].ents, b = lead.cols[1].ents;
         h += `<div class="pp-lead"><div class="pp-k">Trade wire · Breaking</div><h2>${nm(lead.fid)} and ${nm(lead.fid2)} Swap Players in Trade</h2><div class="pp-by">By our trade desk · ${cl(lead.ms)}</div><div class="pp-xch"><div><b>${nm(lead.fid)} send</b>${lldPaperEnts(a)}</div><div class="m">⇄</div><div><b>${nm(lead.fid2)} send</b>${lldPaperEnts(b)}</div></div></div>`;
     } else h += `<div class="pp-lead"><div class="pp-k">Quiet on the wire</div><h2>No Trades to Report</h2><div class="pp-by">The trade desk is waiting on a deal.</div></div>`;
-    if (offers.length || seeks.length || trades.length > 1) {
+    if (offers.length || seeks.length || outs.length || trades.length > 1) {
+        // (outlook notes are added below with the other late items)
         h += `<div class="pp-sec">Late Items</div>`;
         offers.forEach(o => { h += `<div class="pp-br"><b>Pending offer.</b> ${nm(o.fid)} propose ${lldPaperEnts(o.cols[0].ents)} to ${nm(o.fid2)} for ${lldPaperEnts(o.cols[1].ents)}. <i>${cl(o.ms)}</i>${o.tid && (o.incoming || o.mine) ? `<div class="cm-acts pp-acts" data-tid="${lldChatEsc(o.tid)}" data-fid="${lldChatEsc(o.fid)}" data-give="${lldChatEsc((o.giveIds || []).join(','))}" data-recv="${lldChatEsc((o.recvIds || []).join(','))}">${o.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}</div>`; });
         trades.slice(1, 6).forEach(t => { h += `<div class="pp-br"><b>Trade completed.</b> ${nm(t.fid)} send ${lldPaperEnts(t.cols[0].ents)} to ${nm(t.fid2)} for ${lldPaperEnts(t.cols[1].ents)}. <i>${cl(t.ms)}</i></div>`; });
+        outs.slice(0, 6).forEach(t => { h += `<div class="pp-br"><b>${nm(t.fid)} ${t.mode === 'W' ? 'go all in' : 'turn sellers'}.</b> ${lldChatEsc(t.note)}. <i>${cl(t.ms)}</i></div>`; });
         seeks.slice(0, 6).forEach(t => { h += `<div class="pp-br"><b>${nm(t.fid)} shop ${lldPaperEnts(t.cols[0].ents)}.</b> ${t.note ? lldChatEsc(t.note) + '.' : ''} <i>${cl(t.ms)}</i></div>`; });
     }
     if (digs.length) {
@@ -18616,7 +18628,7 @@ async function lldTbSave(m, p) {
     try {
         const bait = (await lldTbBaits())[String(myFid).padStart(4, '0')] || { give: [] };
         const keep = bait.give.filter(x => !/^\d+$/.test(x)); // draft picks stay as they were
-        const give = Object.keys(p).filter(id => /^[SW]/.test(p[id]));
+        const give = Object.keys(p).filter(id => /^S/.test(p[id]));
         const asks = []; Object.keys(p).forEach(id => { const l = lldTbParseLabel(p[id]); if (l.s === 'S') l.a.forEach(a => { const t = lldTbAskText(a); if (asks.indexOf(t) < 0) asks.push(t); }); });
         const q = new URLSearchParams(); q.set('TYPE', 'tradeBait'); q.set('L', lid); q.set('WILL_GIVE_UP', give.concat(keep).join(','));
         const want = asks.length ? 'Seeking: ' + asks.join(', ') : ''; if (want) q.set('IN_EXCHANGE_FOR', want.slice(0, 250));
@@ -18722,7 +18734,7 @@ function lldTbLabels(d, f) {
     // saved labels, plus anyone already on that team's MFL block who has no label yet counts as Willing
     const out = {}; const sv = (d.tb.by[f] || {}).p || {};
     Object.keys(sv).forEach(id => { out[id] = sv[id]; });
-    ((d.baits[f] || {}).give || []).forEach(id => { if (/^\d+$/.test(id) && !out[id] && (d.rosters[f] || []).indexOf(id) >= 0) out[id] = 'W'; });
+    ((d.baits[f] || {}).give || []).forEach(id => { if (/^\d+$/.test(id) && !out[id] && (d.rosters[f] || []).indexOf(id) >= 0) out[id] = 'S'; });
     return out;
 }
 function lldTbRow(x, st, asks, edit, open, extra) {
@@ -18761,20 +18773,20 @@ function lldTbDraw() {
         h += `<div class="tb-fl">${pos.map(p => `<button type="button" data-tbpos="${p}" class="${X.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
         const order = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'PK'];
         const list = X.mineInfo.filter(x => X.pos === 'ALL' || x.pos === X.pos).sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || (parseInt(a.rk.split('#')[1], 10) || 999) - (parseInt(b.rk.split('#')[1], 10) || 999));
-        list.forEach(x => { const l = lldTbParseLabel(dr.p[x.pid]); h += lldTbRow(x, dr.p[x.pid] ? l.s : '', l.a, true, X.open === x.pid, (l.s === 'S' || l.s === 'W') ? lldTiPanel(D, x.pid, D.me) : ''); });
+        list.forEach(x => { const l = lldTbParseLabel(dr.p[x.pid]); h += lldTbRow(x, dr.p[x.pid] ? l.s : '', l.a, true, X.open === x.pid, l.s === 'S' ? lldTiPanel(D, x.pid, D.me) : ''); });
         if (!list.length) h += '<div class="tb-sub" style="text-align:center;padding:16px">No players here.</div>';
         h += `<div class="tb-save ${X.dirty ? 'show' : ''}"><span>${X.saving ? 'Saving…' : 'Unsaved changes'}</span><button type="button" class="tb-savebtn" ${X.saving ? 'disabled' : ''}>Save</button></div>`;
     } else {
         const fids = Object.keys(leagueFranchises).filter(f => f).sort();
         let any = false;
         fids.forEach(f => {
-            const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => /^[SWUN]/.test(lab[id]));
+            const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => f === D.me ? /^[SWUN]/.test(lab[id]) : /^S/.test(lab[id]));
             const mdl = f === D.me ? dr.m : (D.tb.by[f] || {}).m, M = LLDTB_MODES[mdl], rc = D.recOf(f);
             if (!ids.length && !M) return; any = true;
             h += `<div class="tb-team"><div class="tb-th"><span class="tb-tn">${e(leagueFranchises[f] || f)}${f === D.me ? ' (you)' : ''}${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' · ' + rc.po + '% playoffs · ' : ''}${ids.length} labeled</span></div>`;
             ['S', 'W', 'U', 'N'].forEach(k => {
                 const g = ids.filter(id => lldTbParseLabel(lab[id]).s === k); if (!g.length) return;
-                h += `<div class="tb-grp" style="--c:${LLDTB_ST[k][1]}"><div class="tb-gl">${LLDTB_ST[k][0]}</div>${g.map(id => { const l = lldTbParseLabel(lab[id]); return lldTbRow(D.info(id), k, l.a, false, false, (k === 'S' || k === 'W') ? lldTiPanel(D, id, f) : ''); }).join('')}</div>`;
+                h += `<div class="tb-grp" style="--c:${LLDTB_ST[k][1]}"><div class="tb-gl">${LLDTB_ST[k][0]}</div>${g.map(id => { const l = lldTbParseLabel(lab[id]); return lldTbRow(D.info(id), k, l.a, false, false, k === 'S' ? lldTiPanel(D, id, f) : ''); }).join('')}</div>`;
             });
             h += '</div>';
         });
