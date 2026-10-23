@@ -3989,3 +3989,15 @@ button.th-sk{cursor:pointer}
 #th-sheet .th-ar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--card-border);font-size:calc(13px * var(--ts,1))}
 #th-sheet .th-ar span{font-size:20px}#th-sheet .th-ar b{flex:1;min-width:0}#th-sheet .th-ar em{font-style:normal;color:var(--text-dim);font-size:.8em;margin-left:4px}#th-sheet .th-ar i{font-style:normal;font-weight:900;color:#fcd34d;font-size:calc(12px * var(--ts,1));text-align:right}
 #th-sheet .th-shx{align-self:flex-end;padding:7px 14px;border-radius:999px;border:1px solid var(--card-border);background:none;color:#fff;font-weight:800;cursor:pointer}
+
+/* r34: smaller banner, condenses on scroll, tappable boxes */
+body.th-banner #active-team-switcher-btn{padding:10px 12px !important;gap:4px !important}
+body.th-banner #active-team-switcher-btn > div:first-child > img{width:44px !important;height:44px !important}
+body.th-banner .th{gap:6px}
+body.th-banner .th-bx{padding:6px 4px;gap:2px;border-radius:10px}
+body.th-banner .th-bx > b{font-size:calc(15px * var(--ts,1))}
+.th-bx{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.th-pv{pointer-events:none}
+.th-vo{margin-top:4px;text-align:center;white-space:nowrap;font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+body.hdr-s1 .th-vo,body.hdr-s2 .th-vo,body.hdr-s1 #team-info-panel-wrapper,body.hdr-s2 #team-info-panel-wrapper{display:none !important}
+body.hdr-s1 #active-team-switcher-btn,body.hdr-s2 #active-team-switcher-btn{flex-direction:row !important;flex-wrap:nowrap !important;background:none}
