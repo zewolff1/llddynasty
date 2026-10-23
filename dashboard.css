@@ -4018,3 +4018,34 @@ body.hdr-s1 #active-team-switcher-btn,body.hdr-s2 #active-team-switcher-btn{flex
 #lld-story.emb .st-zl,#lld-story.emb .st-zr{top:24px}
 #lld-story .emb-replay{display:none}
 #lld-story.emb .emb-replay{display:block;position:absolute;right:10px;bottom:8px;z-index:6;background:rgba(0,0,0,.45);border:none;color:#fff;font-weight:900;font-size:calc(10px * var(--ts,1));border-radius:999px;padding:5px 11px;cursor:pointer}
+
+/* r41: smooth header condense (View Transitions), section icons removed */
+.app-header{view-transition-name:lldhdr}
+::view-transition-group(lldhdr){animation-duration:.4s;animation-timing-function:cubic-bezier(.3,.85,.25,1)}
+::view-transition-old(lldhdr),::view-transition-new(lldhdr){height:100%;object-fit:cover;object-position:top}
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+.header-icon-svg{display:none !important}
+
+/* r42: row watermark behind the headshot + locked rows for players who have played */
+.row-wm{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;z-index:-1}
+.row-wm img{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:108px;height:108px;object-fit:contain;opacity:.17}
+.player-row.lld-played{box-shadow:inset 3px 0 0 var(--ps,#94a3b8) !important;background:color-mix(in srgb,var(--ps,#94a3b8) 10%,rgba(0,0,0,.22)) !important;opacity:1 !important;filter:none !important}
+.player-row.lld-live{background:color-mix(in srgb,var(--ps) 14%,rgba(0,0,0,.22)) !important}
+.lld-played .move-handle-btn{border-style:dashed !important;opacity:.55;cursor:not-allowed}
+.lld-played .pos-open-menu{cursor:default !important}
+.lld-played .proj-popup-trigger,.lld-played .matchup-stack,.lld-played .matchup-compact,.lld-played .live-status-chip{display:none !important}
+.lld-ppill{display:inline-flex;align-items:center;gap:5px;margin-top:2px;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);font-size:calc(10px * var(--ts,1));font-weight:800;color:#fff;white-space:nowrap;width:max-content;max-width:100%}
+.lld-ppill img{width:14px;height:14px;object-fit:contain}.lld-ppill img.o{width:12px;height:12px;opacity:.85}
+.lld-pscore{margin-left:auto;flex:none;text-align:right;display:flex;flex-direction:column;gap:2px;padding-left:8px}
+.lld-pscore b{font-size:calc(17px * var(--ts,1));font-weight:900;font-variant-numeric:tabular-nums}
+.lld-pscore i{font-style:normal;font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
+
+/* r43: beta gating. Everyone else keeps the small logo in the photo circle */
+.row-wm{display:none}
+body.lld-wm .row-wm{display:block}
+body.lld-wm .row-tiny{display:none}
+body.lld-wm .player-row{position:relative;isolation:isolate}
+body.lld-wm-1 .row-wm img{opacity:.1}
+body.lld-wm-2 .row-wm img{opacity:.17}
+body.lld-wm-3 .row-wm img{opacity:.3}
+body.lld-posmenu .pos-open-menu{cursor:pointer}
