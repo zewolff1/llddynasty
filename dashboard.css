@@ -3942,3 +3942,9 @@ body.hdr-s1 #lld-league-name, body.hdr-s2 #lld-league-name { font-size: calc(14p
 
 /* r28: ticker logos */
 #lld-ticker .tk-lg{height:17px;width:17px;border-radius:50%;object-fit:cover;vertical-align:middle;margin:0 2px 1px;background:rgba(255,255,255,.15)}
+
+/* r29 */
+.pos-group-header .toggle-icon,#toggle-all-groups-btn{display:none!important}
+.pos-group-header{cursor:default!important}
+.pos-group-wrapper.is-minimized .pos-group-content{display:block!important}
+#lld-hdr-pv{align-self:flex-start;margin-top:6px;padding:5px 12px;border-radius:999px;border:1px solid var(--accent-blue);background:color-mix(in srgb,var(--accent-blue) 18%,transparent);color:#fff;font-weight:900;font-size:calc(10px * var(--ts,1));letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
