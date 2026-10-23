@@ -361,7 +361,7 @@ function lldChatFeedHtml(items, block, ctx) {
         const day = lldChatDay(it.ms, ctx.now);
         if (day !== lastDay) { out += `<div class="cm-day"><span>${lldChatEsc(day)}</span></div>`; lastDay = day; }
         if (ctx.seen && !newShown && it.ms > ctx.seen) { newShown = true; out += `<div class="cm-new"><span>New since your last visit</span></div>`; }
-        out += it.kind === 'post' ? lldChatPostHtml(it, ctx) : it.kind === 'digest' ? lldChatDigestHtml(it) : lldChatTxHtml(it, ctx);
+        out += (it.kind === 'post' ? lldChatPostHtml(it, ctx) : it.kind === 'digest' ? lldChatDigestHtml(it) : lldChatTxHtml(it, ctx)) + lldSeenRow(it, ctx);
     });
     return out;
 }
@@ -1049,7 +1049,7 @@ function lldSyncSbButtons() {
     document.querySelectorAll('.lld-sbtint-btn').forEach(b => b.classList.toggle('on', tint));
 }
 function lldApplySb(v) {
-    const ok = ['default', 'cbs', 'nbc', 'espn', 'fox'].concat(LLD_SB_LAYOUTS.map(x => x[0]));
+    const ok = ['default'].concat(LLD_SB_LAYOUTS.map(x => x[0]));
     lldSet('lld_sb', ok.indexOf(v) >= 0 ? v : 'theme');
     lldSyncSbButtons();
     lldRefreshScoreboard();
@@ -14110,8 +14110,6 @@ function lldSbKind(sty) {
 function buildScoreHeaderHtml3(o) {
     const sty = lldEffStyle();
     const sbv = lldGet('lld_sb', 'theme');
-    if (['cbs', 'nbc', 'espn', 'fox'].indexOf(sbv) >= 0 && !document.getElementById('lld-bug-font')) { const l = document.createElement('link'); l.id = 'lld-bug-font'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&display=swap'; document.head.appendChild(l); }
-    if (['cbs', 'nbc', 'espn', 'fox'].indexOf(sbv) >= 0) return lldScoreboardThemed(o, sty, sbv);
     if (LLD_SB_LAYOUTS.some(x => x[0] === sbv)) {
         // any layout, whatever the theme: load its fonts, optionally tint it with the current theme's colors
         if (!document.getElementById('lld-sb-fonts')) { const l = document.createElement('link'); l.id = 'lld-sb-fonts'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Share+Tech+Mono&family=Anton&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lilita+One&family=Fredoka:wght@500;600;700&family=Press+Start+2P&family=Barlow+Condensed:wght@600;700&family=Orbitron:wght@700&display=swap'; document.head.appendChild(l); }
@@ -14194,9 +14192,12 @@ function lldScoreboardThemed(o, sty, kind) {
     }
     const wk = window._liveScoreActiveWeek || '';
     const side = (t, tc, win, proj, yts, cls) => `<div class="a-side ${cls} ${win ? 'win' : ''}" style="--tc:${tc}"><img class="a-logo" src="${esc(t.logo)}" onerror="this.style.visibility='hidden'"><div class="a-name">${esc(t.name || '')}</div><div class="a-pts led">${t.score.toFixed(2)}</div><div class="a-pr led">${px(proj)} PROJ</div><small class="a-yts">${esc(yts || '')}</small></div>`;
+    const gs = [].concat(t1.roster || [], t2.roster || []).filter(p => p.isStarter && p.gsr != null && !isNaN(p.gsr)).map(p => p.gsr);
+    let clk = '', clkLbl = '';
+    if (gs.length) { const mx = Math.max.apply(null, gs); if (mx <= 0) { clk = 'FINAL'; } else { clk = Math.floor(mx / 60) + ':' + String(mx % 60).padStart(2, '0'); clkLbl = mx >= 3600 && gs.every(g => g >= 3600) ? 'TO PLAY' : 'LEFT'; } }
     const segs = 20, onA = Math.round(a / 100 * segs);
     const meter = Array.from({ length: segs }, (_, i) => `<i style="background:${i < onA ? tc1 : tc2}"></i>`).join('');
-    return nav(`<div class="lld-arena"><div class="a-truss">${Array.from({ length: 8 }, () => '<b></b>').join('')}</div><div class="a-frame"><div class="a-banner"><span>${esc(LLD.leagueName || 'STADIUM')}</span><span>${wk ? 'WEEK ' + esc(wk) : 'LIVE'}</span></div><div class="a-board"><div class="a-split">${side(t1, tc1, t1.score > t2.score, t1Proj, yts1, 'l')}<div class="a-vs"><span>VS</span></div>${side(t2, tc2, t2.score > t1.score, t2Proj, yts2, 'r')}</div><div class="a-meter"><span>${a}%</span><div class="a-segs">${meter}</div><span>${b}%</span></div></div></div><div class="a-posts"><i></i><i></i></div></div>`);
+    return nav(`<div class="lld-arena"><div class="a-truss">${Array.from({ length: 8 }, () => '<b></b>').join('')}</div><div class="a-frame"><div class="a-banner"><span>${esc(LLD.leagueName || 'STADIUM')}</span><span>${wk ? 'WEEK ' + esc(wk) : 'LIVE'}</span></div><div class="a-board"><div class="a-split">${side(t1, tc1, t1.score > t2.score, t1Proj, yts1, 'l')}<div class="a-vs"><span>VS</span></div>${side(t2, tc2, t2.score > t1.score, t2Proj, yts2, 'r')}</div>${clk ? `<div class="a-time"><small>TIME</small><em class="led">${clk}</em>${clkLbl ? `<small>${clkLbl}</small>` : ''}</div>` : ''}<div class="a-meter"><span>${a}%</span><div class="a-segs">${meter}</div><span>${b}%</span></div></div></div><div class="a-posts"><i></i><i></i></div></div>`);
 }
 window.lldScoreboardThemed = lldScoreboardThemed;
 window.buildPairedRosterHtml = function () { return buildPairedRosterHtml.apply(null, arguments); };
@@ -14497,7 +14498,7 @@ function buildLiveNowHtml(t1, t2, pm) {
     const total = l1.length + l2.length;
     const sbCur = lldGet('lld_sb', 'theme'), sbOpen = lldGet('lld_sbopen', '') === '1';
     const sbChip = (v, l) => `<button type="button" class="lld-sb-btn lld-sbchip ${sbCur === v ? 'on' : ''}" data-v="${v}">${l}</button>`;
-    const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}${sbChip('cbs', 'CBS')}${sbChip('nbc', 'NBC')}${sbChip('espn', 'ESPN')}${sbChip('fox', 'Fox')}</div><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${LLD_SB_LAYOUTS.map(x => sbChip(x[0], x[1])).join('')}<button type="button" class="lld-sbtint-btn lld-sbchip ${lldGet('lld_sbtint', '') === '1' ? 'on' : ''}">Theme colors</button></div></div>`;
+    const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}</div><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${LLD_SB_LAYOUTS.map(x => sbChip(x[0], x[1])).join('')}<button type="button" class="lld-sbtint-btn lld-sbchip ${lldGet('lld_sbtint', '') === '1' ? 'on' : ''}">Theme colors</button></div></div>`;
     return `<div id="live-now-strip" style="margin:0 0 12px;">
         ${sbBar}
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
@@ -18088,7 +18089,7 @@ function lldChatCtx() {
     return { seen: window._lldChatPrevSeen || 0, nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, nfl: t => getNFLLogoUrl(String(t).toUpperCase()), me: myFid, now: Date.now() };
 }
 function lldChatOpenUrl() { return `${MFL_ORIGIN}/${year}/message_board?L=${lid}`; }
-async function lldChatLoadThreads() { return (await lldChatLoadThreadsRaw()).filter(t => t.subject !== LLDTB_SUBJ && t.subject !== LLDTI_SUBJ); } // the trade block's data threads stay out of the chat
+async function lldChatLoadThreads() { return (await lldChatLoadThreadsRaw()).filter(t => t.subject !== LLDTB_SUBJ && t.subject !== LLDTI_SUBJ && t.subject !== LLDSN_SUBJ); } // the trade block's data threads stay out of the chat
 async function lldChatLoadThreadsRaw() {
     await lldEnsureFranchiseNames();
     const j = await lldChatJson('TYPE=messageBoard');
@@ -18385,11 +18386,42 @@ function lldChatPaperHtml(items, block, ctx) {
 }
 function lldChatTweetsHtml(items, block, ctx) {
     if (!items.length) return lldChatViewBar() + '<div class="cm-empty">No recent activity.</div>';
-    return lldChatViewBar() + items.slice().sort((a, b) => b.ms - a.ms).slice(0, 60).map(it => lldChatTweetHtml(it, ctx)).join('');
+    return lldChatViewBar() + items.slice().sort((a, b) => b.ms - a.ms).slice(0, 60).map(it => lldChatTweetHtml(it, ctx) + lldSeenRow(it, ctx)).join('');
 }
 $(document).on('click', '#lld-chat .cm-vw', function () { lldSet('lld_chatview', this.dataset.v); $('.lld-cv-btn').each(function () { $(this).toggleClass('on', this.dataset.v === lldChatView()); }); lldChatShowList(); });
 $(document).on('click touchend', '.player-modal-trigger', function () { window._lldPropOwner = $(this).data('owner') ? String($(this).data('owner')).padStart(4, '0') : ''; });
 $(document).on('click', '.lld-cv-btn', function () { lldSet('lld_chatview', this.dataset.v); $('.lld-cv-btn').each(function () { $(this).toggleClass('on', this.dataset.v === lldChatView()); }); if ($('#lld-chat').hasClass('open')) lldChatShowList(); });
+
+// ===== read receipts: when each team last opened the dashboard/chat, shown as logos under the last message they could have seen =====
+const LLDSN_SUBJ = '[LLD-DATA] Seen';
+async function lldSeenLoad() {
+    if (window._lldSeen && Date.now() - window._lldSeen.t < 60000) return window._lldSeen.m;
+    const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDSN_SUBJ), m = {};
+    for (const t of th) { (await lldChatLoadPosts(t.id)).forEach(p => { if (!/LLDSN1:/.test(String(p.text || ''))) return; const f = String(p.fid).padStart(4, '0'); if (!m[f] || p.ms > m[f]) m[f] = p.ms; }); }
+    window._lldSeen = { t: Date.now(), m, tid: th.length ? th[th.length - 1].id : null }; return m;
+}
+async function lldSeenPost(minGapMs) {
+    const last = parseInt(lldGet('lld_seen_post', '0'), 10) || 0; if (Date.now() - last < minGapMs) return;
+    lldSet('lld_seen_post', String(Date.now()));
+    try {
+        const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDSN_SUBJ), tid = th.length ? th[th.length - 1].id : null;
+        await lldChatPost('LLDSN1:' + Date.now(), tid, LLDSN_SUBJ); window._lldSeen = null; window._lldChatAct = null;
+    } catch (e) { console.warn('seen', e); }
+}
+setTimeout(() => lldSeenPost(2 * 3600 * 1000), 6000); // opening the dashboard counts as a visit
+function lldSeenAssign(items, m) {
+    items.forEach(it => { it._seen = []; });
+    const sorted = items.slice().sort((a, b) => a.ms - b.ms);
+    Object.keys(m).forEach(f => {
+        if (f === myFid) return; let hit = null; for (const it of sorted) { if (it.ms <= m[f] + 60000) hit = it; else break; }
+        if (hit) hit._seen.push(f);
+    });
+}
+function lldSeenRow(it, ctx) {
+    if (!it._seen || !it._seen.length) return '';
+    const m = (window._lldSeen && window._lldSeen.m) || {};
+    return `<div class="cm-seen"><span>Seen by</span>${it._seen.map(f => `<img src="${lldChatEsc(ctx.av(f))}" title="${lldChatEsc(ctx.nm(f))} · ${lldChatEsc(new Date(m[f]).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}" onerror="this.style.display='none'">`).join('')}</div>`;
+}
 async function lldChatShowList() {
     const box = lldChatMount();
     $('#lld-chat').addClass('open');
@@ -18397,10 +18429,12 @@ async function lldChatShowList() {
     window._lldChatPrevSeen = lldChatSeenGet();
     let a; try { a = (window._lldChatAct && Date.now() - window._lldChatAct.t < 45000) ? window._lldChatAct.a : await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a }; } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
     lldChatSeenSet(); window._lldChatNewOther = 0; const inc = a.items.filter(it => it.offer && it.incoming).map(it => it.tid); lldChatOfferSeenSet(lldChatOfferSeenGet().concat(inc, window._lldChatOfferIds || [])); window._lldChatOffers = 0; lldChatBadgeUpdate();
+    try { lldSeenAssign(a.items, await lldSeenLoad()); } catch (e) { console.warn('seen load', e); }
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
     const cv = lldChatView(), feedV = cv !== 'classic';
     box.html(lldChatShellHtml('League Chat', false, note || (cv === 'paper' ? lldChatPaperHtml(a.items, a.block, lldChatCtx()) : cv === 'feed' ? lldChatTweetsHtml(a.items, a.block, lldChatCtx()) : lldChatViewBar() + lldChatFeedHtml(a.items, a.block, lldChatCtx())), lldChatOpenUrl()));
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = feedV ? 0 : b.scrollHeight;
+    lldSeenPost(10 * 60 * 1000);
 }
 async function lldChatShowThread(id) {
     const box = lldChatMount();
