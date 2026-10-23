@@ -1745,6 +1745,38 @@ function refreshTeamInfoPanel() {
     $('#team-info-panel-wrapper').html(buildTeamInfoPanel(fid));
 }
 
+
+function lldHdrLayout() { return lldGet('lld_thl', 'banner') === 'compact' ? 'compact' : 'banner'; }
+function lldHdrLayoutApply() {
+    document.body.classList.toggle('th-banner', lldHdrLayout() === 'banner'); document.body.classList.toggle('th-compact', lldHdrLayout() === 'compact');
+    document.body.classList.toggle('lld-show-owner', lldGet('lld_owner', '0') === '1');
+    document.querySelectorAll('.lld-thl-btn').forEach(b => b.classList.toggle('on', b.dataset.v === lldHdrLayout()));
+    document.querySelectorAll('.lld-own-btn').forEach(b => b.classList.toggle('on', b.dataset.v === (lldGet('lld_owner', '0') === '1' ? 'on' : 'off')));
+}
+document.addEventListener('DOMContentLoaded', lldHdrLayoutApply); setTimeout(lldHdrLayoutApply, 0);
+$(document).on('click', '.th-lay', function (e) { e.stopPropagation(); lldSet('lld_thl', lldHdrLayout() === 'banner' ? 'compact' : 'banner'); lldHdrLayoutApply(); refreshTeamInfoPanel(); });
+$(document).on('click', '.lld-thl-btn', function () { lldSet('lld_thl', this.dataset.v); lldHdrLayoutApply(); refreshTeamInfoPanel(); });
+$(document).on('click', '.lld-own-btn', function () { lldSet('lld_owner', this.dataset.v === 'on' ? '1' : '0'); lldHdrLayoutApply(); });
+function lldThSheet(title, body) {
+    $('#th-sheet').remove();
+    $('body').append(`<div id="th-sheet"><div class="th-sh"><h3>${title}</h3>${body}<button type="button" class="th-shx">Close</button></div></div>`);
+}
+$(document).on('click', '#th-sheet', function (e) { if (e.target.id === 'th-sheet' || $(e.target).hasClass('th-shx')) $('#th-sheet').remove(); });
+$(document).on('click', '.th-aw', function (e) {
+    e.stopPropagation(); const f = String(this.dataset.fid), POS = ['high', 'potw', 'blowout', 'gutsy', 'sunday', 'upset'], counts = {};
+    (window._recapEventsFull || []).filter(x => x.fid === f && POS.indexOf(x.type) >= 0).forEach(x => { counts[x.type] = (counts[x.type] || 0) + 1; });
+    const rows = RECAP_AWARDS.filter(a => counts[a.key]).map(a => `<div class="th-ar"><span>${RECAP_ICONS[a.key] || ''}</span><b>${a.title}</b><i>×${counts[a.key]}</i></div>`).join('');
+    lldThSheet(`${lldChatEsc(leagueFranchises[f] || f)} · this season`, rows || '<div class="th-ar">No awards yet.</div>');
+});
+$(document).on('click', '.th-sk', async function (e) {
+    e.stopPropagation(); const f = String(this.dataset.fid);
+    lldThSheet('Seeking trades', '<div class="th-ar">Loading…</div>');
+    try {
+        const D = await lldTbData(), lab = lldTbLabels(D, f), ids = Object.keys(lab).filter(id => /^S/.test(lab[id]) && (D.rosters[f] || []).indexOf(id) >= 0);
+        const rows = ids.map(id => { const x = D.info(id), l = lldTbParseLabel(lab[id]); return `<div class="th-ar"><span>🔍</span><b>${lldChatEsc(x.name)} <em>${lldChatEsc(x.pos || '')}</em></b><i>${l.a.length ? 'Wants ' + lldChatEsc(l.a.map(lldTbAskText).join(' or ')) : 'Open to offers'}</i></div>`; }).join('');
+        lldThSheet(`${lldChatEsc(leagueFranchises[f] || f)} · seeking trades`, rows || '<div class="th-ar">Nobody is listed as seeking trades.</div>');
+    } catch (err) { lldThSheet('Seeking trades', '<div class="th-ar">Could not load.</div>'); }
+});
 function buildTeamInfoPanel(targetFid) {
     targetFid = String(targetFid).padStart(4, '0');
     const isOffseason = localStorage.getItem(`fa_mode_${lid}`) !== 'false';
@@ -1792,19 +1824,27 @@ function buildTeamInfoPanel(targetFid) {
         awardsHtml = `<div class="team-awards">${trophyChips}${solo}</div>`;
     }
 
-     const wkAwardsHtml = buildWeeklyAwardChips(targetFid);
-    if (wkAwardsHtml) awardsHtml = awardsHtml ? awardsHtml.replace(/<\/div>$/, wkAwardsHtml + '</div>') : `<div class="team-awards">${wkAwardsHtml}</div>`;
+    buildWeeklyAwardChips(targetFid); // starts loading this season's award events if they aren't in yet
+    const POS_AW = ['high', 'potw', 'blowout', 'gutsy', 'sunday', 'upset'];
+    let awN = 0;
+    if (window._recapEventsFull) window._recapEventsFull.filter(e => e.fid === targetFid && POS_AW.indexOf(e.type) >= 0).forEach(() => { awN++; });
+    const awBadge = awN ? `<button type="button" class="th-aw" data-fid="${targetFid}">🏅 ${awN} award${awN === 1 ? '' : 's'}</button>` : '';
 
     const nx = window._nextOpp?.[targetFid];
-    let nextHtml = '';
+    let oppBox;
     if (nx && nx.opps.length) {
-        const names = nx.opps.map(id =>
-            `<img class="team-next-logo" src="${getFranchiseLogoUrl(id)}" onerror="this.style.display='none'"><span data-team-style="${id}">${leagueFranchises[id] || id}</span>`
-        ).join('<em>&amp;</em>');
-        nextHtml = `<div class="team-next"><i>NEXT · WK ${nx.week}</i>${names}</div>`;
-    }
+        const o = nx.opps[0];
+        oppBox = `<div class="th-bx"><i>WEEK ${nx.week} VS</i><div class="th-opp"><img src="${getFranchiseLogoUrl(o)}" onerror="this.style.display='none'"><b data-team-style="${o}">${leagueFranchises[o] || o}</b></div><button type="button" id="lld-hdr-pv" class="th-pv">▶ Preview</button></div>`;
+    } else oppBox = `<div class="th-bx"><i>NEXT</i><b>—</b><span>No game scheduled</span></div>`;
 
-    return `<div class="team-info-row"><div class="team-stat-chips">${chips.join('')}</div>${awardsHtml}</div>${nextHtml}`;
+    const tbm = window._lldTbIc;
+    const skN = tbm ? Object.keys(tbm).filter(pid => tbm[pid].s === 'S' && tbm[pid].f === targetFid).length : null;
+    const rec = record ? `<b>${record}</b>` : '<b>—</b>';
+    const rk = [s.rank ? ord(s.rank) : '', sm ? sm[1].toUpperCase() + sm[2] : ''].filter(Boolean).join(' · ');
+    const box1 = `<div class="th-bx"><i>${isOffseason ? "'" + String(parseInt(year) - 1).slice(-2) : 'RECORD'}</i>${rec}<span>${rk || '&nbsp;'}</span></div>`;
+    const box3 = `<button type="button" class="th-bx th-sk" data-fid="${targetFid}"><i>SEEKING TRADES</i><b style="color:#38bdf8">🔍 ${skN == null ? '–' : skN}</b><span>${skN ? 'tap to see' : 'nobody'}</span></button>`;
+    const lay = lldHdrLayout();
+    return `<div class="th th-${lay}"><div class="th-top">${awardsHtml}${awBadge}<button type="button" class="th-lay" title="Switch header layout">${lay === 'banner' ? 'Compact' : 'Banner'}</button></div><div class="th-boxes">${box1}${oppBox}${box3}</div></div>`;
 }
 function getPlayerFilterBarHtml(isFAView) {
     const lyLabel = "'" + String(parseInt(year) - 1).slice(-2) + ' Avg';
@@ -8571,6 +8611,10 @@ $('body').append(`
                     
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Chat view</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='classic'?'on':''}" data-v="classic">Classic</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='feed'?'on':''}" data-v="feed">News feed</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='paper'?'on':''}" data-v="paper">Newspaper</button></div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Team header layout</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-thl-btn ${lldHdrLayout()==='banner'?'on':''}" data-v="banner">Banner</button><button class="lld-hdr-btn lld-thl-btn ${lldHdrLayout()==='compact'?'on':''}" data-v="compact">Compact</button></div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Owner name in team header</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'':'on'}" data-v="off">Off</button></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
@@ -12843,7 +12887,7 @@ const LLD_TBI = { S: '🔍', W: '🤝', U: '🤔', N: '🚫' };
 window._lldTbIc = window._lldTbIc || null;
 async function lldTbIconLoad() {
     if (window._lldTbIcBusy) return; window._lldTbIcBusy = true;
-    try { const d = await lldTbLoad(false), m = {}; Object.keys(d.by).forEach(f => { const pm = d.by[f].p || {}; Object.keys(pm).forEach(pid => { const l = lldTbParseLabel(pm[pid]); if (LLD_TBI[l.s]) m[pid] = { s: l.s, f }; }); }); window._lldTbIc = m; window._lldTbIcAt = Date.now(); lldTbIconDraw(); }
+    try { const d = await lldTbLoad(false), m = {}; Object.keys(d.by).forEach(f => { const pm = d.by[f].p || {}; Object.keys(pm).forEach(pid => { const l = lldTbParseLabel(pm[pid]); if (LLD_TBI[l.s]) m[pid] = { s: l.s, f }; }); }); window._lldTbIc = m; window._lldTbIcAt = Date.now(); lldTbIconDraw(); try { refreshTeamInfoPanel(); } catch (e) { } }
     catch (e) { console.warn('trade icons', e); window._lldTbIc = window._lldTbIc || {}; }
     window._lldTbIcBusy = false;
 }
@@ -12867,11 +12911,7 @@ new MutationObserver(() => { clearTimeout(_lldTbiT); _lldTbiT = setTimeout(() =>
 setTimeout(lldTbIconLoad, 4000);
 setInterval(() => { if (Date.now() - (window._lldTbIcAt || 0) > 180000) { window._lldTbIcBusy = false; lldTbLoad(true).then(() => lldTbIconLoad()).catch(() => { }); } }, 60000);
 
-function lldHdrPvSync() {
-    const sub = document.getElementById('switcher-subtitle'); if (!sub) return;
-    let b = document.getElementById('lld-hdr-pv');
-    if (!b) { b = document.createElement('button'); b.type = 'button'; b.id = 'lld-hdr-pv'; b.textContent = '▶ View preview'; sub.appendChild(b); }
-}
+function lldHdrPvSync() { }
 $(document).on('click touchend', '#lld-hdr-pv', async function (e) {
     e.preventDefault(); e.stopPropagation(); if (e.type === 'touchend' && window._hdrPvBusy) return;
     const btn = this; if (window._hdrPvBusy) return; window._hdrPvBusy = true; const old = btn.textContent; btn.textContent = 'Loading…';
@@ -17995,6 +18035,7 @@ const result = await applyAuctionContract(pid, commentText);
 
     function update() {
         ticking = false;
+        if (stage !== 0) setStage(0); return; // the team header no longer condenses while scrolling
         const y = window.scrollY;
         const room = document.documentElement.scrollHeight - window.innerHeight;
         let next;
