@@ -137,7 +137,7 @@ function lldRotateRail() {
     const hs = document.querySelectorAll('#lld-scene .d-h');
     const items = window._lldItems || [];
     if (!hs.length || !items.length) return;
-    hs.forEach((h, i) => { h.textContent = String(items[(_lldRailIdx + i) % items.length] || '').replace(/^(SCORE|TRADE ALERT): /, '').slice(0, 34); });
+    hs.forEach((h, i) => { h.textContent = String(items[(_lldRailIdx + i) % items.length] || '').replace(/\[\[L:\d+\|([^\]]*)\]\]/g, '$1').replace(/^(SCORE|TRADE ALERT): /, '').slice(0, 34); });
     _lldRailIdx = (_lldRailIdx + 1) % items.length;
 }
 function lldSetTicker(items) {
@@ -147,7 +147,10 @@ function lldSetTicker(items) {
     if (!sp || !items || !items.length) return;
     const sep = '   ' + (LLD_TICK_SEP[lldEffStyle()] || '\u2605') + '   ';
     const txt = items.join(sep) + sep;
-    sp.textContent = txt + txt;
+    const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const yr0 = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg0 = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
+    const html = esc(txt + txt).replace(/\[\[L:(\d+)\|([^\]]*)\]\]/g, (m, id) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">`);
+    if (html.indexOf('tk-lg') >= 0) sp.innerHTML = html; else sp.textContent = txt + txt;
     sp.style.setProperty('--tkdur', Math.max(24, Math.round(txt.length * 0.32)) + 's');
     sp.style.animationDuration = Math.max(24, Math.round(txt.length * 0.32)) + 's';
 }
@@ -182,7 +185,7 @@ async function lldFillTicker(staticItems, attempt) {
         const nm = f => { const id = String(f).padStart(4, '0'); const n = (window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id)); return n.length > 20 ? n.slice(0, 19).trim() + '.' : n; };
         const rows = fr.map(f => ({ id: f.id, w: parseInt(f.h2hw, 10) || 0, l: parseInt(f.h2hl, 10) || 0, t: parseInt(f.h2ht, 10) || 0, pf: parseFloat(f.pf) || 0 })).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
         if (!rows.length) throw new Error('no standings');
-        const items = ['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. ${nm(r.id).toUpperCase()} ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`));
+        const items = ['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. [[L:${String(r.id).padStart(4, '0')}|${nm(r.id).toUpperCase()}]] ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`));
         lldSetTicker(items); try { localStorage.setItem('lld_tick_std', JSON.stringify(items)); } catch (e) { }
     } catch (e) {
         console.warn('ticker standings', e);
@@ -6659,8 +6662,8 @@ $('body').append(`
 // --- UNIFIED SMART HUB MODAL ---
     if ($('#smart-player-modal').length === 0) {
         $('body').append(`
-            <div id="smart-player-modal" class="player-modal-backdrop" style="z-index: 99999;">
-<div class="player-modal-box" style="padding:0; overflow:hidden; background: var(--card-bg);">
+            <div id="smart-player-modal" class="player-modal-backdrop" style="z-index: 99999; align-items:flex-start !important; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;">
+<div class="player-modal-box" style="padding:0; overflow:hidden; background: var(--card-bg); margin:auto !important; flex-shrink:0;">
     <button class="player-modal-close" style="z-index: 10;">✕</button>
     
     <div class="player-modal-header" id="modal-dynamic-header" style="padding: 20px; border-bottom: none; margin-bottom: 0; display: flex; align-items: center;">
@@ -7151,11 +7154,29 @@ $(document).off('click', '#close-team-popup, #team-popup-modal').on('click', '#c
     $('#team-popup-modal').fadeOut(200);
     $('body').css('overflow', '');
 });
+window.lldGoToTeam = function (targetFid) {
+    const logoUrl = getFranchiseLogoUrl(targetFid), teamName = leagueFranchises[targetFid] || targetFid;
+    $('#team-popup-modal').fadeOut(0); $('body').css('overflow', '');
+    fid = targetFid;
+    $('#active-team-switcher-btn img').first().attr('src', logoUrl);
+    $('#switcher-team-name').text(teamName);
+    $('.tab-btn').removeClass('active');
+    $('.tab-btn').filter(function () { return $(this).attr('onclick')?.includes('tab-team'); }).addClass('active');
+    $('.tab-content').hide().removeClass('active');
+    $('#tab-team').show().addClass('active');
+    $('.sub-tabs-group').removeClass('active');
+    $('#subtabs-team').addClass('active');
+    $('.sub-tabs-container').show();
+    $('#subtabs-team .sub-tab-btn').removeClass('active');
+    $('#subtabs-team .sub-tab-btn').filter(function () { return $(this).text().trim().toLowerCase().includes('contract'); }).addClass('active');
+    window._teamDataDirty = true;
+    try { applyTeamTheme(fid, true); } catch (e) { }
+    $('#tab-header-area').show(); $('#active-team-switcher-btn').show();
+    loadTeamData(); window.scrollTo(0, 0);
+};
 $(document).off('click', '.team-popup-trigger').on('click', '.team-popup-trigger', function(e) {
     e.stopPropagation();
-    const targetFid = String($(this).data('fid')).padStart(4, '0');
-    $('#team-popup-modal').data('fid', targetFid);
-    openTeamPopup(targetFid);
+    lldGoToTeam(String($(this).data('fid')).padStart(4, '0')); // straight to that team's page, no popup
 });
 // --- MASTER CLICK LISTENER ---
 let touchStartY = 0;
@@ -7719,7 +7740,7 @@ btn.html('<span>LOADING...</span>').css({'opacity': '0.5', 'pointer-events': 'no
     $('.sub-tabs-container').show();
     $('#subtabs-league .sub-tab-btn').removeClass('active');
     $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Trades'; }).addClass('active');
-    loadTradeHub(fid !== myFid ? fid : null, pid);
+    loadTradeHub(window._lldPropOwner || (fid !== myFid ? fid : null), pid); window._lldPropOwner = '';
 $('.modal-tab-btn').removeClass('active');
 $('.modal-tab-content').removeClass('active');
 $('#tab-btn-tx').addClass('active');
@@ -8545,6 +8566,8 @@ $('body').append(`
                     <div id="lld-fx-row" style="display:${LLD_FX_MAP[lldEffStyle()] ? 'block' : 'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Seasonal background animation</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')!=='0'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')==='0'?'on':''}" data-v="off">Off</button></div></div>
                     <div class="lld-wide-row"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Page width (computers)</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'':'on'}" data-v="std">Standard</button><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'on':''}" data-v="wide">Wide</button></div></div>
                     
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Chat view</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='classic'?'on':''}" data-v="classic">Classic</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='feed'?'on':''}" data-v="feed">News feed</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='paper'?'on':''}" data-v="paper">Newspaper</button></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;">
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
@@ -10841,17 +10864,18 @@ window._teamDataDirty = true;
         loadTeamData(); 
     };
     window.openLeagueSubTab = function(evt, subTabId) {
-        $('#subtabs-league .sub-tab-btn').removeClass('active');
+        $('#subtabs-league .sub-tab-btn').removeClass('active'); $('#lld-tr-bar').remove();
         $(evt.currentTarget).addClass('active');
         switch(subTabId) {
             case 'standings': loadLeagueStandings(); break;
 case 'league-schedule': loadLeagueSchedule(); break;
-case 'transactions': loadLeagueTransactions(); break;            case 'league-stats': lldStatsOpen('league'); break;case 'trades': loadTradeHub(); break;
+case 'transactions': loadLeagueTransactions(); break;            case 'league-stats': lldStatsOpen('league'); break;case 'trades': $('#lld-tr-bar').remove(); loadTradeBlockTab(); break;
             case 'recaps': loadRecapsTab(); break;
-            case 'tradeblock': loadTradeBlockTab(); break;
+            case 'tradeblock': $('#lld-tr-bar').remove(); loadTradeBlockTab(); break;
         }
     };
 async function loadTradeHub(targetFid = null, targetPid = null, presetGive = [], presetReceive = []) {
+    lldTrBar('hub');
     const container = $('#league-content-container').html('<div style="text-align:center; padding: 40px; color: var(--accent-blue); font-weight: 800; font-size: calc(12px * var(--ts,1)); text-transform: uppercase; letter-spacing: 1px; animation: pulse-blue 1.5s infinite;">Loading Trade Hub...</div>');
 
     try {
@@ -12337,7 +12361,7 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
     const games = matchups.filter(m => m.t1.score > 0 && m.t2.score > 0);
     const oppOf = {};
     games.forEach(m => { if (!oppOf[m.t1.fid]) oppOf[m.t1.fid] = m.t2; if (!oppOf[m.t2.fid]) oppOf[m.t2.fid] = m.t1; });
-    const S = { wk, played: games.length, top: null, potw: [], blowout: null, close: null, upsets: [], calls: [], overs: [] };
+    const S = { wk, played: games.length, top: null, potw: [], blowout: null, close: null, upsets: [], calls: [], overs: [], sunday: null };
     if (!games.length) return S;
 
     const top = [...teams].sort((a, b) => b.score - a.score)[0];
@@ -12373,7 +12397,13 @@ function computeRecapSummary(wk, matchups, projMap, allScores) {
     S.upsets.sort((a, b) => b.pct - a.pct || b.total - a.total);
 
     const isOff = pos => ['QB', 'RB', 'WR', 'TE'].includes(pos);
-    if (!Object.keys(projMap || {}).length) return S; // without that week's projections there are no call-based awards
+    if (!Object.keys(projMap || {}).length) return S;
+    teams.forEach(t => t.roster.forEach(p => {
+        const pr = projMap[p.pid] || 0;
+        if (!p.isStarter || pr <= 0 || !(p.score > 0)) return;
+        const d = p.score - pr;
+        if (!S.sunday || d > S.sunday.diff) S.sunday = { fid: t.fid, p, proj: pr, diff: d };
+    })); // without that week's projections there are no call-based awards
     teams.forEach(t => {
         const opp = oppOf[t.fid];
         const optimal = recapOptimalLineup(t.roster, projMap);
@@ -12446,6 +12476,7 @@ function recapEvents(summaries) {
         S.upsets.forEach(u => ev.push({ wk: S.wk, type: 'upset', fid: u.w.fid, u }));
         S.calls.forEach(c => ev.push({ wk: S.wk, type: 'gutsy', fid: c.fid, c }));
         (S.overs || []).forEach(c => ev.push({ wk: S.wk, type: 'overthink', fid: c.fid, c }));
+        if (S.sunday) ev.push({ wk: S.wk, type: 'sunday', fid: S.sunday.fid, p: S.sunday.p, sd: S.sunday });
     });
     return ev;
 }
@@ -12457,7 +12488,8 @@ const RECAP_AWARDS = [
     { key: 'close', icon: '', title: 'Closest Game' },
     { key: 'upset', icon: '', title: 'Upsets' },
     { key: 'gutsy', icon: '', title: 'Gutsiest Calls' },
-    { key: 'overthink', icon: '', title: 'The Overthinker' }
+    { key: 'overthink', icon: '', title: 'The Overthinker' },
+    { key: 'sunday', icon: '', title: 'Any Given Sunday' }
 ];
 
 // ---------- small UI helpers ----------
@@ -12565,6 +12597,7 @@ function recapWeekView(S) {
         sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(x.fid, 14)}<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim); max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${leagueFranchises[x.fid] || x.fid}</span></span>`,
         right: `<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${x.p.score.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">BEST ${x.pos}</div>`
     })).join(''), 'Top starter at each position'));
+    if (S.sunday) out.push(recapCard('Any Given Sunday', '☀️', recapPlayerRow(S.sunday.p, { accent: '#f59e0b', sub: `<span style="display:inline-flex; align-items:center; gap:4px;">${recapLogo(S.sunday.fid, 14)}<span style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">${leagueFranchises[S.sunday.fid] || S.sunday.fid}</span></span>`, right: `<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#f59e0b;">+${S.sunday.diff.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${S.sunday.p.score.toFixed(1)} vs ${S.sunday.proj.toFixed(1)} proj</div>` }), 'Biggest beat of his projection'));
     if (S.blowout) out.push(recapCard('Biggest Blowout', '💥', recapMatchup(S.blowout.w, S.blowout.l, recapPill('Margin ' + S.blowout.d.toFixed(2), '#ef4444'))));
     if (S.close) out.push(recapCard('Closest Game', '😰', recapMatchup(S.close.w, S.close.l, recapPill('Margin ' + S.close.d.toFixed(2), '#f59e0b'))));
     out.push(recapCard('Upsets', '🚨', S.upsets.length ? S.upsets.map(u => `
@@ -12633,6 +12666,7 @@ function recapTeamView(events, selFid) {
         else if (e.type === 'upset') body = `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
                else if (e.type === 'gutsy') body = recapGutsyCard(e.c, false);
         else if (e.type === 'overthink') body = recapOverCard(e.c, false);
+        else if (e.type === 'sunday') body = recapPlayerRow(e.p, { accent: '#f59e0b', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#f59e0b;">+${e.sd.diff.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${e.p.score.toFixed(1)} vs ${e.sd.proj.toFixed(1)} proj</div>` });
         return `<div style="display:flex; gap:10px; margin-bottom:8px;">
             <div style="width:44px; flex-shrink:0; text-align:center;">${wkBadge(e.wk)}</div>
             <div style="flex:1; min-width:0;"><div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">${a.title}${e.type === 'gutsy' && e.c.decisive ? ' · <span style="color:#f59e0b;">GAME-WINNER</span>' : ''}</div>${body}</div>
@@ -12650,6 +12684,7 @@ function recapEventBody(e) {
     if (e.type === 'upset') return `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">Upset ${leagueFranchises[e.u.l.fid] || e.u.l.fid} ${e.u.w.score.toFixed(1)}–${e.u.l.score.toFixed(1)}</div><div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#f59e0b;">They had the better score in ${e.u.lWins} of ${e.u.total} earlier weeks</div>`;
         if (e.type === 'gutsy') return recapGutsyCard(e.c, false);
     if (e.type === 'overthink') return recapOverCard(e.c, false);
+    if (e.type === 'sunday') return recapPlayerRow(e.p, { accent: '#f59e0b', right: `<div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#f59e0b;">+${e.sd.diff.toFixed(1)}</div><div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:var(--text-dim);">${e.p.score.toFixed(1)} vs ${e.sd.proj.toFixed(1)} proj</div>` });
     return '';
 }
 
@@ -12681,7 +12716,7 @@ function openRecapAwardModal(awardKey, f) {
     $('#recap-award-modal .recap-modal-close').on('click', function() { $('#recap-award-modal').remove(); });
 }
 
-const RECAP_ICONS = { high: '🔥', potw: '⭐', blowout: '💥', close: '😰', upset: '🚨', gutsy: '🧠', overthink: '🤡' };
+const RECAP_ICONS = { high: '🔥', potw: '⭐', sunday: '☀️', blowout: '💥', close: '😰', upset: '🚨', gutsy: '🧠', overthink: '🤡' };
 
 // By Team view, grouped by award type (newest week first inside each group)
 function recapTeamView2(events, selFid) {
@@ -12794,7 +12829,7 @@ async function injectTeamAwardsStrip(f, hostSel) {
     const fx = String(f).padStart(4, '0');
     const counts = {};
     events.filter(e => e.fid === fx).forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
-    const short = { high: 'TOP SCORE', potw: 'POTW', blowout: 'BLOWOUT', close: 'CLOSE', upset: 'UPSETS', gutsy: 'GUTSY', overthink: 'OVERTHINK' };
+    const short = { high: 'TOP SCORE', potw: 'POTW', sunday: 'SUNDAY', blowout: 'BLOWOUT', close: 'CLOSE', upset: 'UPSETS', gutsy: 'GUTSY', overthink: 'OVERTHINK' };
     strip.html(`<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:8px 4px 4px;">Season Awards</div>
         <div class="dashboard-row overflow-row">${RECAP_AWARDS.map(a => `<div class="dashboard-pill stacked-pill team-award-chip" data-award="${a.key}" data-fid="${fx}" style="min-width:45px; cursor:${counts[a.key] ? 'pointer' : 'default'}; opacity:${counts[a.key] ? 1 : 0.45}; border-bottom-color:${counts[a.key] ? '#f59e0b' : 'var(--card-border)'};"><span class="pill-label">${short[a.key] || a.title}</span><span class="pill-value">${counts[a.key] || 0}</span></div>`).join('')}</div>`);
 }
@@ -12910,7 +12945,7 @@ async function lldXFactors(pw, ms, proj) {
 }
 function lldXfRow(x, i) {
     const why = x.kind === 'tough' ? `Averages ${x.avg.toFixed(1)}, projected ${x.pr.toFixed(1)}` : `Swings ${x.lo.toFixed(0)} to ${x.hi.toFixed(0)} · avg ${x.avg.toFixed(1)}`;
-    return `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span><span>${why}</span></div><i>${x.kind === 'tough' ? '🧱' : '🎲'}</i></div>`;
+    return stPRow(x.p, x.fid, x.kind === 'tough' ? '🧱' : '🎲', 0.25 + i * .22, `<span>${why}</span>`);
 }
 async function lldPvAlerts(pw, ms) {
     const res = [];
@@ -12970,6 +13005,30 @@ function lldSpotlight(team) {
     const swap = miss ? starters.filter(x => !opt.has(x.pid)).sort((a, b) => a.v - b.v)[0] : null;
     return { left: Math.max(0, optTot - act), right, n: starters.length, best, worst, miss, swap };
 }
+
+function stPRow(p, fid, right, d, extra) {
+    const team = String(p.team || 'NFL').toUpperCase(), pos = recapNormPos(p) || '';
+    return `<div class="st-row st-a" style="--d:${d}s">${recapHeadshot(p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(p.name)}</b><span style="display:flex;align-items:center;gap:5px;min-width:0"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:15px;height:15px;object-fit:contain"><span>${lldChatEsc(pos)}</span><img src="${getFranchiseLogoUrl(fid)}" onerror="this.style.display='none'" style="width:15px;height:15px;border-radius:50%;object-fit:cover"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${stName(fid)}</span></span>${extra || ''}</div><i>${right}</i></div>`;
+}
+function stScoreboard(ms, kind, decimals) {
+    return ms.slice(0, 8).map((m, i) => {
+        const a = m.s1, b = m.s2, w1 = a >= b;
+        return `<div class="st-row st-a" style="--d:${0.2 + i * .12}s;padding:7px 10px;gap:8px"><img src="${getFranchiseLogoUrl(m.t1)}" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:50%;object-fit:cover"><b style="flex:1;font-size:calc(13px * var(--ts,1));text-align:left;${w1 ? '' : 'opacity:.6;font-weight:600'}">${a.toFixed(decimals)}</b><span style="font-size:calc(9px * var(--ts,1));opacity:.6">${kind}</span><b style="flex:1;font-size:calc(13px * var(--ts,1));text-align:right;${w1 ? 'opacity:.6;font-weight:600' : ''}">${b.toFixed(decimals)}</b><img src="${getFranchiseLogoUrl(m.t2)}" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:50%;object-fit:cover"></div>`;
+    }).join('');
+}
+async function lldPoAt(wk) {
+    window._poAt = window._poAt || {};
+    if (window._poAt[wk] !== undefined) return window._poAt[wk];
+    let out = null;
+    try {
+        const S0 = await lldStatsLoad();
+        const D2 = Object.assign({}, S0.D, { weeks: S0.D.weeks.filter(w => w.wk <= wk) });
+        delete D2.rec;
+        const S2 = lldStatsBuild(D2); out = {};
+        S2.F.forEach((f, i) => { out[f] = S2.base[i].po; });
+    } catch (e) { console.warn('poAt', e); }
+    window._poAt[wk] = out; return out;
+}
 async function lldStorySlides(kind, wk, idx) {
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
@@ -12988,7 +13047,9 @@ async function lldStorySlides(kind, wk, idx) {
         } catch (e) { console.warn('spotlight', e); }
         if (S.top) LLD_ST.topFid = S.top.fid;
         if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
-        if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.p.score.toFixed(1)}</i></div>`).join('')}`));
+        if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`));
+        if (S.sunday) out.push(stSlide('#b45309', '#1c0f02', `<div class="st-k st-a">☀️ ANY GIVEN SUNDAY</div>${stPRow(S.sunday.p, S.sunday.fid, '+' + S.sunday.diff.toFixed(1), 0.3)}<div class="st-sub st-a" style="--d:.8s">Scored ${S.sunday.p.score.toFixed(1)} against a ${S.sunday.proj.toFixed(1)} projection, the biggest beat of the week</div>`));
+        if (ms.length) out.push(stSlide('#0f172a', '#020617', `<div class="st-k st-a">FINAL SCORES</div>${stScoreboard(ms.map(m => ({ t1: m.t1.fid, t2: m.t2.fid, s1: m.t1.score, s2: m.t2.score })), 'FINAL', 1)}`));
         if (S.blowout) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">BIGGEST BLOWOUT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.blowout.w.fid, 72)}<span>def.</span>${stLogo(S.blowout.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.blowout.w.fid)}</div>${stNum(S.blowout.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
         if (S.close) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">CLOSEST GAME</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.close.w.fid, 72)}<span>def.</span>${stLogo(S.close.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.close.w.fid)}</div>${stNum(S.close.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
         if (S.upsets && S.upsets.length) { const u = S.upsets[0]; out.push(stSlide('#be185d', '#14020a', `<div class="st-k st-a">🚨 UPSET ALERT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(u.w.fid, 72)}<span>stunned</span>${stLogo(u.l.fid, 72)}</div><div class="st-h st-a" style="--d:.35s">${stName(u.w.fid)}</div><div class="st-sub st-a" style="--d:.6s">${u.w.score.toFixed(1)} – ${u.l.score.toFixed(1)}</div>`)); }
@@ -12996,9 +13057,10 @@ async function lldStorySlides(kind, wk, idx) {
         if (S.overs && S.overs.length) { const c = S.overs[0]; out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">THE OVERTHINKER 🤡</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.d.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.d.name)}</b><span>sat on ${stName(c.fid)}'s bench</span></div><i>${c.d.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">−${c.margin.toFixed(1)} pts${c.decisive ? ' · cost the game' : ''}</div>`)); }
         try {
             const now = await lldStandingsThrough(wk), prev = wk > 1 ? await lldStandingsThrough(wk - 1) : null;
+            const poNow = await lldPoAt(wk), poPrev = wk > 1 ? await lldPoAt(wk - 1) : null;
             if (now.length && now.some(t => t.w + t.l + t.t > 0)) {
                 const pi = {}; (prev || now).forEach((t, i) => { pi[t.id] = i; });
-                const rows = now.map((t, i) => { const from = prev ? pi[t.id] : i, d = from - i; return `<div class="st-srow" data-from="${from}" data-to="${i}"><span class="st-sn">${i + 1}</span>${stLogo(t.id, 30).replace('st-logo st-a', 'st-logo')}<b>${stName(t.id)}</b><em>${t.w}-${t.l}${t.t ? '-' + t.t : ''}</em><u class="${d > 0 ? 'up' : d < 0 ? 'dn' : ''}" style="opacity:0">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : '–'}</u></div>`; }).join('');
+                const rows = now.map((t, i) => { const from = prev ? pi[t.id] : i, d = from - i; return `<div class="st-srow" data-from="${from}" data-to="${i}"><span class="st-sn">${i + 1}</span>${stLogo(t.id, 30).replace('st-logo st-a', 'st-logo')}<b>${stName(t.id)}</b><em>${t.w}-${t.l}${t.t ? '-' + t.t : ''}</em><u class="${d > 0 ? 'up' : d < 0 ? 'dn' : ''}" style="opacity:0;white-space:nowrap">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : '–'}${(poNow && poPrev && poNow[t.id] != null && poPrev[t.id] != null) ? ' <small style="font-size:.75em;opacity:.9">' + (poNow[t.id] - poPrev[t.id] >= 0 ? '+' : '') + (poNow[t.id] - poPrev[t.id]) + '%</small>' : ''}</u></div>`; }).join('');
                 out.push(stSlide('#0f172a', '#1e1b4b', `<div class="st-k st-a">${prev ? 'STANDINGS AFTER WEEK ' + wk : 'STANDINGS'}</div><div class="st-stand st-a" style="--d:.2s;--n:${now.length};--rh:${Math.max(30, Math.min(48, Math.floor((window.innerHeight - 190) / now.length)))}px">${rows}</div>`));
             }
         } catch (e) { console.warn('story standings', e); }
@@ -13012,7 +13074,7 @@ async function lldStorySlides(kind, wk, idx) {
         out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PROJECTED SCORES</div><div class="st-two"><div class="st-col">${stLogo(g.t1.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t1.fid)}</div>${stNum(g.m1, 1, g.m1 >= g.m2 ? 'gold' : '')}</div><div class="st-col">${stLogo(g.t2.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t2.fid)}</div>${stNum(g.m2, 1, g.m2 > g.m1 ? 'gold' : '')}</div></div>`));
         out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">WIN ODDS</div>${stLogo(fav.fid, 90)}<div class="st-h st-a" style="--d:.2s">${stName(fav.fid)}</div>${stNum(favP, 0, 'gold').replace('data-dec="0"', 'data-dec="0" data-suf="%"')}<div class="st-bar st-a" style="--d:.5s"><u class="st-grow" style="width:${a}%"></u></div><div class="st-sub st-a" style="--d:.7s">${a}% – ${100 - a}%</div>`));
         const top = t => t.roster.filter(p => p.isStarter && P.proj[p.pid] > 0).sort((x, y) => P.proj[y.pid] - P.proj[x.pid]).slice(0, 3);
-        [g.t1, g.t2].forEach(t => out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">${stName(t.fid)} · TOP PROJECTED</div>${top(t).map((p, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(p.name)}</b><span>${lldChatEsc(recapNormPos(p))}</span></div><i>${P.proj[p.pid].toFixed(1)}</i></div>`).join('')}`)));
+        [g.t1, g.t2].forEach(t => out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">${stName(t.fid)} · TOP PROJECTED</div>${top(t).map((p, i) => stPRow(p, t.fid, P.proj[p.pid].toFixed(1), 0.25 + i * .2)).join('')}`)));
         const POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], sum = (t, ps) => t.roster.filter(p => p.isStarter && recapNormPos(p) === ps).reduce((x, p) => x + (P.proj[p.pid] || 0), 0);
         const edge = POS.map((ps, i) => { const x = sum(g.t1, ps), y = sum(g.t2, ps), m = Math.max(x, y, 1); return `<div class="st-edge st-a" style="--d:${0.2 + i * .12}s"><span>${ps}</span><div><u class="${x >= y ? 'win' : ''}" style="width:${Math.round(x / m * 100)}%">${x.toFixed(1)}</u></div><div><u class="${y > x ? 'win' : ''}" style="width:${Math.round(y / m * 100)}%">${y.toFixed(1)}</u></div></div>`; }).join('');
         try {
@@ -13038,14 +13100,15 @@ async function lldStorySlides(kind, wk, idx) {
             if (hi) LLD_ST.topFid = hi.f;
             if (hi) out.push(stSlide('#15803d', '#011208', `<div class="st-k st-a">HIGHEST PROJECTED</div>${stLogo(hi.f, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hi.f)}</div>${stNum(hi.m, 1, 'gold')}`));
         } else out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchups are not posted yet</div><div class="st-sub st-a" style="--d:.3s">Check back once lineups and projections are in.</div>`));
-        if (P.players.length) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">PLAYERS TO WATCH</div>${P.players.slice(0, 4).map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .22}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i>${x.proj.toFixed(1)}</i></div>`).join('')}`));
+        if (P.games.length) out.push(stSlide('#0f172a', '#020617', `<div class="st-k st-a">PROJECTED SCORES</div>${stScoreboard(P.games.map(g => ({ t1: g.t1.fid, t2: g.t2.fid, s1: g.m1, s2: g.m2 })), 'PROJ', 1)}`));
+        if (P.players.length) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">PLAYERS TO WATCH</div>${P.players.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.proj.toFixed(1), 0.25 + i * .2)).join('')}`));
         try {
             const ms = (P.games || []).map(g => ({ t1: g.t1, t2: g.t2 }));
             const XF = await lldXFactors(wk, ms, P.proj), xl = Object.values(XF).sort((x, y) => y.rank - x.rank).slice(0, 4);
             const mineX = XF[me]; if (mineX && !xl.includes(mineX)) xl[xl.length - 1] = mineX;
             if (xl.length) out.push(stSlide('#c2410c', '#1a0802', `<div class="st-k st-a">X-FACTORS OF THE WEEK</div>${xl.map((x, i) => lldXfRow(x, i)).join('')}<div class="st-sub st-a" style="--d:1.3s">🎲 boom or bust &nbsp; 🧱 tough draw</div>`));
             const AL = await lldPvAlerts(wk, ms);
-            if (AL.length) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">⚠ LINEUP ALERTS</div>${AL.map((x, i) => `<div class="st-row st-a" style="--d:${0.25 + i * .2}s">${recapHeadshot(x.p.pid, 52)}<div class="st-rm"><b>${lldChatEsc(x.p.name)}</b><span>${lldChatEsc(recapNormPos(x.p))} · ${stName(x.fid)}</span></div><i style="color:#fca5a5;font-size:calc(14px * var(--ts,1))">${lldChatEsc(String(x.why).toUpperCase())}</i></div>`).join('')}`));
+            if (AL.length) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">⚠ LINEUP ALERTS</div>${AL.map((x, i) => stPRow(x.p, x.fid, `<span style="color:#fca5a5;font-size:calc(14px * var(--ts,1))">${lldChatEsc(String(x.why).toUpperCase())}</span>`, 0.25 + i * .2)).join('')}`));
             const POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], sum = (t, ps) => t.roster.filter(p => p.isStarter && recapNormPos(p) === ps).reduce((q, p) => q + (P.proj[p.pid] || 0), 0);
             const edges = []; (P.games || []).forEach(g => POS.forEach(ps => { const x = sum(g.t1, ps), y = sum(g.t2, ps); edges.push({ w: x >= y ? g.t1 : g.t2, l: x >= y ? g.t2 : g.t1, ps, d: Math.abs(x - y) }); }));
             edges.sort((a, b) => b.d - a.d);
@@ -13063,11 +13126,38 @@ async function lldStorySlides(kind, wk, idx) {
     }
     return out;
 }
+
+// ===== themed story looks (Leatherheads newspaper, Lego, Arcade, SportsCenter, seasonal) =====
+const LLD_STT_MAP = { leather: 'leather', lego: 'lego', arcade: 'arcade', sportscenter: 'sc', season_halloween: 'hal', season_thanksgiving: 'thx', season_christmas: 'xmas', season_fall: 'fall' };
+const LLD_STT_BG = {
+    leather: '#e9dfc8 radial-gradient(rgba(80,55,20,.12) 1px, transparent 1px) 0 0/4px 4px',
+    lego: '#1d4ed8 radial-gradient(circle at 50% 50%, rgba(255,255,255,.14) 0 5px, transparent 6px) 0 0/26px 26px',
+    arcade: '#05010f', sc: 'linear-gradient(160deg,#0a2a6a,#030a1f)',
+    hal: 'radial-gradient(120% 90% at 50% 0,#4c1d95,#0f0720 70%)', thx: 'linear-gradient(180deg,#8a4a14,#3b1d08)',
+    xmas: 'linear-gradient(180deg,#0f3d2a,#06170f)', fall: 'linear-gradient(180deg,#b45309,#4a230c)'
+};
+function lldSttKey() { try { return LLD_STT_MAP[lldEffStyle()] || ''; } catch (e) { return ''; } }
+function lldSttFonts() {
+    if (document.getElementById('lld-stt-fonts')) return;
+    const l = document.createElement('link'); l.id = 'lld-stt-fonts'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Special+Elite&family=Playfair+Display:wght@700;900&family=Libre+Baskerville:wght@400;700&family=Fredoka:wght@500;700&family=Press+Start+2P&family=Oswald:wght@500;700&family=Anton&family=Metamorphous&family=Cinzel:wght@600;700&family=Bitter:wght@600;800&display=swap';
+    document.head.appendChild(l);
+}
+function lldSttDeco(T, kind, wk) {
+    const n = (k, f) => [...Array(k)].map((_, i) => f(i)).join('');
+    if (T === 'arcade') return '<div class="stt-grid"></div>';
+    if (T === 'hal') return '<div class="stt-moon"></div>' + [[90, 0], [150, 2.5], [60, 4.5]].map(a => `<span class="stt-bat" style="--y:${a[0]}px;--d:${a[1]}s">🦇</span>`).join('') + '<div class="stt-fog"></div>';
+    if (T === 'thx' || T === 'fall') return n(10, i => `<span class="stt-leaf" style="--x:${i * 10}%;--d:${(i * .7).toFixed(1)}s">${(T === 'fall' ? ['🍁', '🍂'] : ['🍂', '🍁', '🍂'])[i % (T === 'fall' ? 2 : 3)]}</span>`);
+    if (T === 'xmas') return '<div class="stt-lights">' + n(11, i => `<i style="--c:${['#ef4444', '#facc15', '#22c55e', '#60a5fa'][i % 4]};--d:${(i * .2).toFixed(1)}s"></i>`) + '</div>' + n(16, i => `<span class="stt-snow" style="--x:${i * 6.5}%;--s:${8 + (i % 4) * 3}px;--d:${((i % 7) * .8).toFixed(1)}s">❄</span>`);
+    if (T === 'sc') return '<div class="stt-wipe"></div><div class="stt-tick"><span>LLD DYNASTY ★ ' + (kind === 'preview' ? 'WEEK ' + wk + ' PREVIEW' : 'WEEK ' + wk + ' RECAP') + ' ★ ALL THE HIGHLIGHTS ★ DYNASTY TONIGHT ★</span></div>';
+    return '';
+}
 function stShow(i) {
     const S = LLD_ST; if (i < 0) i = 0; if (i >= S.slides.length) { stClose(); return; }
     S.i = i; const sl = S.slides[i], box = $('#lld-story');
     box.find('.st-bars').html(S.slides.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'cur' : ''}"><u></u></span>`).join(''));
-    box.find('.st-stage').css('background', sl.bg).html(`<div class="st-in">${sl.html}</div>`);
+    const T = S.stt || '';
+    box.find('.st-stage').css('background', T ? LLD_STT_BG[T] : sl.bg).html(`${T ? '<div class="stt-deco">' + lldSttDeco(T, S.kind, S.wk) + '</div>' : ''}<div class="st-in">${T === 'leather' ? '<div class="stt-mast st-a">THE DYNASTY GAZETTE</div>' : ''}${sl.html}${T === 'leather' ? '<div class="stt-rule"></div>' : ''}</div>`);
     box.find('[data-count]').each(function () {
         const el = this, to = parseFloat(el.dataset.count) || 0, dec = parseInt(el.dataset.dec, 10) || 0, t0 = performance.now() + 350, dur = 1100;
         (function tick(t) { const p = Math.max(0, Math.min(1, (t - t0) / dur)); el.textContent = (to * (1 - Math.pow(1 - p, 3))).toFixed(dec) + (el.dataset.suf || ''); if (p < 1 && document.body.contains(el)) requestAnimationFrame(tick); })(performance.now());
@@ -13094,7 +13184,7 @@ function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop()
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup;
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
-    try { LLD_ST.topFid = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if ($('#lld-story').length) stMusicStart(LLD_ST.topFid); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
+    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if ($('#lld-story').length) stMusicStart(LLD_ST.topFid); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
 $(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10), parseInt($(this).data('i'), 10)); });
@@ -17950,7 +18040,7 @@ function lldChatCtx() {
     return { seen: window._lldChatPrevSeen || 0, nm: f => leagueFranchises[f] || ('Team ' + (parseInt(f, 10) || f)), av: f => getFranchiseLogoUrl(f), pimg: p => `https://www.mflscripts.com/playerImages_80x107/mfl_${p}.png`, nfl: t => getNFLLogoUrl(String(t).toUpperCase()), me: myFid, now: Date.now() };
 }
 function lldChatOpenUrl() { return `${MFL_ORIGIN}/${year}/message_board?L=${lid}`; }
-async function lldChatLoadThreads() { return (await lldChatLoadThreadsRaw()).filter(t => t.subject !== LLDTB_SUBJ); } // the trade block's data thread stays out of the chat
+async function lldChatLoadThreads() { return (await lldChatLoadThreadsRaw()).filter(t => t.subject !== LLDTB_SUBJ && t.subject !== LLDTI_SUBJ); } // the trade block's data threads stay out of the chat
 async function lldChatLoadThreadsRaw() {
     await lldEnsureFranchiseNames();
     const j = await lldChatJson('TYPE=messageBoard');
@@ -17984,6 +18074,24 @@ function lldChatMount() {
     }
     return $('#lld-chat .cm-box');
 }
+async function lldTbSeekEvents() {
+    const out = [], cutoff = Date.now() - 14 * 86400000, by = {};
+    const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTB_SUBJ);
+    for (const t of th) {
+        const posts = await lldChatLoadPosts(t.id);
+        posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); (by[f] = by[f] || []).push({ ms: p.ms, p: o.p || {} }); });
+    }
+    Object.keys(by).forEach(f => {
+        let prev = {};
+        by[f].sort((a, b) => a.ms - b.ms).forEach(st => {
+            const fresh = [];
+            Object.keys(st.p).forEach(id => { const l = lldTbParseLabel(st.p[id]), q = lldTbParseLabel(prev[id]); if (l.s === 'S' && q.s !== 'S') fresh.push({ id, asks: l.a }); });
+            if (fresh.length && st.ms >= cutoff) out.push({ fid: f, ms: st.ms, fresh });
+            prev = st.p;
+        });
+    });
+    return out;
+}
 async function lldChatLoadActivity() {
     await lldEnsureFranchiseNames();
     const [txd, bd, pd] = await Promise.all([
@@ -17998,6 +18106,7 @@ async function lldChatLoadActivity() {
     const pid = i => { const m = String(i).trim().match(/^(\d{3,6})(?:_.*)?$/); return m ? m[1] : null; };
     const grab = x => String(x || '').split(/[|,]/).forEach(i => { const p = pid(i); if (p) ids.add(p); });
     tx.forEach(t => { grab(t.transaction); grab(t.franchise1_gave_up); grab(t.franchise2_gave_up); }); baits.forEach(b => { grab(b.willGiveUp); }); offers.forEach(o => { grab(o.will_give_up || o.willGiveUp); grab(o.will_receive || o.willReceive); });
+    let seeks = []; try { seeks = await lldTbSeekEvents(); seeks.forEach(e => e.fresh.forEach(x => grab(x.id))); } catch (e) { console.warn('seek events', e); }
     const info = {}; const idl = [...ids];
     const put = p => { const n = String(p.name || '').split(',').map(x => x.trim()); info[p.id] = { id: p.id, name: n.length > 1 ? n[1] + ' ' + n[0] : n[0], pos: p.position || '', team: p.team || '' }; };
     for (let i = 0; i < idl.length; i += 60) {
@@ -18045,6 +18154,13 @@ async function lldChatLoadActivity() {
         it.mine = a === String(myFid).padStart(4, '0');
         const ids = x => String(x || '').split(',').map(v => v.trim()).filter(Boolean);
         it.giveIds = ids(o.will_receive || o.willReceive); it.recvIds = ids(o.will_give_up || o.willGiveUp);
+        items.push(it);
+    });
+    seeks.forEach(e => {
+        const ents2 = e.fresh.map(x => ent(x.id)).filter(Boolean); if (!ents2.length) return;
+        const asks = []; e.fresh.forEach(x => x.asks.forEach(a => { const t = lldTbAskText(a); if (asks.indexOf(t) < 0) asks.push(t); }));
+        const it = { kind: 'tx', ms: e.ms, fid: e.fid, label: 'Seeking trades', color: '#f59e0b', cols: [{ label: 'Shopping', color: '#f59e0b', ents: ents2 }] };
+        if (asks.length) it.note = 'Looking for: ' + asks.join(', ');
         items.push(it);
     });
     // fix up the trade columns: label each side with who sent it
@@ -18141,6 +18257,91 @@ async function lldChatCheckNew() {
     } catch (e) { console.warn('chat check', e); }
 }
 $(document).on('visibilitychange', () => { if (!document.hidden && Date.now() - (window._lldChatAct ? window._lldChatAct.t : 0) > 120000) lldChatCheckNew(); });
+// ===== chat views: 'classic' (cards) or 'feed' (a Twitter-style timeline with parody reporters) =====
+const LLD_REP = { trade: { n: 'Adam Shifter', c: '#dc2626' }, block: { n: 'Matt PacAfee', c: '#d97706' }, move: { n: 'Jay Glazed', c: '#0d9488' }, recap: { n: 'Ian Rapsport', c: '#2563eb' } };
+function lldChatView() { const v = lldGet('lld_chatview', ''); if (v === 'feed' || v === 'paper' || v === 'classic') return v; try { return lldEffStyle() === 'leather' ? 'paper' : 'classic'; } catch (e) { return 'classic'; } }
+function lldChatViewBar() { const v = lldChatView(); return `<div class="tw-vw"><button type="button" class="cm-vw ${v === 'paper' ? 'on' : ''}" data-v="paper">Paper</button><button type="button" class="cm-vw ${v === 'feed' ? 'on' : ''}" data-v="feed">Feed</button><button type="button" class="cm-vw ${v === 'classic' ? 'on' : ''}" data-v="classic">Classic</button></div>`; }
+function lldTwTime(ms) { const m = Math.round((Date.now() - ms) / 60000); if (m < 1) return 'now'; if (m < 60) return m + 'm'; const h = Math.round(m / 60); if (h < 24) return h + 'h'; const d = Math.round(h / 24); return d < 7 ? d + 'd' : new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+function lldTwEnts(ents) { return ents.map(e => { if (e.pick) return String(e.pick); const n = String(e.name || ''), p = n.split(' '), sh = p.length > 1 ? p[0].charAt(0) + '. ' + p.slice(1).join(' ') : n; return sh + (e.pos ? ' (' + e.pos + ')' : ''); }).join(', '); }
+function lldTwPost(av, name, handle, ms, body, cls, attrs) {
+    return `<div class="tw ${cls || ''}" ${attrs || ''}>${av}<div class="tw-main"><div class="tw-who"><b>${lldChatEsc(name)}</b>${handle ? `<span class="tw-chk">✓</span>` : ''}<span>${handle ? '@' + lldChatEsc(handle) + ' · ' : ''}${lldTwTime(ms)}</span></div>${body}</div></div>`;
+}
+function lldTwRep(k) { const r = LLD_REP[k]; return { av: `<div class="tw-av" style="background:${r.c}">${r.n.split(' ').map(w => w[0]).join('')}</div>`, name: r.n, handle: r.n.replace(/ /g, '') }; }
+function lldChatTweetHtml(it, ctx) {
+    const chips = (cols) => `<div class="tw-emb"><div class="tw-sw">${cols.map(c => `<div class="tw-sd"><em style="color:${c.color || '#94a3b8'}">${lldChatEsc(c.label || '')}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color || '#94a3b8')).join('')}</div></div>`).join('')}</div></div>`;
+    if (it.kind === 'post') {
+        const prev = lldChatText(it.preview || '').replace(/\s+/g, ' ').slice(0, 220);
+        const av = `<img class="tw-av img" src="${lldChatEsc(ctx.av(it.fid))}" alt="">`;
+        return lldTwPost(av, ctx.nm(it.fid), '', it.ms, `<div class="tw-txt"><b>${lldChatEsc(it.subject || '(no subject)')}</b>${prev ? '<br>' + lldChatEsc(prev) : ''}</div><div class="tw-act">💬 ${it.replies || 0} <span>Open thread</span></div>`, 'cm-row tw-click', `data-tid="${lldChatEsc(it.id)}"`);
+    }
+    if (it.kind === 'digest') {
+        const r = lldTwRep('recap'), rc = it.type === 'recap';
+        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt"><b>WEEK ${it.wk} ${rc ? 'RECAP' : 'PREVIEW'}:</b> ${rc ? 'Awards, players of the week, upsets and the standings shake-up.' : 'Projected scores, win odds, X-factors and lineup alerts for every matchup.'}</div><div class="tw-emb tw-play"><span>${rc ? 'Full recap story' : 'Full preview story'}</span><button type="button" class="cm-rc tw-pb" data-dk="${it.type}" data-wk="${it.wk}">▶ Play</button></div>`);
+    }
+    const A = lldChatEsc(ctx.nm(it.fid)), B = it.fid2 ? lldChatEsc(ctx.nm(it.fid2)) : '';
+    const sides = it.cols.filter(c => c.ents.length);
+    if (it.label === 'Trade') {
+        const r = lldTwRep('trade');
+        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt"><span class="tw-brk">BREAKING</span>Trade is done. ${A} send ${lldChatEsc(lldTwEnts(it.cols[0].ents))} to ${B} for ${lldChatEsc(lldTwEnts(it.cols[1].ents))}.</div>` + chips(sides));
+    }
+    if (it.offer) {
+        const r = lldTwRep('trade');
+        const acts = it.tid && (it.incoming || it.mine) ? `<div class="cm-acts tw-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : '';
+        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">Trade offer on the table: ${A} would send ${lldChatEsc(lldTwEnts(it.cols[0].ents))} to ${B} for ${lldChatEsc(lldTwEnts(it.cols[1].ents))}.</div>` + chips(sides) + (it.note ? `<div class="tw-q">“${lldChatEsc(it.note)}”</div>` : '') + acts);
+    }
+    if (it.label === 'Seeking trades') {
+        const r = lldTwRep('block');
+        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">Hearing ${A} are shopping ${lldChatEsc(lldTwEnts(it.cols[0].ents))}. ${it.note ? lldChatEsc(it.note) + '.' : 'Phone lines are open.'} <span class="tw-tg">#TradeBlock</span></div>` + chips(sides));
+    }
+    const r = lldTwRep('move'), parts = sides.map(c => (c.label || '').toLowerCase() + ' ' + lldTwEnts(c.ents));
+    return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">${A}: ${lldChatEsc(parts.join(', '))}. <span class="tw-tg">#${/auction/i.test(it.label) ? 'Auction' : 'WaiverWire'}</span></div>` + chips(sides));
+}
+function lldPaperEnts(ents) {
+    return ents.map(e => {
+        if (e.pick) return lldChatEsc(String(e.pick));
+        const n = String(e.name || ''), p = n.split(' '), sh = p.length > 1 ? p[0].charAt(0) + '. ' + p.slice(1).join(' ') : n, pos = String(e.pos || '').toUpperCase(), dp = (pos === 'DE' || pos === 'DT') ? 'DL' : ((pos === 'CB' || pos === 'S') ? 'DB' : pos);
+        return `<a class="pp-pl player-modal-trigger" data-pid="${lldChatEsc(e.id)}" data-name="${lldChatEsc(n)}" data-pos="${lldChatEsc(dp)}" data-team="${lldChatEsc(e.team || '')}">${lldChatEsc(sh)}${pos ? ' (' + lldChatEsc(pos) + ')' : ''}</a>`;
+    }).join(', ');
+}
+function lldChatPaperHtml(items, block, ctx) {
+    const nm = f => lldChatEsc(ctx.nm(f)), cl = ms => lldChatEsc(lldChatDay(ms, ctx.now) + ', ' + lldChatClock(ms));
+    const news = items.slice().sort((a, b) => b.ms - a.ms);
+    const trades = news.filter(i => i.kind === 'tx' && i.label === 'Trade'), offers = news.filter(i => i.kind === 'tx' && i.offer), seeks = news.filter(i => i.kind === 'tx' && i.label === 'Seeking trades');
+    const moves = news.filter(i => i.kind === 'tx' && !i.offer && i.label !== 'Trade' && i.label !== 'Seeking trades'), posts = news.filter(i => i.kind === 'post'), digs = news.filter(i => i.kind === 'digest');
+    const d = new Date(), date = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+    let h = lldChatViewBar() + `<div class="pp"><div class="pp-mast"><div class="pp-k">Late edition</div><h1>The Dynasty Gazette</h1><div class="pp-tag"><span>${lldChatEsc(String(year))} season</span><span>${lldChatEsc(date)}</span><span>Price: one pick</span></div></div>`;
+    const lead = trades[0];
+    if (lead) {
+        const a = lead.cols[0].ents, b = lead.cols[1].ents;
+        h += `<div class="pp-lead"><div class="pp-k">Trade wire · Breaking</div><h2>${nm(lead.fid)} and ${nm(lead.fid2)} Swap Players in Trade</h2><div class="pp-by">By our trade desk · ${cl(lead.ms)}</div><div class="pp-xch"><div><b>${nm(lead.fid)} send</b>${lldPaperEnts(a)}</div><div class="m">⇄</div><div><b>${nm(lead.fid2)} send</b>${lldPaperEnts(b)}</div></div></div>`;
+    } else h += `<div class="pp-lead"><div class="pp-k">Quiet on the wire</div><h2>No Trades to Report</h2><div class="pp-by">The trade desk is waiting on a deal.</div></div>`;
+    if (offers.length || seeks.length || trades.length > 1) {
+        h += `<div class="pp-sec">Late Items</div>`;
+        offers.forEach(o => { h += `<div class="pp-br"><b>Pending offer.</b> ${nm(o.fid)} propose ${lldPaperEnts(o.cols[0].ents)} to ${nm(o.fid2)} for ${lldPaperEnts(o.cols[1].ents)}. <i>${cl(o.ms)}</i>${o.tid && (o.incoming || o.mine) ? `<div class="cm-acts pp-acts" data-tid="${lldChatEsc(o.tid)}" data-fid="${lldChatEsc(o.fid)}" data-give="${lldChatEsc((o.giveIds || []).join(','))}" data-recv="${lldChatEsc((o.recvIds || []).join(','))}">${o.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}</div>`; });
+        trades.slice(1, 6).forEach(t => { h += `<div class="pp-br"><b>Trade completed.</b> ${nm(t.fid)} send ${lldPaperEnts(t.cols[0].ents)} to ${nm(t.fid2)} for ${lldPaperEnts(t.cols[1].ents)}. <i>${cl(t.ms)}</i></div>`; });
+        seeks.slice(0, 6).forEach(t => { h += `<div class="pp-br"><b>${nm(t.fid)} shop ${lldPaperEnts(t.cols[0].ents)}.</b> ${t.note ? lldChatEsc(t.note) + '.' : ''} <i>${cl(t.ms)}</i></div>`; });
+    }
+    if (digs.length) {
+        h += `<div class="pp-sec">Previews and Recaps</div>`;
+        digs.slice(0, 4).forEach(g => { const rc = g.type === 'recap'; h += `<div class="pp-box"><h3>Week ${g.wk} ${rc ? 'Recap' : 'Preview'}</h3><div class="pp-s">${rc ? 'Awards, players of the week, upsets and the standings shake-up' : 'Projected scores, win odds, X-factors and lineup alerts'}</div><button type="button" class="cm-rc pp-btn" data-dk="${g.type}" data-wk="${g.wk}">${rc ? 'Read the recap' : 'Read the preview'}</button></div>`; });
+    }
+    if (moves.length) {
+        h += `<div class="pp-sec">The Wire</div>`;
+        moves.slice(0, 15).forEach(m => { const parts = m.cols.filter(c => c.ents.length).map(c => (c.label || '').toLowerCase() + ' ' + lldPaperEnts(c.ents)); h += `<div class="pp-br"><b>${nm(m.fid)}</b> ${parts.join('; ')}. <i>${cl(m.ms)}</i></div>`; });
+    }
+    if (posts.length) {
+        h += `<div class="pp-sec">Letters to the Editor</div>`;
+        posts.slice(0, 10).forEach(p => { const prev = lldChatText(p.preview || '').replace(/\s+/g, ' ').slice(0, 200); h += `<div class="pp-lt cm-row" data-tid="${lldChatEsc(p.id)}">“<b>${lldChatEsc(p.subject || '(no subject)')}</b>${prev ? ' ' + lldChatEsc(prev) : ''}”<span>— ${nm(p.fid)}, ${cl(p.ms)}${p.replies ? ' · ' + p.replies + ' replies' : ''}</span></div>`; });
+    }
+    return h + '</div>';
+}
+function lldChatTweetsHtml(items, block, ctx) {
+    if (!items.length) return lldChatViewBar() + '<div class="cm-empty">No recent activity.</div>';
+    return lldChatViewBar() + items.slice().sort((a, b) => b.ms - a.ms).slice(0, 60).map(it => lldChatTweetHtml(it, ctx)).join('');
+}
+$(document).on('click', '#lld-chat .cm-vw', function () { lldSet('lld_chatview', this.dataset.v); $('.lld-cv-btn').each(function () { $(this).toggleClass('on', this.dataset.v === lldChatView()); }); lldChatShowList(); });
+$(document).on('click touchend', '.player-modal-trigger', function () { window._lldPropOwner = $(this).data('owner') ? String($(this).data('owner')).padStart(4, '0') : ''; });
+$(document).on('click', '.lld-cv-btn', function () { lldSet('lld_chatview', this.dataset.v); $('.lld-cv-btn').each(function () { $(this).toggleClass('on', this.dataset.v === lldChatView()); }); if ($('#lld-chat').hasClass('open')) lldChatShowList(); });
 async function lldChatShowList() {
     const box = lldChatMount();
     $('#lld-chat').addClass('open');
@@ -18149,8 +18350,9 @@ async function lldChatShowList() {
     let a; try { a = (window._lldChatAct && Date.now() - window._lldChatAct.t < 45000) ? window._lldChatAct.a : await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a }; } catch (e) { console.warn('chat', e); a = { items: [], block: [] }; }
     lldChatSeenSet(); window._lldChatNewOther = 0; const inc = a.items.filter(it => it.offer && it.incoming).map(it => it.tid); lldChatOfferSeenSet(lldChatOfferSeenGet().concat(inc, window._lldChatOfferIds || [])); window._lldChatOffers = 0; lldChatBadgeUpdate();
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
-    box.html(lldChatShellHtml('League Chat', false, note || lldChatFeedHtml(a.items, a.block, lldChatCtx()), lldChatOpenUrl()));
-    const b = box.find('.cm-body')[0]; if (b) b.scrollTop = b.scrollHeight;
+    const cv = lldChatView(), feedV = cv !== 'classic';
+    box.html(lldChatShellHtml('League Chat', false, note || (cv === 'paper' ? lldChatPaperHtml(a.items, a.block, lldChatCtx()) : cv === 'feed' ? lldChatTweetsHtml(a.items, a.block, lldChatCtx()) : lldChatViewBar() + lldChatFeedHtml(a.items, a.block, lldChatCtx())), lldChatOpenUrl()));
+    const b = box.find('.cm-body')[0]; if (b) b.scrollTop = feedV ? 0 : b.scrollHeight;
 }
 async function lldChatShowThread(id) {
     const box = lldChatMount();
@@ -18282,6 +18484,58 @@ async function lldTbContracts() {
     window._lldTbC = { t: Date.now(), m }; return m;
 }
 function lldTbShort(n) { n = String(n || ''); if (n.indexOf(',') > 0) { const a = n.split(','); return (a[1].trim().charAt(0) + '. ' + a[0].trim()).trim(); } return n.replace(/^(\S)\S*\s+/, '$1. '); }
+// ===== trade interest: other teams answer a trade-block player with an interest level and an optional reason =====
+const LLDTI_SUBJ = '[LLD-DATA] Trade Interest';
+const LLDTI_LV = { V: ['Very interested', '#22c55e'], S: ['Somewhat interested', '#f59e0b'], N: ['No interest', '#ef4444'] };
+const LLDTI_RS = { P: 'Price too high', T: "Doesn't fit team needs", C: 'Contract too expensive' };
+function lldTiDec(t) {
+    const m = /LLDTI1:([A-Za-z0-9_\-]+)/.exec(String(t || '')); if (!m) return null;
+    try { let b = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '='; return JSON.parse(decodeURIComponent(escape(atob(b)))); } catch (e) { return null; }
+}
+async function lldTiLoad(force) {
+    if (!force && window._lldTi && Date.now() - window._lldTi.t < 60000) return window._lldTi.d;
+    const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTI_SUBJ), by = {}, ms = {};
+    for (const t of th) {
+        const posts = await lldChatLoadPosts(t.id);
+        posts.forEach(p => { const o = lldTiDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); if (!ms[f] || p.ms >= ms[f]) { ms[f] = p.ms; by[f] = o.p || {}; } });
+    }
+    const d = { by, tid: th.length ? th[th.length - 1].id : null };
+    window._lldTi = { t: Date.now(), d }; return d;
+}
+async function lldTiSave(map) {
+    const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTI_SUBJ), tid = th.length ? th[th.length - 1].id : null;
+    await lldChatPost('LLDTI1:' + lldTbEnc({ p: map }), tid, LLDTI_SUBJ);
+    window._lldTi = null;
+}
+function lldTiSaveSoon() {
+    clearTimeout(window._tiT);
+    window._tiT = setTimeout(async () => { const X = window._tbX; if (!X) return; try { await lldTiSave(X.d.ti.by[X.d.me] || {}); } catch (e) { alert('MFL: ' + (e.message || 'could not save your interest')); } }, 1200);
+}
+function lldTiPanel(D, pid, f) {
+    const e = lldChatEsc, by = (D.ti && D.ti.by) || {}, me = D.me;
+    if (f !== me) {
+        const cur = lldTbParseLabel((by[me] || {})[pid]);
+        const lv = Object.keys(LLDTI_LV).map(k => `<button type="button" data-tilv="${k}" data-pid="${pid}" style="--c:${LLDTI_LV[k][1]}" class="${cur.s === k ? 'on' : ''}">${LLDTI_LV[k][0]}</button>`).join('');
+        const rs = (cur.s === 'S' || cur.s === 'N') ? `<div class="tb-tir"><span>Reason (optional)</span>${Object.keys(LLDTI_RS).map(k => `<button type="button" data-tirs="${k}" data-pid="${pid}" class="${cur.a[0] === k ? 'on' : ''}">${LLDTI_RS[k]}</button>`).join('')}</div>` : '';
+        return `<div class="tb-ti"><div class="tb-til">Your interest</div><div class="tb-tib">${lv}</div>${rs}</div>`;
+    }
+    const rows = Object.keys(by).filter(r => r !== me && by[r] && by[r][pid]).map(r => {
+        const l = lldTbParseLabel(by[r][pid]), L = LLDTI_LV[l.s]; if (!L) return '';
+        return `<div class="tb-tio"><img src="${e(getFranchiseLogoUrl(r))}" onerror="this.style.display='none'"><span>${e(leagueFranchises[r] || r)}</span><b style="color:${L[1]}">${L[0]}</b>${l.a[0] && LLDTI_RS[l.a[0]] ? `<em>${e(LLDTI_RS[l.a[0]])}</em>` : ''}</div>`;
+    }).join('');
+    return `<div class="tb-ti"><div class="tb-til">Interest from other teams</div>${rows || '<span class="tb-sub">No responses yet</span>'}</div>`;
+}
+$(document).on('click', '.tb [data-tilv]', function () {
+    const X = window._tbX; if (!X) return; const me = X.d.me, pid = this.dataset.pid, k = this.dataset.tilv;
+    X.d.ti = X.d.ti || { by: {} }; const m = (X.d.ti.by[me] = X.d.ti.by[me] || {}), cur = lldTbParseLabel(m[pid]);
+    if (cur.s === k) delete m[pid]; else m[pid] = lldTbMakeLabel(k, k === 'V' ? [] : cur.a);
+    lldTiSaveSoon(); lldTbDraw();
+});
+$(document).on('click', '.tb [data-tirs]', function () {
+    const X = window._tbX; if (!X) return; const me = X.d.me, pid = this.dataset.pid, r = this.dataset.tirs, m = ((X.d.ti || {}).by || {})[me] || {}, cur = lldTbParseLabel(m[pid]);
+    if (!cur.s) return; m[pid] = lldTbMakeLabel(cur.s, cur.a[0] === r ? [] : [r]);
+    lldTiSaveSoon(); lldTbDraw();
+});
 async function lldTbData() {
     const S = await lldStatsLoad(), con = await lldTbContracts(), tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({}));
     const D = S.D, me = String(myFid).padStart(4, '0');
@@ -18308,7 +18562,8 @@ async function lldTbData() {
         snap = { rec: w + '-' + (gp - w), rank: order.findIndex(o => o.f === S.me) + 1, po: S.base[mi].po, fin: S.base[mi].rk };
     } catch (e) { }
     const recOf = f => { try { const i = S.F.indexOf(f); const o = S.F.map((x, j) => ({ f: x, w: S.wins[j], pf: S.pf[j] })).sort((a, b) => b.w - a.w || b.pf - a.pf); return { rec: S.wins[i] + '-' + (S.gp[i] - S.wins[i]), po: S.base[i].po, rank: o.findIndex(z => z.f === f) + 1 }; } catch (e) { return null; } };
-    return { S, tb, baits, info, snap, recOf, me, mine: S.cur[S.me] || [], rosters: D.rosters };
+    let ti = { by: {} }; try { ti = await lldTiLoad(true); } catch (e) { console.warn('trade interest', e); }
+    return { S, tb, baits, info, snap, recOf, me, ti, mine: S.cur[S.me] || [], rosters: D.rosters };
 }
 function lldTbLabels(d, f) {
     // saved labels, plus anyone already on that team's MFL block who has no label yet counts as Willing
@@ -18317,14 +18572,15 @@ function lldTbLabels(d, f) {
     ((d.baits[f] || {}).give || []).forEach(id => { if (/^\d+$/.test(id) && !out[id] && (d.rosters[f] || []).indexOf(id) >= 0) out[id] = 'W'; });
     return out;
 }
-function lldTbRow(x, st, asks, edit, open) {
+function lldTbRow(x, st, asks, edit, open, extra) {
     const T = LLDTB_ST[st], c = T ? T[1] : '#94a3b8', e = lldChatEsc;
     const posC = { QB: '#ff4d79', RB: '#2dd4bf', WR: '#60a5fa', TE: '#fbbf24' }[x.pos] || '#a78bfa';
     const mny = v => v == null ? '–' : '$' + v.toFixed(1) + 'm';
     const wants = st === 'S' && asks.length ? `<div class="tb-w">Wants ${e(asks.map(lldTbAskText).join(' or '))}</div>` : `<span class="tb-gm">${T ? T[0] : 'No trade label yet'}</span>`;
     const badge = `<button type="button" class="tb-badge" ${edit ? `data-tbopen="${x.pid}"` : 'disabled'} style="--c:${c}">${T ? T[2] : 'Set<br>status'}</button>`;
-    let h = `<div class="tb-row" data-pid="${x.pid}" style="--c:${c}"><div class="tb-rr">${badge}<div class="tb-sep"></div><img class="tb-hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${x.pid}.png" onerror="this.style.visibility='hidden'">`
-        + `<div class="tb-mid"><div class="tb-nm"><span class="tb-n">${e(x.name)}</span><span style="color:${posC};font-size:calc(12px * var(--ts,1));font-weight:900">${e(x.pos)}</span>${x.team ? `<img class="tb-nfl" src="${e(typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(x.team) : '')}" onerror="this.style.display='none'">` : ''}</div>${wants}</div>`
+    const trg = `player-modal-trigger" data-pid="${x.pid}" data-name="${e(x.name)}" data-pos="${e(x.pos)}" data-team="${e(x.team || '')}" data-owner="${e(x.own || '')}`;
+    let h = `<div class="tb-row" data-pid="${x.pid}" style="--c:${c}"><div class="tb-rr">${badge}<div class="tb-sep"></div><img class="tb-hs ${trg}" style="cursor:pointer" src="https://www.mflscripts.com/playerImages_80x107/mfl_${x.pid}.png" onerror="this.style.visibility='hidden'">`
+        + `<div class="tb-mid ${trg}" style="cursor:pointer"><div class="tb-nm"><span class="tb-n">${e(x.name)}</span><span style="color:${posC};font-size:calc(12px * var(--ts,1));font-weight:900">${e(x.pos)}</span>${x.team ? `<img class="tb-nfl" src="${e(typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(x.team) : '')}" onerror="this.style.display='none'">` : ''}</div>${wants}</div>`
         + `<div class="tb-rt"><b>${e(x.rk)}</b><span>POS RANK</span></div></div>`
         + `<div class="tb-info"><div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
         + `<div class="tb-st"><div><b>${x.pct == null ? '–' : x.pct + '%'}</b><span>of teams he would start for</span></div><div><b>${x.wk == null ? '–' : x.wk}</b><span>weeks he ${x.own === window._lldTbMe ? 'starts for you' : 'would start for you'}</span></div></div></div>`;
@@ -18334,7 +18590,7 @@ function lldTbRow(x, st, asks, edit, open) {
         h += `<div class="tb-ask"><h4>What do you want for him?</h4><div class="tb-chips">${asks.map(a => `<button type="button" class="tb-chip on" data-tbrm="${a}" data-pid="${x.pid}">${e(lldTbAskText(a))} ✕</button>`).join('') || '<span class="tb-sub">Add up to 2 things you would like back</span>'}</div>`
             + (asks.length < 2 ? `<div class="tb-chips"><select data-tbadd="1" data-pid="${x.pid}"><option value="">Top tier at a position…</option>${tiers}</select><select data-tbadd="1" data-pid="${x.pid}"><option value="">Draft pick…</option>${[1, 2, 3, 4].map(r => `<option value="R${r}">${lldTbAskText('R' + r)}</option>`).join('')}</select></div>` : '') + `</div>`;
     }
-    return h + '</div>';
+    return h + (extra || '') + '</div>';
 }
 function lldTbMain() { return $('#league-content-container'); }
 function lldTbDraw() {
@@ -18352,7 +18608,7 @@ function lldTbDraw() {
         h += `<div class="tb-fl">${pos.map(p => `<button type="button" data-tbpos="${p}" class="${X.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
         const order = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'PK'];
         const list = X.mineInfo.filter(x => X.pos === 'ALL' || x.pos === X.pos).sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || (parseInt(a.rk.split('#')[1], 10) || 999) - (parseInt(b.rk.split('#')[1], 10) || 999));
-        list.forEach(x => { const l = lldTbParseLabel(dr.p[x.pid]); h += lldTbRow(x, dr.p[x.pid] ? l.s : '', l.a, true, X.open === x.pid); });
+        list.forEach(x => { const l = lldTbParseLabel(dr.p[x.pid]); h += lldTbRow(x, dr.p[x.pid] ? l.s : '', l.a, true, X.open === x.pid, (l.s === 'S' || l.s === 'W') ? lldTiPanel(D, x.pid, D.me) : ''); });
         if (!list.length) h += '<div class="tb-sub" style="text-align:center;padding:16px">No players here.</div>';
         h += `<div class="tb-save ${X.dirty ? 'show' : ''}"><span>${X.saving ? 'Saving…' : 'Unsaved changes'}</span><button type="button" class="tb-savebtn" ${X.saving ? 'disabled' : ''}>Save</button></div>`;
     } else {
@@ -18365,7 +18621,7 @@ function lldTbDraw() {
             h += `<div class="tb-team"><div class="tb-th"><span class="tb-tn">${e(leagueFranchises[f] || f)}${f === D.me ? ' (you)' : ''}${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' · ' + rc.po + '% playoffs · ' : ''}${ids.length} labeled</span></div>`;
             ['S', 'W', 'U', 'N'].forEach(k => {
                 const g = ids.filter(id => lldTbParseLabel(lab[id]).s === k); if (!g.length) return;
-                h += `<div class="tb-grp" style="--c:${LLDTB_ST[k][1]}"><div class="tb-gl">${LLDTB_ST[k][0]}</div>${g.map(id => { const l = lldTbParseLabel(lab[id]); return lldTbRow(D.info(id), k, l.a, false, false); }).join('')}</div>`;
+                h += `<div class="tb-grp" style="--c:${LLDTB_ST[k][1]}"><div class="tb-gl">${LLDTB_ST[k][0]}</div>${g.map(id => { const l = lldTbParseLabel(lab[id]); return lldTbRow(D.info(id), k, l.a, false, false, (k === 'S' || k === 'W') ? lldTiPanel(D, id, f) : ''); }).join('')}</div>`;
             });
             h += '</div>';
         });
@@ -18373,7 +18629,13 @@ function lldTbDraw() {
     }
     lldTbMain().html(h + '</div>');
 }
+function lldTrBar(mode) {
+    $('#lld-tr-bar').remove(); const c = $('#league-content-container'); if (!c.length) return;
+    c.before(`<div id="lld-tr-bar" style="display:flex;gap:6px;justify-content:center;padding:8px 10px 0;">${[['block', 'Trade Block'], ['hub', 'Trades']].map(([v, l]) => `<button type="button" class="lld-tr-btn" data-v="${v}" style="padding:7px 16px;border-radius:999px;font-size:calc(11px * var(--ts,1));font-weight:900;text-transform:uppercase;cursor:pointer;border:1px solid ${mode === v ? 'var(--accent-blue)' : 'var(--card-border)'};background:${mode === v ? 'var(--accent-blue)' : 'rgba(255,255,255,.05)'};color:${mode === v ? '#fff' : 'var(--text-dim)'}">${l}</button>`).join('')}</div>`);
+}
+$(document).on('click', '.lld-tr-btn', function () { if (this.dataset.v === 'hub') loadTradeHub(); else loadTradeBlockTab(); });
 async function loadTradeBlockTab() {
+    lldTrBar('block');
     const box = lldTbMain().html('<div style="text-align:center; padding:40px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase;">Loading trade block…</div>');
     try {
         const d = await lldTbData(), mine = d.mine.slice();
@@ -18403,10 +18665,8 @@ $(document).on('click', '.tb .tb-savebtn', async function () {
     try { await lldTbSave(X.draft.m, X.draft.p); X.dirty = false; } catch (e) { alert('MFL: ' + (e.message || 'could not save')); }
     X.saving = false; lldTbDraw();
 });
-function lldEnsureBlockTab() {
-    const bar = $('#subtabs-league'); if (!bar.length || bar.find('.sub-tab-btn').filter(function () { return $(this).text().trim() === 'Trade Block'; }).length) return;
-    const last = bar.find('.sub-tab-btn').last(); if (!last.length) return;
-    last.clone().removeClass('active').text('Trade Block').attr('onclick', "openLeagueSubTab(event,'tradeblock')").insertAfter(last);
+function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
+    $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Trade Block'; }).remove();
 }
 
 // ===== quick theme sheet: a palette icon beside settings; the page stays visible so changes can be seen live =====
