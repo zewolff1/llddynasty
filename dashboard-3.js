@@ -1,3 +1,10 @@
+// (moved to the top: these are read while the page is still being built)
+const HIDE_DRAFT_TAB = 'offseason';
+const LLD_TUNE = [
+    ['Team logo watermark', [['wms', 'Size', 40, 260, 108, 'px'], ['wmx', 'Left / right', -100, 220, 14, 'px'], ['wmy', 'Up / down', 0, 100, 50, '%'], ['wmo', 'Strength', 2, 70, 17, '%'], ['wmb', 'Blur', 0, 8, 0, 'px'], ['wmf', 'Fade toward right', 0, 100, 0, '%'], ['wmbr', 'Brightness', 30, 250, 100, '%'], ['wmg', 'Grayscale', 0, 100, 0, '%'], ['wmr', 'Tilt', -45, 45, 0, 'deg']]],
+    ['Player row', [['hs', 'Headshot size', 24, 70, 30, 'px'], ['nm', 'Name size', 10, 22, 15, 'px'], ['tn', 'Small logo by name', 0, 36, 16, 'px'], ['pad', 'Row height (padding)', 2, 22, 8, 'px'], ['edge', 'Colored left edge', 0, 8, 3, 'px']]],
+    ['Right side numbers', [['pjn', 'Projection number', 9, 26, 13, 'px'], ['pjl', 'PROJ label', 6, 20, 8, 'px'], ['rkr', 'Rank (LB#18)', 6, 20, 9, 'px'], ['rka', 'Average (8.0 AVG)', 6, 20, 9, 'px']]]
+];
 // ===== LLD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
 const LLD = Object.assign({
     leagueId: '',
@@ -10702,7 +10709,6 @@ fetch(`${MFL_ORIGIN}/${parseInt(year) - 1}/standings?L=${lid}`, { credentials: '
         });
     }).catch(e => console.warn('Prev year standings fetch failed', e));
 // Hide the Draft tab (set to 'offseason', 'inseason', 'always' or 'never')
-const HIDE_DRAFT_TAB = 'offseason';
 function applyDraftTabVisibility() {
     const hide = HIDE_DRAFT_TAB === 'always'
         || (HIDE_DRAFT_TAB === 'offseason' && window.offseasonMode)
@@ -12130,11 +12136,6 @@ $(document).on('click', '.lld-amb', function (e) {
     $('.lld-amb').each(function () { $(this).toggleClass('on', this.dataset.am === v); });
 });
 try { document.body.setAttribute('data-lld-am', lldGet('lld_am', 'sal') || 'sal'); } catch (e) { }
-const LLD_TUNE = [
-    ['Team logo watermark', [['wms', 'Size', 40, 260, 108, 'px'], ['wmx', 'Left / right', -100, 220, 14, 'px'], ['wmy', 'Up / down', 0, 100, 50, '%'], ['wmo', 'Strength', 2, 70, 17, '%'], ['wmb', 'Blur', 0, 8, 0, 'px'], ['wmf', 'Fade toward right', 0, 100, 0, '%'], ['wmbr', 'Brightness', 30, 250, 100, '%'], ['wmg', 'Grayscale', 0, 100, 0, '%'], ['wmr', 'Tilt', -45, 45, 0, 'deg']]],
-    ['Player row', [['hs', 'Headshot size', 24, 70, 30, 'px'], ['nm', 'Name size', 10, 22, 15, 'px'], ['tn', 'Small logo by name', 0, 36, 16, 'px'], ['pad', 'Row height (padding)', 2, 22, 8, 'px'], ['edge', 'Colored left edge', 0, 8, 3, 'px']]],
-    ['Right side numbers', [['pjn', 'Projection number', 9, 26, 13, 'px'], ['pjl', 'PROJ label', 6, 20, 8, 'px'], ['rkr', 'Rank (LB#18)', 6, 20, 9, 'px'], ['rka', 'Average (8.0 AVG)', 6, 20, 9, 'px']]]
-];
 function lldTune() { try { return JSON.parse(lldGet('lld_b_tune', '{}')) || {}; } catch (e) { return {}; } }
 function lldTuneCss() {
     const t = lldTune(), has = k => t[k] !== undefined, v = (k, d) => has(k) ? t[k] : d, o = [];
