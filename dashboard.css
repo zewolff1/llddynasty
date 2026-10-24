@@ -4230,3 +4230,8 @@ body.lld-hd2 .lld-stats .sxh-h{margin-top:4px}
 .sg-th span{font-size:calc(14px * var(--ts,1));font-weight:800;color:#c9d3f2}.sg-th b{font-size:calc(22px * var(--ts,1));font-weight:900;color:#f3f6ff}.sg-th em{font-style:normal;font-size:calc(11px * var(--ts,1));color:#8d9bc4}
 .sg-th .sg-mid{flex:none;border:1px solid #243066;border-radius:10px;padding:8px 10px;color:#8d9bc4;font-size:calc(14px * var(--ts,1))}
 .sg-exp{font-size:calc(11px * var(--ts,1));font-weight:800;color:#2dd4bf;text-align:right;margin:-2px 2px 6px}
+
+/* ===== r57: Sleeper-style top tabs (beta, body.lld-nav) ===== */
+body.lld-nav .tab-btn[onclick*="tab-scoreboard"]{order:-1}
+body.lld-nav .tab-btn[onclick*="tab-rules"]{display:none!important}
+body.lld-nav:not(.lld-nav-draft) .tab-btn[onclick*="tab-draft"]{display:none!important}
