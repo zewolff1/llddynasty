@@ -12249,7 +12249,10 @@ function lldHd2Render() {
     const anchor = $('#tab-header-area'); if (!anchor.length) return;
     let el = $('#lld-hd2'); if (!el.length) { el = $('<div id="lld-hd2"></div>'); anchor.before(el); }
     try { el.html(lldHd2Html()); } catch (e) { console.warn('hd2', e); el.empty(); }
+    lldHd2Vis();
 }
+function lldHd2Vis() { const el = $('#lld-hd2'); if (el.length) el.toggle($('#tab-team').is(':visible')); }
+$(document).on('click', '.tab-btn', function () { setTimeout(lldHd2Vis, 30); setTimeout(lldHd2Vis, 400); });
 $(document).on('click', '#lld-hd2 .hd2-sw, #lld-hd2 .hd2-nm', function () { $('#active-team-switcher-btn').trigger('click'); });
 $(document).on('click', '#lld-hd2 .hd2-pv', function (e) { if ($(this).data('ph') === 'preview' || this.dataset.ph === 'preview') return; e.stopImmediatePropagation(); lldGoLeagueSub('Recaps'); });
 $(document).on('click', '#lld-hd2 .hd2-a', function () {
