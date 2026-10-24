@@ -12017,7 +12017,7 @@ function classifyGameStatusText(text) {
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldBeta() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; }
 function lldBv(k) { const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
@@ -12031,6 +12031,7 @@ function lldApplyBeta() {
     c.toggle('lld-slp', b && lldBv('slp') === '1');
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
+    try { lldNavApply(); } catch (e) { }
     try { lldHd2Render(); } catch (e) { }
 }
 setTimeout(lldApplyBeta, 300); setTimeout(lldApplyBeta, 2500); setInterval(lldApplyBeta, 5000);
@@ -12047,7 +12048,7 @@ const LLD_TPL = {
         all:       { left: 'none', under: 'team', opp: 'match',    pbox: 'proj', det: 'rank',  ravg: '2', clines: '2', tabs: 'on',  inj: 'on', hit: 'on', yrs: 'on', guar: 'on' }
     }
 };
-const LLD_SLP_DEF = { l2: 'rank', l3: 'game', head: 'on', badge: 'on', shape: 'circle', pill: 'left', right: 'scoreproj', bye: 'upcoming', hs: 44, nm: 17, l2s: 13, l3s: 13, pjn: 22, pjl: 12, pw: 46, ph: 34, pad: 10, gap: 10, tb: 20, cnm: '#f3f6ff', cl2: '#c9d3f2', crk: '#60a5fa', cdim: '#8d9bc4' };
+const LLD_SLP_DEF = { l2: 'rank', l3: 'game', head: 'on', badge: 'on', shape: 'circle', pill: 'left', right: 'projavg', bye: 'upcoming', hs: 44, nm: 17, l2s: 13, l3s: 13, pjn: 22, pjl: 12, pw: 46, ph: 34, pad: 10, gap: 10, tb: 20, cnm: '#f3f6ff', cl2: '#c9d3f2', crk: '#60a5fa', cdim: '#8d9bc4' };
 function lldSlpCfg() { let o = {}; try { o = (JSON.parse(lldGet('lld_b_slpcfg', '{}')) || {}); if (o.slp && typeof o.slp === 'object') o = o.slp; } catch (e) { o = {}; } return Object.assign({}, LLD_SLP_DEF, o); }
 function lldSlpCss() {
     const c = lldSlpCfg(), n = (k) => { const v = parseFloat(c[k]); return isFinite(v) ? v : LLD_SLP_DEF[k]; }, col = (k) => /^#[0-9a-fA-F]{3,8}$/.test(c[k]) ? c[k] : LLD_SLP_DEF[k];
@@ -12174,7 +12175,7 @@ window.lldSstHeader = lldSstHeader;
 // ----- Team header (Lineup + Contracts), Sleeper style (beta only, default off) -----
 function lldHd2On() { try { return lldBeta() && lldBv('hd2') === '1'; } catch (e) { return false; } }
 function lldHd2Def() { return { logo: 56, nm: 22, rec: 'full', bar: 'on', pct: 'on', act: 'on', score: 'on', aw: 'on', prev: 'on', phase: 'auto', nact: 4, a1: 'lineup', a2: 'contracts', a3: 'stats', a4: 'tradetab', a5: 'preview', astyle: 'tabs', lshape: 'circle', recs: 13, wps: 15, scs: 24, sps: 15, barh: 6, rad: 18, bord: 'on', cpad: 14, cn: '#c9d3f2', cl: '#7ee8c1', cbar: '#6ee7b7', cbg: '#0f1a3f', abd: 'on', wk: 'on', cap: 'both', stats: 'on', nst: 3, big: 'left', yr: 'on', title: 'off', troph: 'off', seek: 'off', own: 'off' }; }
-function lldHd2Cfg(contracts) { const d = lldHd2Def(), base = lldCfgFor('hdr', d); return contracts ? Object.assign({}, base, lldAllCfg().chdr || {}) : base; }
+function lldHd2Cfg(contracts) { const d = lldHd2Def(), base = lldCfgFor('hdr', d); return contracts ? Object.assign({}, base, { sps: 13 }, lldAllCfg().chdr || {}) : base; }
 function lldAutoPhase() { const d = new Date(), w = d.getDay(), h = d.getHours(); if (w === 0 || (w === 1 && h < 23)) return 'live'; if (w === 1) return 'recap'; if (w === 2 && h < 14) return 'recap'; return 'preview'; }
 function lldHd2Html() {
     const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup'), onC = sub === 'contracts';
@@ -12364,6 +12365,46 @@ function lldTrHdr(o) {
 }
 window.lldSgOn = lldSgOn; window.lldSgPlayer = lldSgPlayer; window.lldTrChip = lldTrChip; window.lldTrHdr = lldTrHdr; window.lldSmRow = lldSmRow;
 
+// ----- Sleeper-style top tabs (beta only, default off): Match · Team · Players · League -----
+function lldNavOn() { try { return lldBeta() && lldBv('nav') === '1'; } catch (e) { return false; } }
+function lldNavDef() { return { set: 'sleeper', extra: 'league', sty: 'underline', glow: 'on', caps: 'on', tsz: 15, gap: 2, acc: '#5eead4', cact: '#f3f6ff', cdim: '#8aa0cf', cbg: '#0a1030' }; }
+function lldNavCfg() { return lldCfgFor('nav', lldNavDef()); }
+function lldNavCss() {
+    const c = lldNavCfg(), d = lldNavDef(), n = k => { const v = parseFloat(c[k]); return isFinite(v) ? v : d[k]; }, col = k => /^#[0-9a-fA-F]{3,8}$/.test(c[k]) ? c[k] : d[k];
+    const B = 'body.lld-nav .tab-btn', acc = col('acc');
+    let s = `${B}{font-size:calc(${n('tsz')}px * var(--ts,1)) !important;color:${col('cdim')} !important;margin:0 ${n('gap')}px;font-weight:800;border-radius:0 !important;border-bottom:4px solid transparent !important;background:none !important;box-shadow:none !important;${c.caps === 'off' ? 'text-transform:none !important;letter-spacing:0 !important;' : 'text-transform:uppercase !important;letter-spacing:.08em !important;'}}`;
+    if (c.sty === 'pill') s += `${B}{border-radius:999px !important;border-bottom:0 !important;padding:8px 14px !important}${B}.active{background:${acc} !important;color:#06122e !important;${c.glow === 'off' ? '' : `box-shadow:0 0 14px ${acc} !important;`}}`;
+    else if (c.sty === 'text') s += `${B}.active{color:${acc} !important;${c.glow === 'off' ? '' : `text-shadow:0 0 14px ${acc};`}}`;
+    else s += `${B}.active{color:${col('cact')} !important;border-bottom-color:${acc} !important;${c.glow === 'off' ? '' : `text-shadow:0 0 14px ${acc};box-shadow:0 6px 12px -6px ${acc} !important;`}}`;
+    return s;
+}
+function lldNavGo(which) {
+    const b = $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-' + which); }).first();
+    if (!b.length) return;
+    b[0].click();
+    setTimeout(() => { $('.tab-btn').removeClass('active'); $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-league'); }).addClass('active'); }, 80);
+}
+window.lldNavGo = lldNavGo;
+function lldNavApply() {
+    const c = lldNavCfg(), on = lldNavOn() && c.set !== 'current', cl = document.body.classList;
+    cl.toggle('lld-nav', on); cl.toggle('lld-nav-draft', on && c.set === 'plusdraft');
+    $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-scoreboard'); }).each(function () {
+        if (!this.dataset.orig) this.dataset.orig = this.textContent.trim();
+        const want = on ? 'Match' : this.dataset.orig; if (this.textContent.trim() !== want) this.textContent = want;
+    });
+    const bar = $('#subtabs-league');
+    if (!on) { bar.find('.lld-nav-sub').remove(); return; }
+    if (!bar.length) return;
+    const drafthide = HIDE_DRAFT_TAB === 'always' || (HIDE_DRAFT_TAB === 'offseason' && window.offseasonMode) || (HIDE_DRAFT_TAB === 'inseason' && !window.offseasonMode);
+    [['draft', 'Draft', c.set !== 'plusdraft' && !drafthide], ['rules', 'Rules', true]].forEach(([k, label, want]) => {
+        const have = bar.find('.lld-nav-sub[data-k="' + k + '"]');
+        if (!want) { have.remove(); return; }
+        if (have.length) return;
+        const last = bar.find('.sub-tab-btn').not('.lld-nav-sub').last(); if (!last.length) return;
+        last.clone().removeClass('active').addClass('lld-nav-sub').attr({ 'data-k': k, onclick: "lldNavGo('" + k + "')" }).text(label).insertAfter(bar.find('.sub-tab-btn').last());
+    });
+}
+
 function lldSlpWeek() { let w = parseInt(window._liveScoreCurrentWeek, 10); if (!w) { try { const m = ($('#tab-team').text() || '').match(/Week\s+(\d{1,2})/); w = m ? parseInt(m[1], 10) : 0; } catch (e) { w = 0; } } return w || 0; }
 function lldSlpByeHydrate() {
     const m = window._lldBye; if (!m) return;
@@ -12538,7 +12579,7 @@ function lldTuneCss() {
 function lldTuneApply() {
     let el = document.getElementById('lld-tune-css');
     if (!el) { el = document.createElement('style'); el.id = 'lld-tune-css'; document.head.appendChild(el); }
-    el.textContent = lldBeta() ? lldTuneCss() + '\n' + lldTplCss() + '\n' + lldSlpCss() + '\n' + lldSstCss() : '';
+    el.textContent = lldBeta() ? lldTuneCss() + '\n' + lldTplCss() + '\n' + lldSlpCss() + '\n' + lldSstCss() + '\n' + lldNavCss() : '';
 }
 function lldBetaHtml() {
     if (!lldBeta()) return '';
@@ -12562,6 +12603,7 @@ function lldBetaHtml() {
         ${lab('Sleeper-style Lineup rows (Team tab)')}${onoff('slp')}
         <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin:2px 0 6px;">Design it in Claude, tap Copy settings, then paste here:</div><textarea id="lld-slp-json" rows="3" placeholder="Paste Sleeper lineup settings" style="width:100%; box-sizing:border-box; background:var(--bg-card,#0f172a); color:#fff; border:1px solid var(--card-border); border-radius:8px; padding:8px; font-size:16px;">${lldGet('lld_b_slpcfg', '{}') === '{}' ? '' : lldGet('lld_b_slpcfg', '')}</textarea>
         <div style="display:flex; gap:6px; align-items:center; margin:6px 0 14px;"><button type="button" class="lld-hdr-btn" id="lld-slp-apply">Apply</button><button type="button" class="lld-hdr-btn" id="lld-slp-reset">Reset</button><span id="lld-slp-msg" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);"></span></div>
+        ${lab('Sleeper-style top tabs (Match · Team · Players · League)')}${onoff('nav')}
         ${lab('Sleeper-style Team header (Lineup + Contracts)')}${onoff('hd2')}
         ${lab('Sleeper-style Contracts rows')}${onoff('sct')}
         ${lab('Sleeper-style Match rows (live matchup)')}${onoff('smt')}
@@ -12599,7 +12641,7 @@ $(document).on('click', '.lld-b-btn', function () {
     lldSet('lld_b_' + this.dataset.k, this.dataset.v);
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
-    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
+    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
     try { if (this.dataset.k === 'lock') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
