@@ -4628,7 +4628,7 @@ let swapIndicator = '';
 
 let rStat = irPids.has(pid) ? "IR" : taxiPids.has(pid) ? "TS" : "";
 const inlineStatusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : "";
-                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}${isL ? ' pos-open-menu' : ''}" style="font-size: calc(11px * var(--ts,1)); font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
+                const inlinePosBadge = `<span class="pos-text-${pos.toLowerCase()}${isL ? ' pos-open-menu' : ''}" style="font-size: calc(11px * var(--ts,1)); font-weight: 900; margin-left: 5px; flex-shrink: 0;">${pos}</span>` + (isL ? `<img class="lld-tinyname" src="${getNFLLogoUrl(team.toUpperCase())}" onerror="this.style.display='none'" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; margin-left: 2px;"><span class="proj-popup-trigger" data-proj="${projNum.toFixed(1)}" style="margin-left: auto; order: 99; display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; cursor:pointer;"><span class="lld-pj-n" style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); font-variant-numeric: tabular-nums;">${projNum.toFixed(1)}</span><span class="lld-pj-l" style="font-size: calc(8px * var(--ts,1)); font-weight: 800; color: var(--text-dim);">PROJ</span></span>` : '');
                 
                 // Core Matchup UI Variables
                 let teamMatch = secondaryText.match(/(?:vs|@)\s*([A-Z]{2,3})/i);
@@ -4694,7 +4694,21 @@ if (isL) {
         cPA = `<div class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin: 0; display: inline-block; font-size: calc(9px * var(--ts,1)); padding: 1px 5px; border-radius: 4px; line-height: 1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[opp][realPos]))} PA (#${cRank})</div>`;
     }
     matchupHtml = `<div class="matchup-compact" style="display: flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 6px; background: linear-gradient(135deg, ${c1}35, ${c2}15); border: 1px solid ${c1}50; white-space: nowrap; flex-wrap: nowrap; flex-shrink: 0; box-sizing: border-box;">${opp ? `<span style="font-size: calc(10px * var(--ts,1)); font-weight: 900; color: #fff; letter-spacing: 0.4px; margin-right: 1px;">${/@\s*[A-Z]{2,3}/i.test(secondaryText) ? '@' : ''}${opp}</span><span style="font-size: calc(10px * var(--ts,1)); color: var(--text-dim); margin: 0 1px;">·</span>` : ''}<span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: #fff;">${cWhen}</span>${cPA}</div>
-        <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: calc(9px * var(--ts,1)); white-space: nowrap; flex-shrink: 0;"><span style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span style="font-weight: 800; color: var(--text-dim);">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span></span>`;
+        <span class="lld-rk" style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: calc(9px * var(--ts,1)); white-space: nowrap; flex-shrink: 0;"><span class="lld-rk-r" style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span class="lld-rk-a" style="font-weight: 800; color: var(--text-dim);">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span></span>`;
+}
+if (isL && lldTplOn()) {
+    try {
+        const tDay = secondaryText.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i), tTime = secondaryText.match(/(\d+)(?::\d+)?\s*(a\.m\.|p\.m\.)/i);
+        const tWhen = [tDay ? tDay[1] : '', tTime ? `${tTime[1]} ${tTime[2].toLowerCase().includes('p') ? 'PM' : 'AM'}` : ''].join(' ').trim() || secondaryText || '-';
+        let tPA = '';
+        if (opp && pointsAllowedMap[opp]?.[realPos]) {
+            const r0 = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][opp] : 0;
+            const c0 = (r0 >= 24) ? 'matchup-easy' : (r0 <= 9) ? 'matchup-tough' : 'matchup-neutral';
+            tPA = `<div class="matchup-pts ${c0} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor:pointer; margin:0; display:inline-block; line-height:1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[opp][realPos]))} PA (#${r0})</div>`;
+        }
+        const tL1 = opp ? `<span>${/@\s*[A-Z]{2,3}/i.test(secondaryText) ? '@' : ''}${opp}</span> · <span>${tWhen}</span>` : `<span>${tWhen}</span>`;
+        return buildCompactUniversalRow({ pid, name, shortName, pos, team }, { tplKind: 'lineup', posOpen: true, leftContent: btnHtml, extraClasses: isChanged ? 'status-changed' : '', tpl: { match: [tL1, tPA], proj: projTopHtml(projNum.toFixed(1)) } });
+    } catch (e) { console.warn('tpl lineup row', e); }
 }
 return `<div class="player-row pos-border-${pos.toLowerCase()} ${isChanged ? 'status-changed' : ''}"
              data-pid="${pid}" data-pname="${name}" data-pteam="${team}" data-ppos="${pos}">
@@ -4758,6 +4772,7 @@ function buildInactiveRow(p) {
         { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
         {
             compact: true,
+            tplKind: 'lineup',
             forcedStatus: p.status,
             leftContent: `<div class="move-btn-wrapper">${btnHtml}</div>`,
             pill: `<span style="color:${p.locked ? '#ef4444' : '#fff'};">${p.locked && p.lockMsg ? p.lockMsg : schedPillHtml(p.sec)}</span>`,
@@ -4928,6 +4943,8 @@ const innerRowHtml = buildUniversalRow(
     { pid, name, shortName, pos, team },
     {
                compact: true,
+        tplKind: 'contracts',
+        tpl: { k: { hit: currentCapHitDisplay, yrs: relativeYrsLeft, guar }, rk: { salNum } },
         pill: contractPillHtml(currentCapHitDisplay, relativeYrsLeft, guar),
         topRight: `<b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small>`,
         bottomRight: rankLineHtml(pid, pos, salNum),
@@ -5603,6 +5620,7 @@ function buildSwapRow(p) {
             { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
             {
                 compact: true,
+                tplKind: 'lineup',
                 isSwapView: true,
                 noPhotoTap: true,
                 pill: `<span>${schedPillHtml(p.sec)}</span>${cPA}`,
@@ -5701,10 +5719,10 @@ function schedPillHtml(sec) {
 function rankAvgHtml(pid, pos) {
     const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0';
     const r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
-    return `<span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${pos}${r}</span> ${avg} AVG</span>`;
+    return `<span class="lld-rk" style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;"><span class="lld-rk-r" style="font-weight:900; color:var(--accent-blue);">${pos}${r}</span> <span class="lld-rk-a">${avg} AVG</span></span>`;
 }
 function projTopHtml(v) {
-    return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;">${v} PROJ</span>`;
+    return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;"><span class="lld-pj-n">${v}</span> <span class="lld-pj-l">PROJ</span></span>`;
 }
 
 
@@ -5811,6 +5829,7 @@ function oppPillHtml(team, realPos, sched) {
     return `<span>${g.isHome === false ? '@' : ''}${g.opp}</span><span style="color:var(--text-dim);">·</span><span>${when}</span>${pa}`;
 }
 function buildCompactUniversalRow(data, opts) {
+    if (!opts.noTpl && lldTplOn()) { try { return lldTplRow(data, opts); } catch (e) { console.warn('tpl row', e); } }
     const pid = String(data.pid);
     const team = (data.team || 'NFL').toUpperCase();
     const posL = (data.pos || '').toLowerCase();
@@ -9459,14 +9478,17 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
+                    tplKind: isFAView ? 'fa' : 'all',
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: (() => {
                         const hl = k => playerSortBy === k ? ' sort-hl' : '';
                         const sal = p.salary ? `<span class="srt${hl('salary')}"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small></span>` : '';
                         const proj = (p.salary && !(p.projVal > 0)) ? '' : `<span class="srt proj-popup-trigger${hl('proj')}" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(${p.salary ? 13 : 15}px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>`;
                         const pt = (playerSortBy === 'pts') ? `<span class="srt sort-hl"><b style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${(((playerSeason[p.pid] || {}).pts) || 0).toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PTS</small></span>` : '';
+                        p._tp = { sal, proj, pt };
                         return sal + proj + pt;
                     })(),
+                    tpl: { match: lldTplOppParts(p.team, p.realPos, nflSched), sal: p._tp.sal, proj: p._tp.proj + p._tp.pt, k: p.salary ? { hit: p.capHitNum, yrs: p.years, guar: p.guar } : null, rk: p.salary ? { salNum: parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0 } : null },
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
                                                 : `<span style="font-size:calc(9px * var(--ts,1)); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
@@ -9625,6 +9647,8 @@ const rowHtml = buildUniversalRow(
     { pid, name, shortName, pos, team },
     {
                 compact: true,
+        tplKind: salNum > 0 ? 'contracts' : 'fa',
+        tpl: salNum > 0 ? { k: { hit: capHitDisplay, yrs: yrsNum, guar }, rk: { salNum } } : {},
         pill: salNum > 0
             ? contractPillHtml(capHitDisplay, yrsNum, guar)
             : `<span style="color:var(--accent-blue);">${ownerFid ? `On ${leagueFranchises[ownerFid]}` : 'Free Agent'}</span>`,
@@ -11073,6 +11097,8 @@ function buildTradePlayerRow(p, isSelected, side) {
         { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
         {
             compact: true,
+            tplKind: 'trades',
+            tpl: p.salary ? { k: { hit: capHit, yrs, guar: p.guar || '0%' }, rk: { salNum: sal } } : {},
             noPhotoTap: true,
             extraClasses: 'trade-chip player-modal-trigger',
             extraAttributes: `data-side="${side}" data-name="${String(p.name).replace(/"/g, '&quot;')}" data-pos="${p.pos}" data-team="${p.team}"`,
@@ -11953,35 +11979,233 @@ function classifyGameStatusText(text) {
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
-function lldBdef(k) { return ({ wm: '2', lock: '1', pos: '1', anim: '1' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldBeta() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; }
-function lldBv(k) { return lldGet('lld_b_' + k, lldBdef(k)); }
+function lldBv(k) { const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
-    ['1', '2', '3'].forEach(n => c.toggle('lld-wm-' + n, b && wm === n));
+    c.toggle('lld-bt', b);
+    lldTuneApply();
     c.toggle('lld-posmenu', b && lldBv('pos') !== '0');
     c.toggle('lld-hdranim', b && lldBv('anim') !== '0');
+    c.toggle('lld-tpl', b && lldBv('tpl') !== '0');
 }
 setTimeout(lldApplyBeta, 300); setTimeout(lldApplyBeta, 2500); setInterval(lldApplyBeta, 5000);
+
+// ===== NEW PLAYER ROW LAYOUT (built from the row tuner) — beta only, with an On/Off switch in Beta features =====
+const LLD_TPL = {
+    n: { hs: 35, nm: 12, tn: 16, pad: 4, edge: 5, gap: 9, boxr: 8, boxb: 24, pjn: 17, pjl: 9, rkr: 11, rka: 11, usz: 10, wms: 135, wmx: -21, wmy: 50, wmo: 26, wmb: 0, wmf: 21, wmbr: 100, wmg: 0, wmr: 0 },
+    c: { pj: '#2dd4bf', sal: '#4ade80', rk: '#60a5fa', avg: '#93a1bd', hit: '#f5a524', ctr: '#f5a524', dyn: '#60a5fa', gu: '#86efac' },
+    f: {
+        lineup:    { left: 'pos',  under: 'team', opp: 'match',    pbox: 'proj', det: 'rank',  ravg: '2', clines: '2', tabs: 'off', inj: 'on', hit: 'on', yrs: 'on', guar: 'on' },
+        contracts: { left: 'none', under: 'age',  opp: 'ranks',    pbox: 'sal',  det: 'cinfo', ravg: '2', clines: '2', tabs: 'off', inj: 'on', hit: 'on', yrs: 'on', guar: 'on' },
+        trades:    { left: 'plus', under: 'team', opp: 'ranks',    pbox: 'sal',  det: 'cinfo', ravg: '2', clines: '2', tabs: 'off', inj: 'on', hit: 'on', yrs: 'on', guar: 'on' },
+        fa:        { left: 'add',  under: 'team', opp: 'match',    pbox: 'proj', det: 'rank',  ravg: '2', clines: '2', tabs: 'off', inj: 'on', hit: 'on', yrs: 'on', guar: 'on' },
+        all:       { left: 'none', under: 'team', opp: 'match',    pbox: 'proj', det: 'rank',  ravg: '2', clines: '2', tabs: 'on',  inj: 'on', hit: 'on', yrs: 'on', guar: 'on' }
+    }
+};
+function lldTplOn() { try { return lldBeta() && lldBv('tpl') !== '0'; } catch (e) { return false; } }
+function lldTplCss() {
+    const n = LLD_TPL.n, c = LLD_TPL.c, p = x => `calc(${x}px * var(--ts,1))`;
+    const mask = n.wmf ? `-webkit-mask-image:linear-gradient(90deg,#000 ${100 - n.wmf}%,transparent 100%);mask-image:linear-gradient(90deg,#000 ${100 - n.wmf}%,transparent 100%);` : '';
+    return `body.lld-tpl{--tp-hs:${n.hs}px;--tp-nm:${p(n.nm)};--tp-tn:${n.tn}px;--tp-pad:${n.pad}px;--tp-edge:${n.edge}px;--tp-gap:${n.gap}px;--tp-boxr:${n.boxr}px;--tp-boxb:${n.boxb / 100};--tp-pjn:${p(n.pjn)};--tp-pjl:${p(n.pjl)};--tp-rkr:${p(n.rkr)};--tp-rka:${p(n.rka)};--tp-usz:${p(n.usz)};--tp-cpj:${c.pj};--tp-csal:${c.sal};--tp-crk:${c.rk};--tp-cavg:${c.avg};--tp-chit:${c.hit};--tp-cctr:${c.ctr};--tp-cdyn:${c.dyn};--tp-cgu:${c.gu}}\n`
+        + `body.lld-wm.lld-tpl .player-row.lld-tpl .row-wm img{left:${n.wmx}px !important;top:${n.wmy}% !important;width:${n.wms}px !important;height:${n.wms}px !important;opacity:${n.wmo / 100} !important;filter:blur(${n.wmb}px) brightness(${n.wmbr}%) grayscale(${n.wmg}%);transform:translateY(-50%) rotate(${n.wmr}deg);${mask}}`;
+}
+// NFL bye weeks (for the small line under the name)
+window._lldBye = window._lldBye || null;
+async function lldByeLoad() {
+    if (window._lldBye || window._lldByeBusy) return; window._lldByeBusy = true;
+    try {
+        const r = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflByeWeeks&JSON=1`, { credentials: 'include' });
+        const d = await r.json(), m = {};
+        let a = (d.nflByeWeeks && d.nflByeWeeks.team) || []; if (!Array.isArray(a)) a = a ? [a] : [];
+        a.forEach(x => { if (x && x.id) m[String(x.id).toUpperCase()] = x.bye_week; });
+        if (Object.keys(m).length) { window._lldBye = m; lldByeHydrate(); }
+    } catch (e) { console.warn('bye weeks', e); }
+    window._lldByeBusy = false;
+}
+function lldByeHydrate() {
+    const m = window._lldBye; if (!m) return;
+    document.querySelectorAll('.lld-undr[data-team]').forEach(el => { const t = el.dataset.team, b = m[t] || m[NFL_ABBR_ALIAS && NFL_ABBR_ALIAS[t]]; if (b && !el.dataset.done) { el.dataset.done = '1'; el.textContent = `${t} · Bye ${b}`; } });
+}
+setTimeout(lldByeLoad, 2500);
+new MutationObserver(() => { try { if (window._lldBye) lldByeHydrate(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true });
+function lldTplRankAvg(pid, pos, two) {
+    const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0', r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
+    const a = `<span class="lld-rk-r">${pos}${r}</span>`, b = `<span class="lld-rk-a">${avg} AVG</span>`;
+    return two ? `<div>${a}</div><div>${b}</div>` : `${a} ${b}`;
+}
+function lldTplCtrDyn(pid, pos, salNum) {
+    const g = dynGrp(pos), cr = contractRankFor(pos, salNum);
+    return [`${cr ? `<span class="lld-tp-ctr">${g}#${cr}</span> CTR` : '<span class="lld-tp-dim">CTR n/a</span>'}`, `<span class="dyn-rank" data-pid="${pid}" data-grp="${g}"><i style="font-style:normal; font-weight:900; color:var(--tp-cdyn);">${g}#–</i></span> DYN`];
+}
+function lldTplContractParts(k, F) {
+    const o = [];
+    const hit = parseFloat(k.hit || 0).toFixed(1);
+    if (F.hit !== 'off') o.push(`<span class="lld-tp-hit">$${hit}m</span> HIT`);
+    if (F.yrs !== 'off') o.push(`<b>${k.yrs}YR</b>`);
+    if (F.guar !== 'off') o.push(`<b>${k.guar}</b> GUAR`);
+    return o;
+}
+function lldTplLines(parts, two) {
+    if (!two || parts.length < 2) return [parts.join(' · ')];
+    const h = Math.ceil(parts.length / 2); return [parts.slice(0, h).join(' · '), parts.slice(h).join(' · ')];
+}
+function lldTplOppParts(team, realPos, sched) {
+    const g = sched && sched[(team || '').toUpperCase()];
+    if (!g || !g.opp) return ['<span style="color:var(--text-dim);">BYE</span>'];
+    const d = g.kickoffMs ? new Date(g.kickoffMs) : null;
+    const when = d ? `${d.toLocaleDateString([], { weekday: 'short' })} ${d.toLocaleTimeString([], { hour: 'numeric' })}` : '';
+    let pa = '';
+    if (pointsAllowedMap[g.opp]?.[realPos]) {
+        const rank = pointsAllowedRankMap[realPos] ? pointsAllowedRankMap[realPos][g.opp] : 0;
+        const cls = (rank >= 24) ? 'matchup-easy' : (rank <= 9) ? 'matchup-tough' : 'matchup-neutral';
+        pa = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${g.opp}" data-pos="${realPos}" style="cursor:pointer; margin:0; display:inline-block; line-height:1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[g.opp][realPos]))} PA (#${rank})</div>`;
+    }
+    return [`<span>${g.isHome === false ? '@' : ''}${g.opp}</span> · <span>${when}</span>`, pa];
+}
+function lldTplRow(data, opts) {
+    const kind = opts.tplKind || 'lineup', F = LLD_TPL.f[kind] || LLD_TPL.f.lineup, T = opts.tpl || {};
+    const pid = String(data.pid), team = (data.team || 'NFL').toUpperCase(), posL = (data.pos || '').toLowerCase();
+    const rStat = opts.forcedStatus || (irPids.has(pid) ? 'IR' : taxiPids.has(pid) ? 'TS' : '');
+    const statusBadge = rStat === 'IR' ? IR_ICON : rStat === 'TS' ? TS_ICON : '';
+    hydrateDynRanks();
+    const box = l => (l && l[0]) ? `<div class="lld-mid"><span class="lld-l1">${l[0]}</span>${l[1] ? `<span class="lld-l2">${l[1]}</span>` : ''}</div>` : '';
+    // left square
+    const rc = (!opts.ownerHtml && opts.rightContent) ? opts.rightContent : '';
+    let left = '', rightExtra = '';
+    if (F.left === 'pos') left = opts.leftContent || '';
+    else if (F.left === 'plus' || F.left === 'add') { left = rc || opts.leftContent || ''; }
+    else { left = opts.leftContent || (/<button/.test(rc) ? rc : ''); }
+    if (rc && rc !== left && !/<button/.test(rc)) rightExtra = rc;
+    // name line
+    const nameLine = `<div class="lld-nm"><span class="full-name">${data.name}</span><span class="short-name" style="display:none;">${data.shortName || data.name}</span><span class="pos-text-${posL}${opts.posOpen ? ' pos-open-menu' : ''} lld-pos">${data.pos || ''}</span>${opts.ownerHtml || ''}${statusBadge}${F.inj === 'on' ? getInjuryHtml(data.pid) : ''}${getRookieHtml(data.pid)}${opts.nameSuffix || ''}</div>`;
+    const bye = window._lldBye && window._lldBye[team];
+    const under = F.under === 'team' ? `<div class="lld-undr" data-team="${team}">${team}${bye ? ' · Bye ' + bye : ''}</div>` : '';
+    // pieces
+    const k = T.k || null, rk = T.rk || null;
+    const cparts = k ? lldTplContractParts(k, F) : [];
+    const cl = k ? lldTplLines(cparts, F.clines === '2') : null;
+    const ctr = rk ? lldTplCtrDyn(pid, data.pos, rk.salNum) : null;
+    const matchL = T.match || (opts.pill ? [opts.pill] : null);
+    const projH = T.proj || ((F.pbox !== 'sal') ? (opts.topRight || '') : '');
+    const salH = T.sal || (kind === 'contracts' || kind === 'trades' ? (opts.topRight || '') : '');
+    const rankH = T.rank || lldTplRankAvg(pid, data.pos, F.ravg === '2');
+    // middle box
+    let mid = '';
+    if (F.tabs === 'on') {
+        const sBox = k ? [salH || '', cl.join(' · ')] : (matchL || ['']);
+        const rBox = [ctr ? ctr[0] + ' · ' + ctr[1] : '', lldTplRankAvg(pid, data.pos, false)];
+        const pBox = [(T.proj ? T.proj + ' · ' : '') + (matchL ? matchL[0] : ''), matchL ? (matchL[1] || '') : ''];
+        mid = `<div class="lld-am am-sal">${box(sBox)}</div><div class="lld-am am-rank">${box(rBox)}</div><div class="lld-am am-proj">${box(pBox)}</div>`;
+    } else if (F.opp === 'match') mid = box(matchL);
+    else if (F.opp === 'ranks') mid = ctr ? box(ctr) : box(matchL);
+    else if (F.opp === 'contract') mid = cl ? box(cl) : box(matchL);
+    // right side
+    let right = '';
+    if (F.tabs === 'on') {
+        const am = document.body.getAttribute('data-lld-am') || 'sal';
+        right = `<div class="lld-ams">${[['sal', 'Salary'], ['rank', 'Rank'], ['proj', 'Proj']].map(([v, l]) => `<button type="button" class="lld-amb ${am === v ? 'on' : ''}" data-am="${v}">${l}</button>`).join('')}</div>`;
+    } else {
+        const pb = ({ proj: projH, projbox: `<div class="lld-pbx">${projH}</div>`, sal: salH, salproj: salH + projH, none: '' })[F.pbox] || '';
+        let det = '';
+        if (F.det === 'rank') det = rankH;
+        else if (F.det === 'cinfo' && cl) det = cl.map(x => `<div>${x}</div>`).join('');
+        else if (F.det === 'ctr' && ctr) det = ctr.join(' · ');
+        right = `${pb ? `<div class="lld-pb">${pb}</div>` : ''}${det ? `<div class="lld-det">${det}</div>` : ''}${rightExtra}`;
+    }
+    return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row lld-tpl pos-border-${posL} ${opts.extraClasses || ''}" data-tpl="${kind}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
+        <div class="row-wm"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"></div>
+        ${left ? `<div class="lld-tl">${left}</div>` : ''}
+        <div class="player-img-wrapper"${opts.noPhotoTap ? ' style="pointer-events:none;"' : ''}><div class="player-circle"><img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'"></div></div>
+        <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div><div style="display:flex; align-items:center; justify-content:center; margin-top:3px;"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;"></div></div>
+        <div class="player-info lld-pi">${nameLine}${under}${mid}</div>
+        <div class="lld-rt">${right}</div>
+    </div>`;
+}
+$(document).on('click', '.lld-amb', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    const v = this.dataset.am; document.body.setAttribute('data-lld-am', v); try { lldSet('lld_am', v); } catch (x) { }
+    $('.lld-amb').each(function () { $(this).toggleClass('on', this.dataset.am === v); });
+});
+try { document.body.setAttribute('data-lld-am', lldGet('lld_am', 'sal') || 'sal'); } catch (e) { }
+const LLD_TUNE = [
+    ['Team logo watermark', [['wms', 'Size', 40, 260, 108, 'px'], ['wmx', 'Left / right', -100, 220, 14, 'px'], ['wmy', 'Up / down', 0, 100, 50, '%'], ['wmo', 'Strength', 2, 70, 17, '%'], ['wmb', 'Blur', 0, 8, 0, 'px'], ['wmf', 'Fade toward right', 0, 100, 0, '%'], ['wmbr', 'Brightness', 30, 250, 100, '%'], ['wmg', 'Grayscale', 0, 100, 0, '%'], ['wmr', 'Tilt', -45, 45, 0, 'deg']]],
+    ['Player row', [['hs', 'Headshot size', 24, 70, 30, 'px'], ['nm', 'Name size', 10, 22, 15, 'px'], ['tn', 'Small logo by name', 0, 36, 16, 'px'], ['pad', 'Row height (padding)', 2, 22, 8, 'px'], ['edge', 'Colored left edge', 0, 8, 3, 'px']]],
+    ['Right side numbers', [['pjn', 'Projection number', 9, 26, 13, 'px'], ['pjl', 'PROJ label', 6, 20, 8, 'px'], ['rkr', 'Rank (LB#18)', 6, 20, 9, 'px'], ['rka', 'Average (8.0 AVG)', 6, 20, 9, 'px']]]
+];
+function lldTune() { try { return JSON.parse(lldGet('lld_b_tune', '{}')) || {}; } catch (e) { return {}; } }
+function lldTuneCss() {
+    const t = lldTune(), has = k => t[k] !== undefined, v = (k, d) => has(k) ? t[k] : d, o = [];
+    const fs = (sel, k) => { if (has(k)) o.push(`body.lld-bt ${sel}{font-size:calc(${t[k]}px * var(--ts,1)) !important}`); };
+    fs('.lld-pj-n', 'pjn'); fs('.lld-pj-l', 'pjl'); fs('.lld-rk-r', 'rkr'); fs('.lld-rk-a', 'rka'); fs('.player-row .full-name, body.lld-bt .player-row .short-name', 'nm');
+    if (has('hs')) o.push(`body.lld-bt .player-row .player-img-wrapper{width:${t.hs}px !important;height:${t.hs}px !important}`);
+    if (has('tn')) o.push(`body.lld-bt .lld-tinyname{width:${t.tn}px !important;height:${t.tn}px !important;${t.tn == 0 ? 'display:none !important;' : ''}}`);
+    if (has('pad')) o.push(`body.lld-bt .player-row{padding-top:${t.pad}px !important;padding-bottom:${t.pad}px !important}`);
+    if (has('edge')) o.push(`body.lld-bt .player-row{border-left-width:${t.edge}px !important}`);
+    const wmk = ['wms', 'wmx', 'wmy', 'wmo', 'wmb', 'wmf', 'wmbr', 'wmg', 'wmr'].some(has);
+    if (wmk) {
+        const f = v('wmf', 0), mask = f ? `-webkit-mask-image:linear-gradient(90deg,#000 ${100 - f}%,transparent 100%);mask-image:linear-gradient(90deg,#000 ${100 - f}%,transparent 100%);` : '';
+        o.push(`body.lld-wm .row-wm img{left:${v('wmx', 14)}px !important;top:${v('wmy', 50)}% !important;width:${v('wms', 108)}px !important;height:${v('wms', 108)}px !important;opacity:${v('wmo', 17) / 100} !important;filter:blur(${v('wmb', 0)}px) brightness(${v('wmbr', 100)}%) grayscale(${v('wmg', 0)}%);transform:translateY(-50%) rotate(${v('wmr', 0)}deg);${mask}}`);
+    }
+    return o.join('\n');
+}
+function lldTuneApply() {
+    let el = document.getElementById('lld-tune-css');
+    if (!el) { el = document.createElement('style'); el.id = 'lld-tune-css'; document.head.appendChild(el); }
+    el.textContent = lldBeta() ? lldTuneCss() + '\n' + lldTplCss() : '';
+}
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
     const grp = (k, opts) => `<div style="display:flex; gap:6px; margin-bottom:16px;">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const onoff = k => grp(k, [['1', 'On'], ['0', 'Off']]);
+    const t = lldTune();
+    const rows = items => items.map(([k, l, mn, mx, d, u]) => `<div style="display:grid; grid-template-columns:120px 1fr 48px; gap:8px; align-items:center; padding:7px 0; font-size:calc(11px * var(--ts,1)); font-weight:800; color:var(--text-dim);"><span>${l}</span><input type="range" class="lld-tune-r" data-k="${k}" data-u="${u}" min="${mn}" max="${mx}" value="${t[k] !== undefined ? t[k] : d}" style="width:100%;"><output style="text-align:right;">${t[k] !== undefined ? t[k] : d}${u}</output></div>`).join('');
+    const ftTab = window._lldFt || 0;
+    const sliders = `<div class="lld-ft"><div id="lld-ft-prev" class="lld-ft-prev"></div>
+        <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
+        ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
         <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Beta features</div>
-        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Only you can see these for now. The rest of the league keeps the current look.</div>
-        ${lab('Team logo behind player photos')}${grp('wm', [['0', 'Off'], ['1', 'Subtle'], ['2', 'Medium'], ['3', 'Strong']])}
+        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Only you can see these for now. The rest of the league keeps the current look. Row changes apply to every player row, including the Players tab.</div>
+        ${lab('Team logo behind player photos')}${onoff('wm')}
         ${lab('Lock players who already played (Scores-style rows)')}${onoff('lock')}
         ${lab('Tap position label to open lineup menu')}${onoff('pos')}
         ${lab('Smooth header shrink animation')}${onoff('anim')}
+        ${lab('New player row layout (from the row tuner)')}${onoff('tpl')}
+        ${lab('Fine tune rows')}${sliders}
+        <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>
     </div>`;
 }
+function lldFtFill() {
+    const box = document.getElementById('lld-ft-prev'); if (!box || !lldBeta()) return;
+    let html = '';
+    try {
+        const r = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #player-rows-container .player-row[data-pid]:not(.empty-slot)').first();
+        if (r.length) { const c = r.clone(); c.find('[id]').removeAttr('id'); c.removeClass('lld-pchk status-changed'); html = c[0].outerHTML; }
+        else html = buildCompactUniversalRow({ pid: '15268', name: "Ja'Marr Chase", shortName: 'J. Chase', pos: 'WR', team: 'CIN' }, { pill: '@BAL · Sun 1 PM', topRight: projTopHtml('16.4'), bottomRight: rankAvgHtml('15268', 'WR') });
+    } catch (e) { console.warn('tune preview', e); }
+    box.innerHTML = `<div class="lld-ft-note">Live preview (your real row)</div><div style="pointer-events:none;">${html}</div>`;
+}
+$(document).on('click', '.lld-ft-tab', function () {
+    window._lldFt = +this.dataset.i;
+    $('.lld-ft-tab').removeClass('on'); $(this).addClass('on');
+    $('.lld-ft-p').removeClass('on').filter(`[data-i="${this.dataset.i}"]`).addClass('on');
+    lldFtFill();
+});
+$(document).on('click', '.open-settings-btn, .display-sub-tab, .settings-tab-btn', function () { setTimeout(lldFtFill, 350); });
+$(document).on('input', '.lld-tune-r', function () {
+    const t = lldTune(); t[this.dataset.k] = +this.value; lldSet('lld_b_tune', JSON.stringify(t));
+    $(this).next('output').text(this.value + this.dataset.u); lldTuneApply();
+});
+$(document).on('click', '.lld-tune-reset', function () { lldSet('lld_b_tune', '{}'); lldTuneApply(); $('.lld-tune-r').each(function () { const d = LLD_TUNE.flatMap(x => x[1]).find(y => y[0] === this.dataset.k); if (d) { this.value = d[4]; $(this).next('output').text(d[4] + d[5]); } }); });
 $(document).on('click', '.lld-b-btn', function () {
     lldSet('lld_b_' + this.dataset.k, this.dataset.v);
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
+    try { if (this.dataset.k === 'tpl') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
     try { if (this.dataset.k === 'lock') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
@@ -13029,6 +13253,7 @@ async function injectTeamAwardsStrip(f, hostSel) {
 const LLD_TBI = { S: '🔍', W: '🤝', U: '🤔', N: '🚫' };
 window._lldTbIc = window._lldTbIc || null;
 async function lldTbIconLoad() {
+    return;
     if (window._lldTbIcBusy) return; window._lldTbIcBusy = true;
     if ($('#lld-chat').hasClass('open')) { window._lldTbIcBusy = false; setTimeout(lldTbIconLoad, 20000); return; }
     try { const d = await lldTbLoad(false), m = {}; Object.keys(d.by).forEach(f => { const pm = d.by[f].p || {}; Object.keys(pm).forEach(pid => { const l = lldTbParseLabel(pm[pid]); if (LLD_TBI[l.s]) m[pid] = { s: l.s, f }; }); }); window._lldTbIc = m; window._lldTbIcAt = Date.now(); lldTbIconDraw(); try { refreshTeamInfoPanel(); } catch (e) { } }
@@ -13036,6 +13261,8 @@ async function lldTbIconLoad() {
     window._lldTbIcBusy = false;
 }
 function lldTbIconDraw() {
+    // trade-status icons on player rows are turned off; clear any that exist
+    document.querySelectorAll('.lld-tbi').forEach(e => e.remove()); return;
     const m = window._lldTbIc; if (!m) return;
     document.querySelectorAll('.player-modal-trigger[data-pid], .trade-chip[data-pid], .player-row[data-pid]').forEach(el => {
         if (el.closest('.tb, #lld-chat, #lld-story, .pp')) return;
@@ -18732,6 +18959,7 @@ async function lldChatShowListInner() {
     const note = (!a.items.length && window._lldChatDiag) ? `<div class="cm-empty">Couldn't load everything (${lldChatEsc(window._lldChatDiag)}). Try again in a moment.</div>` : '';
     const cv = lldChatView(), feedV = cv !== 'classic';
     box.html(lldChatShellHtml('League Chat', false, note || (cv === 'paper' ? lldChatPaperHtml(a.items, a.block, lldChatCtx()) : cv === 'feed' ? lldChatTweetsHtml(a.items, a.block, lldChatCtx()) : lldChatViewBar() + lldChatFeedHtml(a.items, a.block, lldChatCtx())), lldChatOpenUrl()));
+    try { const $bd = box.find('.cm-body'), $bar = $bd.find('.tw-vw').first(); if ($bar.length) $bar.insertBefore($bd); } catch (e) {}
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = feedV ? 0 : b.scrollHeight;
     lldSeenPost(10 * 60 * 1000);
 }
