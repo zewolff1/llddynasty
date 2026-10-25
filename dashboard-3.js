@@ -5066,8 +5066,8 @@ const sal = p.salary || 0;
         let picksBuffer = buildDraftPicksHtml(draftPicks); // NEW: Build the picks UI
         
         container.append(`<div class="roster-dashboard" style="background:transparent; border:none; padding:8px 0;">
-            ${capHeaderHtml}
-            <div style="width: 100%; margin-bottom: 15px; padding: 0 5px;">
+            <div class="lld-cap-old">${capHeaderHtml}</div>
+            <div class="lld-cap-old" style="width: 100%; margin-bottom: 15px; padding: 0 5px;">
                 <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 4px;">
                     <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: var(--text-dim); text-transform: uppercase;">Cap Usage (${selectedYear})</span>
                     <span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: ${barColor};">${capPct}%</span>
@@ -5078,7 +5078,7 @@ const sal = p.salary || 0;
             </div>
 <div style="display:flex; flex-direction:column; gap:6px; width:100%;">
     <div class="dashboard-row overflow-row" style="padding-bottom:10px; overflow-y:visible;">
-        <div class="dashboard-pill stacked-pill" id="year-selector-pill"
+        <div class="dashboard-pill stacked-pill lld-cap-old" id="year-selector-pill"
             style="cursor:pointer; min-width:64px; border-bottom-color:var(--accent-blue);">
             <span class="pill-label">YEAR ${window._yearSelectorOpen ? '▲' : '▼'}</span>
             <span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${selectedYear}</span>
@@ -12541,6 +12541,22 @@ function lldRvBar() {
         else if (el.children.length === 0 && /^\s*win probability\s*$/i.test(el.textContent)) mark(el);
         else if (el.children.length && el.children.length <= 2 && el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height <= 12 && [...el.children].some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) mark(el);
     });
+    // above/below-median arrows give the score away, so they stay hidden until everyone is revealed
+    head.querySelectorAll('*').forEach(el => {
+        if (roster && roster.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) return;
+        if (el.children.length === 0 && /^\s*[▲▼]\s*(median|med)\s*$/i.test(el.textContent)) mark(el);
+    });
+    // a projection number whose "PROJ" label is a separate element (some skins) is wrapped too, so it follows what is revealed
+    const P = [[window._lldRvP1, 0], [window._lldRvP2, 1]];
+    const mm = (window._liveScoreMatchups || [])[window._liveScoreIndex], tms = mm ? [mm.t1, mm.t2] : [];
+    head.querySelectorAll('*').forEach(el => {
+        if (el.children.length || el.closest('.lld-rv, .lld-rvp, .lld-rvh')) return;
+        if (roster && roster.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) return;
+        const tx = el.textContent.trim(); if (!/^\d+\.\d$/.test(tx)) return;
+        const par = el.parentElement; if (!par || par.textContent.length > 48 || !/proj/i.test(par.textContent)) return;
+        const hit = P.findIndex(([v]) => v != null && isFinite(v) && Number(v).toFixed(1) === tx); if (hit < 0 || !tms[hit]) return;
+        el.classList.add('lld-rvp'); el.dataset.t = tms[hit].fid; el.dataset.v = tx;
+    });
     lldRvRecalc();
 }
 
@@ -12846,7 +12862,11 @@ function lldShVis() { const el = $('#lld-sh'); if (!el.length) return; const on 
 $(document).on('click', '.tab-btn', function () { setTimeout(lldShVis, 30); setTimeout(lldShVis, 400); });
 $(document).on('click', '#subtabs-team .sub-tab-btn', function () { setTimeout(lldShRender, 60); setTimeout(lldShRender, 900); });
 $(document).on('click', '#lld-sh .sh-sw', function () { $('#active-team-switcher-btn').trigger('click'); });
-$(document).on('click', '#lld-sh #lld-sh-yr', function (e) { e.stopPropagation(); $('#year-selector-pill').trigger('click'); setTimeout(lldShRender, 500); });
+$(document).on('click', '#lld-sh #lld-sh-yr', function (e) { e.stopPropagation(); e.preventDefault(); lldShShow('year'); });
+$(document).on('click', '#lld-sh-pop .yr-i', function () {
+    selectedYear = parseInt(this.dataset.y, 10); window._yearSelectorOpen = false; window._teamDataDirty = true;
+    $('#lld-sh-pop').removeClass('on'); loadTeamData(); setTimeout(lldShRender, 600); setTimeout(lldShRender, 1800);
+});
 // ---- popups ----
 window._lldShPop = { tab: 'mine', pos: 'ALL' };
 function lldShPopHtml(b) {
@@ -12854,6 +12874,12 @@ function lldShPopHtml(b) {
     const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
     const nm = f => lldShEsc(leagueFranchises[f] || f);
     let t = '', sub = '', h = '';
+    if (b === 'year') {
+        const T = d ? null : null, yrs = (window._capYears && window._capYears.length) ? window._capYears : [0, 1, 2, 3, 4].map(i => String((parseInt(year) || 2026) + i));
+        t = 'Contract year'; sub = 'Pick the season to view cap and contracts for';
+        h = yrs.map(y => { const on = parseInt(y, 10) === sy; return `<button type="button" class="yr-i${on ? ' on' : ''}" data-y="${y}">${y}${on ? ' ✓' : ''}</button>`; }).join('');
+        return `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p><div class="yrs">${h}</div>`;
+    }
     if (!d) return '<button class="x" id="lld-sh-x">✕</button><h4>Loading…</h4>';
     if (b === 'cap') {
         const T = lldShTotals(d, sy), order = Object.keys(T).sort((a, c) => T[c] - T[a]);
@@ -12881,7 +12907,7 @@ function lldLsOrd(k) { return lldShOrd(k); }
 function lldShShow(b) {
     let o = $('#lld-sh-pop'); if (!o.length) { o = $('<div id="lld-sh-pop"><div class="sh"></div></div>'); $('body').append(o); }
     window._lldShPopB = b; o.find('.sh').html(lldShPopHtml(b)); o.addClass('on');
-    if (!window._lldShD) lldShLoad().then(() => { if (window._lldShPopB === b) o.find('.sh').html(lldShPopHtml(b)); });
+    if (!window._lldShD && b !== 'year') lldShLoad().then(() => { if (window._lldShPopB === b) o.find('.sh').html(lldShPopHtml(b)); });
 }
 $(document).on('click', '#lld-sh .pv, #lld-sh .bk[data-b="wk"]', function (e) { e.stopPropagation(); $('#lld-hdr-pv').first().trigger('click'); });
 $(document).on('click', '#lld-sh .bk[data-b="rec"]', function () { lldGoLeagueSub('Standings'); });
