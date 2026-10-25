@@ -6269,6 +6269,7 @@ $(document).on('click touchend', '.move-handle-btn', function(e) {
             populateFillMenu(slot); $('#player-context-menu').addClass('active'); return;
         }
 
+        if (lldBeta() && lldBv('pmd') === '1') { const tg = activePlayerRow.find('.player-name-slot, .player-img-wrapper').first(); if (tg.length) { setTimeout(() => tg.trigger('click'), 0); return; } }
         const pid = activePlayerRow.data('pid');
         const pos = activePlayerRow.find('.pos-badge-overlay:not(.status-badge-overlay)').text().trim();
         const teamImg = activePlayerRow.find('.team-logo-overlay').attr('src'); 
@@ -12017,9 +12018,9 @@ function classifyGameStatusText(text) {
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldBeta() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; }
-function lldBv(k) { const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
+function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
@@ -12032,6 +12033,7 @@ function lldApplyBeta() {
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
     try { lldNavApply(); } catch (e) { }
+    try { lldApplyHdrMode(b && lldBv('hdm') === '1' ? 'middle' : 'auto'); } catch (e) { }
     try { lldHd2Render(); } catch (e) { }
 }
 setTimeout(lldApplyBeta, 300); setTimeout(lldApplyBeta, 2500); setInterval(lldApplyBeta, 5000);
@@ -12408,6 +12410,52 @@ function lldNavApply() {
     });
 }
 
+// ----- Tap-to-reveal scores (beta only, default off): hides player + team scores on the Scoreboard until tapped -----
+function lldRvOn() { try { return lldBeta() && lldBv('rv') === '1'; } catch (e) { return false; } }
+window._lldRv = window._lldRv || new Set();
+function lldRvKey(k) { return (window._liveScoreActiveWeek || '') + ':' + k; }
+function lldRvWrap(txt, k) {
+    if (!lldRvOn()) return txt;
+    const on = window._lldRv.has(lldRvKey(k));
+    return `<span class="lld-rv${on ? ' on' : ''}" data-k="${k}" data-v="${txt}">${on ? txt : '<i>tap</i>'}</span>`;
+}
+function lldRvHeader(html, o) {
+    if (!lldRvOn() || !o) return html;
+    const vals = [];
+    [o.t1, o.t2].forEach(t => { if (t && typeof t.score === 'number') [2, 1].forEach(d => vals.push([t.score.toFixed(d), 't' + t.fid])); });
+    return html.replace(/>(\s*)(\d+\.\d{1,2})(\s*)</g, (m, a, v, b) => { const hit = vals.find(x => x[0] === v); return hit ? '>' + a + lldRvWrap(v, hit[1]) + b + '<' : m; });
+}
+function lldRvReveal(el, delay) {
+    if (!el || el.classList.contains('on')) return;
+    window._lldRv.add(lldRvKey(el.dataset.k));
+    setTimeout(() => {
+        const full = el.dataset.v, dec = (full.split('.')[1] || '').length, end = parseFloat(full), t0 = performance.now(), dur = 900;
+        el.classList.add('on', 'pop'); el.textContent = (0).toFixed(dec);
+        const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = (end * e).toFixed(dec); if (p < 1) requestAnimationFrame(step); else { el.textContent = full; el.classList.remove('pop'); } };
+        requestAnimationFrame(step);
+    }, delay || 0);
+}
+(function () {
+    let mv = false;
+    document.addEventListener('touchstart', () => { mv = false; }, { capture: true, passive: true });
+    document.addEventListener('touchmove', () => { mv = true; }, { capture: true, passive: true });
+    const hit = e => e.target && e.target.closest ? e.target.closest('.lld-rv:not(.on)') : null;
+    document.addEventListener('touchend', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); if (mv) return; e.preventDefault(); lldRvReveal(el, 0); }, true);
+    document.addEventListener('click', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); e.preventDefault(); lldRvReveal(el, 0); }, true);
+    document.addEventListener('click', e => {
+        const b = e.target && e.target.closest ? e.target.closest('#lld-rv-all') : null; if (!b) return;
+        e.stopImmediatePropagation(); e.preventDefault();
+        [...document.querySelectorAll('#live-score-card-inner .lld-rv:not(.on)')].forEach((el, i) => lldRvReveal(el, i * 70));
+    }, true);
+})();
+function lldRvBar() {
+    const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
+    const have = document.getElementById('lld-rv-all');
+    if (!lldRvOn() || !inner.querySelector('.lld-rv')) { if (have) have.remove(); return; }
+    if (have) return;
+    inner.insertAdjacentHTML('afterbegin', '<div id="lld-rv-wrap"><button type="button" id="lld-rv-all">Reveal all scores</button></div>');
+}
+
 function lldSlpWeek() { let w = parseInt(window._liveScoreCurrentWeek, 10); if (!w) { try { const m = ($('#tab-team').text() || '').match(/Week\s+(\d{1,2})/); w = m ? parseInt(m[1], 10) : 0; } catch (e) { w = 0; } } return w || 0; }
 function lldSlpByeHydrate() {
     const m = window._lldBye; if (!m) return;
@@ -12603,17 +12651,9 @@ function lldBetaHtml() {
         ${lab('Tap position label to open lineup menu')}${onoff('pos')}
         ${lab('Smooth header shrink animation')}${onoff('anim')}
         ${lab('New player row layout (from the row tuner)')}${onoff('tpl')}
-        ${lab('Sleeper-style Lineup rows (Team tab)')}${onoff('slp')}
-        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin:2px 0 6px;">Design it in Claude, tap Copy settings, then paste here:</div><textarea id="lld-slp-json" rows="3" placeholder="Paste Sleeper lineup settings" style="width:100%; box-sizing:border-box; background:var(--bg-card,#0f172a); color:#fff; border:1px solid var(--card-border); border-radius:8px; padding:8px; font-size:16px;">${lldGet('lld_b_slpcfg', '{}') === '{}' ? '' : lldGet('lld_b_slpcfg', '')}</textarea>
-        <div style="display:flex; gap:6px; align-items:center; margin:6px 0 14px;"><button type="button" class="lld-hdr-btn" id="lld-slp-apply">Apply</button><button type="button" class="lld-hdr-btn" id="lld-slp-reset">Reset</button><span id="lld-slp-msg" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);"></span></div>
-        ${lab('Sleeper-style top tabs (Match · Team · Players · League)')}${onoff('nav')}
-        ${lab('Sleeper-style Team header (Lineup + Contracts)')}${onoff('hd2')}
-        ${lab('Sleeper-style Contracts rows')}${onoff('sct')}
-        ${lab('Sleeper-style Match rows (live matchup)')}${onoff('smt')}
-        ${lab('Sleeper-style Trades (rows + offer cards)')}${onoff('str')}
-        ${lab('Sleeper-style Stats tab (merged Players view + header)')}${onoff('sst')}
-        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin:2px 0 6px;">Paste everything copied from the Claude design page (Copy all tabs works too):</div><textarea id="lld-cfg-json" rows="3" placeholder="Paste design settings" style="width:100%; box-sizing:border-box; background:var(--bg-card,#0f172a); color:#fff; border:1px solid var(--card-border); border-radius:8px; padding:8px; font-size:16px;"></textarea>
-        <div style="display:flex; gap:6px; align-items:center; margin:6px 0 14px;"><button type="button" class="lld-hdr-btn" id="lld-cfg-apply">Apply</button><button type="button" class="lld-hdr-btn" id="lld-cfg-reset">Reset all</button><span id="lld-cfg-msg" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);"></span></div>
+        ${lab('Tap-to-reveal scores (Scoreboard hides scores until you tap)')}${onoff('rv')}
+        ${lab('Slim team header (stays small, does not shrink on scroll)')}${onoff('hdm')}
+        ${lab('Position button opens the player card on Set Lineup')}${onoff('pmd')}
         ${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>
     </div>`;
@@ -12644,7 +12684,7 @@ $(document).on('click', '.lld-b-btn', function () {
     lldSet('lld_b_' + this.dataset.k, this.dataset.v);
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
-    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
+    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
     try { if (this.dataset.k === 'lock') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
@@ -14355,7 +14395,7 @@ const rowOpacity = '1';
                 ${statLine ? `<div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:3px; line-height:1.4;">${statLine}</div>` : ''}
             </div>
                         <div style="text-align:right; flex-shrink:0;">
-                <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:${valueColor};">${valueText}</div>
+                <div style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:${valueColor};">${showProj ? valueText : lldRvWrap(valueText, 'p' + p.pid)}</div>
                 <div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:${status.color}; text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; white-space:nowrap;">${showProj ? 'PROJ' : statusDisplay}</div>
             </div>
         </div>`;
@@ -15040,7 +15080,8 @@ function lldSbKind(sty) {
     if (LLD_SB_KIND[sty]) return LLD_SB_KIND[sty];
     return /^nfl_/.test(sty) ? 'nfl' : 'vs';
 }
-function buildScoreHeaderHtml3(o) {
+function buildScoreHeaderHtml3(o) { return lldRvHeader(buildScoreHeaderHtml3Core(o), o); }
+function buildScoreHeaderHtml3Core(o) {
     const sty = lldEffStyle();
     const sbv = lldGet('lld_sb', 'theme');
     if (LLD_SB_LAYOUTS.some(x => x[0] === sbv)) {
@@ -15224,7 +15265,7 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
                 <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-left:4px;"></div>
             </div>
             <div style="flex-shrink:0; text-align:${left ? 'right' : 'left'};">
-                <div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${val}</div>
+                <div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${showProj ? val : lldRvWrap(val, 'p' + p.pid)}</div>
                 ${showProj ? '<div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b; letter-spacing:0.5px;">PROJ</div>' : ''}
             </div>
         </div>
@@ -15452,6 +15493,7 @@ async function injectLiveNowStrip() {
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
     if (!inner || !m) return;
     const old = document.getElementById('live-now-strip'); if (old) old.remove();
+    if (window._scMatchState && window._scMatchState !== 'live' && (window._scTab || 'first') === 'first') return; // Preview/Recap tab: strip belongs to Scoreboard only
     if (window._liveScoreActiveWeek !== window._liveScoreCurrentWeek) return; // past weeks have nobody playing
     let pm = null; try { pm = await fetchWeekProjectedScoresMap(window._liveScoreActiveWeek); } catch (e) {}
     if (document.getElementById('live-now-strip')) return;
@@ -15462,6 +15504,7 @@ async function injectLiveNowStrip() {
 const _origRenderLiveScoreCard = renderLiveScoreCard;
 renderLiveScoreCard = async function () {
     await _origRenderLiveScoreCard.apply(this, arguments);
+    try { lldRvBar(); } catch (e) { }
     injectLiveNowStrip();
 };
 window.lldRerenderScores = function () { return renderLiveScoreCard(); };
@@ -18972,7 +19015,7 @@ const result = await applyAuctionContract(pid, commentText);
 checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
-lldApplyHdrMode('auto'); // the header always shrinks as you scroll
+lldApplyHdrMode(lldBeta() && lldBv('hdm') === '1' ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 $(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
