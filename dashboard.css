@@ -4256,3 +4256,7 @@ body.lld-nav .league-tabs .tab-btn{padding-left:6px !important;padding-right:6px
 @keyframes lldRvPop{0%{transform:scale(.7);filter:blur(3px)}60%{transform:scale(1.18);filter:none}100%{transform:scale(1)}}
 #lld-rv-wrap{display:flex;justify-content:flex-end;margin:0 0 8px}
 #lld-rv-all{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.5);color:var(--accent-blue);border-radius:8px;padding:5px 12px;font-size:calc(10px * var(--ts,1));font-weight:900;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
+/* r64: hidden bars / game scores */
+.lld-rvh:not(.on){filter:blur(7px);opacity:.55;pointer-events:none;user-select:none}
+.lld-rvh.on{transition:filter .6s ease,opacity .6s ease}
+.lld-rvt{cursor:pointer}
