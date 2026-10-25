@@ -4235,3 +4235,24 @@ body.lld-hd2 .lld-stats .sxh-h{margin-top:4px}
 body.lld-nav .tab-btn[onclick*="tab-scoreboard"]{order:-1}
 body.lld-nav .tab-btn[onclick*="tab-rules"]{display:none!important}
 body.lld-nav:not(.lld-nav-draft) .tab-btn[onclick*="tab-draft"]{display:none!important}
+
+/* ===== r59: Sleeper-style tabs mode: header scrolls away (not sticky), name left, buttons right ===== */
+body.lld-nav{--sticky-top:0px !important}
+body.lld-nav .app-header{position:relative !important;top:auto !important}
+body.lld-nav .header-top-row:not(.has-scene){display:grid !important;grid-template-columns:minmax(0,1fr) auto !important;align-items:center !important;padding:10px 14px 4px !important}
+body.lld-nav .header-top-row:not(.has-scene) > *{grid-column:1 / -1}
+body.lld-nav .header-top-row:not(.has-scene) > .header-left-controls{display:none !important}
+body.lld-nav .header-top-row:not(.has-scene) > .header-center-branding{grid-column:1;grid-row:1;align-items:flex-start;text-align:left;min-width:0}
+body.lld-nav .header-top-row:not(.has-scene) > .header-center-branding img{display:none !important}
+body.lld-nav .header-top-row:not(.has-scene) > .header-right-controls{grid-column:2;grid-row:1}
+body.lld-nav .league-tabs{justify-content:space-between;gap:0;padding:0 6px}
+body.lld-nav .league-tabs .tab-btn{padding-left:6px !important;padding-right:6px !important;letter-spacing:.03em !important;font-size:calc(13px * var(--ts,1)) !important;flex:1 1 auto !important;white-space:nowrap !important;text-overflow:clip !important}
+
+/* ===== r63: tap-to-reveal scores (beta) ===== */
+.lld-rv{font-variant-numeric:tabular-nums}
+.lld-rv:not(.on){cursor:pointer;display:inline-block;min-width:2.6em;text-align:center;border:1px dashed rgba(255,255,255,.35);border-radius:6px;padding:0 6px;color:var(--text-dim);background:rgba(255,255,255,.05)}
+.lld-rv:not(.on) i{font-style:normal;font-size:.7em;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.lld-rv.pop{display:inline-block;animation:lldRvPop .9s ease-out}
+@keyframes lldRvPop{0%{transform:scale(.7);filter:blur(3px)}60%{transform:scale(1.18);filter:none}100%{transform:scale(1)}}
+#lld-rv-wrap{display:flex;justify-content:flex-end;margin:0 0 8px}
+#lld-rv-all{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.5);color:var(--accent-blue);border-radius:8px;padding:5px 12px;font-size:calc(10px * var(--ts,1));font-weight:900;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
