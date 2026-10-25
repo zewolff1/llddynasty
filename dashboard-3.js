@@ -12018,7 +12018,7 @@ function classifyGameStatusText(text) {
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldBeta() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; }
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
@@ -12033,8 +12033,9 @@ function lldApplyBeta() {
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
     try { lldNavApply(); } catch (e) { }
-    try { lldApplyHdrMode(b && lldBv('hdm') === '1' ? 'middle' : 'auto'); } catch (e) { }
+    try { lldApplyHdrMode(b && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); } catch (e) { }
     try { lldHd2Render(); } catch (e) { }
+    try { lldShRender(); } catch (e) { }
 }
 setTimeout(lldApplyBeta, 300); setTimeout(lldApplyBeta, 2500); setInterval(lldApplyBeta, 5000);
 
@@ -12699,6 +12700,177 @@ function lldTuneApply() {
     if (!el) { el = document.createElement('style'); el.id = 'lld-tune-css'; document.head.appendChild(el); }
     el.textContent = lldBeta() ? lldTuneCss() + '\n' + lldTplCss() + '\n' + lldSlpCss() + '\n' + lldSstCss() + '\n' + lldNavCss() : '';
 }
+// ===== SLIM BLOCKS TEAM HEADER (beta switch "shb", beta franchises only) =====
+// Name row (logo, team, ▼) with a few small blocks under it. Lineup: Record + This week. Contracts: Cap + Expiring + Dead money.
+const LLD_SH = { lg: 30, nm: 17, l2: 11, mn: 16, lbs: 8, pad: 8, gap: 8, rad: 18, bpv: 6, bph: 6, brd: 10, bgp: 6, rg: 6, wLineup: [1, 1.6], wCon: [1.4, 1, 1] };
+function lldShOn() { return lldBeta() && lldBv('shb') === '1'; }
+const lldShEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x]));
+const lldShM = v => '$' + (Math.round(v * 10) / 10).toFixed(1) + 'm';
+const lldShOrd = k => { const s = ['th', 'st', 'nd', 'rd'], v = k % 100; return k + (s[(v - 20) % 10] || s[v] || s[0]); };
+// league data: every team's contracts (rosters), dead money (salary adjustments page), player names and positions for expiring contracts
+async function lldShLoad(force) {
+    const c = window._lldShD;
+    if (!force && c && Date.now() - c.t < 300000) return c;
+    if (window._lldShBusy) return window._lldShBusy;
+    window._lldShBusy = (async () => {
+        const d = { t: Date.now(), teams: {}, exp: [], dead: {}, info: {} };
+        try {
+            const j = await lldChatJson('TYPE=rosters');
+            lldChatArr(j && j.rosters && j.rosters.franchise).forEach(f => {
+                const id = String(f.id).padStart(4, '0'), T = d.teams[id] = { pl: [] };
+                lldChatArr(f.player).forEach(p => {
+                    let sal = parseFloat(String(p.salary || '').replace(/[^0-9.]/g, '')) || 0; if (sal >= 1000) sal = sal / 1e6;
+                    const yrs = parseInt(p.contractYear, 10) || 0;
+                    T.pl.push({ id: String(p.id), sal, yrs });
+                    if (yrs === 1 && sal > 0) d.exp.push({ id: String(p.id), sal, fid: id });
+                });
+            });
+        } catch (e) { console.warn('sh rosters', e); }
+        try {
+            const r = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=142`, { credentials: 'include' });
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+                const ex = row.querySelector('td:nth-child(3)')?.textContent.trim() || '';
+                let amt = parseFloat((row.querySelector('td.salary')?.textContent.trim() || '').replace(/[^0-9.]/g, '')) || 0; if (amt >= 1000) amt = amt / 1e6;
+                const m = row.querySelector('a[class*="franchise_"]')?.getAttribute('href')?.match(/F=(\d+)/), f = m ? m[1].padStart(4, '0') : null;
+                if (!f || !(amt > 0)) return;
+                const dc = ex.match(/^Dead cap: (.+) cut/i) || ex.match(/^Dropped (.+)$/i); if (!dc) return;
+                (d.dead[f] = d.dead[f] || []).push({ name: dc[1].trim(), amt, ex });
+            });
+        } catch (e) { console.warn('sh dead', e); }
+        const ids = d.exp.map(x => x.id);
+        const chunks = []; for (let i = 0; i < ids.length; i += 60) chunks.push(ids.slice(i, i + 60));
+        try {
+            await Promise.all(chunks.map(async ch => {
+                const q = await lldChatJson('TYPE=players&PLAYERS=' + ch.join(','));
+                lldChatArr(q && q.players && q.players.player).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); d.info[String(p.id)] = { name: n.length > 1 ? n[1].charAt(0) + '. ' + n[0] : n[0], pos: p.position || '' }; });
+            }));
+        } catch (e) { console.warn('sh players', e); }
+        window._lldShD = d; window._lldShBusy = null;
+        try { lldShRender(); } catch (e) { }
+        return d;
+    })();
+    return window._lldShBusy;
+}
+// total each team has committed in a given season (contracts still running that year, plus this year's dead money)
+function lldShTotals(d, yr) {
+    const start = parseInt(year) || 2026, out = {};
+    Object.keys(d.teams).forEach(f => {
+        let t = d.teams[f].pl.reduce((s, p) => s + ((start + p.yrs - 1 >= yr) ? p.sal : 0), 0);
+        if (yr === start) t += (d.dead[f] || []).reduce((s, x) => s + x.amt, 0);
+        out[f] = t;
+    });
+    return out;
+}
+function lldShCss() {
+    const c = LLD_SH;
+    return `#lld-sh{--lg:${c.lg}px;--nm:${c.nm}px;--l2:${c.l2}px;--mn:${c.mn}px;--lbs:${c.lbs}px;--pad:${c.pad}px;--gap:${c.gap}px;--rg:${c.rg}px;--bg:${c.bgp}px;--bpv:${c.bpv}px;--bph:${c.bph}px;--brd:${c.brd}px;--rad:${c.rad}px}`;
+}
+function lldShBlocks(vf, sub) {
+    const kv = (l, v) => `<div class="kv"><i>${l}</i><b>${v}</b></div>`;
+    const pbar = (p, cls) => `<div class="pb ${cls || ''}"><div class="tr"><b style="width:${Math.max(0, Math.min(100, p))}%"></b></div><span>${Math.round(p * 10) / 10}%</span></div>`;
+    const d = window._lldShD, A = [], W = [];
+    if (sub === 'lineup') {
+        const isOff = localStorage.getItem(`fa_mode_${lid}`) !== 'false', hdr = window._teamHdr || { cur: {}, prev: {} };
+        const usePrev = isOff && !!hdr.prev[vf], s = (usePrev ? hdr.prev[vf] : hdr.cur[vf]) || {};
+        const record = s.record || (isOff ? (window._allPrevRecords?.[vf] || window._allRecords?.[vf]) : window._allRecords?.[vf]) || '';
+        let po = null;
+        try {
+            const X = window._lldSX && window._lldSX.S, ix = X ? X.F.indexOf(vf) : -1;
+            if (X && ix >= 0 && X.W) po = X.base[ix].po;
+            else if (!window._lldSXkick && typeof window.lldStatsLoad === 'function') { window._lldSXkick = true; window.lldStatsLoad().then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { window._lldSXkick = false; }); }
+        } catch (e) { }
+        const sm = [s.rank ? `<b>${lldShOrd(s.rank)}</b>` : '', po != null ? `<b>${po}%</b> playoffs` : ''].filter(Boolean).join(' · ');
+        A.push(`<div class="bk" data-b="rec"><i>${isOff ? "'" + String(parseInt(year) - 1).slice(-2) : 'Record'}</i><div class="m">${lldShEsc(record || '—')}</div>${sm ? `<div class="s2">${sm}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[0]);
+        const nx = window._nextOpp?.[vf], tw = window._tickWeek;
+        let opp = null, wk = '';
+        if (nx && nx.opps && nx.opps.length) { opp = nx.opps[0]; wk = nx.week; } else if (tw && tw.pairs && tw.pairs[vf]) { opp = tw.pairs[vf][0]; wk = tw.week; }
+        if (opp) {
+            let pj = '';
+            const P = window._pvCache && window._pvCache[wk];
+            if (P) { const g = P.games.find(x => String(x.t1.fid).padStart(4, '0') === vf || String(x.t2.fid).padStart(4, '0') === vf); if (g) { const one = String(g.t1.fid).padStart(4, '0') === vf; pj = `<b>${(one ? g.m1 : g.m2).toFixed(1)}</b> proj · <b>${Math.round((one ? g.p1 : 1 - g.p1) * 100)}%</b> win`; } }
+            else if (wk && !(window._lldShPv || {})[wk]) { (window._lldShPv = window._lldShPv || {})[wk] = 1; lldBuildPreview(parseInt(wk, 10)).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { }); }
+            A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
+        }
+    } else if (sub === 'contracts') {
+        const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
+        const used = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
+        let rank = '';
+        if (d && d.teams[vf]) { const T = lldShTotals(d, sy), mine = T[vf], order = Object.keys(T).sort((a, b) => T[b] - T[a]); rank = `${order.indexOf(vf) + 1}`; rank = kv('Spent rank', `#${rank} of ${order.length}`); }
+        if (cap && used != null) { const pc = used / cap * 100; A.push(`<div class="bk left" data-b="cap"><i>Cap ${sy}</i>${rank}${pbar(pc, 'p')}</div>`); W.push(LLD_SH.wCon[0]); }
+        if (d && d.teams[vf]) {
+            const mine = d.exp.filter(x => x.fid === vf), tot = mine.reduce((s, x) => s + x.sal, 0), dd = d.dead[vf] || [], dt = dd.reduce((s, x) => s + x.amt, 0);
+            A.push(`<div class="bk" data-b="exp"><i>Expiring</i><div class="m">${mine.length}</div><div class="s2"><b>${lldShM(tot)}</b> this year</div></div>`); W.push(LLD_SH.wCon[1]);
+            A.push(`<div class="bk" data-b="dead"><i>Dead money</i><div class="m">${lldShM(dt)}</div><div class="s2">${dd.length} player${dd.length === 1 ? '' : 's'}</div></div>`); W.push(LLD_SH.wCon[2]);
+        } else if (cap && used != null) { lldShLoad(); }
+    }
+    return A.length ? `<div class="blks" style="grid-template-columns:${W.map(x => `minmax(0,${x}fr)`).join(' ')}">${A.join('')}</div>` : '';
+}
+function lldShHtml() {
+    const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
+    const nm = lldShEsc(leagueFranchises[vf] || 'My Franchise'), logo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${vf}.png`;
+    const sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
+    return `<div class="th blk" style="${lldShCss().replace(/^#lld-sh\{|\}$/g, '')}"><div class="nrow"><button type="button" class="sh-sw"><img class="lg" src="${logo}" onerror="this.style.display='none'"><span class="nm">${nm} <span class="ch">▼</span></span></button>${sub === 'contracts' ? `<button type="button" class="yr" id="lld-sh-yr">${sy} ▼</button>` : ''}</div>${lldShBlocks(vf, sub)}</div>`;
+}
+function lldShRender() {
+    if (!lldShOn()) { $('#lld-sh').remove(); document.body.classList.remove('lld-shb'); try { window._lldSyncOff && window._lldSyncOff(); } catch (e) { } return; }
+    const anchor = $('#tab-header-area'); if (!anchor.length) return;
+    let el = $('#lld-sh'); if (!el.length) { el = $('<div id="lld-sh"></div>'); anchor.before(el); }
+    const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
+    try { el.html(lldShHtml()); } catch (e) { console.warn('sh', e); el.empty(); }
+    document.body.classList.add('lld-shb');
+    lldShVis();
+    if ((sub === 'contracts') && !window._lldShD && !window._lldShBusy) lldShLoad();
+}
+function lldShVis() { const el = $('#lld-sh'); if (!el.length) return; const on = $('#tab-team').is(':visible'); el.toggle(on); try { window._lldSyncOff && window._lldSyncOff(); } catch (e) { } }
+$(document).on('click', '.tab-btn', function () { setTimeout(lldShVis, 30); setTimeout(lldShVis, 400); });
+$(document).on('click', '#subtabs-team .sub-tab-btn', function () { setTimeout(lldShRender, 60); setTimeout(lldShRender, 900); });
+$(document).on('click', '#lld-sh .sh-sw', function () { $('#active-team-switcher-btn').trigger('click'); });
+$(document).on('click', '#lld-sh #lld-sh-yr', function (e) { e.stopPropagation(); $('#year-selector-pill').trigger('click'); setTimeout(lldShRender, 500); });
+// ---- popups ----
+window._lldShPop = { tab: 'mine', pos: 'ALL' };
+function lldShPopHtml(b) {
+    const vf = String(fid).padStart(4, '0'), d = window._lldShD, P = window._lldShPop;
+    const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
+    const nm = f => lldShEsc(leagueFranchises[f] || f);
+    let t = '', sub = '', h = '';
+    if (!d) return '<button class="x" id="lld-sh-x">✕</button><h4>Loading…</h4>';
+    if (b === 'cap') {
+        const T = lldShTotals(d, sy), order = Object.keys(T).sort((a, c) => T[c] - T[a]);
+        t = 'Salary spent by team'; sub = `${sy} · cap limit ${lldShM(cap)} · ${vf in T ? 'you are ' + lldLsOrd(order.indexOf(vf) + 1) + ' of ' + order.length : ''} (most spent first)`;
+        h = order.map((f, i) => `<div class="tr2${f === vf ? ' me' : ''}"><div class="rk">${i + 1}</div><div class="nmx"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div></div><div class="vl">${lldShM(T[f])}<small>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</small></div></div>`).join('');
+    } else if (b === 'exp') {
+        const mine = d.exp.filter(x => x.fid === vf).sort((a, c) => c.sal - a.sal), tot = mine.reduce((s, x) => s + x.sal, 0);
+        t = 'Expiring contracts'; sub = P.tab === 'mine' ? `Yours · ${mine.length} contract${mine.length === 1 ? '' : 's'} · ${lldShM(tot)} coming off after ${year}` : `Every team · contracts expiring after ${year}`;
+        const tabs = `<div class="ptabs"><button class="ptab${P.tab === 'mine' ? ' on' : ''}" data-t="mine">My team</button><button class="ptab${P.tab === 'league' ? ' on' : ''}" data-t="league">Whole league</button></div>`;
+        const nmOf = x => (d.info[x.id] && d.info[x.id].name) || ('#' + x.id), posOf = x => (d.info[x.id] && d.info[x.id].pos) || '';
+        if (P.tab === 'mine') h = tabs + (mine.length ? mine.map(x => `<div class="ln2"><b>${lldShEsc(nmOf(x))} <span>${posOf(x)}</span></b><b>${lldShM(x.sal)}</b></div>`).join('') : '<div class="ln2"><span>No expiring contracts</span></div>');
+        else {
+            const PS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'LB', 'DL', 'DB'], grp = p => ({ DE: 'DL', DT: 'DL', CB: 'DB', S: 'DB' }[p] || p);
+            const rows = d.exp.filter(x => P.pos === 'ALL' || grp(posOf(x)) === P.pos).sort((a, c) => c.sal - a.sal);
+            h = tabs + `<div class="pfs">${PS.map(q => `<button class="pf${P.pos === q ? ' on' : ''}" data-p="${q}">${q}</button>`).join('')}</div>` + (rows.length ? rows.map(x => `<div class="tr2${x.fid === vf ? ' me' : ''}"><div class="rk">${posOf(x)}</div><div class="nmx"><b>${lldShEsc(nmOf(x))}</b><span class="ow">${nm(x.fid)}</span></div><div class="vl">${lldShM(x.sal)}</div></div>`).join('') : `<div class="ln2"><span>No expiring ${P.pos} contracts</span></div>`);
+        }
+    } else if (b === 'dead') {
+        const dd = (d.dead[vf] || []).slice().sort((a, c) => c.amt - a.amt), dt = dd.reduce((s, x) => s + x.amt, 0);
+        t = 'Dead money'; sub = `${lldShM(dt)} this year · ${dd.length} player${dd.length === 1 ? '' : 's'}`;
+        h = dd.length ? dd.map(x => `<div class="ln2"><b>${lldShEsc(x.name)}</b><b>${lldShM(x.amt)}</b></div>`).join('') : '<div class="ln2"><span>No dead money</span></div>';
+    }
+    return `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p>${h}`;
+}
+function lldLsOrd(k) { return lldShOrd(k); }
+function lldShShow(b) {
+    let o = $('#lld-sh-pop'); if (!o.length) { o = $('<div id="lld-sh-pop"><div class="sh"></div></div>'); $('body').append(o); }
+    window._lldShPopB = b; o.find('.sh').html(lldShPopHtml(b)); o.addClass('on');
+    if (!window._lldShD) lldShLoad().then(() => { if (window._lldShPopB === b) o.find('.sh').html(lldShPopHtml(b)); });
+}
+$(document).on('click', '#lld-sh .pv, #lld-sh .bk[data-b="wk"]', function (e) { e.stopPropagation(); $('#lld-hdr-pv').first().trigger('click'); });
+$(document).on('click', '#lld-sh .bk[data-b="rec"]', function () { lldGoLeagueSub('Standings'); });
+$(document).on('click', '#lld-sh .bk[data-b="cap"], #lld-sh .bk[data-b="exp"], #lld-sh .bk[data-b="dead"]', function () { if (this.dataset.b === 'exp') window._lldShPop = { tab: 'mine', pos: 'ALL' }; lldShShow(this.dataset.b); });
+$(document).on('click', '#lld-sh-pop .ptab', function () { window._lldShPop.tab = this.dataset.t; lldShShow('exp'); });
+$(document).on('click', '#lld-sh-pop .pf', function () { window._lldShPop.pos = this.dataset.p; lldShShow('exp'); });
+$(document).on('click', '#lld-sh-x, #lld-sh-pop', function (e) { if (e.target.id === 'lld-sh-x' || e.target.id === 'lld-sh-pop') $('#lld-sh-pop').removeClass('on'); });
+setInterval(() => { if (lldShOn() && $('#tab-team').is(':visible')) { const el = $('#lld-sh'); if (!el.length || !el.children().length) lldShRender(); } }, 3000);
+
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
@@ -12720,6 +12892,7 @@ function lldBetaHtml() {
         ${lab('New player row layout (from the row tuner)')}${onoff('tpl')}
         ${lab('Tap-to-reveal scores (Scoreboard hides scores until you tap)')}${onoff('rv')}
         ${lab('Slim team header (stays small, does not shrink on scroll)')}${onoff('hdm')}
+        ${lab('Slim blocks team header (name row + small Record / Week / Cap / Expiring / Dead money blocks)')}${onoff('shb')}
         ${lab('Position button opens the player card on Set Lineup')}${onoff('pmd')}
         ${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>
@@ -12751,7 +12924,7 @@ $(document).on('click', '.lld-b-btn', function () {
     lldSet('lld_b_' + this.dataset.k, this.dataset.v);
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
-    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
+    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv' || this.dataset.k === 'shb') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
     try { if (this.dataset.k === 'lock') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
@@ -19082,7 +19255,7 @@ const result = await applyAuctionContract(pid, commentText);
 checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
-lldApplyHdrMode(lldBeta() && lldBv('hdm') === '1' ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
+lldApplyHdrMode(lldBeta() && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 $(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
