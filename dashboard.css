@@ -4102,7 +4102,8 @@ body.lld-tpl .lld-am { display: none; }
 body.lld-tpl[data-lld-am="sal"] .lld-am.am-sal, body.lld-tpl[data-lld-am="rank"] .lld-am.am-rank, body.lld-tpl[data-lld-am="proj"] .lld-am.am-proj { display: block; }
 body.lld-tpl:not([data-lld-am]) .lld-am.am-sal { display: block; }
 /* r49: no big row watermark in the new rows; small team logo sits behind the headshot instead */
-body.lld-tpl .player-row.lld-tpl > .row-wm { display: none !important; }
+body.lld-tpl:not(.lld-wm) .player-row.lld-tpl > .row-wm { display: none !important; } /* r67: the big watermark shows in the new rows when the Watermark switch is On */
+body.lld-tpl.lld-wm .player-row.lld-tpl > .row-wm { display: block !important; }
 body.lld-tpl .player-row.lld-tpl .player-circle { position: relative; overflow: hidden; }
 body.lld-tpl .player-row.lld-tpl .lld-tl-logo { display: block !important; position: absolute; width: 78%; height: 78%; top: 50%; left: 50%; transform: translate(-50%,-50%); object-fit: contain; opacity: .4; z-index: 1; }
 body.lld-tpl .player-row.lld-tpl .player-circle .player-img { position: relative; z-index: 2; }
