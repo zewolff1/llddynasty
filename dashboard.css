@@ -4318,3 +4318,8 @@ body.lld-shb #tab-header-area{display:none!important}
 #lld-sh-pop .ln2 span{color:#8f9cc7}
 #lld-sh .kv i{font-size:inherit;color:#8f9cc7;margin:0;display:inline}
 #lld-sh .kv b{color:#f1f4ff}
+
+/* r68 reveal on the lineup */
+#lld-rv-lu{display:flex;justify-content:flex-end;margin:0 0 6px}
+.lld-rv-lu-b{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.5);color:var(--accent-blue);border-radius:8px;padding:5px 12px;font-size:calc(10px * var(--ts,1));font-weight:900;text-transform:uppercase;letter-spacing:.5px;cursor:pointer}
+.lld-pscore .lld-rv{display:inline}
