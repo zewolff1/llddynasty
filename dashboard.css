@@ -4323,3 +4323,9 @@ body.lld-shb #tab-header-area{display:none!important}
 #lld-rv-lu{display:flex;justify-content:flex-end;margin:0 0 6px}
 .lld-rv-lu-b{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.5);color:var(--accent-blue);border-radius:8px;padding:5px 12px;font-size:calc(10px * var(--ts,1));font-weight:900;text-transform:uppercase;letter-spacing:.5px;cursor:pointer}
 .lld-pscore .lld-rv{display:inline}
+
+/* r69: with the slim header on, the cap numbers, usage bar and year pill live in the header */
+body.lld-shb .lld-cap-old{display:none!important}
+#lld-sh-pop .yrs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+#lld-sh-pop .yr-i{font:inherit;font-weight:900;border:1px solid #26325e;background:transparent;color:#f1f4ff;border-radius:12px;padding:12px 0;cursor:pointer}
+#lld-sh-pop .yr-i.on{background:#2dd4bf;color:#04201c;border-color:#2dd4bf}
