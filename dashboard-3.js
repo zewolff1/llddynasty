@@ -12018,8 +12018,9 @@ function classifyGameStatusText(text) {
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
-function lldBeta() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; }
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
+function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
@@ -12412,14 +12413,27 @@ function lldNavApply() {
 }
 
 // ----- Tap-to-reveal scores (beta only, default off): hides player + team scores, bars and NFL game scores until tapped -----
-function lldRvOn() { try { return lldBeta() && lldBv('rv') === '1'; } catch (e) { return false; } }
+function lldRvOn() { try { return lldBv('rv') === '1'; } catch (e) { return false; } }
 function lldRvS() {
     if (!window._lldRvSet) { let a = []; try { a = JSON.parse(lldGet('lld_rv_' + (typeof myFid !== 'undefined' ? myFid : ''), '[]')) || []; } catch (e) { } window._lldRvSet = new Set(a); }
     return window._lldRvSet;
 }
 function lldRvSave() { try { let a = [...lldRvS()]; if (a.length > 700) a = a.slice(-700); lldSet('lld_rv_' + (typeof myFid !== 'undefined' ? myFid : ''), JSON.stringify(a)); } catch (e) { } }
-function lldRvKey(k) { return (window._liveScoreActiveWeek || '') + ':' + k; }
+function lldRvKey(k) { return (window._liveScoreActiveWeek || window._liveScoreCurrentWeek || '') + ':' + k; }
 function lldRvHas(k) { return lldRvS().has(lldRvKey(k)); }
+// put every score back behind its tap (all weeks), on whatever is on screen
+function lldRvHideAll() {
+    window._lldRvSet = new Set(); lldRvSave();
+    document.querySelectorAll('.lld-rv.on').forEach(el => { el.classList.remove('on', 'pop'); el.innerHTML = '<i>tap</i>'; });
+    document.querySelectorAll('.lld-rvh.on').forEach(el => { if (el.dataset.k !== 'wp') el.classList.remove('on'); });
+    try { lldRvRecalc(); } catch (e) { }
+    document.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(e => e.classList.remove('on'));
+    document.querySelectorAll('#lld-rv-all, .lld-rv-lu-b').forEach(b => { b.textContent = 'Reveal all scores'; b.dataset.m = 'show'; });
+}
+function lldRvRevealAll() {
+    [...document.querySelectorAll('.lld-rv[data-k^="p"]:not(.on)')].forEach((el, i) => lldRvPlayer(el.dataset.k.slice(1), i * 70));
+    document.querySelectorAll('#lld-rv-all, .lld-rv-lu-b').forEach(b => { b.textContent = 'Hide all scores'; b.dataset.m = 'hide'; });
+}
 function lldRvWrap(txt, k) {
     if (!lldRvOn()) return txt;
     const on = lldRvHas(k);
@@ -12502,7 +12516,12 @@ function lldRvTeam(fid) {
     document.addEventListener('click', e => {
         const b = e.target && e.target.closest ? e.target.closest('#lld-rv-all') : null; if (!b) return;
         e.stopImmediatePropagation(); e.preventDefault();
-        [...document.querySelectorAll('#live-score-card-inner .lld-rv[data-k^="p"]:not(.on)')].forEach((el, i) => lldRvPlayer(el.dataset.k.slice(1), i * 70));
+        if (b.dataset.m === 'hide') lldRvHideAll(); else lldRvRevealAll();
+    }, true);
+    document.addEventListener('click', e => {
+        const b = e.target && e.target.closest ? e.target.closest('.lld-rv-lu-b, .lld-rv-hide') : null; if (!b) return;
+        e.stopImmediatePropagation(); e.preventDefault();
+        if (b.classList.contains('lld-rv-hide') || b.dataset.m === 'hide') lldRvHideAll(); else lldRvRevealAll();
     }, true);
 })();
 // after each Scoreboard render: add the Reveal-all button and hide the win-% bar, percentages and winner badge until everyone is revealed
@@ -12510,7 +12529,8 @@ function lldRvBar() {
     const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
     const have = document.getElementById('lld-rv-all');
     if (!lldRvOn() || !inner.querySelector('.lld-rv')) { if (have) have.remove(); return; }
-    if (!have) inner.insertAdjacentHTML('afterbegin', '<div id="lld-rv-wrap"><button type="button" id="lld-rv-all">Reveal all scores</button></div>');
+    if (!have) inner.insertAdjacentHTML('afterbegin', '<div id="lld-rv-wrap"><button type="button" id="lld-rv-all" data-m="show">Reveal all scores</button></div>');
+    else { const hid = !inner.querySelector('.lld-rv:not(.on)'); have.textContent = hid ? 'Hide all scores' : 'Reveal all scores'; have.dataset.m = hid ? 'hide' : 'show'; }
     const head = inner.querySelector('.lld-sbwrap, .lld-sbmain') || inner;
     const roster = inner.querySelector('.lld-sec'), mark = el => { if (!el.classList.contains('lld-rvh')) { el.classList.add('lld-rvh'); el.dataset.k = 'wp'; } };
     head.querySelectorAll('*').forEach(el => {
@@ -12884,18 +12904,19 @@ function lldBetaHtml() {
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
         <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Beta features</div>
-        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Only you can see these for now. The rest of the league keeps the current look. Row changes apply to every player row, including the Players tab.</div>
+        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Switch features on or off for your team. Row changes apply to every player row, including the Players tab.</div>
         ${lab('Team logo behind player photos')}${onoff('wm')}
         ${lab('Lock players who already played (Scores-style rows)')}${onoff('lock')}
         ${lab('Tap position label to open lineup menu')}${onoff('pos')}
         ${lab('Smooth header shrink animation')}${onoff('anim')}
         ${lab('New player row layout (from the row tuner)')}${onoff('tpl')}
-        ${lab('Tap-to-reveal scores (Scoreboard hides scores until you tap)')}${onoff('rv')}
+        ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
+        <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
         ${lab('Slim team header (stays small, does not shrink on scroll)')}${onoff('hdm')}
         ${lab('Slim blocks team header (name row + small Record / Week / Cap / Expiring / Dead money blocks)')}${onoff('shb')}
         ${lab('Position button opens the player card on Set Lineup')}${onoff('pmd')}
-        ${lab('Fine tune rows')}${sliders}
-        <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>
+        ${lldDev() ? `${lab('Fine tune rows')}${sliders}
+        <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -12925,7 +12946,7 @@ $(document).on('click', '.lld-b-btn', function () {
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
     try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv' || this.dataset.k === 'shb') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
-    try { if (this.dataset.k === 'lock') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
+    try { if (this.dataset.k === 'lock' || this.dataset.k === 'rv') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
 window._lldPlayedPids = window._lldPlayedPids || new Set();
@@ -12991,10 +13012,20 @@ async function lldLineupPlayedPass(targetFid) {
         row.addClass('lld-played' + (live ? ' lld-live' : '')).css('--ps', col);
         const pts = (sc[pid] != null ? sc[pid] : 0).toFixed(1), opp = e.opp || '';
         const line = `${g.key} ${e.score}–${e.oppScore} ${opp}`;
-        row.find('.player-info').first().append(`<div class="lld-ppill"><img src="${getNFLLogoUrl(g.key)}" onerror="this.style.display='none'">${opp ? `<img class="o" src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'">` : ''}<span>${lldChatEsc(line)}</span></div>`);
-        row.append(`<div class="lld-pscore"><b style="color:${live ? '#22c55e' : '#fff'}">${pts}</b><i style="color:${col}">${live ? '● ' : ''}${lldChatEsc(g.label)}</i></div>`);
+        row.find('.player-info').first().append(`<div class="lld-ppill"><img src="${getNFLLogoUrl(g.key)}" onerror="this.style.display='none'">${opp ? `<img class="o" src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'">` : ''}<span>${lldRvG(lldChatEsc(line), pid)}</span></div>`);
+        row.append(`<div class="lld-pscore"><b style="color:${live ? '#22c55e' : '#fff'}">${lldRvWrap(pts, 'p' + pid)}</b><i style="color:${col}">${live ? '● ' : ''}${lldChatEsc(g.label)}</i></div>`);
     });
     window._lldPlayedPids = played;
+    try { lldRvLuBar(); } catch (e) { }
+}
+// small Reveal all / Hide all bar above the starters when scores are hidden on the lineup
+function lldRvLuBar() {
+    const host = document.querySelector('.sticky-block[data-block="starters"]'), have = document.getElementById('lld-rv-lu');
+    const any = lldRvOn() && host && host.querySelector('.lld-rv');
+    if (!any) { if (have) have.remove(); return; }
+    const hid = !document.querySelector('#slots-starters .lld-rv:not(.on), #slots-bench .lld-rv:not(.on)');
+    const html = `<button type="button" class="lld-rv-lu-b" data-m="${hid ? 'hide' : 'show'}">${hid ? 'Hide all scores' : 'Reveal all scores'}</button>`;
+    if (!have) host.insertAdjacentHTML('beforebegin', `<div id="lld-rv-lu">${html}</div>`); else have.innerHTML = html;
 }
 (function () { let t = null; new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (document.querySelector('#slots-starters .player-row[data-pid]:not(.lld-pchk), #slots-bench .player-row[data-pid]:not(.lld-pchk)')) lldLineupPlayedPass(window.fid || (typeof fid !== 'undefined' ? fid : '')); } catch (e) { } }, 450); }).observe(document.body, { childList: true, subtree: true }); })();
 setInterval(() => { try { if (document.querySelector('#slots-starters .player-row')) lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } catch (e) { } }, 45000);
