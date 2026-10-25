@@ -12410,50 +12410,108 @@ function lldNavApply() {
     });
 }
 
-// ----- Tap-to-reveal scores (beta only, default off): hides player + team scores on the Scoreboard until tapped -----
+// ----- Tap-to-reveal scores (beta only, default off): hides player + team scores, bars and NFL game scores until tapped -----
 function lldRvOn() { try { return lldBeta() && lldBv('rv') === '1'; } catch (e) { return false; } }
-window._lldRv = window._lldRv || new Set();
+function lldRvS() {
+    if (!window._lldRvSet) { let a = []; try { a = JSON.parse(lldGet('lld_rv_' + (typeof myFid !== 'undefined' ? myFid : ''), '[]')) || []; } catch (e) { } window._lldRvSet = new Set(a); }
+    return window._lldRvSet;
+}
+function lldRvSave() { try { let a = [...lldRvS()]; if (a.length > 700) a = a.slice(-700); lldSet('lld_rv_' + (typeof myFid !== 'undefined' ? myFid : ''), JSON.stringify(a)); } catch (e) { } }
 function lldRvKey(k) { return (window._liveScoreActiveWeek || '') + ':' + k; }
+function lldRvHas(k) { return lldRvS().has(lldRvKey(k)); }
 function lldRvWrap(txt, k) {
     if (!lldRvOn()) return txt;
-    const on = window._lldRv.has(lldRvKey(k));
+    const on = lldRvHas(k);
     return `<span class="lld-rv${on ? ' on' : ''}" data-k="${k}" data-v="${txt}">${on ? txt : '<i>tap</i>'}</span>`;
+}
+function lldRvG(txt, pid) { return lldRvOn() ? `<span class="lld-rvh${lldRvHas('p' + pid) ? ' on' : ''}" data-k="p${pid}">${txt}</span>` : txt; }
+// what the team total / projection should read given only the players you have revealed
+function lldRvCalc(t, pm) {
+    const st = (t.roster || []).filter(p => p.isStarter); let score = 0, proj = 0, n = 0;
+    st.forEach(p => { const pj = (pm && pm[p.pid] != null) ? Number(pm[p.pid]) : 0; if (lldRvHas('p' + p.pid)) { score += p.score; proj += p.score; n++; } else proj += pj; });
+    const all = st.length > 0 && n === st.length;
+    return { score: all ? t.score : score, proj: all ? t.score : proj, n, all };
 }
 function lldRvHeader(html, o) {
     if (!lldRvOn() || !o) return html;
-    const vals = [];
-    [o.t1, o.t2].forEach(t => { if (t && typeof t.score === 'number') [2, 1].forEach(d => vals.push([t.score.toFixed(d), 't' + t.fid])); });
-    return html.replace(/>(\s*)(\d+\.\d{1,2})(\s*)</g, (m, a, v, b) => { const hit = vals.find(x => x[0] === v); return hit ? '>' + a + lldRvWrap(v, hit[1]) + b + '<' : m; });
+    window._lldRvPm = o.pm || window._lldRvPm;
+    const teams = [o.t1, o.t2].filter(t => t && typeof t.score === 'number'), calc = {};
+    teams.forEach(t => { calc[t.fid] = lldRvCalc(t, o.pm); });
+    const vals = []; teams.forEach(t => [2, 1].forEach(d => vals.push([t.score.toFixed(d), t, d])));
+    html = html.replace(/>(\s*)(\d+\.\d{1,2})(\s*)</g, (m, a, v, b) => {
+        const hit = vals.find(x => x[0] === v); if (!hit) return m; const c = calc[hit[1].fid], d = hit[2], txt = c.score.toFixed(d);
+        return '>' + a + `<span class="lld-rv lld-rvt${c.n ? ' on' : ''}" data-k="t${hit[1].fid}" data-v="${txt}" data-dec="${d}">${c.n ? txt : '<i>tap</i>'}</span>` + b + '<';
+    });
+    const pj = []; [[o.t1, o.t1Proj], [o.t2, o.t2Proj]].forEach(([t, pv]) => { if (t && pv != null && isFinite(pv)) pj.push([Number(pv).toFixed(1), t, 0]); });
+    html = html.replace(/>([^<>]*?)(\d+\.\d)([^<>]*)</g, (m, a, v, b) => {
+        if (!/proj/i.test(a + b)) return m; const hit = pj.find(x => x[0] === v && !x[2]); if (!hit) return m; hit[2] = 1;
+        const c = calc[hit[1].fid], txt = c ? c.proj.toFixed(1) : v;
+        return '>' + a + `<span class="lld-rvp" data-t="${hit[1].fid}" data-v="${txt}">${txt}</span>` + b + '<';
+    });
+    return html;
 }
-function lldRvReveal(el, delay) {
-    if (!el || el.classList.contains('on')) return;
-    window._lldRv.add(lldRvKey(el.dataset.k));
+function lldRvAnim(el, to, from) {
+    const dec = el.dataset.dec ? +el.dataset.dec : ((el.dataset.v || '').split('.')[1] || '').length || 1;
+    el.dataset.v = to.toFixed(dec);
+    if (from == null) from = parseFloat(el.textContent) || 0;
+    if (from === to) { el.textContent = to.toFixed(dec); return; }
+    const t0 = performance.now(), dur = 700;
+    const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = (from + (to - from) * e).toFixed(dec); if (p < 1) requestAnimationFrame(step); else el.textContent = to.toFixed(dec); };
+    requestAnimationFrame(step);
+}
+function lldRvRecalc() {
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex]; if (!m || !lldRvOn()) return;
+    const pm = window._lldRvPm; let everyone = true;
+    [m.t1, m.t2].forEach(t => {
+        if (!t) return; const c = lldRvCalc(t, pm); if (!c.all) everyone = false;
+        document.querySelectorAll('.lld-rvt[data-k="t' + t.fid + '"]').forEach(el => { const was = el.classList.contains('on'); if (c.n) { el.classList.add('on'); lldRvAnim(el, c.score, was ? null : 0); } });
+        document.querySelectorAll('.lld-rvp[data-t="' + t.fid + '"]').forEach(el => lldRvAnim(el, c.proj));
+    });
+    document.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(e => e.classList.toggle('on', everyone));
+}
+function lldRvPlayer(pid, delay) {
+    const k = 'p' + pid; if (lldRvHas(k)) return; lldRvS().add(lldRvKey(k)); lldRvSave();
     setTimeout(() => {
-        const full = el.dataset.v, dec = (full.split('.')[1] || '').length, end = parseFloat(full), t0 = performance.now(), dur = 900;
-        el.classList.add('on', 'pop'); el.textContent = (0).toFixed(dec);
-        const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = (end * e).toFixed(dec); if (p < 1) requestAnimationFrame(step); else { el.textContent = full; el.classList.remove('pop'); } };
-        requestAnimationFrame(step);
+        document.querySelectorAll('.lld-rv[data-k="' + k + '"]').forEach(el => { el.classList.add('on', 'pop'); lldRvAnim(el, parseFloat(el.dataset.v), 0); setTimeout(() => el.classList.remove('pop'), 950); });
+        document.querySelectorAll('.lld-rvh[data-k="' + k + '"]').forEach(e => e.classList.add('on'));
+        lldRvRecalc();
     }, delay || 0);
+}
+function lldRvTeam(fid) {
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex]; if (!m) return;
+    const t = [m.t1, m.t2].find(x => x && String(x.fid) === String(fid)); if (!t) return;
+    (t.roster || []).filter(p => p.isStarter && !lldRvHas('p' + p.pid)).forEach((p, i) => lldRvPlayer(p.pid, i * 140));
 }
 (function () {
     let mv = false;
     document.addEventListener('touchstart', () => { mv = false; }, { capture: true, passive: true });
     document.addEventListener('touchmove', () => { mv = true; }, { capture: true, passive: true });
-    const hit = e => e.target && e.target.closest ? e.target.closest('.lld-rv:not(.on)') : null;
-    document.addEventListener('touchend', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); if (mv) return; e.preventDefault(); lldRvReveal(el, 0); }, true);
-    document.addEventListener('click', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); e.preventDefault(); lldRvReveal(el, 0); }, true);
+    const hit = e => e.target && e.target.closest ? e.target.closest('.lld-rv:not(.on), .lld-rvt') : null;
+    const act = el => { const k = el.dataset.k || ''; if (el.classList.contains('lld-rvt')) lldRvTeam(k.slice(1)); else if (k[0] === 'p') lldRvPlayer(k.slice(1), 0); };
+    document.addEventListener('touchend', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); if (mv) return; e.preventDefault(); act(el); }, true);
+    document.addEventListener('click', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); e.preventDefault(); act(el); }, true);
     document.addEventListener('click', e => {
         const b = e.target && e.target.closest ? e.target.closest('#lld-rv-all') : null; if (!b) return;
         e.stopImmediatePropagation(); e.preventDefault();
-        [...document.querySelectorAll('#live-score-card-inner .lld-rv:not(.on)')].forEach((el, i) => lldRvReveal(el, i * 70));
+        [...document.querySelectorAll('#live-score-card-inner .lld-rv[data-k^="p"]:not(.on)')].forEach((el, i) => lldRvPlayer(el.dataset.k.slice(1), i * 70));
     }, true);
 })();
+// after each Scoreboard render: add the Reveal-all button and hide the win-% bar, percentages and winner badge until everyone is revealed
 function lldRvBar() {
     const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
     const have = document.getElementById('lld-rv-all');
     if (!lldRvOn() || !inner.querySelector('.lld-rv')) { if (have) have.remove(); return; }
-    if (have) return;
-    inner.insertAdjacentHTML('afterbegin', '<div id="lld-rv-wrap"><button type="button" id="lld-rv-all">Reveal all scores</button></div>');
+    if (!have) inner.insertAdjacentHTML('afterbegin', '<div id="lld-rv-wrap"><button type="button" id="lld-rv-all">Reveal all scores</button></div>');
+    const head = inner.querySelector('.lld-sbwrap, .lld-sbmain') || inner;
+    const roster = inner.querySelector('.lld-sec'), mark = el => { if (!el.classList.contains('lld-rvh')) { el.classList.add('lld-rvh'); el.dataset.k = 'wp'; } };
+    head.querySelectorAll('*').forEach(el => {
+        if (roster && roster.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) return; // only the header, not the player rows
+        if (el.closest('.lld-rvh') && el.closest('.lld-rvh') !== el) return;
+        if (el.children.length === 0 && /^\s*\d{1,3}(\.\d+)?%\s*$/.test(el.textContent)) mark(el);
+        else if (el.getAttribute('title') === 'Winning matchup') mark(el);
+        else if (el.children.length && el.children.length <= 2 && el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height <= 12 && [...el.children].some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) mark(el);
+    });
+    lldRvRecalc();
 }
 
 function lldSlpWeek() { let w = parseInt(window._liveScoreCurrentWeek, 10); if (!w) { try { const m = ($('#tab-team').text() || '').match(/Week\s+(\d{1,2})/); w = m ? parseInt(m[1], 10) : 0; } catch (e) { w = 0; } } return w || 0; }
@@ -15244,9 +15302,9 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
     const atVs = oppM ? (oppM[1].toLowerCase() === 'vs' ? 'vs' : '@') : (sched && sched.isHome === false ? '@' : 'vs');
     const oppTxt = oppAbbr ? `${atVs} <img src="${getNFLLogoUrl(oppAbbr)}" onerror="this.style.display='none'" style="width:12px; height:12px; object-fit:contain; vertical-align:middle;"> ${oppAbbr}` : '';
     const g = sched ? sched.gsr : null;
-    let line1;
-    if (detail && detail.scoreText) line1 = detail.scoreText;
-    else if (sched && sched.opp && g !== null && g < 3600) line1 = `${team} ${sched.score}-${sched.oppScore} ${sched.opp}`;
+    let line1, line1Score = false;
+    if (detail && detail.scoreText) { line1 = detail.scoreText; line1Score = true; }
+    else if (sched && sched.opp && g !== null && g < 3600) { line1 = `${team} ${sched.score}-${sched.oppScore} ${sched.opp}`; line1Score = true; }
     else line1 = `${sched ? sched.label : ''} ${oppTxt}`.trim() || p.opp || '—';
     let line2;
     if (detail && detail.statusText) line2 = detail.statusText;
@@ -15270,7 +15328,7 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
             </div>
         </div>
         <div style="margin-top:6px; text-align:${left ? 'left' : 'right'};">
-            <div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1}</div>
+            <div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1Score ? lldRvG(line1, p.pid) : line1}</div>
             <div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; line-height:1.3;">${line2}</div>
             ${stat ? `<div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
         </div>
@@ -15400,7 +15458,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const tabsBarHtml = tabbed ? lldScTabs(mState, scTab) : '';
     const tabBody = scTab === 'first'
         ? `<div id="lld-emb-host" class="lld-emb-host"><div class="lld-emb-load">Loading…</div></div><div id="lld-emb-below"></div>`
-        : buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2 }) + buildPairedRosterHtml(t1.roster, t2.roster, sharedProjMap, liveDetails, tc1, tc2);
+        : buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1, yts2, t1Proj, t2Proj, wp, leagueMedian, projMedian, tc1, tc2, pm: sharedProjMap }) + buildPairedRosterHtml(t1.roster, t2.roster, sharedProjMap, liveDetails, tc1, tc2);
     const html = `
                <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
