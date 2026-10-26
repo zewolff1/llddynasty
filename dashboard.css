@@ -4384,3 +4384,6 @@ body.lld-gth .player-row{position:relative}
 #gth-cap-bar .k{font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.12em;color:#f59e0b}
 #gth-cap-bar .v{color:var(--text-dim);margin-left:auto;font-weight:700}
 #gth-cap-bar b{color:#fff}
+
+#lld-slt .lld-det{display:none !important}
+#lld-slt .player-row{margin-bottom:4px}
