@@ -12991,7 +12991,7 @@ async function lldSltLoad() {
         const L = LLD_SLT.leagues; if (!L.length) { S.err = lldSltUser() ? 'No Sleeper leagues found for this season.' : ''; S.busy = false; return; }
         if (S.l >= L.length) S.l = 0; if (!S.w) S.w = parseInt(LLD_SLT.state && (LLD_SLT.state.display_week || LLD_SLT.state.week), 10) || 1;
         const lg = L[S.l], [us, ro, mu] = await Promise.all([lldSltApi(`league/${lg.id}/users`), lldSltApi(`league/${lg.id}/rosters`), lldSltApi(`league/${lg.id}/matchups/${S.w}`)]);
-        LLD_SLT.cur = { lg, us, ro, mu }; await lldSltPlayers(); LLD_SLT.pj = await lldSltProj(LLD_SLT.state && LLD_SLT.state.season || new Date().getFullYear(), S.w, lg.rec);
+        LLD_SLT.cur = { lg, us, ro, mu }; await lldSltPlayers(); try { LLD_SLT.sched = await fetchNflScheduleForWeek(S.w); } catch (e) { LLD_SLT.sched = null; } LLD_SLT.pj = await lldSltProj(LLD_SLT.state && LLD_SLT.state.season || new Date().getFullYear(), S.w, lg.rec);
     } catch (e) { S.err = String(e.message || e); }
     S.busy = false;
 }
@@ -13030,29 +13030,30 @@ function lldSltDraw() {
     h += `<div class="sl-strip">${M.map((g, i) => { const a = lldSltTeam(ro, us, g[0].roster_id), b = lldSltTeam(ro, us, g[1].roster_id), pts = (g[0].points || 0) + (g[1].points || 0); const s = `${Math.round(g[0].points || 0)}–${Math.round(g[1].points || 0)}`; const kk = 'slm' + lg.id + S.w + i; return `<div class="sl-mc${i === S.m ? ' on' : ''}${g.some(mine) ? ' me' : ''}" data-m="${i}">${logo(a, 20)}<span class="sl-s">${rvOn && pts > 0 ? `<span class="lld-rvc${lldRvHas(kk) ? ' on' : ''}" data-k="${kk}">${s}</span>` : s}</span>${logo(b, 20)}</div>`; }).join('')}</div>`;
     const g = M[S.m];
     if (!g) { host.innerHTML = h + '<div class="sl-err">No matchups for this week yet.</div>'; return; }
-    const A = g[0], B = g[1], ta = lldSltTeam(ro, us, A.roster_id), tb = lldSltTeam(ro, us, B.roster_id), pa = A.points || 0, pb = B.points || 0;
-    const ka = `slt${lg.id}${S.w}${A.roster_id}`, kb = `slt${lg.id}${S.w}${B.roster_id}`;
-    const both = tapped(ka) && tapped(kb), started = pa + pb > 0, hideX = rvOn && started && !both;
-    const big = (v, k) => rvOn && v > 0 ? `<span class="lld-rv${lldRvHas(rvK(k)) ? ' on' : ''}" data-k="${rvK(k)}" data-v="${v.toFixed(2)}" data-dec="2">${lldRvHas(rvK(k)) ? v.toFixed(2) : '<i>tap</i>'}</span>` : v.toFixed(2);
-    const wa = pa + pb > 0 ? Math.round(pa / (pa + pb) * 100) : 50;
-    const card = (t, v, o, k, side, share) => `<div class="sl-tc ${side}"><div class="top">${logo(t, 34)}<div style="min-width:0"><div class="nm">${esc(t.name)}</div><div class="rc">${t.rec}</div></div></div><div class="big">${big(v, k)}</div><div class="md${hideX ? ' sl-h' : ''}" style="color:${v > med ? '#4ade80' : '#f87171'}">${v > med ? '▲' : '▼'} Median</div><div class="sl-bar${hideX ? ' sl-h' : ''}"><b style="width:${share}%"></b></div></div>`;
-    h += `<div class="lld-rv-lu-wrap"><button type="button" class="lld-rv-lu-b" data-m="show">Reveal all scores</button></div>`;
-    h += `<div class="sl-hd">${card(ta, pa, pb, ka, 'l', wa)}${card(tb, pb, pa, kb, 'r', 100 - wa)}<div class="vs">VS</div></div>`;
-    const rp = (lg.rp || []).filter(x => x !== 'BN'), n = Math.max((A.starters || []).length, (B.starters || []).length);
-    const PJ = LLD_SLT.pj || {}, hasPj = Object.keys(PJ).length > 0;
-    const prow = (m, i) => {
-        const pid = (m.starters || [])[i], slot = (rp[i] || '').replace('SUPER_FLEX', 'SF').replace('FLEX', 'FLX');
-        const slotH = `<span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);letter-spacing:.4px;">${slot}</span>`;
-        if (!pid || pid === '0') return `<div class="player-row lld-tpl empty-slot" data-tpl="lineup" style="opacity:.55"><div class="lld-tl">${slotH}</div><div class="player-info lld-pi"><div class="lld-nm"><span class="full-name" style="color:var(--text-dim)">Empty</span></div></div></div>`;
-        const p = P[pid] || { n: pid, pos: '', tm: '' }, pt = (m.players_points || {})[pid] || 0, has = pt !== 0, pj = PJ[pid];
-        const pos = p.pos === 'DEF' ? 'Def' : p.pos;
-        let row = lldTplRow({ pid, name: p.n, shortName: p.n, pos, team: p.tm || 'FA' }, { tplKind: 'lineup', leftContent: slotH, noPhotoTap: true, tpl: { match: [''], proj: pj != null ? projTopHtml(pj.toFixed(1)) : `<span style="font-size:calc(13px * var(--ts,1));font-weight:900;color:var(--text-dim)">–</span>` } });
-        row = row.replace(/https:\/\/www\.mflscripts\.com\/playerImages_80x107\/mfl_[^"]*/, `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`);
-        if (has) { const pts = pt.toFixed(1); row = row.replace('player-row lld-tpl', 'player-row lld-tpl lld-played').replace(/<\/div>\s*$/, `<div class="lld-pscore"><b style="color:#fff">${lldRvWrap(pts, rvK(pid))}</b><i style="color:#94a3b8">PTS</i></div></div>`); }
-        return row;
+    const A = g[0], B = g[1];
+    window._liveScoreNflSchedule = LLD_SLT.sched || window._liveScoreNflSchedule || {};
+    window._liveScoreActiveWeek = S.w;
+    const PJ = LLD_SLT.pj || {}, hasPj = Object.keys(PJ).length > 0, pm = {};
+    Object.keys(PJ).forEach(k => { pm['s' + k] = PJ[k]; });
+    const nflT = t => { t = String(t || 'FA').toUpperCase(); return NFL_ABBR_ALIAS[t] || t; };
+    const mkTeam = m => {
+        const t = lldSltTeam(ro, us, m.roster_id), st = new Set(m.starters || []), ids = (m.players && m.players.length ? m.players : (m.starters || [])).filter(x => x && x !== '0');
+        const mk = (pid, slotIndex, isStarter) => { const p = P[pid] || { n: pid, pos: '', tm: '' }, pos = p.pos === 'DEF' ? 'Def' : p.pos; return { pid: 's' + pid, sid: pid, name: p.n, shortName: p.n, pos, team: nflT(p.tm), score: (m.players_points || {})[pid] || 0, isStarter, slotIndex, opp: '', gsr: null, rawStatus: '' }; };
+        const roster = (m.starters || []).map((pid, i) => (pid && pid !== '0') ? mk(pid, i, true) : null).filter(Boolean).concat(ids.filter(x => !st.has(x)).map((pid, i) => mk(pid, 100 + i, false)));
+        const ytp = roster.filter(p => p.isStarter && !deriveLiveStatus(p).done).length;
+        return { fid: 's' + m.roster_id, name: t.name, logo: t.av || 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg', score: m.points || 0, roster, yetToPlay: ytp, rec: t.rec };
     };
-    const side = (t, m, v) => `<div class="sl-sec">${esc(t.name.toUpperCase())} · STARTERS${hasPj ? '' : ' · NO PROJECTIONS'}</div>` + Array.from({ length: Math.max(n, 0) }, (_, i) => prow(m, i)).join('');
-    h += side(ta, A, pa) + side(tb, B, pb);
+    const t1 = mkTeam(A), t2 = mkTeam(B);
+    const projTot = t => t.roster.reduce((a, p) => { if (!p.isStarter) return a; const d = deriveLiveStatus(p); return a + (d.done ? p.score : (pm[p.pid] != null ? pm[p.pid] : p.score)); }, 0);
+    const t1Proj = projTot(t1), t2Proj = projTot(t2);
+    const ptsAll = (mu || []).filter(x => x.matchup_id != null).map(x => projTot(mkTeam(x))).sort((a, b) => a - b), pmed = ptsAll.length ? (ptsAll.length % 2 ? ptsAll[(ptsAll.length - 1) / 2] : (ptsAll[ptsAll.length / 2 - 1] + ptsAll[ptsAll.length / 2]) / 2) : 0;
+    const wp = computeWinProb(t1, t2, pm), tc1 = '#3b82f6', tc2 = '#a855f7';
+    const c1 = t1.score > t2.score ? '#22c55e' : t1.score < t2.score ? '#ef4444' : '#fff', c2 = t2.score > t1.score ? '#22c55e' : t2.score < t1.score ? '#ef4444' : '#fff';
+    const yts = t => t.yetToPlay > 0 ? `${t.yetToPlay} yet to play` : 'Done';
+    h += `<div class="lld-rv-lu-wrap"><button type="button" class="lld-rv-lu-b" data-m="show">Reveal all scores</button></div>`;
+    let body = buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1: yts(t1), yts2: yts(t2), t1Proj, t2Proj, wp, leagueMedian: med, projMedian: pmed, tc1, tc2, pm }) + buildPairedRosterHtml(t1.roster, t2.roster, pm, { gameInfo: {}, stats: {} }, tc1, tc2);
+    body = body.replace(/https:\/\/www\.mflscripts\.com\/playerImages_80x107\/mfl_s([^"]*?)\.png/g, (m, id) => /^[A-Z]{2,3}$/.test(id) ? `https://sleepercdn.com/images/team_logos/nfl/${id.toLowerCase()}.png` : `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`);
+    h += body + (hasPj ? '' : '<div class="sl-err" style="margin-top:6px">No projections from Sleeper for this week.</div>');
     host.innerHTML = h;
     const hid = !document.querySelector('#lld-slt .lld-rv:not(.on), #lld-slt .lld-rvc:not(.on)'); const b = host.querySelector('.lld-rv-lu-b'); if (b && hid && host.querySelector('.lld-rv, .lld-rvc')) { b.textContent = 'Hide all scores'; b.dataset.m = 'hide'; }
     if (!rvOn && b) b.parentElement.remove();
@@ -13072,6 +13073,12 @@ async function lldSltRender() {
     if (t.dataset.w) { S.w = Math.max(1, Math.min(18, S.w + (+t.dataset.w))); S.mi = ''; lldSltDraw(); await lldSltLoad(); lldSltDraw(); return; }
     if (t.classList.contains('sl-mc')) { if (e.target.closest('.lld-rvc')) return; S.m = +t.dataset.m; lldSltDraw(); }
 }, false));
+['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) {
+    const t = e.target && e.target.closest ? e.target.closest('#lld-slt .live-score-prev, #lld-slt .live-score-next, #lld-slt .scores-preview-btn, #lld-slt .player-modal-trigger') : null; if (!t) return;
+    e.stopPropagation(); e.stopImmediatePropagation(); if (ev === 'touchend') return;
+    const S = LLD_SLT.st, C = LLD_SLT.cur; if (!C) return;
+    if (t.classList.contains('live-score-prev') || t.classList.contains('live-score-next')) { const n = (C.mu || []).filter(x => x.matchup_id != null).length / 2; S.m = (S.m + (t.classList.contains('live-score-next') ? 1 : -1) + n) % n; lldSltDraw(); }
+}, true));
 // redraw after a reveal / hide so the totals, bar and median arrows follow what is revealed
 window.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#lld-slt .lld-rv, #lld-slt .lld-rvc, #lld-slt .lld-rv-lu-b')) setTimeout(() => { try { lldSltDraw(); } catch (x) { } }, 1000); }, true);
 
