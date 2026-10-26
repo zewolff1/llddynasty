@@ -4329,3 +4329,58 @@ body.lld-shb .lld-cap-old{display:none!important}
 #lld-sh-pop .yrs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 #lld-sh-pop .yr-i{font:inherit;font-weight:900;border:1px solid #26325e;background:transparent;color:#f1f4ff;border-radius:12px;padding:12px 0;cursor:pointer}
 #lld-sh-pop .yr-i.on{background:#2dd4bf;color:#04201c;border-color:#2dd4bf}
+
+/* r70 matchup chips: score blurred until tapped */
+.lld-rvc:not(.on){filter:blur(6px);opacity:.6;transition:filter .5s ease,opacity .5s ease}
+.lld-rvc.on{transition:filter .5s ease,opacity .5s ease}
+
+/* r71 Sleeper scoreboard tab (beta) */
+#lld-slt .sl-conn{display:flex;align-items:center;gap:8px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:8px 10px;margin-bottom:8px;font-size:calc(12px * var(--ts,1))}
+#lld-slt .sl-conn b{color:var(--accent-teal,#2dd4bf)}#lld-slt .sl-conn .sp{flex:1;color:var(--text-dim)}
+#lld-slt .sl-conn input{flex:1;min-width:0;font:inherit;background:#0b1020;color:#fff;border:1px solid var(--card-border);border-radius:8px;padding:7px 8px}
+#lld-slt .sl-conn button,#lld-slt .sl-wk button{font:inherit;border:1px solid var(--card-border);background:transparent;color:#fff;border-radius:8px;padding:4px 10px;font-weight:800;font-size:calc(11px * var(--ts,1));cursor:pointer}
+#lld-slt .sl-err{color:#f59e0b;font-size:calc(11px * var(--ts,1));text-align:center;padding:8px}
+#lld-slt .sl-lgs{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px}
+#lld-slt .sl-lg{flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);font:inherit;font-weight:800;font-size:calc(12px * var(--ts,1));cursor:pointer}
+#lld-slt .sl-lg i{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-style:normal;font-size:9px;color:#fff}
+#lld-slt .sl-lg.on{background:#1b2757;color:#fff;border-color:#4a5fc1}
+#lld-slt .sl-wk{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 8px}
+#lld-slt .sl-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px}
+#lld-slt .sl-mc{flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);cursor:pointer}
+#lld-slt .sl-mc.on{background:rgba(59,130,246,.15);border-color:#3b82f6}
+#lld-slt .sl-s{font-size:calc(11px * var(--ts,1));font-weight:900;color:#fff}
+#lld-slt .lo{border-radius:50%;object-fit:cover;background:#1b2757;display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff;flex:none}
+#lld-slt .sl-hd{display:flex;gap:4px;position:relative;margin:6px 0 18px}
+#lld-slt .sl-tc{flex:1;min-width:0;padding:12px 10px 10px;border-radius:20px;border:1px solid var(--card-border)}
+#lld-slt .sl-tc.l{background:linear-gradient(135deg,#3b82f622,rgba(255,255,255,.02) 70%)}
+#lld-slt .sl-tc.r{background:linear-gradient(225deg,#a855f722,rgba(255,255,255,.02) 70%);text-align:right}
+#lld-slt .sl-tc .top{display:flex;align-items:center;gap:8px}#lld-slt .sl-tc.r .top{flex-direction:row-reverse}
+#lld-slt .sl-tc .nm{font-size:calc(11px * var(--ts,1));font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lld-slt .sl-tc .rc{font-size:calc(9px * var(--ts,1));color:var(--text-dim)}
+#lld-slt .sl-tc .big{font-size:calc(26px * var(--ts,1));font-weight:900;font-variant-numeric:tabular-nums;margin:8px 0 2px;line-height:1.05}
+#lld-slt .sl-tc .md{font-size:calc(8px * var(--ts,1));font-weight:900;text-transform:uppercase}
+#lld-slt .sl-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;display:flex;margin-top:6px}
+#lld-slt .sl-tc.r .sl-bar{justify-content:flex-end}#lld-slt .sl-bar b{display:block;height:100%;border-radius:3px;background:#60a5fa}
+#lld-slt .sl-tc.r .sl-bar b{background:#a855f7}
+#lld-slt .sl-h{filter:blur(7px);opacity:.55}
+#lld-slt .vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);display:grid;place-items:center;font-size:10px;font-weight:900;color:var(--text-dim);z-index:2}
+#lld-slt .sl-sec{font-size:calc(9px * var(--ts,1));letter-spacing:.14em;color:var(--text-dim);font-weight:900;margin:8px 0 6px}
+#lld-slt .sl-pr{display:grid;grid-template-columns:1fr 26px 1fr;gap:5px;margin-bottom:5px;align-items:center}
+#lld-slt .sl-pl{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:12px;border:1px solid var(--card-border);background:var(--card-bg);min-width:0}
+#lld-slt .sl-pl.r{flex-direction:row-reverse;text-align:right}
+#lld-slt .sl-pl .a{flex:none;width:30px;height:30px;border-radius:50%;background:#1b2757;object-fit:cover}
+#lld-slt .sl-pl .n{min-width:0;flex:1}#lld-slt .sl-pl .n b{display:block;font-size:calc(11px * var(--ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lld-slt .sl-pl .n small{font-size:calc(9px * var(--ts,1));color:var(--text-dim)}
+#lld-slt .sl-pl .pt{font-weight:900;font-size:calc(14px * var(--ts,1));font-variant-numeric:tabular-nums}
+#lld-slt .pp{text-align:center;font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim)}
+#lld-slt .lld-rv-lu-wrap{display:flex;justify-content:flex-end;margin:0 0 6px}
+
+/* r74 Gotham captain */
+.gth-c{position:absolute;right:6px;top:6px;z-index:5;width:22px;height:22px;border-radius:50%;border:1px solid #64748b;background:rgba(15,23,42,.85);color:#94a3b8;font:900 11px/20px -apple-system,Segoe UI,sans-serif;padding:0;cursor:pointer}
+.gth-c.on{background:#f59e0b;border-color:#f59e0b;color:#1a1000}
+.gth-c.lock{opacity:.45;cursor:not-allowed}
+body.lld-gth .player-row{position:relative}
+#gth-cap-bar{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:8px 12px;border-radius:12px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.1);font-size:calc(12px * var(--ts,1))}
+#gth-cap-bar .k{font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.12em;color:#f59e0b}
+#gth-cap-bar .v{color:var(--text-dim);margin-left:auto;font-weight:700}
+#gth-cap-bar b{color:#fff}
