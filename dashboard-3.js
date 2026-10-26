@@ -12971,7 +12971,18 @@ async function lldSltLeagues() {
     if (!usr || !usr.user_id) throw new Error('No Sleeper user named ' + u);
     LLD_SLT.uid = usr.user_id; LLD_SLT.state = stt;
     const lg = await lldSltApi(`user/${usr.user_id}/leagues/nfl/${stt.season}`);
-    return (lg || []).map(l => ({ id: l.league_id, name: l.name, av: l.avatar, rp: l.roster_positions || [] }));
+    return (lg || []).map(l => ({ id: l.league_id, name: l.name, av: l.avatar, rp: l.roster_positions || [], rec: (l.scoring_settings && l.scoring_settings.rec) != null ? l.scoring_settings.rec : 1 }));
+}
+// Sleeper has no public projections endpoint in its documented API; this tries the one its own site uses and quietly shows "–" if it is blocked.
+async function lldSltProj(season, week, rec) {
+    const key = 'proj' + season + ':' + week, c = LLD_SLT.cache[key]; if (c && Date.now() - c.t < 600000) return c.d;
+    let m = {};
+    try {
+        const q = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].map(x => 'position[]=' + x).join('&');
+        const r = await fetch(`https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular&${q}`);
+        if (r.ok) { const d = await r.json(); (d || []).forEach(x => { const st = x.stats || {}; const v = rec >= 1 ? st.pts_ppr : rec > 0 ? st.pts_half_ppr : st.pts_std; const n = parseFloat(v != null ? v : st.pts_ppr); if (isFinite(n)) m[String(x.player_id)] = n; }); }
+    } catch (e) { }
+    LLD_SLT.cache[key] = { t: Date.now(), d: m }; return m;
 }
 async function lldSltLoad() {
     const S = LLD_SLT.st; S.busy = true; S.err = '';
@@ -12980,7 +12991,7 @@ async function lldSltLoad() {
         const L = LLD_SLT.leagues; if (!L.length) { S.err = lldSltUser() ? 'No Sleeper leagues found for this season.' : ''; S.busy = false; return; }
         if (S.l >= L.length) S.l = 0; if (!S.w) S.w = parseInt(LLD_SLT.state && (LLD_SLT.state.display_week || LLD_SLT.state.week), 10) || 1;
         const lg = L[S.l], [us, ro, mu] = await Promise.all([lldSltApi(`league/${lg.id}/users`), lldSltApi(`league/${lg.id}/rosters`), lldSltApi(`league/${lg.id}/matchups/${S.w}`)]);
-        LLD_SLT.cur = { lg, us, ro, mu }; await lldSltPlayers();
+        LLD_SLT.cur = { lg, us, ro, mu }; await lldSltPlayers(); LLD_SLT.pj = await lldSltProj(LLD_SLT.state && LLD_SLT.state.season || new Date().getFullYear(), S.w, lg.rec);
     } catch (e) { S.err = String(e.message || e); }
     S.busy = false;
 }
@@ -13026,15 +13037,22 @@ function lldSltDraw() {
     const wa = pa + pb > 0 ? Math.round(pa / (pa + pb) * 100) : 50;
     const card = (t, v, o, k, side, share) => `<div class="sl-tc ${side}"><div class="top">${logo(t, 34)}<div style="min-width:0"><div class="nm">${esc(t.name)}</div><div class="rc">${t.rec}</div></div></div><div class="big">${big(v, k)}</div><div class="md${hideX ? ' sl-h' : ''}" style="color:${v > med ? '#4ade80' : '#f87171'}">${v > med ? '▲' : '▼'} Median</div><div class="sl-bar${hideX ? ' sl-h' : ''}"><b style="width:${share}%"></b></div></div>`;
     h += `<div class="lld-rv-lu-wrap"><button type="button" class="lld-rv-lu-b" data-m="show">Reveal all scores</button></div>`;
-    h += `<div class="sl-hd">${card(ta, pa, pb, ka, 'l', wa)}${card(tb, pb, pa, kb, 'r', 100 - wa)}<div class="vs">VS</div></div><div class="sl-sec">STARTERS</div>`;
+    h += `<div class="sl-hd">${card(ta, pa, pb, ka, 'l', wa)}${card(tb, pb, pa, kb, 'r', 100 - wa)}<div class="vs">VS</div></div>`;
     const rp = (lg.rp || []).filter(x => x !== 'BN'), n = Math.max((A.starters || []).length, (B.starters || []).length);
-    const cell = (m, i, side) => {
-        const pid = (m.starters || [])[i]; if (!pid || pid === '0') return `<div class="sl-pl${side ? ' r' : ''}"><div class="n"><small>empty</small></div></div>`;
-        const p = P[pid] || { n: pid, pos: '', tm: '' }, pt = (m.players_points || {})[pid] || 0, has = pt !== 0;
-        const val = has && rvOn ? `<span class="lld-rv${lldRvHas(rvK(pid)) ? ' on' : ''}" data-k="${rvK(pid)}" data-v="${pt.toFixed(1)}">${lldRvHas(rvK(pid)) ? pt.toFixed(1) : '<i>tap</i>'}</span>` : (has ? pt.toFixed(1) : '–');
-        return `<div class="sl-pl${side ? ' r' : ''}"><img class="a" src="https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg" onerror="this.style.visibility='hidden'"><div class="n"><b>${esc(p.n)}</b><small>${p.pos} · ${p.tm || 'FA'}</small></div><div class="pt">${val}</div></div>`;
+    const PJ = LLD_SLT.pj || {}, hasPj = Object.keys(PJ).length > 0;
+    const prow = (m, i) => {
+        const pid = (m.starters || [])[i], slot = (rp[i] || '').replace('SUPER_FLEX', 'SF').replace('FLEX', 'FLX');
+        const slotH = `<span style="font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);letter-spacing:.4px;">${slot}</span>`;
+        if (!pid || pid === '0') return `<div class="player-row lld-tpl empty-slot" data-tpl="lineup" style="opacity:.55"><div class="lld-tl">${slotH}</div><div class="player-info lld-pi"><div class="lld-nm"><span class="full-name" style="color:var(--text-dim)">Empty</span></div></div></div>`;
+        const p = P[pid] || { n: pid, pos: '', tm: '' }, pt = (m.players_points || {})[pid] || 0, has = pt !== 0, pj = PJ[pid];
+        const pos = p.pos === 'DEF' ? 'Def' : p.pos;
+        let row = lldTplRow({ pid, name: p.n, shortName: p.n, pos, team: p.tm || 'FA' }, { tplKind: 'lineup', leftContent: slotH, noPhotoTap: true, tpl: { match: [''], proj: pj != null ? projTopHtml(pj.toFixed(1)) : `<span style="font-size:calc(13px * var(--ts,1));font-weight:900;color:var(--text-dim)">–</span>` } });
+        row = row.replace(/https:\/\/www\.mflscripts\.com\/playerImages_80x107\/mfl_[^"]*/, `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`);
+        if (has) { const pts = pt.toFixed(1); row = row.replace('player-row lld-tpl', 'player-row lld-tpl lld-played').replace(/<\/div>\s*$/, `<div class="lld-pscore"><b style="color:#fff">${lldRvWrap(pts, rvK(pid))}</b><i style="color:#94a3b8">PTS</i></div></div>`); }
+        return row;
     };
-    for (let i = 0; i < n; i++) h += `<div class="sl-pr">${cell(A, i, 0)}<div class="pp">${(rp[i] || '').replace('SUPER_FLEX', 'SF').replace('FLEX', 'FLX')}</div>${cell(B, i, 1)}</div>`;
+    const side = (t, m, v) => `<div class="sl-sec">${esc(t.name.toUpperCase())} · STARTERS${hasPj ? '' : ' · NO PROJECTIONS'}</div>` + Array.from({ length: Math.max(n, 0) }, (_, i) => prow(m, i)).join('');
+    h += side(ta, A, pa) + side(tb, B, pb);
     host.innerHTML = h;
     const hid = !document.querySelector('#lld-slt .lld-rv:not(.on), #lld-slt .lld-rvc:not(.on)'); const b = host.querySelector('.lld-rv-lu-b'); if (b && hid && host.querySelector('.lld-rv, .lld-rvc')) { b.textContent = 'Hide all scores'; b.dataset.m = 'hide'; }
     if (!rvOn && b) b.parentElement.remove();
