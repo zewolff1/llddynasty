@@ -4455,8 +4455,17 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
             currentDoc.querySelectorAll('table.report').forEach((t, i) => { if (i > 0) t.remove(); });
         }
 // Other owners: the submit-lineup page can be blocked or empty, so fall back to their roster page
-        if (activeSub.includes('lineup') && fid !== myFid) {
-            const lineupBlocked = (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) || !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow');
+        window._lldLineupBlock = '';
+        if (activeSub.includes('lineup') && fid === myFid) {
+            // MFL refuses the lineup page while there is an IR violation: keep showing the roster so IR can be fixed, and say why at the top
+            const bt = (currentDoc.body ? currentDoc.body.textContent : '').replace(/\s+/g, ' ').trim();
+            if (/IR Violation/i.test(bt) || (/You may not set your lineup/i.test(bt) && !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow'))) {
+                const mm = bt.match(/You may not[\s\S]*?(?=Go Back|$)/i);
+                window._lldLineupBlock = (mm ? mm[0] : 'You may not set your lineup at this time.').trim().slice(0, 240);
+            }
+        }
+        if (activeSub.includes('lineup') && (fid !== myFid || window._lldLineupBlock)) {
+            const lineupBlocked = window._lldLineupBlock || (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) || !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow');
             if (lineupBlocked) {
                 try {
                     const rRes = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${fid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
@@ -4465,7 +4474,7 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
                 } catch (e) { console.warn('Roster fallback failed', e); }
             }
         }
-        if (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
+        if (!window._lldLineupBlock && currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
             const bodyText = (currentDoc.body?.innerText || '').replace(/\s+/g, ' ').trim();
             const match = bodyText.match(/You may not[\s\S]*?(?=Go Back|$)/i);
             const errMsg = match ? match[0].trim() : 'This action is currently unavailable.';
@@ -6115,7 +6124,7 @@ function getBestBenchOption(slot) {
     function updateLineupNotifications() {
         const container = document.getElementById('lineup-notifications'); if (!container) return;
         container.innerHTML = ''; const empty = document.querySelectorAll('.player-row.empty-slot').length;
-        if (empty > 0) $(container).append(`<div class="lineup-alert alert-error">⚠️ Incomplete: ${empty} Remaining</div>`);
+        if (empty > 0 && !window._lldLineupBlock) $(container).append(`<div class="lineup-alert alert-error">⚠️ Incomplete: ${empty} Remaining</div>`);
         // starters projected for 0 (bye, out, inactive…)
         const zero = [], noRep = [];
         document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot)').forEach(el => {
@@ -6132,6 +6141,7 @@ function getBestBenchOption(slot) {
         });
         if (zero.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
         if (noRep.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ No bench replacement for: ${noRep.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
+        if (window._lldLineupBlock) $(container).append(`<div class="lineup-alert alert-error">⛔ ${$('<i>').text(window._lldLineupBlock).html()} Fix your IR below, then your lineup will open.</div>`);
         // players on IR who may not be allowed there (league blocks submitting a lineup with them)
         try {
             const bad = lldIrIneligible();
@@ -6159,7 +6169,7 @@ function getBestBenchOption(slot) {
         if (!keep) el._t = setTimeout(() => { el.style.display = 'none'; }, 2200);
     }
     function lldAsvSchedule() {
-        if (!lldAsvOn() || fid !== myFid || !currentDoc) return;
+        if (!lldAsvOn() || fid !== myFid || !currentDoc || window._lldLineupBlock) return;
         if (!$('#subtabs-team .sub-tab-btn.active').text().toLowerCase().includes('lineup')) return;
         const c = getLineupChanges(); if (!c.added.length && !c.removed.length) return;
         clearTimeout(_asvT); _asvT = setTimeout(lldAsvRun, 800);
@@ -6933,7 +6943,7 @@ $(document).off('click', '.year-selector-item').on('click', '.year-selector-item
 });
 
 let isConfirming = false; 
-    window.confirmAndSubmit = function() {
+    window.confirmAndSubmit = function() { if (window._lldLineupBlock) { alert("MFL will not accept a lineup until your IR problem is fixed."); return; }
         if (isConfirming) return; isConfirming = true;        
         const { added, removed } = getLineupChanges();
         let message = "Are you sure you want to save these changes?\n\n";
