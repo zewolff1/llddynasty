@@ -1710,13 +1710,24 @@ function parseStandingsDoc(doc) {
 // "Next" = each team's first matchup in a week AFTER the latest week that has any scores/results.
 // Doesn't depend on a "current week" lookup. Double-header weeks list both opponents.
 // The week a lineup should be set for: the week MFL served, unless every NFL game that week is over (then the next one), or the schedule says the next matchup is later.
-async function lldLineupTarget(w, f) {
-    let t = w;
+// True when every NFL game of week w kicked off more than 4.5 hours ago (goes by kickoff times only; MFL's "seconds remaining" can stay stale).
+async function lldNflWeekDone(w) {
     try {
-        const sch = await fetchNflScheduleForWeek(w), now = Date.now(), es = Object.keys(sch || {}).map(k => sch[k]).filter(e => e && (e.opp || e.kickoffMs));
-        if (es.length && es.every(e => (e.gsr !== null && e.gsr !== undefined && !isNaN(e.gsr)) ? e.gsr <= 0 : (e.kickoffMs && now > e.kickoffMs + 4.5 * 3600 * 1000))) t = w + 1;
-    } catch (e) { }
+        const sch = await fetchNflScheduleForWeek(w), now = Date.now();
+        const ks = Object.keys(sch || {}).map(k => sch[k]).filter(e => e && e.kickoffMs).map(e => e.kickoffMs);
+        return ks.length > 0 && now > Math.max.apply(null, ks) + 4.5 * 3600 * 1000;
+    } catch (e) { return false; }
+}
+// First week, starting at w, whose NFL games are not all over.
+async function lldAdvanceWeek(w) {
+    let t = w;
+    for (let i = 0; i < 3 && t < 18; i++) { if (await lldNflWeekDone(t)) t++; else break; }
+    return Math.min(t, 18);
+}
+async function lldLineupTarget(w, f) {
+    let t = await lldAdvanceWeek(w);
     try { const nx = window._nextOpp && window._nextOpp[f]; if (nx && nx.week > t) t = nx.week; } catch (e) { }
+    window._lldEffWeek = t;
     return Math.min(t, 18);
 }
 async function loadNextOpponents() {
@@ -1745,7 +1756,10 @@ async function loadNextOpponents() {
 
         const latestPlayed = games.reduce((mx, g) => (g.played ? Math.max(mx, g.wk) : mx), 0);
         const next = {};
-        games.filter(g => g.wk > latestPlayed).sort((x, y) => x.wk - y.wk).forEach(g => {
+        let ew = latestPlayed + 1;
+        try { ew = await lldAdvanceWeek(latestPlayed + 1); } catch (e) { }
+        window._lldEffWeek = ew;
+        games.filter(g => g.wk >= Math.max(latestPlayed + 1, ew)).sort((x, y) => x.wk - y.wk).forEach(g => {
             [[g.a, g.b], [g.b, g.a]].forEach(([me, opp]) => {
                 if (!next[me]) next[me] = { week: g.wk, opps: [opp] };
                 else if (next[me].week === g.wk) next[me].opps.push(opp);
@@ -4402,7 +4416,9 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
                     if (tw > dw) {
                         const r2 = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&W=${tw}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
                         const d2 = new DOMParser().parseFromString(await r2.text(), 'text/html');
-                        if (d2.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow') && !(d2.title || '').toLowerCase().includes('error')) { currentDoc = d2; window._lldLineupWeek = String(tw); }
+                        const w2 = parseInt((d2.querySelector('input[name="W"], select[name="W"]') || {}).value, 10);
+                        if (d2.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow') && !(d2.title || '').toLowerCase().includes('error') && (!w2 || w2 === tw)) { currentDoc = d2; window._lldLineupWeek = String(tw); }
+                        else console.warn('[lineup-week] MFL would not serve week', tw, '(served', w2 || '?', ') so staying on week', dw);
                     }
                 }
             } catch (e) { console.warn('lineup week check', e); }
