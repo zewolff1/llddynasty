@@ -4396,3 +4396,6 @@ body.lld-gth .player-row{position:relative}
 @keyframes lld-ring{to{transform:rotate(360deg)}}
 .loading-indicator{animation:lld-txt 1.4s ease-in-out infinite}
 @keyframes lld-txt{0%,100%{opacity:.55}50%{opacity:1}}
+
+/* the team logo watermark already shows behind the row; no second logo inside the photo circle */
+body.lld-tpl.lld-wm .player-row.lld-tpl .lld-tl-logo{display:none !important}
