@@ -3,7 +3,7 @@
 (function () {
     const fidNow = String(window.franchise_id || '').padStart(4, '0');
     if (fidNow !== '0000' && fidNow !== '0001') return;
-    let on = false; try { on = localStorage.getItem('lld_b_ldr') === '1'; } catch (e) { }
+    let on = false; /* loading screen retired: never shown */
     if (!on || !document.body) return;
     const el = document.createElement('div'); el.id = 'lld-ldr';
     el.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0b1020;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#cbd5e1;font:800 12px -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.18em;text-transform:uppercase;transition:opacity .45s ease';
@@ -1966,6 +1966,19 @@ function buildTeamInfoPanel(targetFid) {
     const lay = lldHdrLayout();
     return `<div class="th th-${lay}"><div class="th-top">${awardsHtml}${awBadge}</div><div class="th-boxes">${box1}${oppBox}${box3}</div></div>`;
 }
+// ---- position filter: All / Offense / Defense, each with its own positions that can be switched on and off ----
+const LLD_PF_OFF = ['QB', 'RB', 'WR', 'TE'], LLD_PF_DEF = ['DL', 'LB', 'DB'], LLD_PF_ALL = LLD_PF_OFF.concat(LLD_PF_DEF), LLD_PF_MFL = { DL: 'DT+DE', DB: 'CB+S' };
+let playerPosSel = LLD_PF_ALL.slice();
+function lldPosString(sel) { return sel.length >= LLD_PF_ALL.length ? '*' : LLD_PF_ALL.filter(x => sel.indexOf(x) >= 0).map(x => LLD_PF_MFL[x] || x).join('+'); }
+function lldPosBarHtml() {
+    const sel = playerPosSel, full = sel.length >= LLD_PF_ALL.length, same = a => sel.length === a.length && a.every(x => sel.indexOf(x) >= 0);
+    const pb = x => `<button type="button" class="lld-pf-b p${!full && sel.indexOf(x) >= 0 ? ' active' : ''}" data-p="${x}">${x}</button>`;
+    return `<div class="lld-pf">
+        <button type="button" class="lld-pf-b g lld-pf-all${full ? ' active' : ''}" data-g="all">All</button>
+        <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_OFF) ? ' active' : ''}" data-g="off">Offense</button><div class="lld-pf-ps">${LLD_PF_OFF.map(pb).join('')}</div></div>
+        <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
+    </div>`;
+}
 function getPlayerFilterBarHtml(isFAView) {
     const lyLabel = "'" + String(parseInt(year) - 1).slice(-2) + ' Avg';
     const statSorts = [{ id: 'pts', label: 'Pts' }];
@@ -2012,21 +2025,7 @@ function getPlayerFilterBarHtml(isFAView) {
 
     return `
         <div class="player-filter-wrapper" style="padding:12px 10px; background:var(--page-bg); border-bottom:1px solid var(--card-border); display:flex; flex-direction:column; gap:10px;">
-            <div style="display:flex; flex-wrap:wrap; gap:14px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px; justify-content:center;">
-                <button class="player-pos-filter-btn${playerPosFilter === '*' ? ' active' : ''}" data-pos="*">All Players</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'QB+RB+WR+TE' ? ' active' : ''}" data-pos="QB+RB+WR+TE">Offense (SFlex)</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'RB+WR+TE' ? ' active' : ''}" data-pos="RB+WR+TE">Flex Only</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'DT+DE+LB+CB+S' ? ' active' : ''}" data-pos="DT+DE+LB+CB+S">All Defense (IDP)</button>
-            </div>
-            <div class="hide-scroll" style="display:flex; gap:14px; overflow-x:auto; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px; justify-content:center;">
-                <button class="player-pos-filter-btn${playerPosFilter === 'QB' ? ' active' : ''}" data-pos="QB">QB</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'RB' ? ' active' : ''}" data-pos="RB">RB</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'WR' ? ' active' : ''}" data-pos="WR">WR</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'TE' ? ' active' : ''}" data-pos="TE">TE</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'DT+DE' ? ' active' : ''}" data-pos="DT+DE">DL</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'LB' ? ' active' : ''}" data-pos="LB">LB</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'CB+S' ? ' active' : ''}" data-pos="CB+S">DB</button>
-            </div>
+            ${lldPosBarHtml()}
            <div style="display:flex; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap;">
                 <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
                 <div style="display:flex; gap:6px 10px; flex-wrap:wrap; justify-content:center;">
@@ -6373,6 +6372,19 @@ $(document).on('click', '.player-sort-btn', function() {
     playerSortBy = $(this).data('sort');
     const activeSubBtn = $('#subtabs-players .sub-tab-btn.active');
     const subId = activeSubBtn.length ? activeSubBtn.text().trim().toLowerCase().replace(' ', '-') : 'free-agents';
+    loadPlayersData(subId);
+});
+$(document).on('click', '.lld-pf-b', function () {
+    const g = this.getAttribute('data-g'), p = this.getAttribute('data-p');
+    if (g) playerPosSel = g === 'all' ? LLD_PF_ALL.slice() : g === 'off' ? LLD_PF_OFF.slice() : LLD_PF_DEF.slice();
+    else if (p) {
+        if (playerPosSel.length >= LLD_PF_ALL.length) playerPosSel = [p]; // everything is on: the first tap isolates that position
+        else { const i = playerPosSel.indexOf(p); if (i >= 0) playerPosSel.splice(i, 1); else playerPosSel.push(p); if (!playerPosSel.length) playerPosSel = LLD_PF_ALL.slice(); }
+    }
+    playerPosFilter = lldPosString(playerPosSel);
+    const activeSubBtn = $('#subtabs-players .sub-tab-btn.active');
+    const subId = activeSubBtn.length ? activeSubBtn.text().trim().toLowerCase().replace(' ', '-') : 'free-agents';
+    if (window._playerRowsCache) delete window._playerRowsCache[`${subId}_${playerPosFilter}`];
     loadPlayersData(subId);
 });
 $(document).on('click', '.player-pos-filter-btn', function() {
@@ -12311,7 +12323,7 @@ function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMM
 function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
-function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
+function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
@@ -13431,14 +13443,11 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Beta features</div>
-        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Switch features on or off for your team. Row changes apply to every player row, including the Players tab.</div>
-        ${lab('Team logo behind player photos')}${onoff('wm')}
-        ${lab('Smooth header shrink animation')}${onoff('anim')}
+        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Display</div>
         ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
         <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
-        ${lldDev() ? `${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}` : ''}
-        ${lldDev() ? `${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Loading screen (waits until the header and rows are ready, takes effect next load)')}${onoff('ldr')}${lab('What\'s new popup (opens the chat when something moves out of beta)')}${onoff('wnw')}` : ''}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}` : ''}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
@@ -20325,7 +20334,7 @@ const LLD_NEWS = [
         ['Player card from Set Lineup', 'The position button on Set Lineup opens the player card.']
     ] }
 ];
-function lldWnOn() { try { return lldDev() && lldBv('wnw') === '1'; } catch (e) { return false; } }
+function lldWnOn() { return false; } // What's new popup retired
 function lldWnKey() { return 'lld_news_seen_' + (typeof lid !== 'undefined' ? lid : '') + '_' + (typeof myFid !== 'undefined' ? myFid : ''); }
 function lldWnSeen() { try { return localStorage.getItem(lldWnKey()) || ''; } catch (e) { return ''; } }
 function lldWnUnseen() { return lldWnOn() && LLD_NEWS.length && lldWnSeen() < LLD_NEWS[0].id; }
