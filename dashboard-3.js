@@ -20194,7 +20194,7 @@ async function lldChatCheckNew() {
     try {
         const a = await lldChatLoadActivity(); window._lldChatAct = { t: Date.now(), a };
         const seen = lldChatSeenGet(), me = String(myFid).padStart(4, '0');
-        window._lldChatNewOther = a.items.filter(it => it.ms > seen && !(it.offer && it.incoming) && !(it.kind === 'post' && it.fid === me) && !(it.kind === 'tx' && it.fid === me && !it.fid2 && !it.incoming)).length;
+        window._lldChatNewOther = a.items.filter(it => it.ms > seen && !(it.offer && (it.incoming || it.mine)) && !(it.kind === 'post' && it.fid === me) && !(it.kind === 'tx' && it.fid === me && !it.fid2 && !it.incoming)).length;
         lldChatBadgeUpdate();
         // once per page load: a new preview, recap, trade offer or completed trade since the last visit opens the chat by itself
         if (!window._lldChatAutoDone) {
@@ -20635,6 +20635,7 @@ function lldTbDraw() {
         const fids = Object.keys(leagueFranchises).filter(f => f).sort();
         let any = false;
         fids.forEach(f => {
+            if (f === D.me) return; // the league market is other teams only
             const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => f === D.me ? /^[SWUN]/.test(lab[id]) : /^S/.test(lab[id]));
             const mdl = f === D.me ? dr.m : (D.tb.by[f] || {}).m, M = LLDTB_MODES[mdl], rc = D.recOf(f);
             if (!ids.length && !M) return; any = true;
@@ -20645,7 +20646,7 @@ function lldTbDraw() {
             });
             h += '</div>';
         });
-        if (!any) h += '<div class="tb-sub" style="text-align:center;padding:24px">Nobody has set a trade label yet. Open My players to be the first.</div>';
+        if (!any) h += '<div class="tb-sub" style="text-align:center;padding:24px">No other team has set a trade label yet.</div>';
     }
     lldTbMain().html(h + '</div>');
 }
@@ -20803,6 +20804,23 @@ $(document).on('click', '#lld-td .td-go', function () {
     else if (a === 'stadium') { $('.open-settings-btn').first().trigger('click'); setTimeout(() => { const el = document.getElementById('ts-stadium'); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }, 1500); }
     else if (a === 'trades-mkt' || a === 'trades-mine') { window._tbX = { view: a === 'trades-mine' ? 'mine' : 'mkt' }; lldGoLeagueSub('Trades'); }
 });
+// ---- sub-tab rows (Standings / Transactions / Stats / Trades / Recaps…) shrink to fit instead of scrolling ----
+function lldFitSubTabs() {
+    document.querySelectorAll('.sub-tabs-group').forEach(g => {
+        if (!g.offsetParent) return;
+        const bs = Array.prototype.slice.call(g.querySelectorAll('.sub-tab-btn')); if (!bs.length) return;
+        bs.forEach(b => { b.style.fontSize = ''; b.style.paddingLeft = ''; b.style.paddingRight = ''; });
+        const f0 = parseFloat(getComputedStyle(bs[0]).fontSize) || 12, p0 = parseFloat(getComputedStyle(bs[0]).paddingLeft) || 10;
+        let k = 1;
+        while (g.scrollWidth > g.clientWidth - 4 && k > 0.4) { k -= 0.04; bs.forEach(b => { b.style.fontSize = (f0 * k).toFixed(1) + 'px'; b.style.paddingLeft = b.style.paddingRight = (p0 * k).toFixed(1) + 'px'; }); }
+    });
+}
+(function () {
+    let t = null; const run = () => { clearTimeout(t); t = setTimeout(() => { try { lldFitSubTabs(); } catch (e) { } }, 60); };
+    window.addEventListener('resize', run); window.addEventListener('orientationchange', run);
+    new MutationObserver(run).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
+    setTimeout(run, 800);
+})();
 function lldChatInit() {
     try { lldQuickInit(); } catch (e) { }
     try { lldTdInit(); } catch (e) { }
