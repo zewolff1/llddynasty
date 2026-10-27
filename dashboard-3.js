@@ -11332,13 +11332,13 @@ async function loadTradeHub(targetFid = null, targetPid = null, presetGive = [],
 
     try {
         // Fetch pending proposals
-        const propRes = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=pendingTrades&L=${lid}&JSON=1`, { credentials: 'include' });
-        const propData = await propRes.json();
+        // these two retry on their own when MFL throttles or answers with a page instead of data
+        const propData = (await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=pendingTrades&L=${lid}&JSON=1`)) || {};
         const pendingTrades = propData?.pendingTrades?.pendingTrade || [];
         const pendingList = Array.isArray(pendingTrades) ? pendingTrades : [pendingTrades];
 
         // Fetch trade block
-const tbRes = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=tradeBait&L=${lid}&INCLUDE_DRAFT_PICKS=1&JSON=1`, { credentials: 'include' });        const tbData = await tbRes.json();
+        const tbData = (await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=tradeBait&L=${lid}&INCLUDE_DRAFT_PICKS=1&JSON=1`)) || {};
         const tradeBaits = tbData?.tradeBaits?.tradeBait || [];
         const baitList = Array.isArray(tradeBaits) ? tradeBaits : [tradeBaits];
 
