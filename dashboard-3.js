@@ -6050,7 +6050,7 @@ function getBestBenchOption(slot) {
     }
 
     // ----- AUTO-SAVE LINEUP (beta switch "asv"): saves a moment after any move, then re-reads MFL to prove it stuck -----
-    function lldAsvOn() { try { return lldDev() && lldBv('asv') === '1'; } catch (e) { return false; } }
+    function lldAsvOn() { return true; }
     let _asvT = null, _asvBusy = false;
     function lldAsvToast(msg, bad, keep) {
         let el = document.getElementById('lld-asv'); if (!el) { el = document.createElement('div'); el.id = 'lld-asv'; el.style.cssText = 'position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483000;max-width:92vw;border-radius:12px;padding:10px 14px;font:800 12px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;align-items:center;gap:10px'; document.body.appendChild(el); }
@@ -12173,10 +12173,10 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '0', gth: '0', asv: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
-function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
+function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
@@ -13215,7 +13215,7 @@ async function lldSltRender() {
 window.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#lld-slt .lld-rv, #lld-slt .lld-rvc, #lld-slt .lld-rv-lu-b')) setTimeout(() => { try { lldSltDraw(); } catch (x) { } }, 1000); }, true);
 
 // ----- pull down from the top of the page to refresh the tab you are on -----
-function lldPtrOn() { try { return lldDev() && lldBv('ptr') === '1'; } catch (e) { return false; } }
+function lldPtrOn() { return true; }
 (function () {
     let y0 = null, dy = 0, bar = null, busy = false;
     const TH = 80;
@@ -13298,17 +13298,11 @@ function lldBetaHtml() {
         <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Beta features</div>
         <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:12px;">Switch features on or off for your team. Row changes apply to every player row, including the Players tab.</div>
         ${lab('Team logo behind player photos')}${onoff('wm')}
-        ${lab('Lock players who already played (Scores-style rows)')}${onoff('lock')}
-        ${lab('Tap position label to open lineup menu')}${onoff('pos')}
         ${lab('Smooth header shrink animation')}${onoff('anim')}
-        ${lab('New player row layout (from the row tuner)')}${onoff('tpl')}
         ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
         <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
-        ${lab('Slim team header (stays small, does not shrink on scroll)')}${onoff('hdm')}
-        ${lab('Slim blocks team header (name row + small Record / Week / Cap / Expiring / Dead money blocks)')}${onoff('shb')}
         ${lldDev() ? `${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}` : ''}
-        ${lldDev() ? `${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Loading screen (waits until the header and rows are ready, takes effect next load)')}${onoff('ldr')}${lab('Pull down to refresh (touch)')}${onoff('ptr')}${lab('Auto-save lineup the moment you move someone (checks it saved, shows an error and reloads if not)')}${onoff('asv')}` : ''}
-        ${lab('Position button opens the player card on Set Lineup')}${onoff('pmd')}
+        ${lldDev() ? `${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Loading screen (waits until the header and rows are ready, takes effect next load)')}${onoff('ldr')}${lab('What\'s new popup (opens the chat when something moves out of beta)')}${onoff('wnw')}` : ''}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
@@ -19967,7 +19961,7 @@ async function lldChatCheckNew() {
         // once per page load: a new preview, recap, trade offer or completed trade since the last visit opens the chat by itself
         if (!window._lldChatAutoDone) {
             window._lldChatAutoDone = true;
-            const hit = a.items.some(it => it.ms > seen && (it.kind === 'digest' || (it.kind === 'tx' && (it.offer || it.label === 'Trade'))));
+            const hit = lldWnUnseen() || a.items.some(it => it.ms > seen && (it.kind === 'digest' || (it.kind === 'tx' && (it.offer || it.label === 'Trade'))));
             if (hit && !$('#lld-story').length && !$('#lld-chat').hasClass('open')) lldChatShowList();
         }
     } catch (e) { console.warn('chat check', e); }
@@ -20095,6 +20089,32 @@ window.lldSeenRow = function lldSeenRow(it, ctx) {
     const m = (window._lldSeen && window._lldSeen.m) || {};
     return `<div class="cm-seen"><span>Seen by</span>${it._seen.map(f => `<img src="${lldChatEsc(ctx.av(f))}" title="${lldChatEsc(ctx.nm(f))} · ${lldChatEsc(new Date(m[f]).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}" onerror="this.style.display='none'">`).join('')}</div>`;
 };
+
+// ===== WHAT'S NEW (beta switch "wnw"): a card at the top of the chat that opens it by itself when something graduates from beta =====
+const LLD_NEWS = [
+    { id: '2026-10-27', title: 'Now on for everyone', items: [
+        ['Auto-save lineup', 'Move anyone, or hit Optimize, and your lineup saves by itself. It then checks MFL kept it and shows an error and reloads if not. No Submit button needed.'],
+        ['Locked players', 'Players who already played are locked and shown with their score, like the Scores tab.'],
+        ['Tap the position label', 'Tap the position next to a player to open the lineup menu.'],
+        ['New player rows', 'The new player row layout is now the standard one everywhere.'],
+        ['Slim team header', 'The team header stays small and no longer shrinks as you scroll. The Record / Week / Cap / Expiring / Dead money blocks sit underneath.'],
+        ['Pull down to refresh', 'On your phone, pull down from the top of the page to refresh the tab you are on.'],
+        ['Player card from Set Lineup', 'The position button on Set Lineup opens the player card.']
+    ] }
+];
+function lldWnOn() { try { return lldDev() && lldBv('wnw') === '1'; } catch (e) { return false; } }
+function lldWnKey() { return 'lld_news_seen_' + (typeof lid !== 'undefined' ? lid : '') + '_' + (typeof myFid !== 'undefined' ? myFid : ''); }
+function lldWnSeen() { try { return localStorage.getItem(lldWnKey()) || ''; } catch (e) { return ''; } }
+function lldWnUnseen() { return lldWnOn() && LLD_NEWS.length && lldWnSeen() < LLD_NEWS[0].id; }
+function lldWnMark() { try { if (LLD_NEWS.length) localStorage.setItem(lldWnKey(), LLD_NEWS[0].id); } catch (e) { } }
+function lldWnHtml(open) {
+    const card = (n, i) => `<div style="margin:0 0 8px; padding:10px 12px; border-radius:12px; background:linear-gradient(135deg, rgba(245,158,11,.16), rgba(59,130,246,.10)); border:1px solid rgba(245,158,11,.45);">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; letter-spacing:1.4px; color:#f59e0b; text-transform:uppercase;">&#10024; What's new${i === 0 && open ? ' &middot; just now' : ''}</div><div style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:800;">${n.id}</div></div>
+        <div style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff; margin:4px 0 6px;">${n.title}</div>
+        ${n.items.map(([h, t]) => `<div style="margin-bottom:6px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#fff;">${h}</div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); font-weight:700; line-height:1.4;">${t}</div></div>`).join('')}
+    </div>`;
+    return `<div id="lld-wn" style="padding:6px 0 4px;">${LLD_NEWS.slice(0, 3).map(card).join('')}</div>`;
+}
 async function lldChatShowList() {
     try { await lldChatShowListInner(); } catch (e) { console.warn('chat list', e); lldChatMount().html(lldChatShellHtml('League Chat', false, `<div class="cm-empty">Couldn't load the chat (${lldChatEsc((e && e.message) || 'unknown error')}). <button type="button" class="cm-retry">Try again</button></div>`, lldChatOpenUrl())); }
 }
@@ -20111,7 +20131,9 @@ async function lldChatShowListInner() {
     const cv = lldChatView(), feedV = cv !== 'classic';
     box.html(lldChatShellHtml('League Chat', false, note || (cv === 'paper' ? lldChatPaperHtml(a.items, a.block, lldChatCtx()) : cv === 'feed' ? lldChatTweetsHtml(a.items, a.block, lldChatCtx()) : lldChatViewBar() + lldChatFeedHtml(a.items, a.block, lldChatCtx())), lldChatOpenUrl()));
     try { const $bd = box.find('.cm-body'), $bar = $bd.find('.tw-vw').first(); if ($bar.length) $bar.insertBefore($bd); } catch (e) {}
-    const b = box.find('.cm-body')[0]; if (b) b.scrollTop = feedV ? 0 : b.scrollHeight;
+    const fresh = lldWnUnseen();
+    if (lldWnOn()) { try { box.find('.cm-body').first().prepend(lldWnHtml(fresh)); lldWnMark(); } catch (e) { } }
+    const b = box.find('.cm-body')[0]; if (b) b.scrollTop = (feedV || fresh) ? 0 : b.scrollHeight;
     lldSeenPost(10 * 60 * 1000);
 }
 async function lldChatShowThread(id) {
