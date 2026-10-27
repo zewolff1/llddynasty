@@ -4407,18 +4407,21 @@ const responses = await Promise.all(fetches);
 currentDoc = new DOMParser().parseFromString(html, 'text/html');
         window._lldLineupWeek = '';
         if (activeSub.includes('lineup')) {
-            // MFL can keep serving LAST week's lineup page after the games are over, which locks everybody. Find the real upcoming week and load that one.
+            // MFL can keep serving LAST week's lineup page after the games are over, which locks everybody. Find the real upcoming week and load that one. A week picked with the week bar wins.
             try {
-                const dw = parseInt((currentDoc.querySelector('input[name="W"], select[name="W"]') || {}).value, 10);
+                const wIn = currentDoc.querySelector('input[name="WEEK"], select[name="WEEK"], input[name="W"], select[name="W"]');
+                window._lldWkName = (wIn && wIn.getAttribute('name')) || 'W';
+                const dw = parseInt((wIn || {}).value, 10);
+                window._lldServedWeek = dw || window._liveScoreCurrentWeek || '';
                 if (dw) {
-                    const tw = await lldLineupTarget(dw, fid);
                     window._lldLineupWeek = String(dw);
-                    if (tw > dw) {
-                        const r2 = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&W=${tw}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                    let tw = window._lldWeekPick ? parseInt(window._lldWeekPick, 10) : await lldLineupTarget(dw, fid);
+                    if (tw && tw !== dw) {
+                        const r2 = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&WEEK=${tw}&W=${tw}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
                         const d2 = new DOMParser().parseFromString(await r2.text(), 'text/html');
-                        const w2 = parseInt((d2.querySelector('input[name="W"], select[name="W"]') || {}).value, 10);
+                        const i2 = d2.querySelector('input[name="WEEK"], select[name="WEEK"], input[name="W"], select[name="W"]'), w2 = parseInt((i2 || {}).value, 10);
                         if (d2.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow') && !(d2.title || '').toLowerCase().includes('error') && (!w2 || w2 === tw)) { currentDoc = d2; window._lldLineupWeek = String(tw); }
-                        else console.warn('[lineup-week] MFL would not serve week', tw, '(served', w2 || '?', ') so staying on week', dw);
+                        else { console.warn('[lineup-week] MFL would not serve week', tw, '(served', w2 || '?', ') so staying on week', dw); window._lldWeekMsg = 'MFL would not open week ' + tw + ' yet'; }
                     }
                 }
             } catch (e) { console.warn('lineup week check', e); }
@@ -6116,13 +6119,13 @@ function getBestBenchOption(slot) {
         let err = '';
         try {
             const form = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
-            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&W=' + window._lldLineupWeek : ''}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
+            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
             const txt = await r.text();
             if (!r.ok) err = 'MFL answered ' + r.status;
             else if (/<error[^>]*>|class="error"|lineup.{0,40}(locked|not allowed|cannot)/i.test(txt)) err = (typeof lldMflError === 'function' ? lldMflError(txt) : 'MFL rejected the lineup');
             if (!err) {
                 // prove it: read the lineup back from MFL and compare
-                const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&W=' + window._lldLineupWeek : ''}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
                 const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
                 const got = new Set(Array.from(doc.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).filter(v => !irPids.has(v) && !taxiPids.has(v)));
                 const miss = want.filter(v => !got.has(v)), extra = [...got].filter(v => !want.includes(v));
@@ -6922,7 +6925,7 @@ let isConfirming = false;
                 payloadData = params.toString();
                 
             } else {
-                submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&W=' + window._lldLineupWeek : ''}`;
+                submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}`;
                 const normalForm = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
                 payloadData = lldWithComment($(normalForm).serialize() + '&submit=Submit%20Lineup'); 
             }
@@ -12214,7 +12217,7 @@ function classifyGameStatusText(text) {
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
-function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) p.set('W', window._lldLineupWeek); return p.toString(); }
+function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { p.set('W', window._lldLineupWeek); p.set('WEEK', window._lldLineupWeek); } return p.toString(); }
 function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
@@ -13426,7 +13429,7 @@ async function lldLineupPlayedPass(targetFid) {
         return;
     }
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
-    const wk = window._liveScoreCurrentWeek || '';
+    const wk = window._lldLineupWeek || window._lldServedWeek || window._liveScoreCurrentWeek || '';
     let sched = {}, sc = {};
     try { [sched, sc] = await Promise.all([fetchNflScheduleForWeek(wk), lldFranchiseScores(targetFid, wk)]); } catch (e) { return; }
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
@@ -13447,7 +13450,24 @@ async function lldLineupPlayedPass(targetFid) {
     });
     window._lldPlayedPids = played;
     try { lldRvLuBar(); } catch (e) { }
+    try { lldWeekBar(); } catch (e) { }
 }
+// ---- week bar on the lineup page: < Week 8 > to look at / set another week ----
+function lldWeekBar() {
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    const host = document.querySelector('.sticky-block[data-block="starters"]'); if (!host) return;
+    const w = parseInt(window._lldLineupWeek || window._lldServedWeek, 10); if (!w) return;
+    const html = `<button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><span>Week ${w}${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</span><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button>`;
+    let bar = document.getElementById('lld-wkbar');
+    if (!bar) { host.insertAdjacentHTML('beforebegin', '<div id="lld-wkbar"></div>'); bar = document.getElementById('lld-wkbar'); }
+    if (bar.innerHTML !== html) bar.innerHTML = html;
+}
+$(document).on('click', '#lld-wkbar .lld-wk-b', function () {
+    const w = parseInt(window._lldLineupWeek || window._lldServedWeek, 10); if (!w) return;
+    window._lldWeekPick = String(Math.max(1, Math.min(18, w + parseInt(this.getAttribute('data-d'), 10))));
+    window._lldWeekMsg = ''; $('#lld-wkbar').remove();
+    window._teamDataDirty = true; loadTeamData();
+});
 // small Reveal all / Hide all bar above the starters when scores are hidden on the lineup
 function lldRvLuBar() {
     const host = document.querySelector('.sticky-block[data-block="starters"]'), have = document.getElementById('lld-rv-lu');
