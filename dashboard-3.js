@@ -20388,7 +20388,7 @@ async function lldChatPost(body, thread, subject) {
     const params = new URLSearchParams(); params.set('TYPE', 'messageBoard'); params.set('L', lid);
     if (thread) params.set('THREAD', thread); else params.set('SUBJECT', subject || '');
     params.set('BODY', lldChatEsc(body).replace(/\n/g, '<br>'));
-    const res = await fetch(`${MFL_ORIGIN}/${year}/import`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const res = await fetch(`${MFL_ORIGIN}/${year}/import`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString(), keepalive: params.toString().length < 60000 });
     const txt = await res.text(); const m = txt.match(/<error[^>]*>([\s\S]*?)<\/error>/i);
     if (m) throw new Error(m[1].trim()); if (!res.ok) throw new Error('HTTP ' + res.status);
     window._lldChatAct = null; window._lldChatThreadCache = null;
@@ -20528,10 +20528,30 @@ async function lldTiSave(map) {
     await lldChatPost('LLDTI1:' + lldTbEnc({ p: map }), tid, LLDTI_SUBJ);
     window._lldTi = null;
 }
-function lldTiSaveSoon() {
-    clearTimeout(window._tiT);
-    window._tiT = setTimeout(async () => { const X = window._tbX; if (!X) return; try { await lldTiSave(X.d.ti.by[X.d.me] || {}); } catch (e) { alert('MFL: ' + (e.message || 'could not save your interest')); } }, 1200);
+function lldTiToast(msg, bad) {
+    let t = document.getElementById('lld-ti-toast');
+    if (!t) { t = document.createElement('div'); t.id = 'lld-ti-toast'; t.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:2147483000;padding:8px 14px;border-radius:10px;font:700 12px/1.3 system-ui,sans-serif;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.5);max-width:86vw;text-align:center'; document.body.appendChild(t); }
+    t.style.background = bad ? '#b91c1c' : '#166534'; t.textContent = msg; t.style.display = 'block';
+    clearTimeout(t._h); t._h = setTimeout(() => { t.style.display = 'none'; }, bad ? 6000 : 1800);
 }
+async function lldTiFlush() {
+    clearTimeout(window._tiT); const map = window._tiPending; if (!map) return; window._tiPending = null;
+    if (window._tiBusy) { window._tiPending = map; window._tiT = setTimeout(lldTiFlush, 700); return; }
+    window._tiBusy = true;
+    try {
+        await lldTiSave(map);
+        let ok = true; try { const d = await lldTiLoad(true), me = String(myFid).padStart(4, '0'); ok = JSON.stringify(Object.keys(d.by[me] || {}).sort()) === JSON.stringify(Object.keys(map).sort()); } catch (e) { }
+        if (ok) lldTiToast('Interest saved'); else lldTiToast('Posted to MFL, but it did not read back. Tell Claude.', true);
+    } catch (e) { lldTiToast('Could not save: ' + (e.message || 'unknown error'), true); }
+    window._tiBusy = false;
+}
+function lldTiSaveSoon() {
+    const X = window._tbX; if (!X) return;
+    window._tiPending = JSON.parse(JSON.stringify(X.d.ti.by[X.d.me] || {})); // snapshot now, so leaving the screen cannot drop it
+    clearTimeout(window._tiT); window._tiT = setTimeout(lldTiFlush, 400);
+}
+window.addEventListener('pagehide', () => { if (window._tiPending) lldTiFlush(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && window._tiPending) lldTiFlush(); });
 function lldTiPanel(D, pid, f) {
     const e = lldChatEsc, by = (D.ti && D.ti.by) || {}, me = D.me;
     if (f !== me) {
