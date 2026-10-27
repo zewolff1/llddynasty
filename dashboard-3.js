@@ -5331,6 +5331,7 @@ function syncProjFromDisplay() {
     return diffs.length;
 }
 window.acceptAllOptimal = function() {
+    window._lldOptFlag = true;
     syncProjFromDisplay();
     if (!currentDoc) return;
     let allPlayers = [];
@@ -5536,6 +5537,7 @@ proj: getRowProj(row),
 };
 
 window.applyOptimizeChanges = function() {
+    window._lldOptFlag = true;
     $('.optimize-change-cb:checked').each(function() {
         const pid = $(this).data('pid');
         const action = $(this).data('action');
@@ -6036,6 +6038,58 @@ function getBestBenchOption(slot) {
         const changes = getLineupChanges(); const total = changes.added.length + changes.removed.length;
         if (total > 0 && $('.sub-tab-btn.active').text().toLowerCase().includes('lineup')) { $('#lineup-submit-float').addClass('visible').find('.change-count').text(total); }
         else { $('#lineup-submit-float').removeClass('visible'); }
+        try { lldAsvSchedule(); } catch (e) { }
+    }
+
+    // ----- AUTO-SAVE LINEUP (beta switch "asv"): saves a moment after any move, then re-reads MFL to prove it stuck -----
+    function lldAsvOn() { try { return lldDev() && lldBv('asv') === '1'; } catch (e) { return false; } }
+    let _asvT = null, _asvBusy = false;
+    function lldAsvToast(msg, bad, keep) {
+        let el = document.getElementById('lld-asv'); if (!el) { el = document.createElement('div'); el.id = 'lld-asv'; el.style.cssText = 'position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483000;max-width:92vw;border-radius:12px;padding:10px 14px;font:800 12px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;align-items:center;gap:10px'; document.body.appendChild(el); }
+        el.style.background = bad ? '#7f1d1d' : '#14532d'; el.style.border = '1px solid ' + (bad ? '#ef4444' : '#22c55e'); el.style.color = '#fff'; el.style.display = 'flex';
+        el.innerHTML = '<span></span>' + (keep ? '<button type="button" style="background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:8px;padding:5px 9px;font:800 11px inherit" data-a="x">Dismiss</button>' : '');
+        el.firstChild.textContent = msg; clearTimeout(el._t);
+        const b = el.querySelector('button'); if (b) b.onclick = () => { el.style.display = 'none'; };
+        if (!keep) el._t = setTimeout(() => { el.style.display = 'none'; }, 2200);
+    }
+    function lldAsvSchedule() {
+        if (!lldAsvOn() || fid !== myFid || !currentDoc) return;
+        if (!$('#subtabs-team .sub-tab-btn.active').text().toLowerCase().includes('lineup')) return;
+        const c = getLineupChanges(); if (!c.added.length && !c.removed.length) return;
+        clearTimeout(_asvT); _asvT = setTimeout(lldAsvRun, 800);
+    }
+    async function lldAsvRun() {
+        if (_asvBusy) { _asvT = setTimeout(lldAsvRun, 600); return; }
+        const c = getLineupChanges(); if (!c.added.length && !c.removed.length) return;
+        _asvBusy = true;
+        const want = Array.from(currentDoc.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).filter(v => !irPids.has(v) && !taxiPids.has(v));
+        let err = '';
+        try {
+            const form = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
+            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
+            const txt = await r.text();
+            if (!r.ok) err = 'MFL answered ' + r.status;
+            else if (/<error[^>]*>|class="error"|lineup.{0,40}(locked|not allowed|cannot)/i.test(txt)) err = (typeof lldMflError === 'function' ? lldMflError(txt) : 'MFL rejected the lineup');
+            if (!err) {
+                // prove it: read the lineup back from MFL and compare
+                const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
+                const got = new Set(Array.from(doc.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).filter(v => !irPids.has(v) && !taxiPids.has(v)));
+                const miss = want.filter(v => !got.has(v)), extra = [...got].filter(v => !want.includes(v));
+                if (miss.length || extra.length) err = 'MFL did not keep the change (' + (miss.length + extra.length) + ' player' + (miss.length + extra.length > 1 ? 's' : '') + ' differ)';
+            }
+        } catch (e) { err = 'Network problem: ' + (e && e.message || e); }
+        _asvBusy = false;
+        if (err) {
+            lldAsvToast('Lineup NOT saved. ' + err + '. Reloaded from MFL.', true, true);
+            window._teamDataDirty = true; try { await loadTeamData(); } catch (e) { }
+            return;
+        }
+        originalStarterIds.clear(); want.forEach(v => originalStarterIds.add(v)); window._lldOptFlag = false;
+        window._teamDataDirty = true;
+        lldAsvToast('Lineup saved ✓', false);
+        updateSubmitButton();
+        try { renderActiveTab(); } catch (e) { }
     }
 
     function getLineupChanges() {
@@ -6754,7 +6808,7 @@ let isConfirming = false;
             } else {
                 submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
                 const normalForm = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
-                payloadData = $(normalForm).serialize() + '&submit=Submit%20Lineup'; 
+                payloadData = lldWithComment($(normalForm).serialize() + '&submit=Submit%20Lineup'); 
             }
 
             $.ajax({
@@ -6762,6 +6816,7 @@ let isConfirming = false;
                 url: submitTargetURL, 
                 data: payloadData, 
                 success: function() {
+                    window._lldOptFlag = false;
                     alert("Lineup saved successfully!");
                     originalStarterIds.clear();
                     currentDoc.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => { originalStarterIds.add(cb.value); });
@@ -12041,7 +12096,10 @@ function classifyGameStatusText(text) {
 
 // Patches already-rendered Lineup rows with a colored left highlight + status chip.
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '0', gth: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+// note that goes into MFL's lineup submission comment so the history shows where a lineup came from
+function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
+function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); return p.toString(); }
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '0', gth: '0', asv: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
@@ -13175,7 +13233,7 @@ function lldBetaHtml() {
         ${lab('Slim team header (stays small, does not shrink on scroll)')}${onoff('hdm')}
         ${lab('Slim blocks team header (name row + small Record / Week / Cap / Expiring / Dead money blocks)')}${onoff('shb')}
         ${lldDev() ? `${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}` : ''}
-        ${lldDev() ? `${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Loading screen (waits until the header and rows are ready, takes effect next load)')}${onoff('ldr')}${lab('Pull down to refresh (touch)')}${onoff('ptr')}` : ''}
+        ${lldDev() ? `${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Loading screen (waits until the header and rows are ready, takes effect next load)')}${onoff('ldr')}${lab('Pull down to refresh (touch)')}${onoff('ptr')}${lab('Auto-save lineup the moment you move someone (checks it saved, shows an error and reloads if not)')}${onoff('asv')}` : ''}
         ${lab('Position button opens the player card on Set Lineup')}${onoff('pmd')}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
