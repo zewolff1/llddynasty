@@ -6098,17 +6098,46 @@ function getBestBenchOption(slot) {
         }).filter(p => p && allowed.includes(p.realPos));
         return bench.length === 0 ? null : bench.sort((a,b)=>b.proj-a.proj)[0];
     }
+    // IR players whose injury status doesn't qualify (healthy / Q / P), plus any "not eligible for IR" message MFL itself prints on the lineup page.
+    function lldIrIneligible() {
+        const names = [], out = { names, msg: '' };
+        (irPlayers || []).forEach(p => {
+            const inj = injuryMap[p.pid], t = inj ? String(inj.text || '').trim().toUpperCase() : '';
+            if (!t || t === 'Q' || t === 'P') names.push(p.shortName || p.name);
+        });
+        try {
+            const txt = (currentDoc && currentDoc.body ? currentDoc.body.textContent : '').replace(/\s+/g, ' ');
+            const m = txt.match(/[^.]*\b(?:not|no longer)\s+eligible[^.]*\b(?:IR|injured reserve)[^.]*\./i) || txt.match(/[^.]*\b(?:IR|injured reserve)[^.]*\b(?:not|no longer)\s+eligible[^.]*\./i);
+            if (m) out.msg = m[0].trim().slice(0, 220);
+        } catch (e) { }
+        return out;
+    }
     function updateLineupNotifications() {
         const container = document.getElementById('lineup-notifications'); if (!container) return;
         container.innerHTML = ''; const empty = document.querySelectorAll('.player-row.empty-slot').length;
         if (empty > 0) $(container).append(`<div class="lineup-alert alert-error">⚠️ Incomplete: ${empty} Remaining</div>`);
         // starters projected for 0 (bye, out, inactive…)
-        const zero = [];
+        const zero = [], noRep = [];
         document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot)').forEach(el => {
             const m = el.textContent.match(/(-?\d+(?:\.\d+)?)\s*PROJ/i);
-            if (m && parseFloat(m[1]) <= 0) zero.push(el.getAttribute('data-pname') || el.getAttribute('data-pid'));
+            if (m && parseFloat(m[1]) <= 0) {
+                const nm = el.getAttribute('data-pname') || el.getAttribute('data-pid');
+                zero.push(nm);
+                try {
+                    const slot = ($(el).find('.move-handle-btn').first().text() || '').trim().toUpperCase();
+                    const alt = slot ? getBestBenchOption(slot) : null;
+                    if (!alt || !(alt.proj > 0)) noRep.push(nm);
+                } catch (e) { }
+            }
         });
         if (zero.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
+        if (noRep.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ No bench replacement for: ${noRep.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
+        // players on IR who may not be allowed there (league blocks submitting a lineup with them)
+        try {
+            const bad = lldIrIneligible();
+            if (bad.names.length) $(container).append(`<div class="lineup-alert alert-error">⛔ ${bad.names.length === 1 ? 'Not eligible for IR' : 'Not eligible for IR'}: ${bad.names.map(n => $('<i>').text(n).html()).join(', ')}. Activate or drop ${bad.names.length === 1 ? 'them' : 'them'} before you submit.</div>`);
+            else if (bad.msg) $(container).append(`<div class="lineup-alert alert-error">⛔ ${$('<i>').text(bad.msg).html()}</div>`);
+        } catch (e) { }
     }
 
     function updateSubmitButton() {
