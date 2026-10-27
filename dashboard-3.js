@@ -20745,7 +20745,7 @@ function lldTdItems() {
 function lldTdSync() {
     const on = lldTdOn(), have = document.getElementById('lld-td-btn');
     if (!on) { if (have) have.remove(); $('#lld-td').remove(); return; }
-    if (!have) { const s = document.querySelector('.open-settings-btn'), b = `<button id="lld-td-btn" aria-label="To-do list" style="position:relative; background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_TD_ICON}<span class="td-bd"></span></button>`; if (s) s.insertAdjacentHTML('beforebegin', b); else $('.header-right-controls').prepend(b); lldTdLoadAsync(); }
+    if (!have) { const s = document.querySelector('.open-settings-btn'), b = `<button id="lld-td-btn" aria-label="To-do list" style="position:relative; background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_TD_ICON}<span class="td-bd"></span></button>`; if (s) s.insertAdjacentHTML('beforebegin', b); else $('.header-right-controls').prepend(b); setTimeout(lldTdLoadAsync, 25000); }
     lldTdRefresh();
 }
 function lldTdRefresh() {
@@ -20754,10 +20754,11 @@ function lldTdRefresh() {
     if (bd) { bd.textContent = n ? String(n) : ''; bd.style.display = n ? 'flex' : 'none'; }
     if (document.getElementById('lld-td')) lldTdDraw();
 }
-function lldTdInit() { lldTdSync(); if (!window._lldTdIv) window._lldTdIv = setInterval(() => { if (lldTdOn()) lldTdLoadAsync(); }, 300000); }
+function lldTdInit() { lldTdSync(); if (!window._lldTdIv) window._lldTdIv = setInterval(() => { if (lldTdOn()) lldTdLoadAsync(); }, 600000); }
 window.lldTdSync = lldTdSync; window.lldTdRefresh = lldTdRefresh;
 async function lldTdLoadAsync(force) {
     if (!lldTdOn() || window._lldTdBusy) return;
+    if (!force && $('#tab-league').hasClass('active')) return; // never compete with the Trades screens for MFL's rate limit
     if (!force && window._lldTdA && Date.now() - window._lldTdA.t < 120000) return;
     window._lldTdBusy = true;
     const me = String(myFid).padStart(4, '0'), A = { t: Date.now(), loaded: true, offers: 0, respond: 0, stadium: '', block: false };
