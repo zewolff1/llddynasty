@@ -6485,12 +6485,13 @@ function renderDropMenu(addPid) {
         $('#player-context-menu').addClass('active');
     }
 // ROSTER FULL: pop up your roster so you can check which player(s) to drop to make room for the add.
-async function openDropToAddModal(addPid) {
+async function openDropToAddModal(addPid, mode) {
+        const isMove = mode === 'activate' || mode === 'promote';
         const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
         const salaryCapAmt = window.leagueSalaryCap || LLD.salaryCap;
 
         // Default contract every added free agent receives (salary in $m). 0% guaranteed = no cap hit.
-        const NEW_CONTRACT = { sal: 1.0, yrs: 1, guar: 0 };
+        const NEW_CONTRACT = isMove ? { sal: 0, yrs: 0, guar: 0 } : { sal: 1.0, yrs: 1, guar: 0 };
         const newHit = parseFloat((NEW_CONTRACT.sal * (NEW_CONTRACT.guar / 100) * NEW_CONTRACT.yrs).toFixed(1));
 
         // Info on the player being added, read from the row you tapped Add on
@@ -6585,7 +6586,7 @@ async function openDropToAddModal(addPid) {
             <div class="player-modal-box" style="padding:0; overflow:hidden; max-width:420px;">
                 <button class="player-modal-close" onclick="${closeJs}">✕</button>
                 <div style="padding:16px 20px; border-bottom:1px solid var(--card-border); background:rgba(239,68,68,0.08);">
-                    <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Roster Full</div>
+                    <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">Roster Full${isMove ? (mode === 'activate' ? ' — can\'t activate yet' : ' — can\'t promote yet') : ''}</div>
                     <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:3px;">Select ${need} player${need > 1 ? 's' : ''} to drop to make room</div>
                 </div>
                 <div style="padding:12px 16px 0;">
@@ -6594,7 +6595,7 @@ async function openDropToAddModal(addPid) {
                             <img src="https://www.mflscripts.com/playerImages_80x107/mfl_${addPid}.png" onerror="this.style.display='none'" style="width:100%; height:100%; object-fit:cover;">
                         </div>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px;">Adding</div>
+                            <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; letter-spacing:1px;">${isMove ? (mode === 'activate' ? 'Activating from IR' : 'Promoting from Taxi') : 'Adding'}</div>
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <span style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${addName}</span>
                                 <span class="pos-text-${addPos.toLowerCase()}" style="font-size:calc(8px * var(--ts,1)); font-weight:900;">${addPos}</span>
@@ -6626,7 +6627,7 @@ async function openDropToAddModal(addPid) {
             </div>
         </div>`;
 
-        window._dropAdd = { addPid, need };
+        window._dropAdd = { addPid, need, mode: isMove ? mode : '' };
         $('#drop-add-modal').replaceWith(modalHtml);
 
         // Recompute everything whenever a checkbox changes
@@ -6645,7 +6646,7 @@ async function openDropToAddModal(addPid) {
             $('#drop-net').text(`${net >= 0 ? '+' : '-'}$${Math.abs(net).toFixed(1)}m`).css('color', net > 0 ? '#ef4444' : net < 0 ? '#22c55e' : '#fff');
             $('#drop-after').text(`$${after.toFixed(1)}m / $${salaryCapAmt}m`).css('color', color);
             $('#drop-remaining').text(remaining < 0 ? `-$${Math.abs(remaining).toFixed(1)}m (over cap)` : `$${remaining.toFixed(1)}m`).css('color', color);
-            $('#drop-add-confirm').prop('disabled', !ok).css({ opacity: ok ? 1 : 0.4, cursor: ok ? 'pointer' : 'not-allowed' }).text(ok ? `Drop ${n} & Add` : 'Select players to drop');
+            $('#drop-add-confirm').prop('disabled', !ok).css({ opacity: ok ? 1 : 0.4, cursor: ok ? 'pointer' : 'not-allowed' }).text(ok ? `Drop ${n} & ${isMove ? (mode === 'activate' ? 'Activate' : 'Promote') : 'Add'}` : 'Select players to drop');
         };
         $(document).off('change.dropadd', '.drop-cb').on('change.dropadd', '.drop-cb', recalc);
         $(document).off('click.dropadd', '#drop-add-confirm').on('click.dropadd', '#drop-add-confirm', function() {
@@ -6654,10 +6655,38 @@ async function openDropToAddModal(addPid) {
             const addId = window._dropAdd.addPid;
             $('#drop-add-modal').remove();
             $('body').css('overflow', '');
-            executeTransaction('add-drop', addId, drops.join(','), $('<button></button>'));
+            const __m = window._dropAdd && window._dropAdd.mode;
+            executeTransaction(__m ? 'drop-' + __m : 'add-drop', addId, drops.join(','), $('<button></button>'));
         });
         recalc();
     }
+// fresh read of who is on IR / Taxi from MFL (the tables list "activate from IR" / "promote from taxi" players)
+async function lldTxPids(tf) {
+    const out = { ir: new Set(), ts: new Set(), ok: true };
+    const grab = async (O, key, set) => {
+        const r = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=${O}&F=${tf}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+        const d = new DOMParser().parseFromString(await r.text(), 'text/html');
+        d.querySelectorAll('table.report').forEach(t => {
+            if (!(t.querySelector('th')?.textContent.toLowerCase() || '').includes(key)) return;
+            t.querySelectorAll('tr.oddtablerow, tr.eventablerow').forEach(rw => { const a = rw.querySelector('td.player a, td a[class*="position_"]'); const pid = a?.getAttribute('href').match(/\d+/g)?.pop(); if (pid) set.add(pid); });
+        });
+    };
+    try { await Promise.all([grab(18, 'activate from', out.ir), grab(98, 'promote', out.ts)]); } catch (e) { out.ok = false; }
+    return out;
+}
+// true when one more active player would put the roster over the limit (IR and Taxi do not count)
+async function lldRosterWouldOverflow(tf, fresh) {
+    try {
+        const res = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${tf}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+        const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+        let n = 0;
+        doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+            const a = row.querySelector('td a[class*="position_"]'); const pid = a?.getAttribute('href').match(/\d+/g)?.pop();
+            if (pid && !fresh.ir.has(pid) && !fresh.ts.has(pid)) n++;
+        });
+        return n >= LINEUP_RULES.rosterLimit;
+    } catch (e) { return false; }
+}
 async function executeTransaction(type, sourcePid, targetPid, btn) {
         // Handle Roster Full logic for simple adds
         if (type === 'add' && window.currentRosterSize >= LINEUP_RULES.rosterLimit) {
@@ -6669,6 +6698,25 @@ openDropToAddModal(sourcePid);
 
         const targetFid = (fid === '0000' ? myFid : fid).padStart(4, '0');
         let res;
+        if (type === 'activate' || type === 'promote') {
+            const fr = await lldTxPids(targetFid);
+            if (fr.ok && await lldRosterWouldOverflow(targetFid, fr)) {
+                btn.text(type === 'activate' ? 'Activate' : 'Promote').css({'opacity': '1', 'pointer-events': 'auto'});
+                hideMenu(); openDropToAddModal(sourcePid, type);
+                return;
+            }
+        }
+        if (type === 'drop-activate' || type === 'drop-promote') {
+            // step 1: drop the chosen players, step 2: do the move, and check each one actually happened
+            const mv = type === 'drop-activate' ? 'activate' : 'promote';
+            try {
+                const dd = new URLSearchParams(); dd.append('TYPE', 'fcfsWaiver'); dd.append('L', lid); dd.append('DROP', targetPid);
+                if (fid !== myFid) dd.append('FRANCHISE_ID', targetFid);
+                const dr = await (await fetch(`${MFL_ORIGIN}/${year}/import`, { method: 'POST', body: dd, credentials: 'include', cache: 'no-store' })).text();
+                if (dr.toLowerCase().includes('error')) { alert('MFL rejected the drop: ' + lldMflError(dr)); return; }
+            } catch (e) { alert('Could not drop the player(s): ' + (e && e.message || e)); return; }
+            return executeTransaction(mv, sourcePid, null, btn);
+        }
 
         try {
             if (['activate', 'deactivate', 'swap-ir', 'promote', 'demote', 'swap-ts'].includes(type)) {
@@ -6724,10 +6772,28 @@ let wasWaiverClaim = false;
 
             const __isMove = ['activate', 'deactivate', 'swap-ir', 'promote', 'demote', 'swap-ts'].includes(type);
             // IR/Taxi responses are full HTML pages that can mention "error" in harmless places; only a real <error> tag counts
-            const __rejected = __isMove ? /<error[^>]*>/i.test(responseText) : responseText.toLowerCase().includes('error');
+            let __rejected = __isMove ? /<error[^>]*>/i.test(responseText) : responseText.toLowerCase().includes('error');
+            let __why = '';
+            if (__isMove && !__rejected) {
+                // MFL answers with a normal page even when it refuses the move, so read IR/Taxi back and check it really changed
+                const fr2 = await lldTxPids(targetFid);
+                if (fr2.ok) {
+                    const sp = String(sourcePid), tp = String(targetPid);
+                    const okMove = type === 'activate' ? !fr2.ir.has(sp) : type === 'deactivate' ? fr2.ir.has(sp)
+                        : type === 'promote' ? !fr2.ts.has(sp) : type === 'demote' ? fr2.ts.has(sp)
+                        : type === 'swap-ir' ? (fr2.ir.has(sp) && !fr2.ir.has(tp)) : (fr2.ts.has(sp) && !fr2.ts.has(tp));
+                    if (!okMove) { __rejected = true; __why = lldMflError(responseText); }
+                    else if (targetFid === String(fid).padStart(4, '0')) { irPids.clear(); fr2.ir.forEach(x => irPids.add(x)); taxiPids.clear(); fr2.ts.forEach(x => taxiPids.add(x)); }
+                }
+            }
+            if (__rejected && (type === 'activate' || type === 'promote') && /limit|maximum|roster size|too many|exceed|over/i.test(__why || responseText)) {
+                btn.text(type === 'activate' ? 'Activate' : 'Promote').css({'opacity': '1', 'pointer-events': 'auto'});
+                hideMenu(); openDropToAddModal(sourcePid, type);
+                return;
+            }
             if (__rejected) {
                 console.warn('[tx] MFL response for', type, responseText.slice(0, 600));
-                alert("MFL Rejected: " + lldMflError(responseText));
+                alert((__why ? "MFL did not make this move: " : "MFL Rejected: ") + (__why || lldMflError(responseText)));
                 btn.text('Error').css({'opacity': '1', 'pointer-events': 'auto', 'background': '#ef4444'});
 } else {
     alert(wasWaiverClaim ? "Player is locked — submitted as a waiver claim (Round 1) instead." : "Transaction successful!");
