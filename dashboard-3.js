@@ -1510,6 +1510,14 @@ let rookiePids = new Set();
         LLD._slotModel = { core, flex: flex.slice(0, 8) };
         return LLD._slotModel;
     }
+    // MFL refuses a lineup that goes over a position's starter maximum (e.g. 3 QBs when QB is capped at 2), so the optimizer has to respect it too
+    function lldCapOk(rp, cnt) {
+        const R = LINEUP_RULES || {}, P = (R.positions || {})[rp];
+        if (P && P.max && (cnt[rp] || 0) >= P.max) return false;
+        const G = R.groups || {};
+        for (const k of ['OFFENSE_MAX', 'IDP_MAX']) { const g = G[k]; if (g && g.pos && g.pos.includes(rp) && g.pos.reduce((n, x) => n + (cnt[x] || 0), 0) >= g.max) return false; }
+        return true;
+    }
     // Position pills for the roster summary, built from this league's lineup rules
     function lldPosPills() {
         const P = LINEUP_RULES.positions || {};
@@ -5379,11 +5387,11 @@ window.acceptAllOptimal = function() {
     ];
 
     let targetStarters = new Set();
-    let remaining = [...allPlayers];
+    let remaining = [...allPlayers]; const __cnt = {};
 
     // Fill core slots first using realPos
     coreSlots.forEach(slot => {
-        const idx = remaining.findIndex(p => slot.eligible.includes(p.realPos));
+        const idx = remaining.findIndex(p => slot.eligible.includes(p.realPos) && lldCapOk(p.realPos, __cnt)); if (idx !== -1) __cnt[remaining[idx].realPos] = (__cnt[remaining[idx].realPos] || 0) + 1;
         if (idx !== -1) {
             targetStarters.add(remaining[idx].pid);
             remaining.splice(idx, 1);
@@ -5396,11 +5404,11 @@ window.acceptAllOptimal = function() {
     let bestFlexPids = [];
 
     flexPerms.forEach(perm => {
-        let flexRemaining = [...remaining];
+        const __fcnt = Object.assign({}, __cnt); let flexRemaining = [...remaining];
         let flexTotal = 0;
         let flexPids = [];
         perm.forEach(slot => {
-            const idx = flexRemaining.findIndex(p => slot.eligible.includes(p.realPos));
+            const idx = flexRemaining.findIndex(p => slot.eligible.includes(p.realPos) && lldCapOk(p.realPos, __fcnt)); if (idx !== -1) __fcnt[flexRemaining[idx].realPos] = (__fcnt[flexRemaining[idx].realPos] || 0) + 1;
             if (idx !== -1) {
                 flexTotal += flexRemaining[idx].proj;
                 flexPids.push(flexRemaining[idx].pid);
@@ -5468,19 +5476,19 @@ proj: getRowProj(row),
         { label: 'IDP', eligible: ['DE','DT','LB','CB','S'] }
     ];
     let targetStarters = new Set();
-    let remaining = [...allPlayers];
+    let remaining = [...allPlayers]; const __cnt = {};
 
     coreSlots.forEach(slot => {
-        const idx = remaining.findIndex(p => slot.eligible.includes(p.realPos));
+        const idx = remaining.findIndex(p => slot.eligible.includes(p.realPos) && lldCapOk(p.realPos, __cnt)); if (idx !== -1) __cnt[remaining[idx].realPos] = (__cnt[remaining[idx].realPos] || 0) + 1;
         if (idx !== -1) { targetStarters.add(remaining[idx].pid); remaining.splice(idx, 1); }
     });
 
     const flexPerms = permutations(flexSlots);
     let bestFlexTotal = -1, bestFlexPids = [];
     flexPerms.forEach(perm => {
-        let flexRemaining = [...remaining], flexTotal = 0, flexPids = [];
+        const __fcnt = Object.assign({}, __cnt); let flexRemaining = [...remaining], flexTotal = 0, flexPids = [];
         perm.forEach(slot => {
-            const idx = flexRemaining.findIndex(p => slot.eligible.includes(p.realPos));
+            const idx = flexRemaining.findIndex(p => slot.eligible.includes(p.realPos) && lldCapOk(p.realPos, __fcnt)); if (idx !== -1) __fcnt[flexRemaining[idx].realPos] = (__fcnt[flexRemaining[idx].realPos] || 0) + 1;
             if (idx !== -1) { flexTotal += flexRemaining[idx].proj; flexPids.push(flexRemaining[idx].pid); flexRemaining.splice(idx, 1); }
         });
         if (flexTotal > bestFlexTotal) { bestFlexTotal = flexTotal; bestFlexPids = flexPids; }
@@ -5608,10 +5616,10 @@ function calculateSuggestedProjections() {
     // Fill core slots greedily (no ambiguity here)
     let remaining = [...all].sort((a, b) => b.proj - a.proj);
     let coreTotal = 0;
-    let afterCore = [...remaining];
+    let afterCore = [...remaining]; const __cnt = {};
     
     coreSlots.forEach(slot => {
-        const idx = afterCore.findIndex(p => slot.eligible.includes(p.realPos));
+        const idx = afterCore.findIndex(p => slot.eligible.includes(p.realPos) && lldCapOk(p.realPos, __cnt)); if (idx !== -1) __cnt[afterCore[idx].realPos] = (__cnt[afterCore[idx].realPos] || 0) + 1;
         if (idx !== -1) {
             coreTotal += afterCore[idx].proj;
             afterCore.splice(idx, 1);
@@ -5621,10 +5629,10 @@ function calculateSuggestedProjections() {
     // For flex slots, try all orderings to maximize — brute force is fine for 6 slots
     const flexPerms = permutations(flexSlots);
     flexPerms.forEach(perm => {
-        let flexRemaining = [...afterCore];
+        const __fcnt = Object.assign({}, __cnt); let flexRemaining = [...afterCore];
         let flexTotal = 0;
         perm.forEach(slot => {
-            const idx = flexRemaining.findIndex(p => slot.eligible.includes(p.realPos));
+            const idx = flexRemaining.findIndex(p => slot.eligible.includes(p.realPos) && lldCapOk(p.realPos, __fcnt)); if (idx !== -1) __fcnt[flexRemaining[idx].realPos] = (__fcnt[flexRemaining[idx].realPos] || 0) + 1;
             if (idx !== -1) {
                 flexTotal += flexRemaining[idx].proj;
                 flexRemaining.splice(idx, 1);
