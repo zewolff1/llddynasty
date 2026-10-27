@@ -4405,3 +4405,12 @@ body.lld-tpl.lld-wm .player-row.lld-tpl .lld-tl-logo{display:none !important}
 #lld-wkbar em{font-style:normal;color:#f59e0b;font-weight:800;font-size:calc(10px * var(--ts,1))}
 #lld-wkbar .lld-wk-b{width:34px;height:30px;border-radius:9px;border:1px solid var(--card-border,#334155);background:var(--card-bg,#1e293b);color:inherit;font-size:18px;font-weight:900;line-height:1}
 #lld-wkbar .lld-wk-b:disabled{opacity:.35}
+#lld-wkbar{position:relative;z-index:300}
+#lld-wkbar .lld-wk-t{background:none;border:0;color:inherit;font-weight:900;font-size:inherit;padding:6px 8px}
+#lld-wkpick{position:fixed;top:30%;left:50%;transform:translateX(-50%);z-index:2147483000;width:min(320px,92vw);padding:10px;border-radius:12px;background:var(--card-bg,#1e293b);border:1px solid var(--card-border,#334155);box-shadow:0 12px 30px rgba(0,0,0,.55)}
+#lld-wkpick .g{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+#lld-wkpick .g button{height:34px;border-radius:8px;border:1px solid var(--card-border,#334155);background:rgba(255,255,255,.04);color:#fff;font-weight:900}
+#lld-wkpick .g button.past{color:#94a3b8;border-style:dashed}
+#lld-wkpick .g button.on{background:var(--accent-blue,#3b82f6);border-color:var(--accent-blue,#3b82f6)}
+#lld-wkpick .n{margin-top:8px;font-size:10px;font-weight:700;color:#94a3b8;text-align:center}
+#lld-wkpick .d{margin-top:4px;font-size:9px;color:#64748b;text-align:center}
