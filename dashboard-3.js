@@ -12325,7 +12325,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { p.set('W', window._lldLineupWeek); p.set('WEEK', window._lldLineupWeek); } return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
@@ -12342,6 +12342,7 @@ function lldApplyBeta() {
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
     try { lldNavApply(); } catch (e) { }
     try { if (window.lldTdSync) window.lldTdSync(); } catch (e) { }
+    try { if (window.lldAwSync) window.lldAwSync(); } catch (e) { }
     try { lldApplyHdrMode(b && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); } catch (e) { }
     try { lldHd2Render(); } catch (e) { }
     try { lldShRender(); } catch (e) { }
@@ -13453,7 +13454,7 @@ function lldBetaHtml() {
         ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
         <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}${lab('Award rings: gold ring around the headshot of each player of the week and player of the month')}${onoff('awd')}` : ''}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
@@ -14708,7 +14709,15 @@ async function lldStandingsThrough(wk) {
         const a = T[fr[0].id], b = T[fr[1].id];
         if (fr[0].sc > fr[1].sc) { a.w++; b.l++; } else if (fr[0].sc < fr[1].sc) { b.w++; a.l++; } else { a.t++; b.t++; }
     }); });
-    return Object.values(T).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
+    const out = Object.values(T).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
+    try { // for the latest played week, MFL's own standings are the truth (its tiebreakers, its records)
+        const cur = window._teamHdr && window._teamHdr.cur, last = Math.max.apply(null, window._lldSchedFull.filter(w => w.m.some(fr => fr.length > 1 && fr[0].sc > 0 && fr[1].sc > 0)).map(w => w.wk).concat([0]));
+        if (cur && last === wk && out.every(t => cur[t.id] && cur[t.id].rank)) {
+            out.forEach(t => { const m = /^(\d+)-(\d+)(?:-(\d+))?/.exec(cur[t.id].record || ''); if (m) { t.w = +m[1]; t.l = +m[2]; t.t = +(m[3] || 0); } });
+            out.sort((a, b) => cur[a.id].rank - cur[b.id].rank);
+        }
+    } catch (e) { }
+    return out;
 }
 // ===== STORY MODE: full-screen animated recap / preview (tap to skip, hold to pause) =====
 // Music for the animations. Paste the MFL file URL (the one you get after uploading an mp3) between the quotes; leave '' for silence.
@@ -20144,7 +20153,7 @@ async function lldDigestItems() {
     const k0 = await lldFirstKickoff(); if (!k0) return [];
     const q = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date(k0)).forEach(x => { q[x.type] = parseInt(x.value, 10); });
     const kd = new Date(Date.UTC(q.year, q.month - 1, q.day)); // the kickoff's calendar day in Eastern time
-    kd.setUTCDate(kd.getUTCDate() - ((kd.getUTCDay() - 4 + 7) % 7)); // Thursday of week 1
+    { let off = 4 - kd.getUTCDay(); if (off > 3) off -= 7; else if (off < -3) off += 7; kd.setUTCDate(kd.getUTCDate() + off); } // the Thursday of opening week, even when the opener is a Wednesday or Sunday game
     const now = Date.now(), out = [];
     for (let w = 1; w <= 18; w++) {
         const th = new Date(kd); th.setUTCDate(th.getUTCDate() + 7 * (w - 1));
@@ -20786,7 +20795,58 @@ function lldTdRefresh() {
     if (bd) { bd.textContent = n ? String(n) : ''; bd.style.display = n ? 'flex' : 'none'; }
     if (document.getElementById('lld-td')) lldTdDraw();
 }
-function lldTdInit() { lldTdSync(); if (!window._lldTdIv) window._lldTdIv = setInterval(() => { if (lldTdOn()) lldTdLoadAsync(); }, 600000); }
+// ===== award rings (beta switch awd): gold ring around the headshot of the current players of the week and month =====
+function lldAwOn() { try { return lldDev() && lldBv('awd') === '1'; } catch (e) { return false; } }
+async function lldAwLoad() {
+    if (window._lldAw && Date.now() - window._lldAw.t < 1800000) return window._lldAw;
+    if (window._lldAwP) return window._lldAwP;
+    window._lldAwP = (async () => {
+        const out = { t: Date.now(), w: {}, m: {} };
+        try {
+            const ev = await getAllRecapEvents();
+            let latest = 0; ev.forEach(e => { if (e.wk > latest) latest = e.wk; });
+            if (latest && !(await lldNflWeekDone(latest))) latest--; // a week still being played does not count yet
+            ev.filter(e => e.type === 'potw' && e.wk === latest && e.p).forEach(e => { out.w[String(e.p.pid)] = e.pos + ' OF THE WEEK'; });
+            const weeks = []; for (let w = 1; w <= latest; w++) weeks.push(w);
+            const months = recapMonths(weeks); let cur = months[months.length - 1];
+            if (cur && cur.weeks.length < 2 && months.length > 1) cur = months[months.length - 2]; // a month with one week is just the player of the week again
+            if (cur) {
+                const byWk = {}; for (const w of cur.weeks) byWk[w] = await fetchRecapWeek(w, true);
+                const M = computeMonthSummary(cur.weeks, byWk);
+                if (M.top && M.top[0]) out.m[String(M.top[0].p.pid)] = 'PLAYER OF THE MONTH';
+            }
+        } catch (e) { console.warn('award rings', e); }
+        window._lldAw = out; window._lldAwP = null; return out;
+    })();
+    return window._lldAwP;
+}
+let _lldAwN = 0;
+function lldAwPaint() {
+    const A = window._lldAw, on = lldAwOn();
+    document.querySelectorAll('.player-row[data-pid]').forEach(row => {
+        const w = row.querySelector('.player-img-wrapper'); if (!w) return;
+        const pid = String(row.dataset.pid), lab = on && A ? (A.m[pid] || A.w[pid] || '') : '', kind = !lab ? '' : A.m[pid] ? 'm' : 'w';
+        if (w.dataset.aw === kind) return;
+        w.dataset.aw = kind; w.classList.remove('lld-aw', 'lld-aw-w', 'lld-aw-m');
+        const old = w.querySelector('.lld-aw-t'); if (old) old.remove();
+        if (!kind) return;
+        w.classList.add('lld-aw', 'lld-aw-' + kind);
+        const hz = w.offsetWidth || 35, outer = kind === 'm' ? 9 : 5, R = hz / 2 + outer + 2 + 5, box = R * 2 + 14, c = box / 2, sp = 100 * Math.PI / 180, id = 'awp' + (++_lldAwN);
+        const x1 = c + R * Math.cos(Math.PI / 2 + sp), y1 = c + R * Math.sin(Math.PI / 2 + sp), x2 = c + R * Math.cos(Math.PI / 2 - sp), y2 = c + R * Math.sin(Math.PI / 2 - sp);
+        const col = kind === 'm' ? '#ffd84a' : '#f5b301';
+        w.insertAdjacentHTML('beforeend', `<svg class="lld-aw-t" width="${box}" height="${box}" viewBox="0 0 ${box} ${box}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);overflow:visible;pointer-events:none;z-index:3"><defs><path id="${id}" d="M${x1} ${y1} A${R} ${R} 0 1 0 ${x2} ${y2}"/></defs><text font-size="7" font-weight="900" letter-spacing=".08em" fill="${col}" stroke="#0b1220" stroke-width="3" paint-order="stroke" stroke-linejoin="round" font-family="system-ui,-apple-system,sans-serif"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${lab}</textPath></text></svg>`);
+    });
+}
+function lldAwSync() {
+    document.body.classList.toggle('lld-awd', lldAwOn());
+    if (lldAwOn()) lldAwLoad().then(lldAwPaint); else lldAwPaint();
+}
+window.lldAwSync = lldAwSync;
+(function () {
+    let t = 0; const run = () => { t = 0; try { if (lldAwOn() && window._lldAw) lldAwPaint(); } catch (e) { } };
+    new MutationObserver(() => { if (!t) t = setTimeout(run, 250); }).observe(document.body, { childList: true, subtree: true });
+})();
+function lldTdInit() { lldAwSync(); lldTdSync(); if (!window._lldTdIv) window._lldTdIv = setInterval(() => { if (lldTdOn()) lldTdLoadAsync(); }, 600000); }
 window.lldTdSync = lldTdSync; window.lldTdRefresh = lldTdRefresh;
 function lldTdRecount() { // answer from the Trades screen: update the to-do right away, no refetch
     try {
