@@ -1736,24 +1736,15 @@ async function lldBaseWeek() {
     if (w) window._lldBaseWk = { t: Date.now(), w };
     return w;
 }
-// "This week" for the whole dashboard: MFL's current NFL week, moved on once all its games are over.
+// "This week" for the whole dashboard = the week MFL's own lineup page opens on (falls back to MFL's current NFL week).
 async function lldCurWeek() {
-    const c = window._lldCurWk;
-    if (c && Date.now() - c.t < 300000) return c.w;
-    let base = await lldBaseWeek();
-    if (!base) base = parseInt(window._liveScoreCurrentWeek, 10) || 0;
-    if (!base) return 0;
-    const w = await lldAdvanceWeek(base);
-    window._lldCurWk = { t: Date.now(), w }; window._lldEffWeek = w;
-    console.log('[wk] MFL current week', base, '-> this week', w);
+    let w = parseInt(window._lldServedWeek, 10) || 0;
+    if (!w) w = await lldBaseWeek();
+    if (!w) w = parseInt(window._liveScoreCurrentWeek, 10) || 0;
+    if (w) window._lldEffWeek = w;
     return w;
 }
-async function lldLineupTarget(w, f) {
-    let t = await lldCurWeek();
-    if (!t) { t = await lldAdvanceWeek(w); try { const nx = window._nextOpp && window._nextOpp[f]; if (nx && nx.week > t) t = nx.week; } catch (e) { } }
-    window._lldEffWeek = t;
-    return Math.min(t, 18);
-}
+async function lldLineupTarget(w, f) { return w; }
 async function loadNextOpponents() {
     window._nextOpp = {};
     try {
@@ -1780,8 +1771,9 @@ async function loadNextOpponents() {
 
         const latestPlayed = games.reduce((mx, g) => (g.played ? Math.max(mx, g.wk) : mx), 0);
         const next = {};
+        window._lldGames = games;
         let ew = latestPlayed + 1;
-        try { ew = (await lldCurWeek()) || (await lldAdvanceWeek(latestPlayed + 1)); } catch (e) { }
+        try { ew = (await lldCurWeek()) || ew; } catch (e) { }
         window._lldEffWeek = ew;
         games.filter(g => g.wk >= ew).sort((x, y) => x.wk - y.wk).forEach(g => {
             [[g.a, g.b], [g.b, g.a]].forEach(([me, opp]) => {
@@ -1794,6 +1786,15 @@ async function loadNextOpponents() {
     } catch (e) { console.warn('[hdr] schedule fetch failed', e); }
 }
 
+// Recompute each team's next opponent from the schedule once we know which week MFL is on.
+function lldRefreshOpp() {
+    try {
+        const g = window._lldGames, sw = parseInt(window._lldServedWeek, 10); if (!g || !sw) return;
+        const next = {};
+        g.filter(x => x.wk >= sw).sort((x, y) => x.wk - y.wk).forEach(x => [[x.a, x.b], [x.b, x.a]].forEach(([me, opp]) => { if (!next[me]) next[me] = { week: x.wk, opps: [opp] }; else if (next[me].week === x.wk) next[me].opps.push(opp); }));
+        if (JSON.stringify(next) !== JSON.stringify(window._nextOpp || {})) { window._nextOpp = next; refreshTeamInfoPanel(); }
+    } catch (e) { }
+}
 async function loadTeamHeaderStats() {
     const yr = parseInt(year);
     const getStandings = async (y) => {
@@ -2018,7 +2019,6 @@ function getPlayerFilterBarHtml(isFAView) {
                 <button class="player-pos-filter-btn${playerPosFilter === 'RB' ? ' active' : ''}" data-pos="RB">RB</button>
                 <button class="player-pos-filter-btn${playerPosFilter === 'WR' ? ' active' : ''}" data-pos="WR">WR</button>
                 <button class="player-pos-filter-btn${playerPosFilter === 'TE' ? ' active' : ''}" data-pos="TE">TE</button>
-                <button class="player-pos-filter-btn${playerPosFilter === 'PK' ? ' active' : ''}" data-pos="PK">PK</button>
                 <button class="player-pos-filter-btn${playerPosFilter === 'DT+DE' ? ' active' : ''}" data-pos="DT+DE">DL</button>
                 <button class="player-pos-filter-btn${playerPosFilter === 'LB' ? ' active' : ''}" data-pos="LB">LB</button>
                 <button class="player-pos-filter-btn${playerPosFilter === 'CB+S' ? ' active' : ''}" data-pos="CB+S">DB</button>
@@ -4429,14 +4429,14 @@ const responses = await Promise.all(fetches);
         
         const html = await responses[0].text();
 currentDoc = new DOMParser().parseFromString(html, 'text/html');
-        window._lldLineupWeek = '';
+        window._lldLineupWeek = ''; if (!window._lldWeekPick || parseInt(window._lldWeekPick, 10) >= (parseInt(window._lldServedWeek, 10) || 0)) window._lldViewWeek = '';
         if (activeSub.includes('lineup')) {
             // MFL can keep serving LAST week's lineup page after the games are over, which locks everybody. Find the real upcoming week and load that one. A week picked with the week bar wins.
             try {
                 const wIn = currentDoc.querySelector('input[name="WEEK"], select[name="WEEK"], input[name="W"], select[name="W"]');
                 window._lldWkName = (wIn && wIn.getAttribute('name')) || 'W';
                 const dw = parseInt((wIn || {}).value, 10);
-                window._lldServedWeek = dw || window._liveScoreCurrentWeek || '';
+                window._lldServedWeek = dw || window._lldServedWeek || ''; if (dw) lldRefreshOpp();
                 if (dw) {
                     window._lldLineupWeek = String(dw);
                     let tw = window._lldWeekPick ? parseInt(window._lldWeekPick, 10) : await lldLineupTarget(dw, fid);
@@ -5955,8 +5955,10 @@ function hydrateDynRanks(tries = 0) {
 }
 async function getCurrentNflSched() {
     if (window._playersNflSched && Date.now() - window._playersNflSchedAt < 600000) return window._playersNflSched;
-    const map = {};
-    try {
+    let map = {};
+    // use the same week the lineup page is on (MFL's no-week schedule comes back empty between weeks, which made every player look like he was on bye)
+    try { const cw = await lldCurWeek(); if (cw) { const m2 = await fetchNflScheduleForWeek(cw); if (m2 && Object.keys(m2).length) map = Object.assign({}, m2); } } catch (e) { }
+    if (!Object.keys(map).length) try {
         const res = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&JSON=1`, { credentials: 'include' });
         const data = await res.json();
         let games = data?.nflSchedule?.matchup || [];
@@ -5978,7 +5980,8 @@ async function getCurrentNflSched() {
     return map;
 }
 function oppPillHtml(team, realPos, sched) {
-    const g = sched && sched[(team || '').toUpperCase()];
+    const tk = (team || '').toUpperCase(), g = sched && (sched[tk] || sched[NFL_ABBR_ALIAS[tk]]);
+    if (!sched || !Object.keys(sched).length) return `<span style="color:var(--text-dim);">-</span>`; // schedule not loaded: don't claim a bye
     if (!g || !g.opp) return `<span style="color:var(--text-dim);">BYE</span>`;
     const d = g.kickoffMs ? new Date(g.kickoffMs) : null;
     const when = d ? `${d.toLocaleDateString([], { weekday: 'short' })} ${d.toLocaleTimeString([], { hour: 'numeric' })}` : '';
@@ -12925,7 +12928,8 @@ function lldTplLines(parts, two) {
     const h = Math.ceil(parts.length / 2); return [parts.slice(0, h).join(' · '), parts.slice(h).join(' · ')];
 }
 function lldTplOppParts(team, realPos, sched) {
-    const g = sched && sched[(team || '').toUpperCase()];
+    const tk = (team || '').toUpperCase(), g = sched && (sched[tk] || sched[NFL_ABBR_ALIAS[tk]]);
+    if (!sched || !Object.keys(sched).length) return ['<span style="color:var(--text-dim);">-</span>'];
     if (!g || !g.opp) return ['<span style="color:var(--text-dim);">BYE</span>'];
     const d = g.kickoffMs ? new Date(g.kickoffMs) : null;
     const when = d ? `${d.toLocaleDateString([], { weekday: 'short' })} ${d.toLocaleTimeString([], { hour: 'numeric' })}` : '';
@@ -13533,28 +13537,50 @@ async function lldLineupPlayedPass(targetFid) {
 // ---- week bar on the lineup page: ‹ Week 8 › ; tap "Week 8" to jump to any week. Past weeks open the recap. ----
 function lldWeekBar() {
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
-    const host = document.querySelector('.sticky-block[data-block="starters"]'); if (!host) return;
-    const w = parseInt(window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
+    const host = document.querySelector('.sticky-block[data-block="starters"]') || document.getElementById('lld-pastlu'); if (!host) return;
+    const w = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
     const html = `<button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="lld-wk-t">Week ${w} ▾${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</button><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button>`;
     let bar = document.getElementById('lld-wkbar');
     if (!bar) { host.insertAdjacentHTML('beforebegin', '<div id="lld-wkbar"></div>'); bar = document.getElementById('lld-wkbar'); }
     if (bar.getAttribute('data-h') !== html) { bar.setAttribute('data-h', html); bar.innerHTML = html; }
 }
+// read-only look at a week that is already over (MFL only opens the current week's lineup page)
+async function lldPastLineup(w) {
+    window._lldViewWeek = String(w); window._lldWeekMsg = ''; $('#lld-wkbar,#lld-wkpick').remove();
+    const box = $('#player-rows-container'); box.html('<div id="lld-pastlu"><div style="text-align:center; padding:30px; color:var(--text-dim); font-weight:800;">Loading week ' + w + '…</div></div>');
+    try { lldWeekBar(); } catch (e) { }
+    let ms = []; try { ms = await fetchRecapWeek(w, w < (parseInt(window._lldServedWeek, 10) || 99)); } catch (e) { }
+    if (window._lldViewWeek !== String(w)) return;
+    const f = String(fid).padStart(4, '0'), m = ms.find(x => x.t1.fid === f || x.t2.fid === f);
+    const t = m ? (m.t1.fid === f ? m.t1 : m.t2) : null, o = m ? (t === m.t1 ? m.t2 : m.t1) : null;
+    let h;
+    if (!t || !t.roster.length) h = '<div style="text-align:center; padding:30px; color:var(--text-dim); font-weight:800;">No lineup found for week ' + w + '.</div>';
+    else {
+        const row = (p, dim) => recapPlayerRow(p, { dim, right: `<b style="font-size:calc(14px * var(--ts,1)); color:#fff;">${p.score.toFixed(1)}</b>` });
+        const st = t.roster.filter(p => p.isStarter).sort((a, b) => b.score - a.score), bn = t.roster.filter(p => !p.isStarter).sort((a, b) => b.score - a.score);
+        h = `<div style="text-align:center; margin:6px 0 10px; font-weight:900; font-size:calc(12px * var(--ts,1)); color:var(--text-dim);">WEEK ${w} · FINAL ${t.score.toFixed(1)}${o ? ' – ' + o.score.toFixed(1) + ' vs ' + lldChatEsc(leagueFranchises[o.fid] || o.fid) : ''} · read-only</div>
+        <div class="section-header" style="margin:6px 0;">Starters</div>${st.map(p => row(p, false)).join('')}
+        <div class="section-header" style="margin:10px 0 6px;">Bench</div>${bn.map(p => row(p, true)).join('')}
+        <div style="text-align:center; margin-top:12px;"><button type="button" class="lld-play sm" data-k="recap" data-wk="${w}" data-i="0">▶ Week ${w} recap</button></div>`;
+    }
+    $('#lld-pastlu').html(h);
+}
 // go to a week: already played -> recap; this week or later -> that week's lineup
 async function lldWkGo(w, arrow) {
     w = Math.max(1, Math.min(18, w)); $('#lld-wkpick').remove();
     const ew = (await lldCurWeek()) || parseInt(window._lldEffWeek, 10) || 0;
-    if (ew && w < ew && !arrow) { lldOpenStory('recap', w, 0, false); return; }
+    if (ew && w < ew) { if (arrow) lldPastLineup(w); else lldOpenStory('recap', w, 0, false); return; }
+    window._lldViewWeek = '';
     window._lldWeekPick = String(w); window._lldWeekMsg = ''; $('#lld-wkbar').remove();
     window._teamDataDirty = true; loadTeamData();
 }
 $(document).on('click', '#lld-wkbar .lld-wk-b', function () {
-    const w = parseInt(window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
+    const w = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
     lldWkGo(w + parseInt(this.getAttribute('data-d'), 10), true);
 });
 $(document).on('click', '#lld-wkbar .lld-wk-t', async function () {
     if ($('#lld-wkpick').length) { $('#lld-wkpick').remove(); return; }
-    const cur = parseInt(window._lldLineupWeek || window._lldEffWeek, 10), ew = (await lldCurWeek()) || 0;
+    const cur = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek, 10), ew = (await lldCurWeek()) || 0;
     let g = '';
     for (let i = 1; i <= 18; i++) g += `<button type="button" data-w="${i}" class="${i === cur ? 'on' : ''}${ew && i < ew ? ' past' : ''}">${i}</button>`;
     const dg = `Lineup page: week ${window._lldServedWeek || '?'} · NFL calendar: week ${window._lldBaseWk ? window._lldBaseWk.w : '?'} · This week: ${ew || '?'}`;
