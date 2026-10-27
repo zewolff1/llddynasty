@@ -4399,3 +4399,9 @@ body.lld-gth .player-row{position:relative}
 
 /* the team logo watermark already shows behind the row; no second logo inside the photo circle */
 body.lld-tpl.lld-wm .player-row.lld-tpl .lld-tl-logo{display:none !important}
+
+/* lineup week bar */
+#lld-wkbar{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 8px;font-weight:900;font-size:calc(12px * var(--ts,1));color:var(--text-main,#fff)}
+#lld-wkbar em{font-style:normal;color:#f59e0b;font-weight:800;font-size:calc(10px * var(--ts,1))}
+#lld-wkbar .lld-wk-b{width:34px;height:30px;border-radius:9px;border:1px solid var(--card-border,#334155);background:var(--card-bg,#1e293b);color:inherit;font-size:18px;font-weight:900;line-height:1}
+#lld-wkbar .lld-wk-b:disabled{opacity:.35}
