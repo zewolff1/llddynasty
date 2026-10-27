@@ -20495,13 +20495,14 @@ async function lldTbContracts() {
     if (window._lldTbC && Date.now() - window._lldTbC.t < 300000) return window._lldTbC.m;
     const m = {};
     try {
-        const j = await lldChatJson('TYPE=rosters');
+        let j = await lldChatJson('TYPE=rosters');
+        if (!(j && j.rosters && j.rosters.franchise)) { await new Promise(r => setTimeout(r, 1500)); j = await lldChatJson('TYPE=rosters'); }
         lldChatArr(j && j.rosters && j.rosters.franchise).forEach(f => lldChatArr(f.player).forEach(p => {
             let sal = parseFloat(String(p.salary || '').replace(/[^0-9.]/g, '')) || 0; if (sal >= 1000) sal = sal / 1e6; /* MFL sends whole dollars; show millions */ const yrs = parseInt(p.contractYear, 10) || 0, gu = parseFloat(String(p.contractInfo || '').replace(/[^0-9.]/g, ''));
             m[String(p.id)] = { sal, yrs, gu: isNaN(gu) ? null : gu, own: String(f.id).padStart(4, '0') };
         }));
     } catch (e) { }
-    window._lldTbC = { t: Date.now(), m }; return m;
+    if (Object.keys(m).length) window._lldTbC = { t: Date.now(), m }; return m; // never cache a failed (empty) load
 }
 function lldTbShort(n) { n = String(n || ''); if (n.indexOf(',') > 0) { const a = n.split(','); return (a[1].trim().charAt(0) + '. ' + a[0].trim()).trim(); } return n.replace(/^(\S)\S*\s+/, '$1. '); }
 // ===== trade interest: other teams answer a trade-block player with an interest level and an optional reason =====
@@ -20549,12 +20550,12 @@ $(document).on('click', '.tb [data-tilv]', function () {
     const X = window._tbX; if (!X) return; const me = X.d.me, pid = this.dataset.pid, k = this.dataset.tilv;
     X.d.ti = X.d.ti || { by: {} }; const m = (X.d.ti.by[me] = X.d.ti.by[me] || {}), cur = lldTbParseLabel(m[pid]);
     if (cur.s === k) delete m[pid]; else m[pid] = lldTbMakeLabel(k, k === 'V' ? [] : cur.a);
-    lldTiSaveSoon(); lldTbDraw();
+    lldTiSaveSoon(); lldTbDraw(); lldTdRecount();
 });
 $(document).on('click', '.tb [data-tirs]', function () {
     const X = window._tbX; if (!X) return; const me = X.d.me, pid = this.dataset.pid, r = this.dataset.tirs, m = ((X.d.ti || {}).by || {})[me] || {}, cur = lldTbParseLabel(m[pid]);
     if (!cur.s) return; m[pid] = lldTbMakeLabel(cur.s, cur.a[0] === r ? [] : [r]);
-    lldTiSaveSoon(); lldTbDraw();
+    lldTiSaveSoon(); lldTbDraw(); lldTdRecount();
 });
 async function lldTbData() {
     const S = await lldStatsLoad(), con = await lldTbContracts(), tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({}));
@@ -20757,6 +20758,15 @@ function lldTdRefresh() {
 }
 function lldTdInit() { lldTdSync(); if (!window._lldTdIv) window._lldTdIv = setInterval(() => { if (lldTdOn()) lldTdLoadAsync(); }, 600000); }
 window.lldTdSync = lldTdSync; window.lldTdRefresh = lldTdRefresh;
+function lldTdRecount() { // answer from the Trades screen: update the to-do right away, no refetch
+    try {
+        const X = window._tbX, A = window._lldTdA; if (!X || !A || !X.d) return;
+        const me = X.d.me, my = ((X.d.ti || {}).by || {})[me] || {}; let n = 0;
+        Object.keys(X.d.tb.by).forEach(f => { if (f === me) return; Object.keys((X.d.tb.by[f] && X.d.tb.by[f].p) || {}).forEach(pid => { if (lldTbParseLabel(X.d.tb.by[f].p[pid]).s === 'S' && !my[pid]) n++; }); });
+        A.respond = n; A.t = Date.now(); lldTdRefresh();
+    } catch (e) { }
+}
+window.lldTdRecount = lldTdRecount;
 async function lldTdLoadAsync(force) {
     if (!lldTdOn() || window._lldTdBusy) return;
     if (!force && $('#tab-league').hasClass('active')) return; // never compete with the Trades screens for MFL's rate limit
