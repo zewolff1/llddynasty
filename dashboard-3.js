@@ -15297,8 +15297,13 @@ async function fetchNflScheduleForWeek(wk) {
         });
     };
     try {
-        const res = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`, { credentials: 'include', cache: 'no-store' });
-        const data = await res.json();
+        // plain request first (the same link you can open in a browser); a cookie-carrying request is the backup
+        const u = `https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&W=${wk}&JSON=1`;
+        let data = null;
+        for (const init of [{ cache: 'no-store' }, { credentials: 'include', cache: 'no-store' }]) {
+            try { const res = await fetch(u, init); data = await res.json(); if (data && data.nflSchedule) break; } catch (e) { data = null; }
+        }
+        if (!data) throw new Error('nflSchedule not readable');
         let games = data?.nflSchedule?.matchup || [];
         if (!Array.isArray(games)) games = games ? [games] : [];
         games.forEach(g => {
