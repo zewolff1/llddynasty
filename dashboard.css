@@ -4265,7 +4265,7 @@ body.lld-nav .league-tabs .tab-btn{padding-left:6px !important;padding-right:6px
 /* ===== r66 slim blocks team header (beta switch "shb") ===== */
 body.lld-shb #tab-header-area{display:none!important}
 #lld-sh{padding:8px 0 6px}
-#lld-sh .th.blk{display:block;margin:0;padding:var(--pad) 10px;border-radius:var(--rad);border:1px solid #3b2d6b;background:linear-gradient(160deg,#3a2a1c,#1a1428);color:#f1f4ff;overflow:hidden}
+#lld-sh .th.blk{box-sizing:border-box;max-width:100%;display:block;margin:0;padding:var(--pad) 10px;border-radius:var(--rad);border:1px solid #3b2d6b;background:linear-gradient(160deg,#3a2a1c,#1a1428);color:#f1f4ff;overflow:hidden}
 #lld-sh .nrow{display:flex;align-items:center;justify-content:center;gap:var(--gap)}
 #lld-sh .sh-sw{display:flex;align-items:center;gap:var(--gap);min-width:0;background:none;border:0;color:inherit;padding:0;font:inherit;cursor:pointer}
 #lld-sh .lg{flex:none;width:var(--lg);height:var(--lg);border-radius:50%;object-fit:cover;background:#1e6f80}
@@ -4457,3 +4457,12 @@ body.lld-irfix .sticky-block[data-block="starters"]{min-height:0}
 .sub-tabs-group{flex-wrap:nowrap}
 .sub-tabs-group .sub-tab-btn{white-space:nowrap;flex:0 0 auto}
 .sub-tabs-group .sub-tab-btn{max-width:none !important;overflow:visible !important;text-overflow:clip !important;flex:0 0 auto !important}
+
+/* award rings (beta awd): gold ring around the headshot of the player of the week / month */
+.player-img-wrapper.lld-aw{position:relative;overflow:visible !important}
+body.lld-tpl .player-row.lld-tpl .player-img-wrapper.lld-aw, .player-row .player-img-wrapper.lld-aw{margin:6px 8px 14px !important}
+.player-img-wrapper.lld-aw::before,.player-img-wrapper.lld-aw::after{content:"";position:absolute;border-radius:50%;pointer-events:none;border:2px solid var(--awc,#f5b301);z-index:2}
+.player-img-wrapper.lld-aw-w{--awc:#f5b301}.player-img-wrapper.lld-aw-m{--awc:#ffd84a}
+.player-img-wrapper.lld-aw::before{inset:-5px;box-shadow:0 0 8px var(--awc)}
+.player-img-wrapper.lld-aw-w::after{display:none}
+.player-img-wrapper.lld-aw-m::after{inset:-9px;box-shadow:0 0 8px var(--awc)}
