@@ -1724,9 +1724,33 @@ async function lldAdvanceWeek(w) {
     for (let i = 0; i < 3 && t < 18; i++) { if (await lldNflWeekDone(t)) t++; else break; }
     return Math.min(t, 18);
 }
+// The NFL week MFL says it is right now (no W given), cached for a few minutes.
+async function lldBaseWeek() {
+    const c = window._lldBaseWk;
+    if (c && Date.now() - c.t < 300000) return c.w;
+    let w = 0;
+    try {
+        const r = await fetch(`https://api.myfantasyleague.com/${year}/export?TYPE=nflSchedule&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        w = parseInt((await r.json())?.nflSchedule?.week, 10) || 0;
+    } catch (e) { console.warn('[wk] base week fetch failed', e); }
+    if (w) window._lldBaseWk = { t: Date.now(), w };
+    return w;
+}
+// "This week" for the whole dashboard: MFL's current NFL week, moved on once all its games are over.
+async function lldCurWeek() {
+    const c = window._lldCurWk;
+    if (c && Date.now() - c.t < 300000) return c.w;
+    let base = await lldBaseWeek();
+    if (!base) base = parseInt(window._liveScoreCurrentWeek, 10) || 0;
+    if (!base) return 0;
+    const w = await lldAdvanceWeek(base);
+    window._lldCurWk = { t: Date.now(), w }; window._lldEffWeek = w;
+    console.log('[wk] MFL current week', base, '-> this week', w);
+    return w;
+}
 async function lldLineupTarget(w, f) {
-    let t = await lldAdvanceWeek(w);
-    try { const nx = window._nextOpp && window._nextOpp[f]; if (nx && nx.week > t) t = nx.week; } catch (e) { }
+    let t = await lldCurWeek();
+    if (!t) { t = await lldAdvanceWeek(w); try { const nx = window._nextOpp && window._nextOpp[f]; if (nx && nx.week > t) t = nx.week; } catch (e) { } }
     window._lldEffWeek = t;
     return Math.min(t, 18);
 }
@@ -1757,9 +1781,9 @@ async function loadNextOpponents() {
         const latestPlayed = games.reduce((mx, g) => (g.played ? Math.max(mx, g.wk) : mx), 0);
         const next = {};
         let ew = latestPlayed + 1;
-        try { ew = await lldAdvanceWeek(latestPlayed + 1); } catch (e) { }
+        try { ew = (await lldCurWeek()) || (await lldAdvanceWeek(latestPlayed + 1)); } catch (e) { }
         window._lldEffWeek = ew;
-        games.filter(g => g.wk >= Math.max(latestPlayed + 1, ew)).sort((x, y) => x.wk - y.wk).forEach(g => {
+        games.filter(g => g.wk >= ew).sort((x, y) => x.wk - y.wk).forEach(g => {
             [[g.a, g.b], [g.b, g.a]].forEach(([me, opp]) => {
                 if (!next[me]) next[me] = { week: g.wk, opps: [opp] };
                 else if (next[me].week === g.wk) next[me].opps.push(opp);
@@ -1925,7 +1949,7 @@ function buildTeamInfoPanel(targetFid) {
     let oppBox;
     if (nx && nx.opps.length) {
         const o = nx.opps[0];
-        oppBox = `<button type="button" class="th-bx th-op"><i>WEEK ${nx.week} VS</i><div class="th-opp"><img src="${getFranchiseLogoUrl(o)}" onerror="this.style.display='none'"><b data-team-style="${o}">${leagueFranchises[o] || o}</b></div><span id="lld-hdr-pv" class="th-pv">▶ Preview</span></button>`;
+        oppBox = `<button type="button" class="th-bx th-op" data-wk="${nx.week}"><i>WEEK ${nx.week} VS</i><div class="th-opp"><img src="${getFranchiseLogoUrl(o)}" onerror="this.style.display='none'"><b data-team-style="${o}">${leagueFranchises[o] || o}</b></div><span id="lld-hdr-pv" class="th-pv">▶ Preview</span></button>`;
     } else oppBox = `<div class="th-bx"><i>NEXT</i><b>—</b><span>No game scheduled</span></div>`;
 
     const tbm = window._lldTbIc;
@@ -13452,22 +13476,37 @@ async function lldLineupPlayedPass(targetFid) {
     try { lldRvLuBar(); } catch (e) { }
     try { lldWeekBar(); } catch (e) { }
 }
-// ---- week bar on the lineup page: < Week 8 > to look at / set another week ----
+// ---- week bar on the lineup page: ‹ Week 8 › ; tap "Week 8" to jump to any week. Past weeks open the recap. ----
 function lldWeekBar() {
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
     const host = document.querySelector('.sticky-block[data-block="starters"]'); if (!host) return;
-    const w = parseInt(window._lldLineupWeek || window._lldServedWeek, 10); if (!w) return;
-    const html = `<button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><span>Week ${w}${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</span><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button>`;
+    const w = parseInt(window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
+    const html = `<button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="lld-wk-t">Week ${w} ▾${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</button><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button>`;
     let bar = document.getElementById('lld-wkbar');
     if (!bar) { host.insertAdjacentHTML('beforebegin', '<div id="lld-wkbar"></div>'); bar = document.getElementById('lld-wkbar'); }
-    if (bar.innerHTML !== html) bar.innerHTML = html;
+    if (bar.getAttribute('data-h') !== html) { bar.setAttribute('data-h', html); bar.innerHTML = html; }
+}
+// go to a week: already played -> recap; this week or later -> that week's lineup
+async function lldWkGo(w) {
+    w = Math.max(1, Math.min(18, w)); $('#lld-wkpick').remove();
+    const ew = (await lldCurWeek()) || parseInt(window._lldEffWeek, 10) || 0;
+    if (ew && w < ew) { lldOpenStory('recap', w, 0, false); return; }
+    window._lldWeekPick = String(w); window._lldWeekMsg = ''; $('#lld-wkbar').remove();
+    window._teamDataDirty = true; loadTeamData();
 }
 $(document).on('click', '#lld-wkbar .lld-wk-b', function () {
-    const w = parseInt(window._lldLineupWeek || window._lldServedWeek, 10); if (!w) return;
-    window._lldWeekPick = String(Math.max(1, Math.min(18, w + parseInt(this.getAttribute('data-d'), 10))));
-    window._lldWeekMsg = ''; $('#lld-wkbar').remove();
-    window._teamDataDirty = true; loadTeamData();
+    const w = parseInt(window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
+    lldWkGo(w + parseInt(this.getAttribute('data-d'), 10));
 });
+$(document).on('click', '#lld-wkbar .lld-wk-t', async function () {
+    if ($('#lld-wkpick').length) { $('#lld-wkpick').remove(); return; }
+    const cur = parseInt(window._lldLineupWeek || window._lldEffWeek, 10), ew = (await lldCurWeek()) || 0;
+    let g = '';
+    for (let i = 1; i <= 18; i++) g += `<button type="button" data-w="${i}" class="${i === cur ? 'on' : ''}${ew && i < ew ? ' past' : ''}">${i}</button>`;
+    const dg = `Lineup page: week ${window._lldServedWeek || '?'} · NFL calendar: week ${window._lldBaseWk ? window._lldBaseWk.w : '?'} · This week: ${ew || '?'}`;
+    $('body').append(`<div id="lld-wkpick"><div class="g">${g}</div><div class="n">Weeks already played open the recap.</div><div class="d">${lldChatEsc(dg)}</div></div>`);
+});
+$(document).on('click', '#lld-wkpick button', function () { lldWkGo(parseInt(this.getAttribute('data-w'), 10)); });
 // small Reveal all / Hide all bar above the starters when scores are hidden on the lineup
 function lldRvLuBar() {
     const host = document.querySelector('.sticky-block[data-block="starters"]'), have = document.getElementById('lld-rv-lu');
@@ -14488,7 +14527,9 @@ $(document).on('click touchend', '#lld-hdr-pv', async function (e) {
     const btn = this; if (window._hdrPvBusy) return; window._hdrPvBusy = true; const old = btn.textContent; btn.textContent = 'Loading…';
     try {
         const all = await fetchAllWeekScores(), weeks = Object.keys(all).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
-        const wk = Math.max(1, Math.min(18, parseInt(window._liveScoreCurrentWeek, 10) || (latest + 1)));
+        const hw = parseInt($('.th-op').first().attr('data-wk'), 10), ew = await lldCurWeek();
+        const wk = Math.max(1, Math.min(18, hw || ew || parseInt(window._liveScoreCurrentWeek, 10) || (latest + 1)));
+        if (ew && wk < ew) { btn.textContent = old; window._hdrPvBusy = false; lldOpenStory('recap', wk, 0, false); return; }
         const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
         const f = String(fid).padStart(4, '0'), i = P.games.findIndex(g => String(g.t1.fid).padStart(4, '0') === f || String(g.t2.fid).padStart(4, '0') === f);
         if (i < 0) alert('No matchup found for week ' + wk + ' yet.'); else lldOpenStory('matchup', wk, i, false);
