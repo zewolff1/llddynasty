@@ -4414,3 +4414,8 @@ body.lld-tpl.lld-wm .player-row.lld-tpl .lld-tl-logo{display:none !important}
 #lld-wkpick .g button.on{background:var(--accent-blue,#3b82f6);border-color:var(--accent-blue,#3b82f6)}
 #lld-wkpick .n{margin-top:8px;font-size:10px;font-weight:700;color:#94a3b8;text-align:center}
 #lld-wkpick .d{margin-top:4px;font-size:9px;color:#64748b;text-align:center}
+
+/* IR problem view: only the IR section and IR-eligible players */
+body.lld-irfix #lineup-dashboard-inject, body.lld-irfix .lineup-section[data-section="starters"], body.lld-irfix .lineup-section[data-section="taxi"], body.lld-irfix #lld-rv-lu{display:none !important}
+body.lld-irfix .sticky-block[data-block="starters"]{min-height:0}
+.player-row.lld-ir-bad{box-shadow:inset 0 0 0 2px #ef4444}
