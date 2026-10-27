@@ -20809,16 +20809,19 @@ function lldFitSubTabs() {
     document.querySelectorAll('.sub-tabs-group').forEach(g => {
         if (!g.offsetParent) return;
         const bs = Array.prototype.slice.call(g.querySelectorAll('.sub-tab-btn')); if (!bs.length) return;
+        const key = g.clientWidth + '|' + bs.map(b => b.textContent.trim()).join(',') + '|' + (document.body.className.match(/lld-ts\S*/) || '');
+        if (g.dataset.fit === key) return; // already fitted for this width and these labels: leave it alone (no flicker)
         bs.forEach(b => { b.style.fontSize = ''; b.style.paddingLeft = ''; b.style.paddingRight = ''; });
         const f0 = parseFloat(getComputedStyle(bs[0]).fontSize) || 12, p0 = parseFloat(getComputedStyle(bs[0]).paddingLeft) || 10;
         let k = 1;
-        while (g.scrollWidth > g.clientWidth - 4 && k > 0.4) { k -= 0.04; bs.forEach(b => { b.style.fontSize = (f0 * k).toFixed(1) + 'px'; b.style.paddingLeft = b.style.paddingRight = (p0 * k).toFixed(1) + 'px'; }); }
+        while (g.scrollWidth > g.clientWidth + 1 && k > 0.5) { k -= 0.04; bs.forEach(b => { b.style.fontSize = (f0 * k).toFixed(1) + 'px'; b.style.paddingLeft = b.style.paddingRight = (p0 * k).toFixed(1) + 'px'; }); }
+        g.dataset.fit = g.clientWidth + '|' + bs.map(b => b.textContent.trim()).join(',') + '|' + (document.body.className.match(/lld-ts\S*/) || '');
     });
 }
 (function () {
     let t = null; const run = () => { clearTimeout(t); t = setTimeout(() => { try { lldFitSubTabs(); } catch (e) { } }, 60); };
     window.addEventListener('resize', run); window.addEventListener('orientationchange', run);
-    new MutationObserver(run).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
+    new MutationObserver(run).observe(document.querySelector('.sub-tabs-container') || document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true }); document.addEventListener('click', run, true);
     setTimeout(run, 800);
 })();
 function lldChatInit() {
