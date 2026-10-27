@@ -4451,3 +4451,9 @@ body.lld-irfix .sticky-block[data-block="starters"]{min-height:0}
 #lld-td .td-go{flex:0 0 auto;align-self:center;border:0;border-radius:9px;background:var(--accent-blue);color:#fff;font-weight:800;font-size:calc(11px * var(--ts,1));padding:9px 11px;cursor:pointer}
 #lld-td .red .td-go{background:#ef4444}#lld-td .amber .td-go{background:#f59e0b;color:#1a1204}
 #lld-td .td-ok{padding:24px 10px 28px;text-align:center;color:var(--text-dim)}#lld-td .td-ok b{display:block;color:#fff;font-size:calc(15px * var(--ts,1));margin-bottom:4px}
+
+/* sub-tab rows shrink to fit (see lldFitSubTabs) */
+.sub-tabs-container{overflow-x:hidden !important}
+.sub-tabs-group{flex-wrap:nowrap}
+.sub-tabs-group .sub-tab-btn{white-space:nowrap;flex:0 0 auto}
+.sub-tabs-group .sub-tab-btn{max-width:none !important;overflow:visible !important;text-overflow:clip !important;flex:0 0 auto !important}
