@@ -20466,6 +20466,10 @@ async function lldTbLoad(force) {
         const posts = await lldChatLoadPosts(t.id);
         posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); if (!by[f] || p.ms >= by[f].ms) by[f] = { ms: p.ms, m: o.m || '', p: o.p || {} }; });
     }
+    try { // this device's own last save covers MFL not returning it (newer wins)
+        const me = String(myFid).padStart(4, '0'), L = JSON.parse(localStorage.getItem('lld_tbloc_' + lid + '_' + me) || 'null');
+        if (L && L.ms && (!by[me] || L.ms > by[me].ms)) by[me] = { ms: L.ms, m: L.m || '', p: L.p || {} };
+    } catch (e) { }
     const d = { by, tid: th.length ? th[th.length - 1].id : null };
     window._lldTb = { t: Date.now(), d }; return d;
 }
@@ -20477,6 +20481,7 @@ async function lldTbBaits() {
 }
 async function lldTbSave(m, p) {
     const d = await lldTbLoad(true);
+    try { localStorage.setItem('lld_tbloc_' + lid + '_' + String(myFid).padStart(4, '0'), JSON.stringify({ ms: Date.now(), m, p })); } catch (e) { }
     await lldChatPost('LLDTB1:' + lldTbEnc({ m, p }), d.tid, LLDTB_SUBJ);
     window._lldTb = null;
     // keep MFL's own trade block in step: Seeking and Willing players are "on the block"
@@ -20513,18 +20518,23 @@ function lldTiDec(t) {
     const m = /LLDTI1:([A-Za-z0-9_\-]+)/.exec(String(t || '')); if (!m) return null;
     try { let b = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '='; return JSON.parse(decodeURIComponent(escape(atob(b)))); } catch (e) { return null; }
 }
-async function lldTiLoad(force) {
-    if (!force && window._lldTi && Date.now() - window._lldTi.t < 60000) return window._lldTi.d;
+async function lldTiLoad(force, raw) {
+    if (!raw && !force && window._lldTi && Date.now() - window._lldTi.t < 60000) return window._lldTi.d;
     const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTI_SUBJ), by = {}, ms = {};
     for (const t of th) {
         const posts = await lldChatLoadPosts(t.id);
         posts.forEach(p => { const o = lldTiDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); if (!ms[f] || p.ms >= ms[f]) { ms[f] = p.ms; by[f] = o.p || {}; } });
     }
+    if (!raw) try {
+        const me = String(myFid).padStart(4, '0'), L = JSON.parse(localStorage.getItem('lld_tiloc_' + lid + '_' + me) || 'null');
+        if (L && L.ms && (!ms[me] || L.ms > ms[me])) by[me] = L.p || {};
+    } catch (e) { }
     const d = { by, tid: th.length ? th[th.length - 1].id : null };
-    window._lldTi = { t: Date.now(), d }; return d;
+    if (!raw) window._lldTi = { t: Date.now(), d }; return d;
 }
 async function lldTiSave(map) {
     const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTI_SUBJ), tid = th.length ? th[th.length - 1].id : null;
+    try { localStorage.setItem('lld_tiloc_' + lid + '_' + String(myFid).padStart(4, '0'), JSON.stringify({ ms: Date.now(), p: map })); } catch (e) { }
     await lldChatPost('LLDTI1:' + lldTbEnc({ p: map }), tid, LLDTI_SUBJ);
     window._lldTi = null;
 }
@@ -20540,7 +20550,7 @@ async function lldTiFlush() {
     window._tiBusy = true;
     try {
         await lldTiSave(map);
-        let ok = true; try { const d = await lldTiLoad(true), me = String(myFid).padStart(4, '0'); ok = JSON.stringify(Object.keys(d.by[me] || {}).sort()) === JSON.stringify(Object.keys(map).sort()); } catch (e) { }
+        let ok = true; try { const d = await lldTiLoad(true, true), me = String(myFid).padStart(4, '0'); ok = JSON.stringify(Object.keys(d.by[me] || {}).sort()) === JSON.stringify(Object.keys(map).sort()); } catch (e) { }
         if (ok) lldTiToast('Interest saved'); else lldTiToast('Posted to MFL, but it did not read back. Tell Claude.', true);
     } catch (e) { lldTiToast('Could not save: ' + (e.message || 'unknown error'), true); }
     window._tiBusy = false;
