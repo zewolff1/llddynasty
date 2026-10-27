@@ -6167,6 +6167,11 @@ function getBestBenchOption(slot) {
         });
         if (zero.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
         if (noRep.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ No bench replacement for: ${noRep.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
+        try { // numbers for the to-do list
+            const bad0 = lldIrIneligible();
+            window._lldTdLu = { fid: fid, week: window._lldLineupWeek || window._lldServedWeek || '', empty: empty, noRep: noRep.slice(), irNames: bad0.names.slice(), irMsg: bad0.msg || '', block: window._lldLineupBlock || '' };
+            if (window.lldTdRefresh) window.lldTdRefresh();
+        } catch (e) { }
         if (window._lldLineupBlock) $(container).append(`<div class="lineup-alert alert-error">⛔ ${$('<i>').text(window._lldLineupBlock).html()} Fix your IR below, then your lineup will open.</div>`);
         // players on IR who may not be allowed there (league blocks submitting a lineup with them)
         try {
@@ -12320,7 +12325,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { p.set('W', window._lldLineupWeek); p.set('WEEK', window._lldLineupWeek); } return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
@@ -12336,6 +12341,7 @@ function lldApplyBeta() {
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
     try { lldNavApply(); } catch (e) { }
+    try { if (window.lldTdSync) window.lldTdSync(); } catch (e) { }
     try { lldApplyHdrMode(b && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); } catch (e) { }
     try { lldHd2Render(); } catch (e) { }
     try { lldShRender(); } catch (e) { }
@@ -13447,7 +13453,7 @@ function lldBetaHtml() {
         ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
         <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}` : ''}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
@@ -20713,8 +20719,92 @@ function lldQuickInit() {
     const s = document.querySelector('.open-settings-btn');
     if (s) s.insertAdjacentHTML('beforebegin', btn); else $('.header-right-controls').prepend(btn);
 }
+// ===== TO-DO LIST (beta, commissioner franchises only): lineup problems, trades and one-time setup in one place =====
+function lldTdOn() { try { return lldDev() && lldBv('tdo') === '1'; } catch (e) { return false; } }
+const LLD_TD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="height:20px;width:20px;"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>';
+function lldTdSkipKey(k) { return 'lld_td_skip_' + lid + '_' + myFid + '_' + k; }
+function lldTdSkipped(k) { return lldGet(lldTdSkipKey(k), '') === '1'; }
+function lldTdItems() {
+    const e = lldChatEsc, out = [], lu = window._lldTdLu, A = window._lldTdA || {}, me = String(myFid).padStart(4, '0');
+    if (lu && String(lu.fid).padStart(4, '0') === me) {
+        if (lu.block || lu.irNames.length) out.push({ k: 'iro', g: 'now', t: 'red', ic: '!', h: lu.irNames.length ? 'IR violation: ' + lu.irNames.join(', ') + (lu.irNames.length > 1 ? ' are' : ' is') + ' not IR-eligible' : 'IR violation', p: lu.block ? lu.block : 'MFL will not accept a lineup until this is fixed. Activate them or swap in someone who is eligible.', b: 'Fix IR', a: 'lineup' });
+        if (lu.noRep.length) out.push({ k: 'zero', g: 'now', t: 'amber', ic: '0', h: lu.noRep.join(', ') + (lu.noRep.length > 1 ? ' are' : ' is') + ' projected for 0 with no bench replacement', p: 'Still in your lineup. No one on your bench can fill ' + (lu.noRep.length > 1 ? 'those slots.' : 'that slot.'), b: 'View lineup', a: 'lineup' });
+        if (lu.empty > 0 && !lu.block) out.push({ k: 'lu', g: 'now', t: 'amber', ic: String(lu.week || '!'), h: 'Set your' + (lu.week ? ' Week ' + lu.week : '') + ' lineup', p: lu.empty + ' starting slot' + (lu.empty > 1 ? 's are' : ' is') + ' empty.', b: 'Set lineup', a: 'lineup' });
+    }
+    if (A.offers > 0) out.push({ k: 'off', g: 'tr', t: 'blue', ic: String(A.offers), h: A.offers + ' trade offer' + (A.offers > 1 ? 's' : '') + ' waiting for you', p: 'Accept, reject or counter them.', b: 'Review offers', a: 'trades-mkt' });
+    if (A.respond > 0 && !lldTdSkipped('resp')) out.push({ k: 'resp', g: 'tr', t: 'blue', ic: '⇄', h: 'Respond to the trade block', p: A.respond + ' player' + (A.respond > 1 ? 's' : '') + ' on other teams’ blocks you haven’t answered. Mark Interested, Not interested or Maybe.', b: 'Respond', a: 'trades-mkt', skip: true });
+    const set = [];
+    if (!lldGet('lld_style', '') && !lldGet('lld_theme', '')) set.push({ k: 'th', g: 'set', t: 'blue', ic: '1', h: 'Pick a theme', p: 'Choose how your whole dashboard looks.', b: 'Choose theme', a: 'theme', skip: true });
+    let lg = false; try { for (let i = 0; i < localStorage.length; i++) if (/^nfl_logo_style/.test(localStorage.key(i))) lg = true; } catch (x) { }
+    if (!lg) set.push({ k: 'lg', g: 'set', t: 'blue', ic: '2', h: 'Modern or Throwback logos', p: 'Pick the logo style for the NFL teams.', b: 'Choose logos', a: 'theme', skip: true });
+    if (A.loaded && !A.stadium) set.push({ k: 'st', g: 'set', t: 'blue', ic: '3', h: 'Name your stadium', p: 'Your home field shows up on your team card and in matchups.', b: 'Name it', a: 'stadium', skip: true });
+    if (A.loaded && !A.block) set.push({ k: 'tb', g: 'set', t: 'blue', ic: '4', h: 'Edit your trade block', p: 'Tell the league who you’re shopping.', b: 'Edit block', a: 'trades-mine', skip: true });
+    set.forEach(x => out.push(x));
+    return out.filter(x => !(x.skip && lldTdSkipped(x.k)));
+}
+function lldTdSync() {
+    const on = lldTdOn(), have = document.getElementById('lld-td-btn');
+    if (!on) { if (have) have.remove(); $('#lld-td').remove(); return; }
+    if (!have) { const s = document.querySelector('.open-settings-btn'), b = `<button id="lld-td-btn" aria-label="To-do list" style="position:relative; background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_TD_ICON}<span class="td-bd"></span></button>`; if (s) s.insertAdjacentHTML('beforebegin', b); else $('.header-right-controls').prepend(b); lldTdLoadAsync(); }
+    lldTdRefresh();
+}
+function lldTdRefresh() {
+    if (!lldTdOn()) return;
+    const n = lldTdItems().length, bd = document.querySelector('#lld-td-btn .td-bd');
+    if (bd) { bd.textContent = n ? String(n) : ''; bd.style.display = n ? 'flex' : 'none'; }
+    if (document.getElementById('lld-td')) lldTdDraw();
+}
+function lldTdInit() { lldTdSync(); if (!window._lldTdIv) window._lldTdIv = setInterval(() => { if (lldTdOn()) lldTdLoadAsync(); }, 300000); }
+window.lldTdSync = lldTdSync; window.lldTdRefresh = lldTdRefresh;
+async function lldTdLoadAsync(force) {
+    if (!lldTdOn() || window._lldTdBusy) return;
+    if (!force && window._lldTdA && Date.now() - window._lldTdA.t < 120000) return;
+    window._lldTdBusy = true;
+    const me = String(myFid).padStart(4, '0'), A = { t: Date.now(), loaded: true, offers: 0, respond: 0, stadium: '', block: false };
+    try {
+        const pd = await lldChatJson('TYPE=pendingTrades');
+        A.offers = lldChatArr(pd && pd.pendingTrades && pd.pendingTrades.pendingTrade).filter(o => String(o.offeredto || o.offeredTo || '').padStart(4, '0') === me).length;
+    } catch (e) { }
+    try {
+        const tb = await lldTbLoad(), ti = await lldTiLoad(), bt = await lldTbBaits().catch(() => ({}));
+        const mine = (tb.by[me] && Object.keys(tb.by[me].p || {}).length) || ((bt[me] && bt[me].give) || []).length;
+        A.block = !!mine;
+        const my = (ti.by && ti.by[me]) || {};
+        Object.keys(tb.by).forEach(f => { if (f === me) return; Object.keys((tb.by[f] && tb.by[f].p) || {}).forEach(pid => { if (lldTbParseLabel(tb.by[f].p[pid]).s === 'S' && !my[pid]) A.respond++; }); });
+    } catch (e) { A.block = true; /* could not tell: do not nag */ }
+    try {
+        const sk = 'lld_td_stad_' + lid + '_' + me; A.stadium = lldGet(sk, '');
+        if (!A.stadium) {
+            const r2 = await fetch(`${MFL_ORIGIN}/${year}/csetup?L=${lid}&FRANCHISES=${myFid}&C=FCUSTOM`, { credentials: 'include', cache: 'no-store' });
+            const d2 = new DOMParser().parseFromString(await r2.text(), 'text/html'), el = d2.querySelector('#FRANCHISE_STADIUM' + myFid);
+            if (el) { A.stadium = (el.value || '').trim(); if (A.stadium) lldSet(sk, A.stadium); } else A.stadium = 'unknown'; // page not readable: do not nag
+        }
+    } catch (e) { A.stadium = 'unknown'; }
+    window._lldTdA = A; window._lldTdBusy = false; lldTdRefresh();
+}
+function lldTdDraw() {
+    const it = lldTdItems(), e = lldChatEsc, grp = (g, t) => { const a = it.filter(x => x.g === g); return a.length ? `<div class="td-sl"><span>${t}</span><span>${a.length}</span></div>` + a.map(x => `<div class="td-it ${x.t}"><div class="td-dot">${e(x.ic)}</div><div class="td-tx"><b>${e(x.h)}</b><p>${e(x.p)}</p>${x.skip ? `<button type="button" class="td-skip" data-k="${x.k}">Not for me</button>` : ''}</div><button type="button" class="td-go" data-a="${x.a}">${e(x.b)}</button></div>`).join('') : ''; };
+    const body = it.length ? grp('now', 'Needs attention now') + grp('tr', 'Trades') + grp('set', 'One-time setup') : '<div class="td-ok"><b>You’re all set ✅</b><span>Nothing needs your attention right now.</span></div>';
+    $('#lld-td .td-card').html(`<div class="td-hd"><b>To-do list</b><span>${it.length ? it.length + ' to do' : 'All caught up'}</span><button type="button" class="td-x" aria-label="Close">✕</button></div><div class="td-body">${body}</div>`);
+}
+function lldTdOpen() {
+    if (document.getElementById('lld-td')) { $('#lld-td').remove(); return; }
+    $('body').append('<div id="lld-td"><div class="td-card"></div></div>'); lldTdDraw(); lldTdLoadAsync(true);
+}
+$(document).on('click', '#lld-td-btn', lldTdOpen);
+$(document).on('click', '#lld-td .td-x', () => $('#lld-td').remove());
+$(document).on('click', '#lld-td', function (ev) { if (ev.target === this) $('#lld-td').remove(); });
+$(document).on('click', '#lld-td .td-skip', function () { lldSet(lldTdSkipKey(this.dataset.k), '1'); lldTdRefresh(); });
+$(document).on('click', '#lld-td .td-go', function () {
+    const a = this.dataset.a; $('#lld-td').remove();
+    if (a === 'lineup') { $('.tab-btn').filter(function () { return /tab-team/.test($(this).attr('onclick') || ''); }).first().trigger('click'); setTimeout(() => $('#subtabs-team .sub-tab-btn').filter(function () { return $(this).text().trim().toLowerCase() === 'lineup'; }).first().trigger('click'), 150); setTimeout(() => { const n = document.getElementById('lineup-notifications'); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 900); }
+    else if (a === 'theme') { if (!document.getElementById('lld-qt')) lldQtOpen(); }
+    else if (a === 'stadium') { $('.open-settings-btn').first().trigger('click'); setTimeout(() => { const el = document.getElementById('ts-stadium'); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }, 1500); }
+    else if (a === 'trades-mkt' || a === 'trades-mine') { window._tbX = { view: a === 'trades-mine' ? 'mine' : 'mkt' }; lldGoLeagueSub('Trades'); }
+});
 function lldChatInit() {
     try { lldQuickInit(); } catch (e) { }
+    try { lldTdInit(); } catch (e) { }
     if (!myFid || document.getElementById('lld-chat-btn')) return; // every signed-in owner gets the message board
     const btn = `<button id="lld-chat-btn" aria-label="Message board" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_CHAT_ICON}</button>`;
     const s = document.querySelector('.open-settings-btn');
