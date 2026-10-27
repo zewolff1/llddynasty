@@ -22,7 +22,7 @@
     window._lldLdrDone = finish;
 })();
 // (moved to the top: these are read while the page is still being built)
-const HIDE_DRAFT_TAB = 'offseason';
+const HIDE_DRAFT_TAB = 'inseason'; // the Draft tab only exists while Free Agency Mode is Offseason
 const LLD_TUNE = [
     ['Team logo watermark', [['wms', 'Size', 40, 260, 108, 'px'], ['wmx', 'Left / right', -100, 220, 14, 'px'], ['wmy', 'Up / down', 0, 100, 50, '%'], ['wmo', 'Strength', 2, 70, 17, '%'], ['wmb', 'Blur', 0, 8, 0, 'px'], ['wmf', 'Fade toward right', 0, 100, 0, '%'], ['wmbr', 'Brightness', 30, 250, 100, '%'], ['wmg', 'Grayscale', 0, 100, 0, '%'], ['wmr', 'Tilt', -45, 45, 0, 'deg']]],
     ['Player row', [['hs', 'Headshot size', 24, 70, 30, 'px'], ['nm', 'Name size', 10, 22, 15, 'px'], ['tn', 'Small logo by name', 0, 36, 16, 'px'], ['pad', 'Row height (padding)', 2, 22, 8, 'px'], ['edge', 'Colored left edge', 0, 8, 3, 'px']]],
@@ -1367,7 +1367,7 @@ let playerFilters = { years: [1, 5], salary: [0, 200], guar: [0, 100], capHit: [
 let playerFiltersActive = false;
 let playerFilterPanelOpen = false;
     let lineupSortBy = 'proj';  
-window.offseasonMode = true;  
+window.offseasonMode = (function () { try { return localStorage.getItem('fa_mode_' + lid) !== 'false'; } catch (e) { return true; } })(); // start from the last saved mode so the tab is right on the first paint
 window.applyDraftTabVisibility = function() {
     // Draft tab only exists in the offseason; hide it while in-season mode is on
     $('[onclick*="tab-draft"]').css('display', window.offseasonMode ? '' : 'none');
@@ -1709,6 +1709,16 @@ function parseStandingsDoc(doc) {
 
 // "Next" = each team's first matchup in a week AFTER the latest week that has any scores/results.
 // Doesn't depend on a "current week" lookup. Double-header weeks list both opponents.
+// The week a lineup should be set for: the week MFL served, unless every NFL game that week is over (then the next one), or the schedule says the next matchup is later.
+async function lldLineupTarget(w, f) {
+    let t = w;
+    try {
+        const sch = await fetchNflScheduleForWeek(w), now = Date.now(), es = Object.keys(sch || {}).map(k => sch[k]).filter(e => e && (e.opp || e.kickoffMs));
+        if (es.length && es.every(e => (e.gsr !== null && e.gsr !== undefined && !isNaN(e.gsr)) ? e.gsr <= 0 : (e.kickoffMs && now > e.kickoffMs + 4.5 * 3600 * 1000))) t = w + 1;
+    } catch (e) { }
+    try { const nx = window._nextOpp && window._nextOpp[f]; if (nx && nx.week > t) t = nx.week; } catch (e) { }
+    return Math.min(t, 18);
+}
 async function loadNextOpponents() {
     window._nextOpp = {};
     try {
@@ -4381,6 +4391,22 @@ const responses = await Promise.all(fetches);
         
         const html = await responses[0].text();
 currentDoc = new DOMParser().parseFromString(html, 'text/html');
+        window._lldLineupWeek = '';
+        if (activeSub.includes('lineup')) {
+            // MFL can keep serving LAST week's lineup page after the games are over, which locks everybody. Find the real upcoming week and load that one.
+            try {
+                const dw = parseInt((currentDoc.querySelector('input[name="W"], select[name="W"]') || {}).value, 10);
+                if (dw) {
+                    const tw = await lldLineupTarget(dw, fid);
+                    window._lldLineupWeek = String(dw);
+                    if (tw > dw) {
+                        const r2 = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&W=${tw}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                        const d2 = new DOMParser().parseFromString(await r2.text(), 'text/html');
+                        if (d2.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow') && !(d2.title || '').toLowerCase().includes('error')) { currentDoc = d2; window._lldLineupWeek = String(tw); }
+                    }
+                }
+            } catch (e) { console.warn('lineup week check', e); }
+        }
         if (activeSub.includes('lineup')) {
             console.log('[opt] table.report count on lineup page:', currentDoc.querySelectorAll('table.report').length);
             currentDoc.querySelectorAll('table.report').forEach((t, i) => { if (i > 0) t.remove(); });
@@ -6074,13 +6100,13 @@ function getBestBenchOption(slot) {
         let err = '';
         try {
             const form = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
-            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
+            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&W=' + window._lldLineupWeek : ''}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
             const txt = await r.text();
             if (!r.ok) err = 'MFL answered ' + r.status;
             else if (/<error[^>]*>|class="error"|lineup.{0,40}(locked|not allowed|cannot)/i.test(txt)) err = (typeof lldMflError === 'function' ? lldMflError(txt) : 'MFL rejected the lineup');
             if (!err) {
                 // prove it: read the lineup back from MFL and compare
-                const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&W=' + window._lldLineupWeek : ''}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
                 const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
                 const got = new Set(Array.from(doc.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).filter(v => !irPids.has(v) && !taxiPids.has(v)));
                 const miss = want.filter(v => !got.has(v)), extra = [...got].filter(v => !want.includes(v));
@@ -6880,7 +6906,7 @@ let isConfirming = false;
                 payloadData = params.toString();
                 
             } else {
-                submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
+                submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&W=' + window._lldLineupWeek : ''}`;
                 const normalForm = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
                 payloadData = lldWithComment($(normalForm).serialize() + '&submit=Submit%20Lineup'); 
             }
@@ -12172,7 +12198,7 @@ function classifyGameStatusText(text) {
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
-function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); return p.toString(); }
+function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) p.set('W', window._lldLineupWeek); return p.toString(); }
 function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
@@ -19808,6 +19834,21 @@ async function lldChatLoadActivity() {
     ]);
     const offers = lldChatArr(pd && pd.pendingTrades && pd.pendingTrades.pendingTrade);
     const tx = lldChatArr(txd && txd.transactions && txd.transactions.transaction);
+    // Logged in as an owner, MFL may hand back only your own moves. When nobody else shows up, ask for each team's moves one by one and merge them (kept for a few minutes).
+    try {
+        const me0 = String(myFid).padStart(4, '0');
+        if (!tx.some(t => String(t.franchise || '').padStart(4, '0') !== me0)) {
+            const key = t => [t.timestamp, t.type, t.franchise, t.transaction].join('|');
+            if (!window._lldChatTxExtra || Date.now() - window._lldChatTxExtra.t > 300000) {
+                const fl = Object.keys(leagueFranchises || {}).map(f => String(f).padStart(4, '0')).filter(f => f !== me0 && f !== '0000' && /^\d{4}$/.test(f));
+                const rs = await Promise.all(fl.map(f => lldChatJson('TYPE=transactions&COUNT=15&FRANCHISE=' + f).catch(() => null)));
+                const extra = []; rs.forEach(r => lldChatArr(r && r.transactions && r.transactions.transaction).forEach(t => extra.push(t)));
+                window._lldChatTxExtra = { t: Date.now(), list: extra };
+            }
+            const have = new Set(tx.map(key));
+            window._lldChatTxExtra.list.forEach(t => { const k = key(t); if (!have.has(k)) { have.add(k); tx.push(t); } });
+        }
+    } catch (e) { console.warn('chat tx merge', e); }
     const baits = lldChatArr(bd && bd.tradeBaits && bd.tradeBaits.tradeBait);
     const ids = new Set();
     const pid = i => { const m = String(i).trim().match(/^(\d{3,6})(?:_.*)?$/); return m ? m[1] : null; };
