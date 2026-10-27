@@ -12979,7 +12979,7 @@ function lldTplRow(data, opts) {
     const rc = (!opts.ownerHtml && opts.rightContent) ? opts.rightContent : '';
     let left = '', rightExtra = '';
     if (F.left === 'pos') left = opts.leftContent || '';
-    else if (F.left === 'plus' || F.left === 'add') { left = rc || opts.leftContent || ''; }
+    else if (F.left === 'plus' || F.left === 'add') { left = opts.leftContent || rc || ''; } // the Add / Offer / Bid button is passed as leftContent; rc is only the badge wrapper
     else { left = opts.leftContent || (/<button/.test(rc) ? rc : ''); }
     if (rc && rc !== left && !/<button/.test(rc)) rightExtra = rc;
     // name line
@@ -20468,7 +20468,7 @@ async function lldTbLoad(force) {
     }
     try { // this device's own last save covers MFL not returning it (newer wins)
         const me = String(myFid).padStart(4, '0'), L = JSON.parse(localStorage.getItem('lld_tbloc_' + lid + '_' + me) || 'null');
-        if (L && L.ms && (!by[me] || L.ms > by[me].ms)) by[me] = { ms: L.ms, m: L.m || '', p: L.p || {} };
+        if (L && L.ms && (!by[me] || L.ms + 600000 > by[me].ms)) by[me] = { ms: L.ms, m: L.m || '', p: L.p || {} };
     } catch (e) { }
     const d = { by, tid: th.length ? th[th.length - 1].id : null };
     window._lldTb = { t: Date.now(), d }; return d;
@@ -20527,7 +20527,7 @@ async function lldTiLoad(force, raw) {
     }
     if (!raw) try {
         const me = String(myFid).padStart(4, '0'), L = JSON.parse(localStorage.getItem('lld_tiloc_' + lid + '_' + me) || 'null');
-        if (L && L.ms && (!ms[me] || L.ms > ms[me])) by[me] = L.p || {};
+        if (L && L.ms && (!ms[me] || L.ms + 600000 > ms[me])) by[me] = L.p || {};
     } catch (e) { }
     const d = { by, tid: th.length ? th[th.length - 1].id : null };
     if (!raw) window._lldTi = { t: Date.now(), d }; return d;
