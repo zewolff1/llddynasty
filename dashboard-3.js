@@ -4938,6 +4938,11 @@ function buildInactiveRow(p) {
                 return b.proj - a.proj; 
             });
             let benchBuffer = benchPlayers.map(p => p.html).join('');
+            if (window._lldLineupBlock) { // IR problem: show only the IR players and the players who could go to IR
+                const all = starterPlayers.map(p => ({ pid: p.pid, html: p.build('BN') })).concat(benchPlayers.map(p => ({ pid: p.pid, html: p.html })), (typeof rosterPlayers !== 'undefined' ? rosterPlayers : []).map(p => ({ pid: p.pid, html: p.html })));
+                const irSet = new Set((irPlayers || []).map(p => String(p.pid))), seen = new Set();
+                benchBuffer = all.filter(x => { if (seen.has(String(x.pid))) return false; seen.add(String(x.pid)); const i = injuryMap[x.pid], t = i ? String(i.text || '').trim().toUpperCase() : ''; return t && t !== 'Q' && t !== 'P' && !irSet.has(String(x.pid)); }).map(x => x.html).join('') || '<div class="empty-inactive-text">No one else on your roster is eligible for IR</div>';
+            }
 
             let starterHtml = ''; const assigned = new Set();
             const __sm = lldSlotModel();
@@ -4996,6 +5001,16 @@ container.append(`<div id="lineup-notifications"></div>
                     <div class="roster-grid">${taxiBuffer || '<div class="empty-inactive-text">No players on Taxi Squad</div>'}</div>
                 </div>`);
         try { lldInitField(); } catch (e) {}
+        document.body.classList.toggle('lld-irfix', !!window._lldLineupBlock);
+        if (window._lldLineupBlock) {
+            try {
+                $('.lineup-section[data-section="ir"]').insertBefore('.sticky-block[data-block="bench"]');
+                $('.lineup-section[data-section="ir"] .section-header').text('On IR — activate someone to fix it');
+                $('.sticky-block[data-block="bench"] .lineup-section').prepend('<h3 class="section-header">Eligible for IR — move one to IR</h3>');
+                const bad = lldIrIneligible(); const nm = new Set((irPlayers || []).filter(p => bad.names.indexOf(p.shortName || p.name) >= 0).map(p => String(p.pid)));
+                $('.lineup-section[data-section="ir"] .player-row[data-pid]').each(function () { if (nm.has(String($(this).attr('data-pid')))) $(this).addClass('lld-ir-bad'); });
+            } catch (e) { console.warn('irfix', e); }
+        } else document.body.classList.remove('lld-irfix');
         } else {
             // NEW: Append Picks to Roster view
             let rosterBuffer = buildGroupedHTML(rosterPlayers, activeSub);
@@ -13526,16 +13541,16 @@ function lldWeekBar() {
     if (bar.getAttribute('data-h') !== html) { bar.setAttribute('data-h', html); bar.innerHTML = html; }
 }
 // go to a week: already played -> recap; this week or later -> that week's lineup
-async function lldWkGo(w) {
+async function lldWkGo(w, arrow) {
     w = Math.max(1, Math.min(18, w)); $('#lld-wkpick').remove();
     const ew = (await lldCurWeek()) || parseInt(window._lldEffWeek, 10) || 0;
-    if (ew && w < ew) { lldOpenStory('recap', w, 0, false); return; }
+    if (ew && w < ew && !arrow) { lldOpenStory('recap', w, 0, false); return; }
     window._lldWeekPick = String(w); window._lldWeekMsg = ''; $('#lld-wkbar').remove();
     window._teamDataDirty = true; loadTeamData();
 }
 $(document).on('click', '#lld-wkbar .lld-wk-b', function () {
     const w = parseInt(window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
-    lldWkGo(w + parseInt(this.getAttribute('data-d'), 10));
+    lldWkGo(w + parseInt(this.getAttribute('data-d'), 10), true);
 });
 $(document).on('click', '#lld-wkbar .lld-wk-t', async function () {
     if ($('#lld-wkpick').length) { $('#lld-wkpick').remove(); return; }
