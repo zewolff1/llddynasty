@@ -936,13 +936,14 @@ function lldStatsViews(S) {
         S.order((a, b) => S.base[a].rk - S.base[b].rk).forEach(t => { const nowR = S.standing.indexOf(t) + 1, pr = Math.round(S.base[t].rk), d = nowR - pr; h += `<tr${t === mi ? ' class="me"' : ''} data-pg="${t}" style="cursor:pointer"><td class="tm">${nm(t)} <span class="sub" style="display:inline">›</span></td><td>#${nowR}</td><td>${Math.round(S.base[t].w)}-${S.totG[t] - Math.round(S.base[t].w)}</td><td>#${pr} <span class="${d > 0 ? 'good' : d < 0 ? 'bad' : ''}" style="font-size:calc(11px * var(--ts,1))">${d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : ''}</span></td><td>${S.base[t].po}%</td></tr>`; });
         return h + '</table></div><div class="sub">Simulates the remaining weeks from current records, scoring and projected lineups. Arrows show movement from today’s standing. Tap a team to see every projected matchup behind its number.</div>';
     }
+const cvTab = scope => () => '<div class="sx-cv" data-scope="' + scope + '"><div class="sub" style="padding:20px 10px;text-align:center">Loading contracts…</div></div>';
     return {
         helpFor, faSheet,
         playerHtml,
         team: lldSstOn()
-            ? [['Overview', tOverview], ['Positions', tPositions], ['Players', () => lldSstPlayers(S, { POS, f1, esc, attr, llsLbl, mean: llsMean })], ['Start / Sit', tStartSit], ['Awards', tAwards], ['Free agents', tFA]]
-            : [['Overview', tOverview], ['Positions', tPositions], ['Boom / Bust', tBoom], ['Start / Sit', tStartSit], ['Value', tValue], ['Outlook', tOutlook], ['Awards', tAwards], ['Free agents', tFA]],
-        league: [['Standings', lStandings], ['Playoffs', lPlayoffs], ['Positions', lPositions], ['Awards', lAwards], ['Players', lPlayers], ['Lineups', lLineups], ['Projected', lProjected]]
+            ? [['Overview', tOverview], ['Positions', tPositions], ['Players', () => lldSstPlayers(S, { POS, f1, esc, attr, llsLbl, mean: llsMean })], ['Start / Sit', tStartSit], ['Contracts', cvTab('team')], ['Awards', tAwards], ['Free agents', tFA]]
+            : [['Overview', tOverview], ['Positions', tPositions], ['Boom / Bust', tBoom], ['Start / Sit', tStartSit], ['Value', tValue], ['Contracts', cvTab('team')], ['Outlook', tOutlook], ['Awards', tAwards], ['Free agents', tFA]],
+        league: [['Standings', lStandings], ['Playoffs', lPlayoffs], ['Positions', lPositions], ['Awards', lAwards], ['Contracts', cvTab('league')], ['Players', lPlayers], ['Lineups', lLineups], ['Projected', lProjected]]
     };
 }
 function lldStatsBuild(D) { return lldStatsExtend(lldStatsCompute(D)); }
@@ -5223,12 +5224,7 @@ const sal = p.salary || 0;
             <span class="pill-label">YEAR ${window._yearSelectorOpen ? '▲' : '▼'}</span>
             <span class="pill-value" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-blue);">${selectedYear}</span>
         </div>
-        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#3b82f6;"><span class="pill-label">ROSTER</span><span class="pill-value">${totalPlayers}/${LINEUP_RULES.rosterLimit}</span></div>
-        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#ef4444;"><span class="pill-label">IR</span><span class="pill-value">${totalIR}/${LLD.irSlots}</span></div>
-        <div class="dashboard-pill stacked-pill" style="min-width:45px; border-bottom-color:#f59e0b;"><span class="pill-label">TAXI</span><span class="pill-value">${totalTaxi}/${LLD.taxiSlots}</span></div>
-        ${lldPosPills()
-            .map(p => `<div class="dashboard-pill stacked-pill stat-${p.l.toLowerCase()} ${(posCounts[p.l]||0) < p.min ? 'status-empty' : ''}"><span class="pill-label">${p.l}</span><span class="pill-value">${posCounts[p.l]||0}/${p.min}</span></div>`).join('')}
-    </div>
+            </div>
     ${window._yearSelectorOpen ? `<div class="dashboard-row overflow-row" style="padding-bottom:10px;">
         ${(window._capYears || []).map(y => {
             const isActive = parseInt(y) === selectedYear;
@@ -12355,7 +12351,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { p.set('W', window._lldLineupWeek); p.set('WEEK', window._lldLineupWeek); } return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
@@ -13484,7 +13480,7 @@ function lldBetaHtml() {
         ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
         <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}${lab('Faster loading: show the roster right away and fill in ranks, salaries and averages as they arrive (each part shows its own small loader)')}${onoff('pel')}` : ''}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
@@ -16397,7 +16393,7 @@ function buildLiveNowHtml(t1, t2, pm) {
     const tiles = l1.map(p => chip(p, cols[0])).concat(l2.map(p => chip(p, cols[1]))).join('');
     const sortBtn = (key, label) => `<button class="live-sort-btn" data-sort="${key}" style="padding:4px 8px; border-radius:6px; font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; letter-spacing:0.4px; cursor:pointer; border:1px solid ${mode === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${mode === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${mode === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
     const total = l1.length + l2.length;
-    const sbCur = lldGet('lld_sb', 'theme'), sbOpen = lldGet('lld_sbopen', '') === '1';
+    const sbCur = lldGet('lld_sb', 'theme'), sbOpen = !!window._lldSbOpen; // closed every time the page loads; opens only when tapped
     const sbChip = (v, l) => `<button type="button" class="lld-sb-btn lld-sbchip ${sbCur === v ? 'on' : ''}" data-v="${v}">${l}</button>`;
     const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}</div><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${LLD_SB_LAYOUTS.map(x => sbChip(x[0], x[1])).join('')}<button type="button" class="lld-sbtint-btn lld-sbchip ${lldGet('lld_sbtint', '') === '1' ? 'on' : ''}">Theme colors</button></div></div>`;
     return `<div id="live-now-strip" style="margin:0 0 12px;">
@@ -19955,6 +19951,24 @@ $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
+const lldPel = lldDev() && lldBv('pel') === '1';
+if (lldPel) {
+    document.body.classList.add('lld-pel-busy');
+    fetchFranchises()
+        .then(() => { try { if (document.getElementById('lld-ticker')) lldFillTicker(null); } catch (e) { } })
+        .then(() => {
+            applyTeamTheme(myFid, true);
+            refreshTeamInfoPanel();
+            const bg = Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()].map(p => Promise.resolve(p).catch(() => null)))
+                .then(() => checkCompletedAuctions()).catch(() => { });
+            const first = loadTeamData();
+            bg.then(() => first).then(() => { document.body.classList.remove('lld-pel-busy'); try { refreshTeamInfoPanel(); window._teamDataDirty = false; renderActiveTab(); } catch (e) { console.warn('pel', e); } });
+            setTimeout(() => document.body.classList.remove('lld-pel-busy'), 20000);
+            return first;
+        })
+        .then(() => { try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
+        .then(() => { try { lldStatsEnsureTabs(); setTimeout(lldStatsEnsureTabs, 1500); setTimeout(lldStatsEnsureTabs, 4000); } catch (e) { console.warn('stats tabs', e); } });
+} else
 fetchFranchises()
     .then(() => { const st = LLD_STYLES[lldEffStyle()]; if (document.getElementById('lld-ticker')) lldFillTicker(null); })
     .then(() => Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()]))
@@ -19993,7 +20007,7 @@ $(document).on('click', '.lld-sbopt-toggle', function () {
     const chips = $(this).siblings('.lld-sbchips');
     const open = chips.prop('hidden');
     chips.prop('hidden', !open);
-    lldSet('lld_sbopen', open ? '1' : '0');
+    window._lldSbOpen = !!open;
 });
 // ===== MESSAGE BOARD (Sleeper-style, read-only) — inside the wrapper so it can use lid/year/myFid/leagueFranchises =====
 const LLD_CHAT_FIDS = ['0001', '0000'];
@@ -21120,8 +21134,53 @@ async function lldStatsEnsurePlayer(S, pid) {
     await lldSxPlayers(D, [pid]);
     await lldSxBatch(D.weeks.map(w => w.wk), 4, async wk => { const ps = await lldSxJson('playerScores', '&W=' + wk + '&PLAYERS=' + pid); D.faScores[wk] = D.faScores[wk] || {}; lldSxArr(ps && ps.playerScores && ps.playerScores.playerScore).forEach(p => { D.faScores[wk][p.id] = parseFloat(p.score) || 0; }); });
 }
+// ===== Contract value: salary rank at a position vs scoring rank at that position =====
+window._lldCvMode = window._lldCvMode || 'spots';
+function lldCvFill(el) {
+    const S = window._lldSX && window._lldSX.S; if (!S) return;
+    const scope = el.dataset.scope, mode = window._lldCvMode;
+    const vf = (typeof fid !== 'undefined' && fid) ? String(fid).padStart(4, '0') : S.me;
+    const who = scope === 'team' ? (S.F.indexOf(vf) >= 0 ? vf : S.me) : null;
+    lldTbContracts().then(m => {
+        const esc = t => $('<i>').text(t == null ? '' : t).html();
+        const rows = [];
+        Object.keys(m).forEach(pid => {
+            const c = m[pid], p = S.pl[pid]; if (!p || !c.sal) return;
+            const g = p.g.filter(x => x != null); if (g.length < Math.min(3, S.W)) return;
+            rows.push({ pid, pos: p.pos, name: p.name, own: c.own, sal: c.sal, yrs: c.yrs || 0, gu: c.gu, pts: g.reduce((a, b) => a + b, 0) });
+        });
+        if (!rows.length) { el.innerHTML = '<div class="sub" style="padding:24px 10px;text-align:center">No contract data yet.</div>'; return; }
+        const byPos = {};
+        rows.forEach(r => (byPos[r.pos] = byPos[r.pos] || []).push(r));
+        Object.keys(byPos).forEach(pos => {
+            const a = byPos[pos];
+            a.slice().sort((x, y) => y.sal - x.sal).forEach((r, i) => r.cr = i + 1);
+            a.slice().sort((x, y) => y.pts - x.pts).forEach((r, i) => r.pr = i + 1);
+        });
+        rows.forEach(r => { r.gap = r.cr - r.pr; r.score = mode === 'years' ? r.gap * Math.max(1, r.yrs) : r.gap; });
+        let list = who ? rows.filter(r => r.own === who) : rows;
+        if (!list.length) { el.innerHTML = '<div class="sub" style="padding:24px 10px;text-align:center">No contract data for this team.</div>'; return; }
+        const card = r => {
+            const tag = r.yrs >= 3 ? '<span class="cv-t">' + r.yrs + ' yrs left</span>' : (r.yrs <= 1 ? '<span class="cv-t cv-x">expiring</span>' : '<span class="cv-t">' + r.yrs + ' yrs left</span>');
+            const own = who ? '' : ' · ' + esc((S.D.names[r.own] || r.own));
+            return '<div class="cv-r sx-pr player-modal-trigger" data-pid="' + esc(r.pid) + '" data-name="' + esc(r.name) + '" data-pos="' + esc(r.pos) + '"><div class="cv-n"><b>' + esc(r.name) + '</b><span>' + esc(r.pos) + own + '</span></div>'
+                + '<div class="cv-m">Paid ' + esc(r.pos) + ' #' + r.cr + ' · producing ' + esc(r.pos) + ' #' + r.pr + '<br><i>$' + r.sal.toFixed(1) + 'M · ' + tag + (r.gu != null ? ' · ' + Math.round(r.gu) + '% GTD' : '') + '</i></div>'
+                + '<div class="cv-s ' + (r.score >= 0 ? 'up' : 'dn') + '">' + (r.score > 0 ? '+' : '') + r.score + '</div></div>';
+        };
+        const sorted = list.slice().sort((a, b) => b.score - a.score || b.pts - a.pts);
+        const n = Math.min(8, Math.floor(sorted.length / 2) || sorted.length);
+        const best = sorted.slice(0, n), worst = sorted.slice().reverse().slice(0, n);
+        const unit = mode === 'years' ? 'spots × years left' : 'spots';
+        el.innerHTML = '<div class="cv-bar"><button class="cv-b' + (mode === 'spots' ? ' on' : '') + '" data-m="spots">Spots beaten</button><button class="cv-b' + (mode === 'years' ? ' on' : '') + '" data-m="years">Spots × years left</button></div>'
+            + '<div class="cv-h up">Most valuable</div>' + best.map(card).join('')
+            + '<div class="cv-h dn">Least valuable</div>' + worst.map(card).join('')
+            + '<div class="sub" style="margin-top:8px">Score = position rank by salary minus position rank by points this season (' + unit + '). Positive means he out-produces what he is paid. Only players with a contract and at least 3 games played.</div>';
+    }).catch(() => { el.innerHTML = '<div class="sub" style="padding:24px 10px;text-align:center">Could not load contracts.</div>'; });
+}
+$(document).on('click', '.sx-cv .cv-b', function (e) { e.stopPropagation(); window._lldCvMode = this.dataset.m; $(this).closest('.sx-cv').each(function () { lldCvFill(this); }); });
 function lldStatsWire(root) {
     root = root || $('.lld-stats').first();
+    root.find('.sx-cv').each(function () { lldCvFill(this); });
     const vw = window._lldSXv;
     // a box that has its own worked explanation (with this team's numbers) wins over the generic text
     const give = (el, label) => {
