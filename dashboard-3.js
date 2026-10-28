@@ -5298,12 +5298,12 @@ function updateSectionCounts(activeSub) {
                const coreOff = Math.min(qb, 1) + Math.min(rb, 2) + Math.min(wr, 2) + Math.min(te, 1);
 const totalOff = qb + rb + wr + te;
         const extraOff = Math.max(0, totalOff - coreOff);
-        const sflex = Math.min(2, extraOff);
-        const flex = Math.min(2, Math.max(0, extraOff - sflex));
+        const sflex = Math.min(1, extraOff);
+        const flex = Math.min(3, Math.max(0, extraOff - sflex));
         const idpFlex = Math.max(0, (dl + lb + db) - (Math.min(dl,1)+Math.min(lb,1)+Math.min(db,1)));
 
        const __sm2 = lldSlotModel();
-       const stats = [{l:'QB',c:qb,r:1}, {l:'RB',c:rb,r:2}, {l:'WR',c:wr,r:2}, {l:'TE',c:te,r:1}, {l:'SFLEX',c:sflex,r:2}, {l:'FLEX',c:flex,r:2}, {l:'DL',c:dl,r:1}, {l:'LB',c:lb,r:1}, {l:'DB',c:db,r:1}, {l:'IDP',c:idpFlex,r:3}];
+       const stats = [{l:'QB',c:qb,r:1}, {l:'RB',c:rb,r:2}, {l:'WR',c:wr,r:2}, {l:'TE',c:te,r:1}, {l:'SFLEX',c:sflex,r:1}, {l:'FLEX',c:flex,r:3}, {l:'DL',c:dl,r:1}, {l:'LB',c:lb,r:1}, {l:'DB',c:db,r:1}, {l:'IDP',c:idpFlex,r:3}];
         if (__sm2) {
             stats.length = 0;
             const er = {};
@@ -5488,7 +5488,7 @@ window.acceptAllOptimal = function() {
 
       const flexSlots = __lm ? __lm.flex : [
         { label: 'SFLEX', eligible: ['QB', 'RB', 'WR', 'TE'] },
-        { label: 'SFLEX', eligible: ['QB', 'RB', 'WR', 'TE'] },
+        { label: 'FLEX',  eligible: ['RB', 'WR', 'TE'] },
         { label: 'FLEX',  eligible: ['RB', 'WR', 'TE'] },
         { label: 'FLEX',  eligible: ['RB', 'WR', 'TE'] },
         { label: 'IDP',   eligible: ['DE', 'DT', 'LB', 'CB', 'S'] },
@@ -5578,7 +5578,7 @@ proj: getRowProj(row),
     ];
        const flexSlots = __lm ? __lm.flex : [
         { label: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
-        { label: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
+        { label: 'FLEX', eligible: ['RB','WR','TE'] },
         { label: 'FLEX', eligible: ['RB','WR','TE'] },
         { label: 'FLEX', eligible: ['RB','WR','TE'] },
         { label: 'IDP', eligible: ['DE','DT','LB','CB','S'] },
@@ -5718,7 +5718,7 @@ function calculateSuggestedProjections() {
     ];
        const flexSlots = __lm ? __lm.flex : [
         { pos: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
-        { pos: 'SFLEX', eligible: ['QB','RB','WR','TE'] },
+        { pos: 'FLEX',  eligible: ['RB','WR','TE'] },
         { pos: 'FLEX',  eligible: ['RB','WR','TE'] },
         { pos: 'FLEX',  eligible: ['RB','WR','TE'] },
         { pos: 'IDP',   eligible: ['DE','DT','LB','CB','S'] },
@@ -5816,11 +5816,12 @@ function buildSwapRow(p) {
             }
         );
     }
-function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-list') {
+function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-list', slotHint) {
         syncProjFromDisplay();
         const list = $(targetContainer).empty(); let eligible = [targetPos];
         if (['FLEX', 'WR', 'RB', 'TE'].includes(targetPos)) eligible = ['WR', 'RB', 'TE'];
-        if (['SFLEX', 'QB', 'WR', 'RB', 'TE'].includes(targetPos)) eligible = ['QB', 'WR', 'RB', 'TE'];
+        if (['SFLEX', 'QB'].includes(targetPos)) eligible = ['QB', 'WR', 'RB', 'TE'];
+        if (slotHint && /^S(UPER)?FLEX$/i.test(slotHint)) eligible = ['QB', 'WR', 'RB', 'TE']; // a skill player sitting in the superflex spot can be replaced by a QB
         if (['DL', 'DE', 'DT'].includes(targetPos)) eligible = ['DE', 'DT'];
         if (['DB', 'S', 'CB'].includes(targetPos)) eligible = ['S', 'CB'];
         if (['IDP', 'DE', 'DT', 'LB', 'S', 'CB'].includes(targetPos)) eligible = ['DE', 'DT', 'LB', 'S', 'CB'];
@@ -5838,6 +5839,26 @@ function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-
         // WE FILTER BY REALPOS HERE
         }).filter(p => p && (p.isChecked === !findBench) && eligible.includes(p.realPos));
         
+        // respect the league's position limits (e.g. 2 QBs max in a lineup): only offer a swap that keeps every position inside its min / max
+        try {
+            const R = (LINEUP_RULES && LINEUP_RULES.positions) || {}, cnt = {};
+            currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+                const cb = row.querySelector('input[type="checkbox"]'), pL = row.querySelector('td a[class*="position_"]');
+                if (!cb || !cb.checked || !pL || irPids.has(cb.value) || taxiPids.has(cb.value)) return;
+                const rp = parseMFLName(pL.textContent).realPos; cnt[rp] = (cnt[rp] || 0) + 1;
+            });
+            const tot = pos => { const d = R[pos]; if (!d) return null; if (!d.group) return cnt[pos] || 0; return Object.keys(R).filter(k => R[k].group === d.group).reduce((a, k) => a + (cnt[k] || 0), 0); };
+            const T = targetPos;
+            players = players.filter(p => {
+                const inP = findBench ? p.realPos : T, outP = findBench ? T : p.realPos;
+                if (!inP || !outP || inP === outP) return true;
+                const dIn = R[inP], dOut = R[outP], tIn = tot(inP), tOut = tot(outP);
+                if (dIn && dIn.group && dOut && dOut.group === dIn.group) return true;
+                if (dIn && dIn.max != null && tIn != null && tIn + 1 > dIn.max) return false;
+                if (dOut && dOut.min != null && tOut != null && tOut - 1 < dOut.min) return false;
+                return true;
+            });
+        } catch (e) { console.warn('swap limits', e); }
         players.sort((a, b) => b.proj - a.proj).forEach(p => list.append(buildSwapRow(p)));
     }
 
@@ -7859,7 +7880,7 @@ $('#modal-owner-actions').show();
                 `);
             }
         } else {
-            populateQuickSwap(pos, isStarter, '#modal-swap-list');
+            populateQuickSwap(pos, isStarter, '#modal-swap-list', isStarter ? ((row.find('.move-handle-btn').first().text() || '').trim() || '') : '');
             if (!isStarter) {
                 const hasInjury = row.find('.injury-badge').length > 0;
                 let irBtnHtml = hasInjury
