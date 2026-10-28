@@ -1871,6 +1871,19 @@ $(document).on('lldaw', '.th-aw', function (e) {
     const rows = RECAP_AWARDS.filter(a => counts[a.key]).map(a => `<div class="th-ar"><span>${RECAP_ICONS[a.key] || ''}</span><b>${a.title}</b><i>×${counts[a.key]}</i></div>`).join('');
     lldThSheet(`${lldChatEsc(leagueFranchises[f] || f)} · this season`, rows || '<div class="th-ar">No awards yet.</div>');
 });
+// positions a lineup slot accepts, in the free agent filter's terms
+function lldPosGrp(p) { p = String(p || '').toUpperCase(); return ({ DE: 'DL', DT: 'DL', DL: 'DL', CB: 'DB', S: 'DB', SS: 'DB', FS: 'DB', DB: 'DB' })[p] || p; }
+function lldPosElig(slots) {
+    const M = { QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], DL: ['DL'], LB: ['LB'], DB: ['DB'], FLEX: ['RB', 'WR', 'TE'], WRT: ['RB', 'WR', 'TE'], SFLEX: ['QB', 'RB', 'WR', 'TE'], SUPERFLEX: ['QB', 'RB', 'WR', 'TE'], IDP: ['DL', 'LB', 'DB'] };
+    const grp = []; let all = !slots.length;
+    slots.forEach(sl => { const g = M[String(sl || '').toUpperCase()]; if (!g) all = true; else g.forEach(x => { if (grp.indexOf(x) < 0) grp.push(x); }); });
+    return { all: all || !grp.length, grp, pos: all || !grp.length ? LLD_PF_ALL.slice() : grp };
+}
+$(document).on('click', '.lineup-alert.lld-go-fa', function () {
+    playerPosSel = (window._lldNoRepPos || LLD_PF_ALL).slice(); playerPosFilter = lldPosString(playerPosSel); window._playerRowsCache = {};
+    $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-players'); }).trigger('click');
+    setTimeout(() => { const b = $('#subtabs-players .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Free Agents'; })[0]; if (b) b.click(); }, 350);
+});
 function lldGoLeagueSub(label, cb) {
     $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').includes('tab-league'); }).trigger('click');
     setTimeout(() => { try { ensureRecapsSubTab(); } catch (e) { } $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === label; }).trigger('click'); if (cb) cb(); }, 350);
@@ -5642,12 +5655,19 @@ proj: getRowProj(row),
 
 window.applyOptimizeChanges = function() {
     window._lldOptFlag = true;
+    let optTotal = 0, optMiss = [];
     $('.optimize-change-cb:checked').each(function() {
         const pid = $(this).data('pid');
         const action = $(this).data('action');
         const cb = currentDoc.querySelector(`input[value="${pid}"]`);
-        if (cb) cb.checked = (action === 'start');
+        optTotal++;
+        if (cb) cb.checked = (action === 'start'); else optMiss.push(pid);
     });
+    if (optMiss.length) {
+        const boxes = currentDoc.querySelectorAll('input[type="checkbox"]').length;
+        console.warn('[optimize] no checkbox on the MFL form for', optMiss, '| checkboxes on form:', boxes, '| week', window._lldLineupWeek);
+        alert('Optimize could only apply ' + (optTotal - optMiss.length) + ' of ' + optTotal + ' changes: MFL\u2019s lineup form for week ' + (window._lldLineupWeek || '?') + ' has ' + boxes + ' checkboxes and none for ' + optMiss.length + ' of these players. Send Claude this message.');
+    }
     $('#optimize-modal').fadeOut(200);
     $('body').css('overflow', '');
     renderActiveTab();
@@ -6152,7 +6172,7 @@ function getBestBenchOption(slot) {
         container.innerHTML = ''; const empty = document.querySelectorAll('.player-row.empty-slot').length;
         if (empty > 0 && !window._lldLineupBlock) $(container).append(`<div class="lineup-alert alert-error">⚠️ Incomplete: ${empty} Remaining</div>`);
         // starters projected for 0 (bye, out, inactive…)
-        const zero = [], noRep = [];
+        const zero = [], noRep = [], noRepSlots = [];
         document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot)').forEach(el => {
             const m = el.textContent.match(/(-?\d+(?:\.\d+)?)\s*PROJ/i);
             if (m && parseFloat(m[1]) <= 0) {
@@ -6161,12 +6181,22 @@ function getBestBenchOption(slot) {
                 try {
                     const slot = ($(el).find('.move-handle-btn').first().text() || '').trim().toUpperCase();
                     const alt = slot ? getBestBenchOption(slot) : null;
-                    if (!alt || !(alt.proj > 0)) noRep.push(nm);
+                    if (!alt || !(alt.proj > 0)) { noRep.push(nm); noRepSlots.push(slot); }
                 } catch (e) { }
             }
         });
         if (zero.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
-        if (noRep.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ No bench replacement for: ${noRep.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
+        if (noRep.length) {
+            const names = noRep.map(n => $('<i>').text(n).html()).join(', '), el = lldPosElig(noRepSlots);
+            window._lldNoRepPos = el.pos;
+            const pend = (window._pendingWaiversList || []).filter(c => el.all || el.grp.indexOf(lldPosGrp(c.pos)) >= 0);
+            if (!window._lldPwAt || Date.now() - window._lldPwAt > 120000) { // find out whether a waiver claim is already in (once in a while)
+                window._lldPwAt = Date.now();
+                fetchPendingWaivers().then(() => { try { updateLineupNotifications(); } catch (e) { } }).catch(() => { });
+            }
+            if (pend.length) $(container).append(`<div class="lineup-alert alert-pending">⏳ No bench replacement for: ${names}. Waiver claim in for ${pend.map(c => $('<i>').text((c.shortName || c.name) + ' (' + c.pos + ')').html()).join(', ')}, so there is nothing to do yet.</div>`);
+            else $(container).append(`<div class="lineup-alert alert-warning lld-go-fa" role="button">⚠️ <span style="flex:1">No bench replacement for: ${names}</span><b>Find a pickup ›</b></div>`);
+        }
         try { // numbers for the to-do list
             const bad0 = lldIrIneligible();
             window._lldTdLu = { fid: fid, week: window._lldLineupWeek || window._lldServedWeek || '', empty: empty, noRep: noRep.slice(), irNames: bad0.names.slice(), irMsg: bad0.msg || '', block: window._lldLineupBlock || '' };
@@ -13454,7 +13484,7 @@ function lldBetaHtml() {
         ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
         <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}${lab('Award rings: gold ring around the headshot of each player of the week and player of the month')}${onoff('awd')}` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}` : ''}
         ${lldDev() ? `${lab('Fine tune rows')}${sliders}
         <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
     </div>`;
@@ -20796,7 +20826,7 @@ function lldTdRefresh() {
     if (document.getElementById('lld-td')) lldTdDraw();
 }
 // ===== award rings (beta switch awd): gold ring around the headshot of the current players of the week and month =====
-function lldAwOn() { try { return lldDev() && lldBv('awd') === '1'; } catch (e) { return false; } }
+function lldAwOn() { return true; } // for everyone
 async function lldAwLoad() {
     if (window._lldAw && Date.now() - window._lldAw.t < 1800000) return window._lldAw;
     if (window._lldAwP) return window._lldAwP;
@@ -20839,7 +20869,7 @@ function lldAwPaint() {
 }
 function lldAwSync() {
     document.body.classList.toggle('lld-awd', lldAwOn());
-    if (lldAwOn()) lldAwLoad().then(lldAwPaint); else lldAwPaint();
+    if (window._lldAw) lldAwPaint(); else if (!window._lldAwWait) { window._lldAwWait = 1; setTimeout(() => { lldAwLoad().then(lldAwPaint); }, 7000); } // after the main screens have loaded, so it never competes for MFL's rate limit
 }
 window.lldAwSync = lldAwSync;
 (function () {
@@ -20911,10 +20941,14 @@ function lldFitSubTabs() {
         const bs = Array.prototype.slice.call(g.querySelectorAll('.sub-tab-btn')); if (!bs.length) return;
         const key = g.clientWidth + '|' + bs.map(b => b.textContent.trim()).join(',') + '|' + (document.body.className.match(/lld-ts\S*/) || '');
         if (g.dataset.fit === key) return; // already fitted for this width and these labels: leave it alone (no flicker)
-        bs.forEach(b => { b.style.fontSize = ''; b.style.paddingLeft = ''; b.style.paddingRight = ''; });
-        const f0 = parseFloat(getComputedStyle(bs[0]).fontSize) || 12, p0 = parseFloat(getComputedStyle(bs[0]).paddingLeft) || 10;
-        let k = 1;
-        while (g.scrollWidth > g.clientWidth + 1 && k > 0.5) { k -= 0.04; bs.forEach(b => { b.style.fontSize = (f0 * k).toFixed(1) + 'px'; b.style.paddingLeft = b.style.paddingRight = (p0 * k).toFixed(1) + 'px'; }); }
+        const reset = () => bs.forEach(b => { b.style.removeProperty('font-size'); b.style.removeProperty('padding-left'); b.style.removeProperty('padding-right'); b.style.removeProperty('letter-spacing'); });
+        const cut = () => g.scrollWidth > g.clientWidth + 1 || bs.some(b => b.scrollWidth > b.clientWidth + 1); // overflowing, or a label cut short
+        reset();
+        if (cut()) {
+            const f0 = parseFloat(getComputedStyle(bs[0]).fontSize) || 11;
+            let k = 1;
+            while (cut() && k > 0.7) { k -= 0.05; bs.forEach(b => { b.style.setProperty('font-size', (f0 * k).toFixed(1) + 'px', 'important'); b.style.setProperty('letter-spacing', '0', 'important'); b.style.setProperty('padding-left', (12 * k).toFixed(1) + 'px', 'important'); b.style.setProperty('padding-right', (12 * k).toFixed(1) + 'px', 'important'); }); }
+        }
         g.dataset.fit = g.clientWidth + '|' + bs.map(b => b.textContent.trim()).join(',') + '|' + (document.body.className.match(/lld-ts\S*/) || '');
     });
 }
