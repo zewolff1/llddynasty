@@ -5819,7 +5819,7 @@ function buildSwapRow(p) {
 function populateQuickSwap(targetPos, findBench, targetContainer = '#quick-swap-list', slotHint) {
         syncProjFromDisplay();
         const list = $(targetContainer).empty(); let eligible = [targetPos];
-        if (['FLEX', 'WR', 'RB', 'TE'].includes(targetPos)) eligible = ['WR', 'RB', 'TE'];
+        if (['FLEX', 'WR', 'RB', 'TE'].includes(targetPos)) eligible = ['WR', 'RB', 'TE', 'QB']; // a QB can come in whenever a superflex spot is free of a QB; the limits check below removes him when it is not
         if (['SFLEX', 'QB'].includes(targetPos)) eligible = ['QB', 'WR', 'RB', 'TE'];
         if (slotHint && /^S(UPER)?FLEX$/i.test(slotHint)) eligible = ['QB', 'WR', 'RB', 'TE']; // a skill player sitting in the superflex spot can be replaced by a QB
         if (['DL', 'DE', 'DT'].includes(targetPos)) eligible = ['DE', 'DT'];
