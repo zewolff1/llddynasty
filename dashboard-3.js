@@ -7163,7 +7163,7 @@ $('body').append(`
     style="display:none; margin-top:8px; padding:5px 12px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">
     Offer Trade
 </button>
-<div id="modal-owner-actions" style="display:none; margin-top:8px; display:flex; flex-wrap:nowrap; gap:4px; overflow-x:auto;" class="hide-scroll">
+<div id="modal-owner-actions" style="display:none; margin-top:8px; display:flex; flex-wrap:wrap; gap:4px;" class="hide-scroll">
 <button id="header-btn-taxi" style="flex-shrink:0; padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:4px;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:12px; width:auto; fill:#f59e0b;"><path d="M256 64C238.3 64 224 78.3 224 96L224 128L215.1 128C173.1 128 136 155.3 123.5 195.4L100.5 268.9C78.5 283.1 64 307.9 64 336L64 512C64 529.7 78.3 544 96 544L128 544C145.7 544 160 529.7 160 512L160 480L480 480L480 512C480 529.7 494.3 544 512 544L544 544C561.7 544 576 529.7 576 512L576 336C576 307.9 561.5 283.1 539.6 268.9L516.6 195.4C504.1 155.3 466.9 128 424.9 128L416 128L416 96C416 78.3 401.7 64 384 64L256 64zM215.1 192L425 192C439 192 451.4 201.1 455.5 214.5L468.5 256L171.6 256L184.6 214.5C188.8 201.1 201.1 192 215.1 192zM160 336C177.7 336 192 350.3 192 368C192 385.7 177.7 400 160 400C142.3 400 128 385.7 128 368C128 350.3 142.3 336 160 336zM448 368C448 350.3 462.3 336 480 336C497.7 336 512 350.3 512 368C512 385.7 497.7 400 480 400C462.3 400 448 385.7 448 368z"/></svg>
     Taxi
@@ -18380,7 +18380,7 @@ async function loadModalContract(pid) {const realContainer = $('#modal-actions-c
         }
         const res = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${ownerFid || fid}`, { credentials: 'include' });
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-        const rows = Array.from(doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
+        let rows = Array.from(doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
         const startYear = parseInt(year) || 2026;
 
         let found = null;
@@ -18391,6 +18391,15 @@ async function loadModalContract(pid) {const realContainer = $('#modal-actions-c
             if (rowPid === String(pid)) found = row;
         });
 
+        if (!found) { // the other team's roster page was not readable: build the same rows from MFL's rosters export instead
+            try {
+                const cm = await lldTbContracts(), mk = c => { const t = document.createElement('table'); t.innerHTML = `<tr><td class="salary">$${c.sal.toFixed(1)}m</td><td class="contractyear">${c.yrs}</td><td class="contractinfo">${c.gu == null ? 0 : c.gu}%</td></tr>`; return t.querySelector('tr'); };
+                if (cm[String(pid)] && cm[String(pid)].sal) {
+                    found = mk(cm[String(pid)]);
+                    const oid = cm[String(pid)].own; rows = Object.keys(cm).filter(k => cm[k].own === oid).map(k => mk(cm[k]));
+                }
+            } catch (e) { console.warn('contract fallback', e); }
+        }
         if (!found) {
             container.html('<div style="text-align:center; padding:20px; color:var(--text-dim);">No contract data found.</div>');
             return;
