@@ -4668,6 +4668,7 @@ renderActiveTab();
 function renderActiveTab() {
         // FIX: Target #subtabs-team in the header
 const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup';
+        if (activeSub === 'stats' || activeSub === 'schedule') { /* these draw themselves; a late roster refresh must not paint over them */ if (activeSub === 'stats' && !$('#player-rows-container .lld-stats').length && $('#tab-team').hasClass('active')) lldStatsOpen('team'); return; }
         const container = $('#player-rows-container').empty();
         const tableElement = currentDoc ? currentDoc.querySelector('table.report') : null;
         if (!tableElement) return;
