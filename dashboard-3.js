@@ -6244,7 +6244,7 @@ function getBestBenchOption(slot) {
         let err = '';
         try {
             const form = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
-            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
+            const r = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: lldWithComment($(form).serialize() + '&submit=Submit%20Lineup') });
             const txt = await r.text();
             if (!r.ok) err = 'MFL answered ' + r.status;
             else if (/<error[^>]*>|class="error"|lineup.{0,40}(locked|not allowed|cannot)/i.test(txt)) err = (typeof lldMflError === 'function' ? lldMflError(txt) : 'MFL rejected the lineup');
@@ -7072,7 +7072,7 @@ let isConfirming = false;
                 payloadData = params.toString();
                 
             } else {
-                submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}`;
+                submitTargetURL = `${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}`;
                 const normalForm = currentDoc.querySelector('form[name="lineupForm"]') || currentDoc.querySelector('form');
                 payloadData = lldWithComment($(normalForm).serialize() + '&submit=Submit%20Lineup'); 
             }
@@ -12358,7 +12358,7 @@ function classifyGameStatusText(text) {
 // ---- Beta features: only franchises 0000 and 0001 can see and use these for now ----
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
-function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { p.set('W', window._lldLineupWeek); p.set('WEEK', window._lldLineupWeek); } return p.toString(); }
+function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
 function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
