@@ -719,7 +719,7 @@ function lldStatsViews(S) {
     const D = S.D, F = S.F, N = S.N, W = S.W, mi = S.mi, me = S.me, slots = S.slots;
     const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const f1 = x => (x == null || isNaN(x) ? '–' : x.toFixed(1)), pct = x => (x == null || isNaN(x) ? '–' : Math.round(x * 100) + '%');
-    const nm = i => esc(D.names[F[i]] || F[i]);
+    const nm = i => `<span data-team-style="${esc(F[i])}">${esc(D.names[F[i]] || F[i])}</span>`;
     const pn = pid => esc((D.pinfo[pid] && D.pinfo[pid].name) || pid);
     const pnh = pid => { const i = D.pinfo[pid] || {}, nmx = esc(i.name || pid), tm = String(i.team || '').toUpperCase(); return `<span class="pnh"><img class="hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${esc(pid)}.png" onerror="this.style.visibility='hidden'">${tm && tm !== 'FA' ? `<img class="lg" src="${typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(tm) : 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/' + tm + '.svg'}" onerror="this.style.display='none'">` : ''}<span class="pnt">${nmx}</span></span>`; };
     const POS = LLDS_POS.filter(p => S.allScores[p].length);
@@ -20549,14 +20549,16 @@ function lldTbAskText(a) {
 async function lldTbLoad(force) {
     if (!force && window._lldTb && Date.now() - window._lldTb.t < 60000) return window._lldTb.d;
     const th = (await lldChatLoadThreadsRaw()).filter(t => t.subject === LLDTB_SUBJ);
-    const by = {};
+    const by = {}, all = {};
     for (const t of th) {
         const posts = await lldChatLoadPosts(t.id);
-        posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); if (!by[f] || p.ms >= by[f].ms) by[f] = { ms: p.ms, m: o.m || '', p: o.p || {} }; });
+        posts.forEach(p => { const o = lldTbDec(p.text); if (!o) return; const f = String(p.fid).padStart(4, '0'); (all[f] = all[f] || []).push({ ms: p.ms, m: o.m || '', p: o.p || {} }); });
     }
+    // an outlook only changes when it is picked or explicitly cleared ("-"); a post with no outlook (older saves) keeps the one before it
+    Object.keys(all).forEach(f => { let cur = ''; all[f].sort((a, b) => a.ms - b.ms).forEach(st => { if (st.m === '-') cur = ''; else if (st.m) cur = st.m; by[f] = { ms: st.ms, m: cur, p: st.p }; }); });
     try { // this device's own last save covers MFL not returning it (newer wins)
         const me = String(myFid).padStart(4, '0'), L = JSON.parse(localStorage.getItem('lld_tbloc_' + lid + '_' + me) || 'null');
-        if (L && L.ms && (!by[me] || L.ms + 600000 > by[me].ms)) by[me] = { ms: L.ms, m: L.m || '', p: L.p || {} };
+        if (L && L.ms && (!by[me] || L.ms + 600000 > by[me].ms)) by[me] = { ms: L.ms, m: L.m === '-' ? '' : (L.m || (by[me] ? by[me].m : '')), p: L.p || {} };
     } catch (e) { }
     const d = { by, tid: th.length ? th[th.length - 1].id : null };
     window._lldTb = { t: Date.now(), d }; return d;
@@ -20569,8 +20571,8 @@ async function lldTbBaits() {
 }
 async function lldTbSave(m, p) {
     const d = await lldTbLoad(true);
-    try { localStorage.setItem('lld_tbloc_' + lid + '_' + String(myFid).padStart(4, '0'), JSON.stringify({ ms: Date.now(), m, p })); } catch (e) { }
-    await lldChatPost('LLDTB1:' + lldTbEnc({ m, p }), d.tid, LLDTB_SUBJ);
+    try { localStorage.setItem('lld_tbloc_' + lid + '_' + String(myFid).padStart(4, '0'), JSON.stringify({ ms: Date.now(), m: m || '-', p })); } catch (e) { }
+    await lldChatPost('LLDTB1:' + lldTbEnc({ m: m || '-', p }), d.tid, LLDTB_SUBJ);
     window._lldTb = null;
     // keep MFL's own trade block in step: Seeking and Willing players are "on the block"
     try {
@@ -20660,7 +20662,7 @@ function lldTiPanel(D, pid, f) {
     }
     const rows = Object.keys(by).filter(r => r !== me && by[r] && by[r][pid]).map(r => {
         const l = lldTbParseLabel(by[r][pid]), L = LLDTI_LV[l.s]; if (!L) return '';
-        return `<div class="tb-tio"><img src="${e(getFranchiseLogoUrl(r))}" onerror="this.style.display='none'"><span>${e(leagueFranchises[r] || r)}</span><b style="color:${L[1]}">${L[0]}</b>${l.a[0] && LLDTI_RS[l.a[0]] ? `<em>${e(LLDTI_RS[l.a[0]])}</em>` : ''}</div>`;
+        return `<div class="tb-tio"><img src="${e(getFranchiseLogoUrl(r))}" onerror="this.style.display='none'"><span data-team-style="${r}">${e(leagueFranchises[r] || r)}</span><b style="color:${L[1]}">${L[0]}</b>${l.a[0] && LLDTI_RS[l.a[0]] ? `<em>${e(LLDTI_RS[l.a[0]])}</em>` : ''}</div>`;
     }).join('');
     return `<div class="tb-ti"><div class="tb-til">Interest from other teams</div>${rows || '<span class="tb-sub">No responses yet</span>'}</div>`;
 }
@@ -20740,7 +20742,7 @@ function lldTbDraw() {
     window._lldTbMe = D.me;
     if (X.view === 'mine') {
         const sn = D.snap;
-        if (sn) h += `<div class="tb-snap"><div class="tb-sh"><span>${e(leagueFranchises[D.me] || 'My team')}</span></div><div class="tb-sg"><div><b>${e(sn.rec)}</b><span>RECORD</span></div><div><b>${sn.rank}</b><span>RANK</span></div><div><b>${(sn.fin || 0).toFixed(1)}</b><span>PROJ. FINISH</span></div><div><b class="g">${sn.po}%</b><span>PLAYOFFS</span></div></div><div class="tb-pb"><i style="width:${Math.max(2, sn.po)}%"></i></div><div class="tb-sub">Playoff chance simulates the rest of the schedule from projected scores. It is an estimate.</div></div>`;
+        if (sn) h += `<div class="tb-snap"><div class="tb-sh"><span data-team-style="${D.me}">${e(leagueFranchises[D.me] || 'My team')}</span></div><div class="tb-sg"><div><b>${e(sn.rec)}</b><span>RECORD</span></div><div><b>${sn.rank}</b><span>RANK</span></div><div><b>${(sn.fin || 0).toFixed(1)}</b><span>PROJ. FINISH</span></div><div><b class="g">${sn.po}%</b><span>PLAYOFFS</span></div></div><div class="tb-pb"><i style="width:${Math.max(2, sn.po)}%"></i></div><div class="tb-sub">Playoff chance simulates the rest of the schedule from projected scores. It is an estimate.</div></div>`;
         h += `<div class="tb-out"><h4>Your team outlook</h4><div class="tb-mseg">${Object.keys(LLDTB_MODES).map(k => `<button type="button" data-tbmode="${k}" style="--c:${LLDTB_MODES[k][2]}" class="${dr.m === k ? 'on' : ''}"><b>${LLDTB_MODES[k][0]}</b><span>${LLDTB_MODES[k][1]}</span></button>`).join('')}</div></div>`;
         h += `<div class="tb-legend">${Object.keys(LLDTB_ST).map(k => `<span><i style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</span>`).join('')}</div>`;
         const pos = ['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'];
@@ -20758,7 +20760,7 @@ function lldTbDraw() {
             const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => f === D.me ? /^[SWUN]/.test(lab[id]) : /^S/.test(lab[id]));
             const mdl = f === D.me ? dr.m : (D.tb.by[f] || {}).m, M = LLDTB_MODES[mdl], rc = D.recOf(f);
             if (!ids.length && !M) return; any = true;
-            h += `<div class="tb-team"><div class="tb-th"><span class="tb-tn">${e(leagueFranchises[f] || f)}${f === D.me ? ' (you)' : ''}${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' · ' + rc.po + '% playoffs · ' : ''}${ids.length} labeled</span></div>`;
+            h += `<div class="tb-team"><div class="tb-th"><span class="tb-tn"><span data-team-style="${f}">${e(leagueFranchises[f] || f)}</span>${f === D.me ? ' (you)' : ''}${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' · ' + rc.po + '% playoffs · ' : ''}${ids.length} labeled</span></div>`;
             ['S', 'W', 'U', 'N'].forEach(k => {
                 const g = ids.filter(id => lldTbParseLabel(lab[id]).s === k); if (!g.length) return;
                 h += `<div class="tb-grp" style="--c:${LLDTB_ST[k][1]}"><div class="tb-gl">${LLDTB_ST[k][0]}</div>${g.map(id => { const l = lldTbParseLabel(lab[id]); return lldTbRow(D.info(id), k, l.a, false, false, k === 'S' ? lldTiPanel(D, id, f) : ''); }).join('')}</div>`;
@@ -20768,6 +20770,7 @@ function lldTbDraw() {
         if (!any) h += '<div class="tb-sub" style="text-align:center;padding:24px">No other team has set a trade label yet.</div>';
     }
     lldTbMain().html(h + '</div>');
+    try { reapplyAllTeamStyles(); } catch (e) { }
 }
 function lldTrBar(mode) {
     $('#lld-tr-bar').remove(); const c = $('#league-content-container'); if (!c.length) return;
@@ -21252,7 +21255,7 @@ function lldStatsDraw(mode) {
     const VW = lldStatsViews(SS); window._lldSXv = VW;
     const V = VW[mode], i = Math.min(LLDSX.idx[mode] || 0, V.length - 1);
     root.html((other ? `<div class="sub" style="margin:0 0 8px;font-weight:800">Showing ${$('<i>').text(SS.D.names[other] || other).html()}’s stats</div>` : '') + (mode === 'team' && lldSstOn() ? (() => { try { return lldSstHeader(SS); } catch (e) { console.warn('stats header', e); return ''; } })() : '') + '<div class="chips">' + V.map((x, k) => `<button type="button" class="sx-chip${k === i ? ' on' : ''}" data-i="${k}">${x[0]}</button>`).join('') + '</div><div class="sx-out"></div>');
-    root.find('.sx-out').html(V[i][1]()); lldStatsWire(root);
+    root.find('.sx-out').html(V[i][1]()); lldStatsWire(root); try { reapplyAllTeamStyles(); } catch (e) { }
     const t = root.find('.sx-chip.on')[0]; if (t && t.scrollIntoView) { try { t.parentNode.scrollLeft = t.offsetLeft - 20; } catch (e) { } }
 }
 window.LLDSX = LLDSX; window.lldStatsDraw = lldStatsDraw; window.lldStatsLoad = lldStatsLoad;
