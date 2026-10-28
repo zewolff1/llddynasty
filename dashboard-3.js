@@ -13198,7 +13198,7 @@ function lldShBlocks(vf, sub) {
             const P = window._pvCache && window._pvCache[wk];
             if (P) { const g = P.games.find(x => String(x.t1.fid).padStart(4, '0') === vf || String(x.t2.fid).padStart(4, '0') === vf); if (g) { const one = String(g.t1.fid).padStart(4, '0') === vf; pj = `<b>${(one ? g.m1 : g.m2).toFixed(1)}</b> proj · <b>${Math.round((one ? g.p1 : 1 - g.p1) * 100)}%</b> win`; } }
             else if (wk && !(window._lldShPv || {})[wk]) { (window._lldShPv = window._lldShPv || {})[wk] = 1; lldBuildPreview(parseInt(wk, 10)).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { }); }
-            A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
+            A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m" data-team-style="${opp}">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
         }
     } else if (sub === 'contracts') {
         const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
@@ -13227,6 +13227,7 @@ function lldShRender() {
     const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
     try { el.html(lldShHtml()); } catch (e) { console.warn('sh', e); el.empty(); }
     document.body.classList.add('lld-shb');
+    try { if (typeof reapplyAllTeamStyles === 'function') reapplyAllTeamStyles(); } catch (e) { }
     lldShVis();
     if ((sub === 'contracts') && !window._lldShD && !window._lldShBusy) lldShLoad();
 }
