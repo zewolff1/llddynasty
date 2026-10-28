@@ -1462,7 +1462,9 @@ let rookiePids = new Set();
                 const hasMedia = !!el.querySelector('img, table, input, canvas, svg');
                 const empty = !text.replace(/loading[^a-z]*/ig, '').trim() && !hasMedia && !el.querySelector('.loader, .spinner, #players-loader');
                 const old = el.querySelector('.lld-empty-state');
-                if (shown && empty && !old) {
+                if (shown && empty && !old && window._lldBoot && id === 'player-rows-container') {
+                    if (!el.querySelector('.loading-indicator')) { const l = document.createElement('div'); l.className = 'loading-indicator lld-boot-spin'; l.textContent = 'Loading team…'; el.appendChild(l); }
+                } else if (shown && empty && !old) {
                     const d = document.createElement('div');
                     d.className = 'lld-empty-state';
                     d.style.cssText = 'text-align:center; padding:48px 24px; color:var(--text-dim);';
@@ -6181,7 +6183,7 @@ function getBestBenchOption(slot) {
                 } catch (e) { }
             }
         });
-        if (zero.length) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
+        if (zero.length && !window._lldBoot) $(container).append(`<div class="lineup-alert alert-warning">⚠️ Projected for 0: ${zero.map(n => $('<i>').text(n).html()).join(', ')}</div>`);
         if (noRep.length) {
             const names = noRep.map(n => $('<i>').text(n).html()).join(', '), el = lldPosElig(noRepSlots);
             window._lldNoRepPos = el.pos;
@@ -19952,6 +19954,9 @@ loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 const lldPel = lldDev() && lldBv('pel') === '1';
+window._lldBoot = true; document.body.classList.add('lld-boot'); if (lldPel) document.body.classList.add('lld-pel-on');
+const lldBootDone = () => { window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
+setTimeout(lldBootDone, 25000);
 if (lldPel) {
     document.body.classList.add('lld-pel-busy');
     fetchFranchises()
@@ -19962,7 +19967,7 @@ if (lldPel) {
             const bg = Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()].map(p => Promise.resolve(p).catch(() => null)))
                 .then(() => checkCompletedAuctions()).catch(() => { });
             const first = loadTeamData();
-            bg.then(() => first).then(() => { document.body.classList.remove('lld-pel-busy'); try { refreshTeamInfoPanel(); window._teamDataDirty = false; renderActiveTab(); } catch (e) { console.warn('pel', e); } });
+            bg.then(() => first).then(() => { lldBootDone(); document.body.classList.remove('lld-pel-busy'); try { refreshTeamInfoPanel(); window._teamDataDirty = false; renderActiveTab(); } catch (e) { console.warn('pel', e); } });
             setTimeout(() => document.body.classList.remove('lld-pel-busy'), 20000);
             return first;
         })
@@ -19978,7 +19983,7 @@ fetchFranchises()
         refreshTeamInfoPanel();
         return loadTeamData();
     })
-    .then(() => { try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
+    .then(() => { lldBootDone(); try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
     .then(() => { try { lldStatsEnsureTabs(); setTimeout(lldStatsEnsureTabs, 1500); setTimeout(lldStatsEnsureTabs, 4000); } catch (e) { console.warn('stats tabs', e); } });
 
 $(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._liveScoreActiveWeek ?? null); });
@@ -21147,7 +21152,7 @@ function lldCvFill(el) {
         Object.keys(m).forEach(pid => {
             const c = m[pid], p = S.pl[pid]; if (!p || !c.sal) return;
             const g = p.g.filter(x => x != null); if (g.length < Math.min(3, S.W)) return;
-            rows.push({ pid, pos: p.pos, name: p.name, own: c.own, sal: c.sal, yrs: c.yrs || 0, gu: c.gu, pts: g.reduce((a, b) => a + b, 0) });
+            rows.push({ pid, pos: p.pos, name: p.name, own: c.own, sal: c.sal, yrs: c.yrs || 0, gu: c.gu, pts: g.reduce((a, b) => a + b, 0), ppg: g.reduce((a, b) => a + b, 0) / g.length });
         });
         if (!rows.length) { el.innerHTML = '<div class="sub" style="padding:24px 10px;text-align:center">No contract data yet.</div>'; return; }
         const byPos = {};
@@ -21157,24 +21162,29 @@ function lldCvFill(el) {
             a.slice().sort((x, y) => y.sal - x.sal).forEach((r, i) => r.cr = i + 1);
             a.slice().sort((x, y) => y.pts - x.pts).forEach((r, i) => r.pr = i + 1);
         });
-        rows.forEach(r => { r.gap = r.cr - r.pr; r.score = mode === 'years' ? r.gap * Math.max(1, r.yrs) : r.gap; });
+        // value = points per game minus what the league's player at his salary rank at that position actually scores
+        Object.keys(byPos).forEach(pos => {
+            const a = byPos[pos].slice().sort((x, y) => y.ppg - x.ppg);
+            byPos[pos].forEach(r => { const e = a[Math.min(r.cr, a.length) - 1]; r.exp = e ? e.ppg : r.ppg; r.diff = r.ppg - r.exp; });
+        });
+        rows.forEach(r => { r.gap = r.diff; r.score = mode === 'years' ? r.diff * Math.max(1, r.yrs) : r.diff; });
         let list = who ? rows.filter(r => r.own === who) : rows;
         if (!list.length) { el.innerHTML = '<div class="sub" style="padding:24px 10px;text-align:center">No contract data for this team.</div>'; return; }
         const card = r => {
             const tag = r.yrs >= 3 ? '<span class="cv-t">' + r.yrs + ' yrs left</span>' : (r.yrs <= 1 ? '<span class="cv-t cv-x">expiring</span>' : '<span class="cv-t">' + r.yrs + ' yrs left</span>');
             const own = who ? '' : ' · ' + esc((S.D.names[r.own] || r.own));
             return '<div class="cv-r sx-pr player-modal-trigger" data-pid="' + esc(r.pid) + '" data-name="' + esc(r.name) + '" data-pos="' + esc(r.pos) + '"><div class="cv-n"><b>' + esc(r.name) + '</b><span>' + esc(r.pos) + own + '</span></div>'
-                + '<div class="cv-m">Paid ' + esc(r.pos) + ' #' + r.cr + ' · producing ' + esc(r.pos) + ' #' + r.pr + '<br><i>$' + r.sal.toFixed(1) + 'M · ' + tag + (r.gu != null ? ' · ' + Math.round(r.gu) + '% GTD' : '') + '</i></div>'
-                + '<div class="cv-s ' + (r.score >= 0 ? 'up' : 'dn') + '">' + (r.score > 0 ? '+' : '') + r.score + '</div></div>';
+                + '<div class="cv-m">Paid ' + esc(r.pos) + ' #' + r.cr + ' · producing ' + esc(r.pos) + ' #' + r.pr + '<br>' + r.ppg.toFixed(1) + ' ppg vs ' + r.exp.toFixed(1) + ' typical for that pay<br><i>$' + r.sal.toFixed(1) + 'M · ' + tag + (r.gu != null ? ' · ' + Math.round(r.gu) + '% GTD' : '') + '</i></div>'
+                + '<div class="cv-s ' + (r.score >= 0 ? 'up' : 'dn') + '">' + (r.score > 0 ? '+' : '') + r.score.toFixed(1) + '</div></div>';
         };
         const sorted = list.slice().sort((a, b) => b.score - a.score || b.pts - a.pts);
         const n = Math.min(8, Math.floor(sorted.length / 2) || sorted.length);
         const best = sorted.slice(0, n), worst = sorted.slice().reverse().slice(0, n);
-        const unit = mode === 'years' ? 'spots × years left' : 'spots';
-        el.innerHTML = '<div class="cv-bar"><button class="cv-b' + (mode === 'spots' ? ' on' : '') + '" data-m="spots">Spots beaten</button><button class="cv-b' + (mode === 'years' ? ' on' : '') + '" data-m="years">Spots × years left</button></div>'
+        const unit = mode === 'years' ? 'points per game × years left' : 'points per game';
+        el.innerHTML = '<div class="cv-bar"><button class="cv-b' + (mode === 'spots' ? ' on' : '') + '" data-m="spots">Points vs pay</button><button class="cv-b' + (mode === 'years' ? ' on' : '') + '" data-m="years">× years left</button></div>'
             + '<div class="cv-h up">Most valuable</div>' + best.map(card).join('')
             + '<div class="cv-h dn">Least valuable</div>' + worst.map(card).join('')
-            + '<div class="sub" style="margin-top:8px">Score = position rank by salary minus position rank by points this season (' + unit + '). Positive means he out-produces what he is paid. Only players with a contract and at least 3 games played.</div>';
+            + '<div class="sub" style="margin-top:8px">Score = his points per game minus what the player at his same salary rank at that position scores (' + unit + '). So the top-paid WR is measured against the best WR output, and the 30th-paid WR against a WR30. Positive means he out-produces what he is paid. Only players with a contract and at least 3 games played.</div>';
     }).catch(() => { el.innerHTML = '<div class="sub" style="padding:24px 10px;text-align:center">Could not load contracts.</div>'; });
 }
 $(document).on('click', '.sx-cv .cv-b', function (e) { e.stopPropagation(); window._lldCvMode = this.dataset.m; $(this).closest('.sx-cv').each(function () { lldCvFill(this); }); });
