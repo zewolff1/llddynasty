@@ -3639,7 +3639,7 @@ $(document).on('click', '.settings-tab-btn', function() {
     $('.settings-tab-content').hide();
     $('#' + $(this).data('target')).show();
     if ($(this).data('target') === 'tab-mflmenu') renderMflMenu();
-    if ($(this).data('target') === 'tab-style') {
+    if ($(this).data('target') === 'tab-team-set') {
         renderFontGrid(currentFontCategory);
         setTimeout(applyStylePreview, 100);
     }
@@ -8968,9 +8968,8 @@ $('body').append(`
 
         <!-- TABS -->
         <div class="settings-tabs">
-            <button class="settings-tab-btn active" data-target="tab-display">Display</button>
+            <button class="settings-tab-btn active" data-target="tab-display">Display Settings</button>
             <button class="settings-tab-btn" data-target="tab-team-set">Team Settings</button>
-            <button class="settings-tab-btn" data-target="tab-style">Style</button>
             <button class="settings-tab-btn" data-target="tab-mflmenu">MFL Setup</button>
         </div>
 
@@ -8992,8 +8991,88 @@ $('body').append(`
                         <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Stadium</label>
                         <input id="ts-stadium" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(13px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
                     </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Location</label>
+                        <input id="ts-location" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(13px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Team Name</label>
+                        <input id="ts-teamname" type="text" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; color:#fff; font-size:calc(13px * var(--ts,1)); font-weight:800; width:100%; box-sizing:border-box;">
+                    </div>
                    <button id="ts-save-btn" style="width:100%; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; letter-spacing:1px;">Save Changes</button>
 <div id="ts-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px;"></div>
+            <div id="tab-style" class="ts-style-block"><div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Team Style</div>
+                
+
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Colors</div><div class="style-sub-content" data-sub="color">
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Primary Color</label>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input id="style-primary-color" type="color" value="#3b82f6" style="width:44px; height:36px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
+                                <span id="style-primary-hex" style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">#3b82f6</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px;">
+                            <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">Gradient</label>
+                            <input type="checkbox" id="style-gradient-toggle" style="width:16px; height:16px; cursor:pointer;">
+                        </div>
+                        <div id="style-gradient-controls" style="display:none; flex-direction:column; gap:8px;">
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); min-width:50px;">Color 2</span>
+                                <input id="style-gradient-color2" type="color" value="#a855f7" style="width:36px; height:28px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
+                                <span id="style-gradient-hex2" style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">#a855f7</span>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button class="gradient-dir-btn active" data-dir="to right" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">→</button>
+                                <button class="gradient-dir-btn" data-dir="to bottom right" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↘</button>
+                                <button class="gradient-dir-btn" data-dir="to bottom" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↓</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Font</div><div class="style-sub-content" data-sub="font">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;" id="font-category-tabs">
+                        <button class="font-cat-btn active" data-cat="athletic" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Athletic</button>
+                        <button class="font-cat-btn" data-cat="serif" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Serif</button>
+                        <button class="font-cat-btn" data-cat="modern" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Modern</button>
+                        <button class="font-cat-btn" data-cat="display" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Display</button>
+                        <button class="font-cat-btn" data-cat="retro" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Retro</button>
+                    </div>
+                    <div id="font-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
+                </div>
+
+                <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Effects</div><div class="style-sub-content" data-sub="effects">
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                                <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Glow</label>
+                                <span id="style-glow-lbl" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">0px</span>
+                            </div>
+                            <input type="range" id="style-glow" min="0" max="30" step="1" value="0" style="width:100%;">
+                        </div>
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                                <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Outline</label>
+                                <span id="style-outline-lbl" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">0px</span>
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <input type="range" id="style-outline-width" min="0" max="4" step="0.5" value="0" style="flex:1;">
+                                <input id="style-outline-color" type="color" value="#000000" style="width:32px; height:28px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid var(--card-border);">
+                    <button id="style-reset-btn" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Reset</button>
+                    <button id="style-save-btn" style="flex:2; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Save Style</button>
+                </div>
+                <div id="style-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:14px; margin-top:6px;"></div>
+            </div>
+
+            
 
 
                 </div>
@@ -9026,33 +9105,14 @@ $('body').append(`
 
             <!-- DISPLAY TAB -->
             <div id="tab-display" class="settings-tab-content">
-
-
-                <!-- Display sub-tabs -->
-              <div style="display:flex; gap:6px; background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; margin-bottom:14px;">
-                    <button class="display-sub-tab active" data-sub="theme" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Theme</button>
-                    <button class="display-sub-tab" data-sub="textsize" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Text</button>
-                </div>
-
-                <!-- Theme sub-content -->
-                <div class="display-sub-content" data-sub="theme">
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:0 0 12px;">Theme</div>
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">${Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button class="lld-style-btn ${lldGet('lld_style','classic')===k?'on':''}" data-style="${k}">${v.name}</button>`).join('')}<button class="lld-style-btn ${lldGet('lld_style','classic')==='seasonal'?'on':''}" data-style="seasonal">Seasonal${lldSeasonNow() ? ' (' + LLD_STYLES[lldSeasonNow()].name + ')' : ''}</button><button class="lld-style-btn ${lldGet('lld_style','classic')==='random'?'on':''}" data-style="random">\uD83C\uDFB2 Random</button></div><div class="lld-auto-row" style="display:${lldGet('lld_style','classic')==='classic'?'block':'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Holiday themes (Default style)</div><div style="display:flex; gap:6px; margin-bottom:6px;"><button class="lld-hdr-btn lld-auto-btn ${lldAutoOn()?'on':''}" data-v="on">Auto</button><button class="lld-hdr-btn lld-auto-btn ${lldAutoOn()?'':'on'}" data-v="off">Off</button></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Auto switches to Halloween Oct 25 to Nov 1 and to the holiday look Dec 20 to Jan 2.</div></div><div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-bottom:14px;">Seasonal follows the calendar: ${(LLD_STYLES[lldSeasonNow() || ''] || {}).name || 'nothing right now (keeps your regular theme)'} today. Fall Sep 1, Halloween Oct 24, Fall again Nov 2, Thanksgiving Nov 15, Christmas Dec 2.</div>
                     <div id="lld-fx-row" style="display:${LLD_FX_MAP[lldEffStyle()] ? 'block' : 'none'};"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Seasonal background animation</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')!=='0'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-fx-btn ${lldGet('lld_fx','1')==='0'?'on':''}" data-v="off">Off</button></div></div>
                     <div class="lld-wide-row"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Page width (computers)</div><div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'':'on'}" data-v="std">Standard</button><button class="lld-hdr-btn lld-wide-btn ${lldGet('lld_wide','0')==='1'?'on':''}" data-v="wide">Wide</button></div></div>
                     
-                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Chat view</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='classic'?'on':''}" data-v="classic">Classic</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='feed'?'on':''}" data-v="feed">News feed</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='paper'?'on':''}" data-v="paper">Newspaper</button></div>
-                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Owner name in team header</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'':'on'}" data-v="off">Off</button></div>
-                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;">
-                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
-                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
-                    </div>
-                    ${lldBetaHtml()}
-                <!-- Logos sub-content -->
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">NFL Logos</div>
                 <div style="margin-top:6px;">
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">NFL Team Logos</div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -9072,11 +9132,10 @@ $('body').append(`
                     </div>
                     <div id="display-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
                 </div>
-
-                    </div>
-
-               <!-- Text Size sub-content -->
-                <div class="display-sub-content" data-sub="textsize" style="display:none;">
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Tap-to-reveal scores</div>
+<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Tap-to-reveal scores (live and finished scores stay hidden until you tap)</div>
+<div style="display:flex; gap:6px; margin-bottom:16px;">${[['1','On'],['0','Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('rv') === v ? 'on' : ''}" data-k="rv" data-v="${v}">${l}</button>`).join('')}</div>
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Text Size</div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Text Size</div>
                     <div style="display:flex; gap:8px;">
                         <button class="text-scale-btn" data-scale="0.9" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Small</button>
@@ -9086,87 +9145,20 @@ $('body').append(`
                         <button class="text-scale-btn" data-scale="1.4" style="flex:1; padding:14px 8px; border-radius:8px; font-size:calc(15px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">X-Large</button>
                     </div>
                     <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:10px; line-height:1.5;">Changes the size of text only; layout and spacing stay the same.</div>
-                </div>
-
-                </div>
-
-            <!-- STYLE TAB -->
-            <div id="tab-style" class="settings-tab-content" style="display:none;">
-                <div style="display:flex; gap:6px; background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; margin-bottom:14px;">
-                    <button class="style-sub-tab active" data-sub="color" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:var(--accent-blue); color:#fff;">Color</button>
-                    <button class="style-sub-tab" data-sub="font" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Font</button>
-                    <button class="style-sub-tab" data-sub="effects" style="flex:1; padding:6px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:none; background:transparent; color:var(--text-dim);">Effects</button>
-                </div>
-
-                <div class="style-sub-content" data-sub="color">
-                    <div style="display:flex; flex-direction:column; gap:10px;">
-                        <div style="display:flex; flex-direction:column; gap:4px;">
-                            <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Primary Color</label>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <input id="style-primary-color" type="color" value="#3b82f6" style="width:44px; height:36px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
-                                <span id="style-primary-hex" style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">#3b82f6</span>
-                            </div>
-                        </div>
-                        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px;">
-                            <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">Gradient</label>
-                            <input type="checkbox" id="style-gradient-toggle" style="width:16px; height:16px; cursor:pointer;">
-                        </div>
-                        <div id="style-gradient-controls" style="display:none; flex-direction:column; gap:8px;">
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); min-width:50px;">Color 2</span>
-                                <input id="style-gradient-color2" type="color" value="#a855f7" style="width:36px; height:28px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
-                                <span id="style-gradient-hex2" style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff;">#a855f7</span>
-                            </div>
-                            <div style="display:flex; gap:6px;">
-                                <button class="gradient-dir-btn active" data-dir="to right" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">→</button>
-                                <button class="gradient-dir-btn" data-dir="to bottom right" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↘</button>
-                                <button class="gradient-dir-btn" data-dir="to bottom" style="flex:1; padding:5px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">↓</button>
-                            </div>
-                        </div>
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">More</div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Chat view</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='classic'?'on':''}" data-v="classic">Classic</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='feed'?'on':''}" data-v="feed">News feed</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='paper'?'on':''}" data-v="paper">Newspaper</button></div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Owner name in team header</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'':'on'}" data-v="off">Off</button></div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
+                    <div style="display:flex; gap:6px; margin-bottom:16px;">
+                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
+                        <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
                     </div>
-                </div>
-
-                <div class="style-sub-content" data-sub="font" style="display:none;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;" id="font-category-tabs">
-                        <button class="font-cat-btn active" data-cat="athletic" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Athletic</button>
-                        <button class="font-cat-btn" data-cat="serif" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Serif</button>
-                        <button class="font-cat-btn" data-cat="modern" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Modern</button>
-                        <button class="font-cat-btn" data-cat="display" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Display</button>
-                        <button class="font-cat-btn" data-cat="retro" style="padding:4px 10px; border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Retro</button>
-                    </div>
-                    <div id="font-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
-                </div>
-
-                <div class="style-sub-content" data-sub="effects" style="display:none;">
-                    <div style="display:flex; flex-direction:column; gap:10px;">
-                        <div>
-                            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Glow</label>
-                                <span id="style-glow-lbl" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">0px</span>
-                            </div>
-                            <input type="range" id="style-glow" min="0" max="30" step="1" value="0" style="width:100%;">
-                        </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                <label style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Outline</label>
-                                <span id="style-outline-lbl" style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:#fff;">0px</span>
-                            </div>
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <input type="range" id="style-outline-width" min="0" max="4" step="0.5" value="0" style="flex:1;">
-                                <input id="style-outline-color" type="color" value="#000000" style="width:32px; height:28px; border:1px solid var(--card-border); border-radius:6px; background:transparent; cursor:pointer; padding:2px;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display:flex; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid var(--card-border);">
-                    <button id="style-reset-btn" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Reset</button>
-                    <button id="style-save-btn" style="flex:2; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Save Style</button>
-                </div>
-                <div id="style-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:14px; margin-top:6px;"></div>
+                    ${lldBetaHtml()}
             </div>
 
-            <!-- DEV TAB -->
+<!-- DEV TAB -->
             <div id="tab-dev" class="settings-tab-content" style="display:none;">
                 <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Developer Tools</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
@@ -9374,6 +9366,8 @@ $('#ts-owner-name').val(doc1.querySelector(`#FRANCHISE_OWNER_NAME${myFid}`)?.val
 $('#ts-email').val(doc1.querySelector(`#FRANCHISE_EMAIL${myFid}`)?.value || '');
 $('#edit-location').val(savedLocation);
 $('#edit-teamname').val(savedLocation ? fullName.replace(savedLocation, '').trim() : fullName);
+$('#ts-location').val(savedLocation);
+$('#ts-teamname').val(savedLocation ? fullName.replace(savedLocation, '').trim() : fullName);
 
         const r2 = await fetch(`${MFL_ORIGIN}/${year}/csetup?L=${lid}&FRANCHISES=${myFid}&C=FCUSTOM`, { credentials: 'include' });
         const doc2 = new DOMParser().parseFromString(await r2.text(), 'text/html');
@@ -9428,8 +9422,8 @@ params.set('L', lid);
         });
 
         // Override just your franchise with the new values
-const location = $('#edit-location').val().trim() || localStorage.getItem(`franchise_location_${myFid}`) || '';
-        const teamName = $('#edit-teamname').val().trim() || $('#settings-team-name').text().replace(location, '').trim();
+const location = ($('#ts-location').val() || '').trim() || $('#edit-location').val().trim() || localStorage.getItem(`franchise_location_${myFid}`) || '';
+        const teamName = ($('#ts-teamname').val() || '').trim() || $('#edit-teamname').val().trim() || $('#settings-team-name').text().replace(location, '').trim();
         const fullName = location ? `${location} ${teamName}` : teamName;
         localStorage.setItem(`franchise_location_${myFid}`, location);
 
