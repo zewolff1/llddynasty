@@ -6249,12 +6249,21 @@ function getBestBenchOption(slot) {
             if (!r.ok) err = 'MFL answered ' + r.status;
             else if (/<error[^>]*>|class="error"|lineup.{0,40}(locked|not allowed|cannot)/i.test(txt)) err = (typeof lldMflError === 'function' ? lldMflError(txt) : 'MFL rejected the lineup');
             if (!err) {
-                // prove it: read the lineup back from MFL and compare
-                const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
-                const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
-                const got = new Set(Array.from(doc.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).filter(v => !irPids.has(v) && !taxiPids.has(v)));
-                const miss = want.filter(v => !got.has(v)), extra = [...got].filter(v => !want.includes(v));
-                if (miss.length || extra.length) err = 'MFL did not keep the change (' + (miss.length + extra.length) + ' player' + (miss.length + extra.length > 1 ? 's' : '') + ' differ)';
+                // prove it: read the lineup back from MFL and compare (MFL can be a moment behind, so look twice)
+                const nmOf = v => { try { return $('.player-row[data-pid="' + v + '"]').first().attr('data-pname') || v; } catch (e) { return v; } };
+                let miss = [], extra = [];
+                for (let k = 0; k < 3; k++) {
+                    if (k) await new Promise(r => setTimeout(r, 1500));
+                    const f = await fetch(`${MFL_ORIGIN}/${year}/lineup?L=${lid}&F=${fid}${window._lldLineupWeek ? '&WEEK=' + window._lldLineupWeek + '&W=' + window._lldLineupWeek : ''}&rnd=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                    const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
+                    const got = new Set(Array.from(doc.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).filter(v => !irPids.has(v) && !taxiPids.has(v)));
+                    miss = want.filter(v => !got.has(v)); extra = [...got].filter(v => !want.includes(v));
+                    if (!miss.length && !extra.length) break;
+                }
+                if (miss.length || extra.length) {
+                    const hint = (txt.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').match(/[^.!?]*(lock|started|cannot|not allowed|invalid|illegal|must|exceed|maximum|minimum)[^.!?]*[.!?]?/i) || [''])[0].trim().slice(0, 160);
+                    err = 'MFL did not keep the change. Wanted in: ' + (miss.map(nmOf).join(', ') || 'none') + '; still in: ' + (extra.map(nmOf).join(', ') || 'none') + (hint ? '. MFL said: ' + hint : '');
+                }
             }
         } catch (e) { err = 'Network problem: ' + (e && e.message || e); }
         _asvBusy = false;
