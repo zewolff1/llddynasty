@@ -4498,3 +4498,6 @@ body.lld-pel-on.lld-boot #lld-sh .th.blk>:not(.nrow)>*{visibility:hidden}
 body.lld-pel-on.lld-boot #lld-sh .th.blk>:not(.nrow)::after{content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:var(--accent-teal,#2dd4bf);animation:lld-bsp .8s linear infinite}
 
 body.lld-ct-tab #player-rows-container .pos-group-header{display:none !important}
+
+#lld-sh .bk .top{flex-wrap:wrap;row-gap:3px}
+#lld-sh .bk .top .m{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;flex:0 1 auto;max-width:100%}
