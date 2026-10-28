@@ -19980,18 +19980,21 @@ const lldBootDone = () => { window._lldBoot = false; document.body.classList.rem
 setTimeout(lldBootDone, 25000);
 if (lldPel) {
     document.body.classList.add('lld-pel-busy');
+    const _try = (fn, tag) => { try { return fn(); } catch (e) { console.warn('startup ' + tag, e); } };
     fetchFranchises()
-        .then(() => { try { if (document.getElementById('lld-ticker')) lldFillTicker(null); } catch (e) { } })
+        .catch(e => console.warn('startup franchises', e))
+        .then(() => _try(() => { if (document.getElementById('lld-ticker')) lldFillTicker(null); }, 'ticker'))
         .then(() => {
-            applyTeamTheme(myFid, true);
-            refreshTeamInfoPanel();
-            const bg = Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()].map(p => Promise.resolve(p).catch(() => null)))
+            _try(() => applyTeamTheme(myFid, true), 'theme');
+            _try(() => refreshTeamInfoPanel(), 'panel');
+            const bg = Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()].map(f => Promise.resolve(f).catch(() => null)))
                 .then(() => checkCompletedAuctions()).catch(() => { });
-            const first = loadTeamData();
-            bg.then(() => first).then(() => { lldBootDone(); document.body.classList.remove('lld-pel-busy'); try { refreshTeamInfoPanel(); window._teamDataDirty = false; renderActiveTab(); } catch (e) { console.warn('pel', e); } });
-            setTimeout(() => document.body.classList.remove('lld-pel-busy'), 20000);
+            const first = Promise.resolve().then(() => loadTeamData()).catch(e => console.warn('startup team', e));
+            bg.then(() => first).then(() => { lldBootDone(); document.body.classList.remove('lld-pel-busy'); _try(() => refreshTeamInfoPanel(), 'panel2'); window._teamDataDirty = false; _try(() => renderActiveTab(), 'render2'); });
+            setTimeout(() => { document.body.classList.remove('lld-pel-busy'); if (!$('#player-rows-container').children().length) { lldBootDone(); window._teamDataDirty = true; _try(() => loadTeamData(), 'rescue'); } }, 14000);
             return first;
         })
+        .catch(e => console.warn('startup', e))
         .then(() => { try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
         .then(() => { try { lldStatsEnsureTabs(); setTimeout(lldStatsEnsureTabs, 1500); setTimeout(lldStatsEnsureTabs, 4000); } catch (e) { console.warn('stats tabs', e); } });
 } else
