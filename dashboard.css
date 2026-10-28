@@ -4490,3 +4490,9 @@ body.lld-pel-busy #player-rows-container .player-row .row-right,body.lld-pel-bus
 .sx-cv .cv-t.cv-x{color:#f59e0b}
 .sx-cv .cv-s{font-weight:900;font-size:calc(16px * var(--ts,1));min-width:34px;text-align:right}
 .sx-cv .cv-s.up{color:#22c55e}.sx-cv .cv-s.dn{color:#ef4444}
+
+/* boot skeleton (faster-loading beta): header boxes blank with their own loader */
+@keyframes lld-bsp{to{transform:rotate(360deg)}}
+body.lld-pel-on.lld-boot #lld-sh .th.blk>:not(.nrow){position:relative;min-height:54px}
+body.lld-pel-on.lld-boot #lld-sh .th.blk>:not(.nrow)>*{visibility:hidden}
+body.lld-pel-on.lld-boot #lld-sh .th.blk>:not(.nrow)::after{content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:var(--accent-teal,#2dd4bf);animation:lld-bsp .8s linear infinite}
