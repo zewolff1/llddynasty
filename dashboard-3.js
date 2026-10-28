@@ -4674,6 +4674,8 @@ const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCa
 
         const rows = Array.from(tableElement.querySelectorAll('tr.oddtablerow, tr.eventablerow'));
 
+document.body.classList.toggle('lld-ct-tab', activeSub === 'contracts');
+if (activeSub === 'contracts' && window._lldBoot) { container.html('<div class="loading-indicator">Loading contracts…</div>'); return; }
 if (activeSub === 'contracts') {
             Promise.all([
                 fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=${fid}`, { credentials: 'include' }).then(r => r.text()),
@@ -19983,7 +19985,7 @@ fetchFranchises()
         refreshTeamInfoPanel();
         return loadTeamData();
     })
-    .then(() => { lldBootDone(); try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
+    .then(() => { lldBootDone(); try { if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'contracts') renderActiveTab(); } catch (e) { } try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
     .then(() => { try { lldStatsEnsureTabs(); setTimeout(lldStatsEnsureTabs, 1500); setTimeout(lldStatsEnsureTabs, 4000); } catch (e) { console.warn('stats tabs', e); } });
 
 $(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._liveScoreActiveWeek ?? null); });
