@@ -9164,7 +9164,7 @@ $('body').append(`
                 </div>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Tap-to-reveal scores</div>
 <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Tap-to-reveal scores (live and finished scores stay hidden until you tap)</div>
-<div style="display:flex; gap:6px; margin-bottom:16px;">${[['1','On'],['0','Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('rv') === v ? 'on' : ''}" data-k="rv" data-v="${v}">${l}</button>`).join('')}</div>
+<div style="display:flex; gap:6px; margin-bottom:16px;">${[['1','On'],['0','Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('rv') === v ? 'on' : ''}" data-k="rv" data-v="${v}">${l}</button>`).join('')}</div><button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Text Size</div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Text Size</div>
                     <div style="display:flex; gap:8px;">
@@ -9176,8 +9176,6 @@ $('body').append(`
                     </div>
                     <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-top:10px; line-height:1.5;">Changes the size of text only; layout and spacing stay the same.</div>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">More</div>
-                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Chat view</div>
-                    <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='classic'?'on':''}" data-v="classic">Classic</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='feed'?'on':''}" data-v="feed">News feed</button><button class="lld-hdr-btn lld-cv-btn ${lldChatView()==='paper'?'on':''}" data-v="paper">Newspaper</button></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Owner name in team header</div>
                     <div style="display:flex; gap:6px; margin-bottom:16px;"><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'on':''}" data-v="on">On</button><button class="lld-hdr-btn lld-own-btn ${lldGet('lld_owner','0')==='1'?'':'on'}" data-v="off">Off</button></div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Ticker (scores + moves)</div>
@@ -13505,13 +13503,8 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Display</div>
-        ${lab('Tap-to-reveal scores (live and finished scores stay hidden until you tap)')}${onoff('rv')}
-        <button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('To-do list (checklist button in the header)')}${onoff('tdo')}${lab('Faster loading: show the roster right away and fill in ranks, salaries and averages as they arrive (each part shows its own small loader)')}${onoff('pel')}` : ''}
-        ${lldDev() ? `${lab('Fine tune rows')}${sliders}
-        <button type="button" class="lld-hdr-btn lld-tune-reset" style="margin-bottom:16px;">Reset row tuning</button>` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -19980,7 +19973,7 @@ $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
-const lldPel = lldDev() && lldBv('pel') === '1';
+const lldPel = true; // faster loading is on for everyone
 window._lldBoot = true; document.body.classList.add('lld-boot'); if (lldPel) document.body.classList.add('lld-pel-on');
 const lldBootDone = () => { window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
 setTimeout(lldBootDone, 25000);
@@ -20846,7 +20839,7 @@ function lldQuickInit() {
     if (s) s.insertAdjacentHTML('beforebegin', btn); else $('.header-right-controls').prepend(btn);
 }
 // ===== TO-DO LIST (beta, commissioner franchises only): lineup problems, trades and one-time setup in one place =====
-function lldTdOn() { try { return lldDev() && lldBv('tdo') === '1'; } catch (e) { return false; } }
+function lldTdOn() { return true; } // to-do list: on for everyone
 const LLD_TD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="height:20px;width:20px;"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>';
 function lldTdSkipKey(k) { return 'lld_td_skip_' + lid + '_' + myFid + '_' + k; }
 function lldTdSkipped(k) { return lldGet(lldTdSkipKey(k), '') === '1'; }
