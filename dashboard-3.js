@@ -13460,101 +13460,35 @@ function lldPtrOn() { return true; }
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
 function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || (lldDev() && lldBv('gth') === '1'); } catch (e) { return false; } }
 const LLD_GTH = { features: {} }; // feature name -> { on: fn, render: fn }. New Gotham features register here.
-// ---- Gotham: Captains / Reserves / Bench layout on the Lineup (view only until Gotham exists on MFL; choices saved on this device) ----
-const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'FLEX'], base: 8, dep: 2 };
-const LLD_GTH_ELIG = { QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], FLEX: ['RB', 'WR', 'TE'] };
-function lldGthCapKey() { return 'lld_gth_lay_' + String(fid).padStart(4, '0'); }
-function lldGthLay() { try { return JSON.parse(lldGet(lldGthCapKey(), '{}')) || {}; } catch (e) { return {}; } }
-function lldGthLaySave(m) { lldSet(lldGthCapKey(), JSON.stringify(m)); }
-function lldGthInfo(row) {
-    const r = $(row), played = r.hasClass('lld-played');
-    const sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
-    return { pid: String(r.attr('data-pid')), name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos: (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase(), v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc) };
-}
-function lldGthFit(caps, rs) {
-    const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
-    const fill = (i, types) => { for (const t of types) { if (open[t] > 0 && LLD_GTH_ELIG[t].indexOf(i.pos) >= 0) { open[t]--; slot[i.pid] = t; return true; } } return false; };
-    caps.forEach(i => { if (!fill(i, ['QB', 'RB', 'WR', 'TE', 'FLEX'])) slot[i.pid] = 'extra'; });
-    [['QB', 'RB', 'WR', 'TE'], ['FLEX']].forEach(tp => rs.forEach(i => { if (slot[i.pid] === undefined) fill(i, tp); }));
-    return { open, slot };
-}
+// ---- Gotham: Captain pick on the Lineup (assumed rules, easy to change: captain scores x1.5, locks when their game starts) ----
+const LLD_GTH_CAP = { mult: 1.5 };
+function lldGthCapKey() { return 'lld_gth_cap_' + String(fid).padStart(4, '0') + '_' + (window._liveScoreCurrentWeek || 'w'); }
 function lldGthCapRender() {
-    const onLineup = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'lineup';
-    if (!lldGthOn() || !onLineup) { if (!lldGthOn()) { $('#gth-lay').remove(); document.body.classList.remove('lld-gth-lay'); } return; }
-    const benchBlock = document.querySelector('.sticky-block[data-block="bench"]'); if (!benchBlock) return;
-    document.body.classList.add('lld-gth-lay');
-    let host = document.getElementById('gth-lay');
-    if (!host) { benchBlock.insertAdjacentHTML('beforebegin', '<div id="gth-lay"><div id="gth-sum"></div><div class="gx-sec"><div class="gx-sh cap"><span>Captains</span><em id="gth-cn"></em><b class="bx" id="gth-cx"></b></div><div class="roster-grid" id="slots-captain"></div></div><div class="gx-sec"><div class="gx-sh"><span>Reserves</span><em id="gth-rn"></em><b class="bx gr" id="gth-rx"></b></div><div class="roster-grid" id="slots-reserves"></div></div></div>'); host = document.getElementById('gth-lay'); }
-    const lay = lldGthLay(), M = LLD_GTH_CAP.mult;
-    const rows = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]:not(.empty-slot), #slots-captain .player-row[data-pid], #slots-reserves .player-row[data-pid]').toArray();
-    const caps = [], rs = [], bn = [];
-    rows.forEach(r => {
-        const i = lldGthInfo(r); if (!r.dataset.gorig) r.dataset.gorig = $(r).closest('#slots-starters').length ? 'rs' : 'bn';
-        const w = lay[i.pid] || r.dataset.gorig; i.row = r; r.classList.remove('gth-cp');
-        if (w === 'cap' && caps.length < LLD_GTH_CAP.max) { caps.push(i); r.classList.add('gth-cp'); } else if (w === 'bn') bn.push(i); else rs.push(i);
+    if (!lldGthOn()) { $('#gth-cap-bar, .gth-c').remove(); return; }
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') { $('#gth-cap-bar').remove(); return; }
+    const cap = lldGet(lldGthCapKey(), ''), M = LLD_GTH_CAP.mult;
+    let found = null;
+    $('#slots-starters .player-row[data-pid]').each(function () {
+        const row = $(this); if (row.hasClass('empty-slot')) return;
+        const pid = String(row.data('pid')), isC = pid === cap;
+        let b = row.find('.gth-c'); if (!b.length) { b = $(`<button type="button" class="gth-c" data-pid="${pid}">C</button>`); row.append(b); }
+        b.toggleClass('on', isC).toggleClass('lock', row.hasClass('lld-played'));
+        if (isC) { const sc = parseFloat(row.find('.lld-pscore b').text()), pj = parseFloat(row.find('.proj-popup-trigger').attr('data-proj')); const played = isFinite(sc) && row.hasClass('lld-played'); found = { name: row.data('pname'), pts: played ? sc : pj, played }; }
     });
-    caps.sort((a, b) => b.v - a.v);
-    const fit = lldGthFit(caps, rs);
-    rs.sort((a, b) => ((fit.slot[b.pid] ? 1 : 0) - (fit.slot[a.pid] ? 1 : 0)) || b.v - a.v);
-    $('.gth-bn,.gx-in,.gx-div,.gx-ph,.gx-mvbar').remove();
-    const place = (cont, list) => { const el = document.getElementById(cont); list.forEach((i, k) => { if (el.children[k] !== i.row) el.insertBefore(i.row, el.children[k] || null); }); };
-    place('slots-captain', caps); place('slots-reserves', rs);
-    const nc = rs.filter(i => fit.slot[i.pid]).length;
-    const dp = Math.min(Math.max(0, LLD_GTH_CAP.base - rs.length) * LLD_GTH_CAP.dep, (M - 1) * 50);
-    let capPts = 0, bonus = 0, best = 0;
-    caps.forEach(i => { const b = i.v * (M - 1); capPts += i.v; bonus += b; const d = $(i.row).find('.lld-det').first(); d.append(`<div class="gth-bn">★ ×${M} · +${b.toFixed(1)}</div><div class="gx-in y">STARTS · ${fit.slot[i.pid]}</div>`); });
-    rs.forEach((i, k) => {
-        const on = !!fit.slot[i.pid]; if (on) best += i.v; $(i.row).toggleClass('gx-out', !on);
-        $(i.row).find('.lld-det').first().append(`<div class="gx-in ${on ? 'y' : 'n'}">${on ? 'COUNTS · ' + fit.slot[i.pid] : 'NOT COUNTING'}</div>` + (on && dp ? `<div class="gth-bn">▲ reserve +${dp}% · +${(i.v * dp / 100).toFixed(1)}</div>` : ''));
-        if (k === nc - 1 && rs.length > nc) $(i.row).after('<div class="gx-div">below this line do not count</div>');
-    });
-    bn.forEach(i => $(i.row).removeClass('gx-out'));
-    const openL = []; Object.keys(fit.open).forEach(t => { for (let z = 0; z < fit.open[t]; z++) openL.push(t); });
-    const anchor = nc ? rs[nc - 1].row : null;
-    openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t}</b><span>Empty${t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
-    if (bn.length) $('#slots-reserves').append('<div class="gx-ph opt" data-slot="rs">Add a reserve (optional)</div>');
-    if (caps.length < LLD_GTH_CAP.max && rs.length + bn.length > 0) $('#slots-captain').append(`<div class="gx-ph cap opt" data-slot="cap">${caps.length ? 'Add another captain (optional)' : 'No captain · tap to add one (optional)'}</div>`);
-    const tot = capPts + bonus + best * (1 + dp / 100), chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t} ${f}/${n}</b>`; }).join(' · ');
-    $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
-    $('#gth-cn').text(caps.length + '/' + LLD_GTH_CAP.max); $('#gth-cx').text(caps.length ? '+' + bonus.toFixed(1) + ' bonus' : '×' + M);
-    $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(nc + ' counting · ' + best.toFixed(1));
-    let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
-    $('#gth-bnn').text(bn.length);
-    place('slots-bench', bn);
-    $('#slots-bench .empty-slot').hide();
+    const host = document.querySelector('.sticky-block[data-block="starters"]'); if (!host) return;
+    const bonus = found && isFinite(found.pts) ? (found.pts * (M - 1)).toFixed(1) : null;
+    const html = found ? `<span class="k">★ CAPTAIN</span><b>${lldShEsc(found.name)}</b><span class="v">×${M} · +${bonus || '–'} ${found.played ? 'bonus' : 'projected bonus'}</span>` : `<span class="k">★ CAPTAIN</span><span class="v">Tap the C on a starter to pick your captain (×${M})</span>`;
+    let bar = document.getElementById('gth-cap-bar'); if (!bar) { host.insertAdjacentHTML('beforebegin', '<div id="gth-cap-bar"></div>'); bar = document.getElementById('gth-cap-bar'); }
+    if (bar.innerHTML !== html) bar.innerHTML = html;
 }
-function lldGthSheet(pid) {
-    const had = $(`.gx-mvbar[data-pid="${pid}"]`).length; $('.gx-mvbar,.gx-pick').remove(); if (had) return;
-    const lay = lldGthLay(), row = $(`#gth-lay .player-row[data-pid="${pid}"], #slots-bench .player-row[data-pid="${pid}"]`).first();
-    const cur = row.closest('#slots-captain').length ? 'cap' : row.closest('#slots-reserves').length ? 'rs' : 'bn';
-    const o = (k, t, s) => `<button class="mv ${k === 'cap' ? 'cap ' : ''}${cur === k ? 'on' : ''}" data-mv="${k}">${t}<small>${s}</small></button>`;
-    row.after(`<div class="gx-mvbar" data-pid="${pid}">${o('cap', '★ Captain', 'Always starts')}${o('rs', 'Reserves', 'Starts if it fits')}${o('bn', 'Bench', "Doesn't start")}</div>`);
-}
-$(document).on('click', '.gx-mvbar .mv', function (e) {
-    e.preventDefault(); e.stopPropagation();
-    const bar = $(this).closest('.gx-mvbar'), pid = String(bar.attr('data-pid')), k = this.dataset.mv, sw = this.dataset.sw, lay = lldGthLay();
-    const capIds = $('#slots-captain .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
-    if (sw) { lay[sw] = lay[pid] === 'bn' ? 'bn' : 'rs'; lay[pid] = 'cap'; }
-    else if (k === 'cap' && capIds.indexOf(pid) < 0 && capIds.length >= LLD_GTH_CAP.max) {
-        bar.addClass('sw').html('<div class="q">Captains are full. Swap with which captain?</div>' + capIds.map(c => `<button class="mv cap" data-sw="${c}">${lldShEsc($(`#slots-captain .player-row[data-pid="${c}"]`).attr('data-pname') || c)}</button>`).join('')); return;
-    } else lay[pid] = k;
-    lldGthLaySave(lay); lldGthCapRender();
+$(document).on('click touchend', '.gth-c', function (e) {
+    e.preventDefault(); e.stopPropagation(); if (e.type === 'touchend') return;
+    if (this.classList.contains('lock')) { try { lldPlayedToast('Locked: that game has started'); } catch (x) { } return; }
+    const pid = String(this.dataset.pid), cur = lldGet(lldGthCapKey(), '');
+    const curRow = cur ? $(`#slots-starters .player-row[data-pid="${cur}"]`) : $();
+    if (cur && cur !== pid && curRow.hasClass('lld-played')) { try { lldPlayedToast('Captain is locked: their game has started'); } catch (x) { } return; }
+    lldSet(lldGthCapKey(), cur === pid ? '' : pid); lldGthCapRender();
 });
-$(document).on('click', '.gx-ph[data-slot]', function (e) {
-    e.preventDefault(); e.stopPropagation(); const ph = $(this), had = ph.next().hasClass('gx-pick'); $('.gx-pick,.gx-mvbar').remove(); if (had) return;
-    const cap = this.dataset.slot === 'cap', pz = this.dataset.pos, ids = $('#slots-captain .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
-    const list = $('#gth-lay .player-row[data-pid], #slots-bench .player-row[data-pid]').toArray().filter(r => { const i = lldGthInfo(r), isC = ids.indexOf(i.pid) >= 0, inBn = $(r).closest('#slots-bench').length > 0; return cap ? !isC : (inBn && (!pz || LLD_GTH_ELIG[pz].indexOf(i.pos) >= 0)); }).map(lldGthInfo);
-    ph.after(`<div class="gx-pick" data-slot="${this.dataset.slot}"><div class="q">${cap ? 'Choose a captain' : 'Choose a ' + (pz || 'reserve') + ' from your bench'}</div>${list.length ? list.map(i => `<button data-pick="${i.pid}"><span>${lldShEsc(i.name)} <small>${i.pos}</small></span><small>${i.played ? 'FINAL ' : 'PROJ '}${i.v.toFixed(1)}</small></button>`).join('') : '<div class="q">No eligible player.</div>'}</div>`);
-});
-$(document).on('click', '.gx-pick [data-pick]', function (e) {
-    e.preventDefault(); e.stopPropagation(); const lay = lldGthLay(); lay[this.dataset.pick] = $(this).closest('.gx-pick').attr('data-slot') === 'cap' ? 'cap' : 'rs'; lldGthLaySave(lay); lldGthCapRender();
-});
-// Position buttons open the Captain / Reserves / Bench bar instead of the normal slot menu while Gotham layout is showing.
-['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) {
-    if (!document.body.classList.contains('lld-gth-lay')) return;
-    const b = e.target.closest && e.target.closest('#gth-lay .move-handle-btn, #slots-bench .move-handle-btn'); if (!b) return;
-    e.stopImmediatePropagation(); e.preventDefault(); if (ev === 'click') { const row = b.closest('.player-row'); if (row && row.dataset.pid) lldGthSheet(String(row.dataset.pid)); }
-}, true));
 LLD_GTH.features.captain = { render: lldGthCapRender };
 setInterval(() => { try { if (lldGthOn()) lldGthCapRender(); } catch (e) { } }, 2500);
 function lldGthApply() { document.body.classList.toggle('lld-gth', lldGthOn()); if (!lldGthOn()) return; Object.keys(LLD_GTH.features).forEach(k => { try { LLD_GTH.features[k].render && LLD_GTH.features[k].render(); } catch (e) { console.warn('gotham ' + k, e); } }); }
