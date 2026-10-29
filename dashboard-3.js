@@ -3600,7 +3600,7 @@ function lldSyncCommishBtn() {
     if (!window._commishToggleUrl) { b.hide(); return; }
     b.show().text(myFid === '0000' ? '\uD83D\uDC64 Owner' : '\uD83D\uDC51 Commish');
 }
-$(document).on('click touchend', '.open-settings-btn', function () { lldSyncCommishBtn(); setTimeout(lldSyncCommishBtn, 400); });
+$(document).on('click touchend', '.open-settings-btn', function () { lldSyncCommishBtn(); setTimeout(lldSyncCommishBtn, 400); try { $('.settings-tab-btn[data-target="tab-sleeper"]').toggle(typeof lldSltOn === 'function' && lldSltOn()); } catch (e) { } });
 $(document).on('click', '#settings-commish-toggle', function() {
     if (window._commishToggleUrl) {
         window.location.href = window._commishToggleUrl;
@@ -3640,6 +3640,7 @@ $(document).on('click', '.settings-tab-btn', function() {
     $('.settings-tab-content').hide();
     $('#' + $(this).data('target')).show();
     if ($(this).data('target') === 'tab-mflmenu') renderMflMenu();
+    if ($(this).data('target') === 'tab-sleeper') { try { lldSltSetRender(); } catch (e) { } }
     if ($(this).data('target') === 'tab-team-set') {
         renderFontGrid(currentFontCategory);
         setTimeout(applyStylePreview, 100);
@@ -9002,6 +9003,7 @@ $('body').append(`
             <button class="settings-tab-btn active" data-target="tab-display">Display Settings</button>
             <button class="settings-tab-btn" data-target="tab-team-set">Team Settings</button>
             <button class="settings-tab-btn" data-target="tab-mflmenu">MFL Setup</button>
+            <button class="settings-tab-btn" data-target="tab-sleeper" style="display:none;">Sleeper</button>
         </div>
 
         <!-- CONTENT -->
@@ -9108,6 +9110,9 @@ $('body').append(`
 
                 </div>
             </div>
+
+            <!-- SLEEPER TAB (beta) -->
+            <div id="tab-sleeper" class="settings-tab-content" style="display:none;"><div id="lld-slt-set"></div></div>
 
             <!-- MFL MENU TAB -->
             <div id="tab-mflmenu" class="settings-tab-content" style="display:none;">
@@ -12908,6 +12913,7 @@ function lldRvSource() {
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex]; if (!m) return null;
     return { t1: m.t1, t2: m.t2, mine: !!m.isMe, own: t => String(t.fid) === String(fid), wk: parseInt(window._liveScoreActiveWeek, 10), host: document.getElementById('live-score-card-inner'), sl: false, pm: window._lldRvPm, p1: window._lldRvP1, p2: window._lldRvP2 };
 }
+function lldRvSig() { const s = lldRvSource(); return s ? [s.sl ? 's' : 'm', s.wk, s.t1.fid, s.t2.fid].join('|') : ''; }
 function lldRvClock(c) { const m = String(c || '').match(/(\d+):(\d+)/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0; }
 async function lldRvReplayPrep() {
     const src = lldRvSource(), wk = src && src.wk; if (!src || !wk) return null;
@@ -13019,7 +13025,7 @@ async function lldRvReplay() {
     window._lldRvLoading = false;
     if (!prep || !prep.all.length) { lldRvRevealAll(); return; }
     const part = {}; prep.list.forEach(x => { part[x.pid] = 0; });
-    window._lldRvPart = part; window._lldRvRun = { list: prep.list, lbl: prep.lbl, prep, mode: 'big', steps: prep.big.length ? prep.big : prep.all, i: 0, timer: null, auto: false };
+    window._lldRvPart = part; window._lldRvRun = { sig: lldRvSig(), list: prep.list, lbl: prep.lbl, prep, mode: 'big', steps: prep.big.length ? prep.big : prep.all, i: 0, timer: null, auto: false };
     if (!prep.big.length) window._lldRvRun.mode = 'all';
     const b2 = document.getElementById('lld-rv-all'); if (b2) { b2.textContent = 'Replaying… tap to skip'; b2.dataset.m = 'skip'; }
     lldRvReplayShow(); lldRvReplayDraw();
@@ -13425,6 +13431,10 @@ setInterval(() => { if (lldShOn() && $('#tab-team').is(':visible')) { const el =
 function lldSltOn() { try { return lldDev() && lldBv('slt') === '1'; } catch (e) { return false; } }
 const LLD_SLT = { st: { l: 0, w: 0, m: 0, busy: false, err: '' }, cache: {}, players: null };
 function lldSltUser() { return lldGet('lld_slt_user', ''); }
+function lldSltCfg() { let c = {}; try { c = JSON.parse(lldGet('lld_slt_cfg', '{}')) || {}; } catch (e) { } c.on = c.on || {}; c.team = c.team || {}; return c; }
+function lldSltCfgSave(c) { lldSet('lld_slt_cfg', JSON.stringify(c)); }
+function lldSltShown() { const c = lldSltCfg(); return (LLD_SLT.leagues || []).filter(l => c.on[l.id] !== false); }
+function lldSltMyRid(lgid, ro) { const c = lldSltCfg(); if (c.team[lgid] != null && c.team[lgid] !== '') return c.team[lgid]; const r = (ro || []).find(x => x.owner_id === LLD_SLT.uid); return r ? r.roster_id : null; }
 async function lldSltApi(path) {
     const c = LLD_SLT.cache[path]; if (c && Date.now() - c.t < 25000) return c.d;
     const r = await fetch('https://api.sleeper.app/v1/' + path); if (!r.ok) throw new Error('Sleeper ' + r.status);
@@ -13459,7 +13469,7 @@ async function lldSltLoad() {
     const S = LLD_SLT.st; S.busy = true; S.err = '';
     try {
         if (!LLD_SLT.leagues) LLD_SLT.leagues = await lldSltLeagues();
-        const L = LLD_SLT.leagues; if (!L.length) { S.err = lldSltUser() ? 'No Sleeper leagues found for this season.' : ''; S.busy = false; return; }
+        const L = lldSltShown(); if (!L.length) { S.err = lldSltUser() ? ((LLD_SLT.leagues || []).length ? 'All your Sleeper leagues are switched off in Settings.' : 'No Sleeper leagues found for this season.') : ''; S.busy = false; return; }
         if (S.l >= L.length) S.l = 0; if (!S.w) S.w = parseInt(LLD_SLT.state && (LLD_SLT.state.display_week || LLD_SLT.state.week), 10) || 1;
         const lg = L[S.l], [us, ro, mu] = await Promise.all([lldSltApi(`league/${lg.id}/users`), lldSltApi(`league/${lg.id}/rosters`), lldSltApi(`league/${lg.id}/matchups/${S.w}`)]);
         LLD_SLT.cur = { lg, us, ro, mu }; await lldSltPlayers(); try { LLD_SLT.sched = await fetchNflScheduleForWeek(S.w); } catch (e) { LLD_SLT.sched = null; } LLD_SLT.pj = await lldSltProj(LLD_SLT.state && LLD_SLT.state.season || new Date().getFullYear(), S.w, lg.rec);
@@ -13476,16 +13486,15 @@ function lldSltDraw() {
     const S = LLD_SLT.st, esc = lldShEsc, rvOn = lldRvOn();
     const logo = (t, sz) => t.av ? `<img class="lo" src="${t.av}" style="width:${sz}px;height:${sz}px" onerror="this.style.display='none'">` : `<div class="lo" style="width:${sz}px;height:${sz}px">${esc(t.name.slice(0, 2))}</div>`;
     let h = '';
-    if (!lldSltUser() || S.edit) {
-        h += `<div class="sl-conn"><input id="lld-slt-in" placeholder="Sleeper username" value="${esc(lldSltUser())}" autocapitalize="off" autocorrect="off"><button data-a="con">Connect</button></div>`;
-        if (S.err) h += `<div class="sl-err">${esc(S.err)}</div>`;
+    if (!lldSltUser()) {
+        h += `<div class="sl-conn"><span class="sp">Add your Sleeper username, leagues and team in Settings.</span><button data-a="set">Open Settings</button></div>`;
         host.innerHTML = h; return;
     }
-    h += `<div class="sl-conn"><span>Connected as <b>${esc(lldSltUser())}</b></span><span class="sp">${(LLD_SLT.leagues || []).length} leagues</span><button data-a="chg">Change</button></div>`;
+    h += `<div class="sl-conn"><span>Sleeper: <b>${esc(lldSltUser())}</b></span><span class="sp">${lldSltShown().length} of ${(LLD_SLT.leagues || []).length} leagues</span><button data-a="set">Settings</button></div>`;
     if (S.err) h += `<div class="sl-err">${esc(S.err)}</div>`;
     const C = LLD_SLT.cur;
-    if (LLD_SLT.leagues && LLD_SLT.leagues.length) {
-        h += `<div class="sl-lgs">${LLD_SLT.leagues.map((l, i) => `<button class="sl-lg${i === S.l ? ' on' : ''}" data-l="${i}"><i style="background:${['#2dd4bf', '#f59e0b', '#a855f7', '#3b82f6', '#ef4444'][i % 5]}">${esc(l.name.slice(0, 2))}</i>${esc(l.name)}</button>`).join('')}</div>`;
+    if (lldSltShown().length) {
+        h += `<div class="sl-lgs">${lldSltShown().map((l, i) => `<button class="sl-lg${i === S.l ? ' on' : ''}" data-l="${i}">${l.av ? `<img class="sl-la" src="https://sleepercdn.com/avatars/thumbs/${l.av}" onerror="this.style.display='none'">` : `<i style="background:${['#2dd4bf', '#f59e0b', '#a855f7', '#3b82f6', '#ef4444'][i % 5]}">${esc(l.name.slice(0, 2))}</i>`}${esc(l.name)}</button>`).join('')}</div>`;
         h += `<div class="sl-wk"><button data-w="-1">‹</button><div><b>Week ${S.w}</b></div><button data-w="1">›</button></div>`;
     }
     if (!C || S.busy && !C) { host.innerHTML = h + '<div class="sl-err">Loading…</div>'; return; }
@@ -13493,12 +13502,12 @@ function lldSltDraw() {
     const groups = {}; (mu || []).forEach(x => { if (x.matchup_id != null) (groups[x.matchup_id] = groups[x.matchup_id] || []).push(x); });
     const M = Object.keys(groups).map(k => groups[k]).filter(g => g.length === 2);
     const all = (mu || []).map(x => x.points || 0).sort((a, b) => a - b), med = all.length ? (all.length % 2 ? all[(all.length - 1) / 2] : (all[all.length / 2 - 1] + all[all.length / 2]) / 2) : 0;
-    const mine = r => { const t = lldSltTeam(ro, us, r.roster_id); return t.owner === LLD_SLT.uid; };
+    const myRid = lldSltMyRid(lg.id, ro), mine = r => myRid != null && String(r.roster_id) === String(myRid);
     if (S.m >= M.length) S.m = Math.max(0, M.findIndex(g => g.some(mine))); if (S.m < 0) S.m = 0;
     if (S.mi !== S.w + ':' + S.l) { S.mi = S.w + ':' + S.l; const i = M.findIndex(g => g.some(mine)); S.m = i >= 0 ? i : 0; }
     const wk = lldRvKey ? S.w + ':' : '';
     const rvK = k => 'p' + k, tapped = k => !rvOn || lldRvHas(rvK(k));
-    h += `<div class="sl-strip">${M.map((g, i) => { const a = lldSltTeam(ro, us, g[0].roster_id), b = lldSltTeam(ro, us, g[1].roster_id), pts = (g[0].points || 0) + (g[1].points || 0); const s = `${Math.round(g[0].points || 0)}–${Math.round(g[1].points || 0)}`; const kk = 'slm' + lg.id + S.w + i; return `<div class="sl-mc${i === S.m ? ' on' : ''}${g.some(mine) ? ' me' : ''}" data-m="${i}">${logo(a, 20)}<span class="sl-s">${rvOn && pts > 0 ? `<span class="lld-rvc${lldRvHas(kk) ? ' on' : ''}" data-k="${kk}">${s}</span>` : s}</span>${logo(b, 20)}</div>`; }).join('')}</div>`;
+    h += `<div class="sl-strip">${M.map((g, i) => { const a = lldSltTeam(ro, us, g[0].roster_id), b = lldSltTeam(ro, us, g[1].roster_id), pts = (g[0].points || 0) + (g[1].points || 0); const kk = 'slm' + lg.id + S.w + i; const sc = `${(g[0].points || 0).toFixed(1)}<br>${(g[1].points || 0).toFixed(1)}`; return `<div class="sl-mc${i === S.m ? ' on' : ''}${g.some(mine) ? ' me' : ''}" data-m="${i}"><div class="sl-tn">${logo(a, 20)}<span>${esc(a.name)}</span></div><div class="sl-tn">${logo(b, 20)}<span>${esc(b.name)}</span></div><span class="sl-sc">${rvOn && pts > 0 ? `<span class="lld-rvc${lldRvHas(kk) ? ' on' : ''}" data-k="${kk}">${sc}</span>` : sc}</span></div>`; }).join('')}</div>`;
     const g = M[S.m];
     if (!g) { host.innerHTML = h + '<div class="sl-err">No matchups for this week yet.</div>'; return; }
     const A = g[0], B = g[1];
@@ -13512,7 +13521,7 @@ function lldSltDraw() {
         const mk = (pid, slotIndex, isStarter) => { const p = P[pid] || { n: pid, pos: '', tm: '' }, pos = p.pos === 'DEF' ? 'Def' : p.pos; return { pid: 's' + pid, sid: pid, name: p.n, shortName: p.n, pos, team: nflT(p.tm), score: (m.players_points || {})[pid] || 0, isStarter, slotIndex, opp: '', gsr: null, rawStatus: '' }; };
         const roster = (m.starters || []).map((pid, i) => (pid && pid !== '0') ? mk(pid, i, true) : null).filter(Boolean).concat(ids.filter(x => !st.has(x)).map((pid, i) => mk(pid, 100 + i, false)));
         const ytp = roster.filter(p => p.isStarter && !deriveLiveStatus(p).done).length;
-        return { own: t.owner === LLD_SLT.uid, fid: 's' + m.roster_id, name: t.name, logo: t.av || 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg', score: m.points || 0, roster, yetToPlay: ytp, rec: t.rec };
+        return { own: myRid != null && String(m.roster_id) === String(myRid), fid: 's' + m.roster_id, name: t.name, logo: t.av || 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg', score: m.points || 0, roster, yetToPlay: ytp, rec: t.rec };
     };
     const t1 = mkTeam(A), t2 = mkTeam(B);
     const projTot = t => t.roster.reduce((a, p) => { if (!p.isStarter) return a; const d = deriveLiveStatus(p); return a + (d.done ? p.score : (pm[p.pid] != null ? pm[p.pid] : p.score)); }, 0);
@@ -13531,6 +13540,32 @@ function lldSltDraw() {
     if (!rvOn && b) b.parentElement.remove();
     if (window._lldRvRun) { if (b) b.dataset.m = 'skip'; try { lldRvReplayShow(); lldRvReplayWp(host, lldRvSource()); } catch (e) { } } else { try { lldLastPlayRefresh(); } catch (e) { } }
 }
+async function lldSltSetRender() {
+    const box = document.getElementById('lld-slt-set'); if (!box) return;
+    const esc = lldShEsc, c = lldSltCfg();
+    const head = `<div class="slset-lab">Sleeper username</div><div class="slset-r"><input id="slset-user" placeholder="Your Sleeper username" value="${esc(lldSltUser())}" autocapitalize="off" autocorrect="off"><button type="button" id="slset-save">Save</button></div><div id="slset-msg"></div>`;
+    if (!lldSltUser()) { box.innerHTML = head + '<div class="slset-note">Save your username to see your leagues.</div>'; return; }
+    box.innerHTML = head + '<div class="slset-note">Loading your leagues…</div>';
+    try { if (!LLD_SLT.leagues) LLD_SLT.leagues = await lldSltLeagues(); } catch (e) { box.innerHTML = head + `<div class="slset-note err">${esc(String(e.message || e))}</div>`; return; }
+    const rows = [];
+    for (const l of LLD_SLT.leagues) {
+        let us = [], ro = []; try { [us, ro] = await Promise.all([lldSltApi(`league/${l.id}/users`), lldSltApi(`league/${l.id}/rosters`)]); } catch (e) { }
+        const my = lldSltMyRid(l.id, ro), on = c.on[l.id] !== false;
+        rows.push(`<div class="slset-lg${on ? '' : ' off'}"><div class="slset-h">${l.av ? `<img src="https://sleepercdn.com/avatars/thumbs/${l.av}" onerror="this.style.display='none'">` : ''}<b>${esc(l.name)}</b><button type="button" class="slset-on${on ? ' on' : ''}" data-id="${esc(l.id)}">${on ? 'Connected' : 'Off'}</button></div><div class="slset-lab">My team in this league</div><select class="slset-tm" data-id="${esc(l.id)}">${ro.map(r => { const t = lldSltTeam(ro, us, r.roster_id); return `<option value="${r.roster_id}"${String(r.roster_id) === String(my) ? ' selected' : ''}>${esc(t.name)}</option>`; }).join('') || '<option value="">(rosters not available yet)</option>'}</select></div>`);
+    }
+    box.innerHTML = head + `<div class="slset-lab" style="margin-top:12px">Leagues on the Sleeper tab</div>${rows.join('') || '<div class="slset-note">No Sleeper leagues found this season.</div>'}`;
+}
+document.addEventListener('click', function (e) {
+    const t = e.target && e.target.closest ? e.target.closest('#slset-save, .slset-on') : null; if (!t) return;
+    const msg = document.getElementById('slset-msg'), say = x => { if (msg) { msg.textContent = x; setTimeout(() => { if (msg.textContent === x) msg.textContent = ''; }, 1800); } };
+    if (t.id === 'slset-save') { const v = (document.getElementById('slset-user').value || '').trim(); lldSet('lld_slt_user', v); LLD_SLT.leagues = null; LLD_SLT.cur = null; LLD_SLT.st.l = 0; LLD_SLT.st.w = 0; say('Saved'); lldSltSetRender(); return; }
+    const c = lldSltCfg(), id = t.dataset.id; c.on[id] = c.on[id] === false; lldSltCfgSave(c); LLD_SLT.cur = null; LLD_SLT.st.l = 0; LLD_SLT.st.mi = ''; say('Saved'); lldSltSetRender();
+}, false);
+document.addEventListener('change', function (e) {
+    const t = e.target && e.target.closest ? e.target.closest('.slset-tm') : null; if (!t) return;
+    const c = lldSltCfg(); c.team[t.dataset.id] = t.value; lldSltCfgSave(c); LLD_SLT.cur = null; LLD_SLT.st.mi = '';
+    const msg = document.getElementById('slset-msg'); if (msg) { msg.textContent = 'Saved'; setTimeout(() => { msg.textContent = ''; }, 1500); }
+}, false);
 async function lldSltRender() {
     const container = $('#scores-content-container');
     container.html(buildScoresViewToggleHtml() + '<div id="lld-slt"></div>');
@@ -13540,8 +13575,7 @@ async function lldSltRender() {
 ['click'].forEach(ev => document.addEventListener(ev, async function (e) {
     const t = e.target && e.target.closest ? e.target.closest('#lld-slt [data-a], #lld-slt [data-l], #lld-slt [data-w], #lld-slt .sl-mc') : null; if (!t) return;
     const S = LLD_SLT.st;
-    if (t.dataset.a === 'con') { const v = (document.getElementById('lld-slt-in').value || '').trim(); if (!v) return; lldSet('lld_slt_user', v); LLD_SLT.leagues = null; LLD_SLT.cur = null; S.edit = false; S.l = 0; S.w = 0; S.err = ''; lldSltDraw(); await lldSltLoad(); lldSltDraw(); return; }
-    if (t.dataset.a === 'chg') { S.edit = true; lldSltDraw(); return; }
+    if (t.dataset.a === 'set') { try { $('.open-settings-btn').first().trigger('click'); setTimeout(() => $('.settings-tab-btn[data-target="tab-sleeper"]').show().trigger('click'), 80); } catch (x) { } return; }
     if (t.dataset.l != null) { S.l = +t.dataset.l; S.mi = ''; lldSltDraw(); await lldSltLoad(); lldSltDraw(); return; }
     if (t.dataset.w) { S.w = Math.max(1, Math.min(18, S.w + (+t.dataset.w))); S.mi = ''; lldSltDraw(); await lldSltLoad(); lldSltDraw(); return; }
     if (t.classList.contains('sl-mc')) { if (e.target.closest('.lld-rvc')) return; S.m = +t.dataset.m; lldSltDraw(); }
@@ -16812,7 +16846,7 @@ async function lldLastPlayRefresh() {
         (t.roster || []).forEach(p => { if (p.isStarter) list.push({ w: ww, st: true, name: p.name, team: lldEspnNt(p.team), pid: String(p.pid) }); });
     });
     const MY = { list, lbl, map: {} }, teams = {}; list.forEach(x => teams[x.team] = 1);
-    let sb; try { sb = await lldLpGames(wk); } catch (e) { return; }
+    const sig0 = lldRvSig(); let sb; try { sb = await lldLpGames(wk); } catch (e) { return; }
     const evs = (sb.events || []).filter(ev => ((ev.status || {}).type || {}).state !== 'pre' && (((ev.competitions || [])[0] || {}).competitors || []).some(c => teams[lldEspnNt((c.team || {}).abbreviation)]));
     let best = null;
     for (const ev of evs) {
@@ -16828,6 +16862,7 @@ async function lldLastPlayRefresh() {
             }
         }
     }
+    if (sig0 !== lldRvSig() || window._lldRvRun) return; // another matchup was opened while this one loaded
     let el = document.getElementById('lld-lastplay');
     if (!best) { if (el) el.remove(); return; }
     const ab = (best.dr.team || {}).abbreviation || '', logo = getNFLLogoUrl(lldEspnNt(ab)), g = best.gT.join(' @ ');
@@ -16855,7 +16890,7 @@ renderLiveScoreCard = async function () {
     await _origRenderLiveScoreCard.apply(this, arguments);
     try { lldRvBar(); } catch (e) { }
     injectLiveNowStrip();
-    try { if (window._lldRvRun) { lldRvReplayShow(); lldRvReplayDraw(); } else { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } } catch (e) { }
+    try { if (window._lldRvRun && window._lldRvRun.sig !== lldRvSig()) { lldRvReplayStop(); $('#lld-lastplay').remove(); } if (window._lldRvRun) { lldRvReplayShow(); lldRvReplayDraw(); } else { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } } catch (e) { }
 };
 window.lldRerenderScores = function () { return renderLiveScoreCard(); };
 $(document).off('click.livesort').on('click.livesort', '.live-sort-btn', function (e) {
