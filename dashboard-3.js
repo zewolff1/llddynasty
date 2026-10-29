@@ -15096,13 +15096,15 @@ $(document).on('click touchend', '#lld-hdr-pv', async function (e) {
 });
 async function lldBuildPreview(pw) {
     let ms = [], proj = {};
-    try { [ms, proj] = await Promise.all([fetchRecapWeek(pw, false), fetchWeekProjectedScoresMap(pw)]); } catch (e) { console.warn('preview', e); }
+    // fetched separately so a projections hiccup can't throw away the matchups (and the other way round)
+    try { ms = await fetchRecapWeek(pw, false); } catch (e) { console.warn('preview matchups', e); }
+    try { proj = await fetchWeekProjectedScoresMap(pw); } catch (e) { console.warn('preview proj', e); }
     const games = ms.map((m, i) => { const w = computeWinProb(m.t1, m.t2, proj); return { i, wk: pw, t1: m.t1, t2: m.t2, p1: w.p1, m1: w.mean1, m2: w.mean2 }; });
     const players = [];
     ms.forEach(m => [m.t1, m.t2].forEach(t => t.roster.forEach(p => { if (p.isStarter && proj[p.pid] > 0) players.push({ p, fid: t.fid, proj: proj[p.pid] }); })));
     players.sort((a, b) => b.proj - a.proj);
     const P = { pw, games, proj, players: players.slice(0, 5), noProj: !Object.keys(proj).length };
-    window._pvCache = window._pvCache || {}; window._pvCache[pw] = P;
+    window._pvCache = window._pvCache || {}; if (games.length) window._pvCache[pw] = P; // never keep an empty result: it would stick for the whole session
     return P;
 }
 function lldPvGame(g) {
@@ -15313,8 +15315,8 @@ $(document).on('change', '.lld-gbg-c', function () { const c = lldGbgCfg(); c.sh
 $(document).on('click', '.lld-gbg-mv', function () { const c = lldGbgCfg(), n = c.order.indexOf(this.dataset.k), m = n + (+this.dataset.d); if (n < 0 || m < 0 || m >= c.order.length) return; const t = c.order[n]; c.order[n] = c.order[m]; c.order[m] = t; lldGbgSave(c); $('#lld-gbg-set').html(lldGbgPanel()); });
 $(document).on('click', '.lld-gbg-rs', function () { lldSet('lld_gbg_cfg', '{}'); $('#lld-gbg-set').html(lldGbgPanel()); });
 $(document).on('click', '.lld-b-btn[data-k="gbg"]', function () { $('#lld-gbg-set').toggle(this.dataset.v === '1'); });
-async function lldGbgBuild(mg, me, wk) {
-    const src = { t1: mg.t1, t2: mg.t2, mine: true, own: t => String(t.fid) === String(me), wk };
+async function lldGbgBuild(mg, me, wk, notMine) {
+    const src = { t1: mg.t1, t2: mg.t2, mine: !notMine, own: t => String(t.fid) === String(me), wk };
     const prep = await lldRvReplayPrep(src); if (!prep) return null;
     const gOrder = [], gItems = {};
     prep.all.forEach(s => { const it = s.item; if (!gItems[it.game]) { gItems[it.game] = []; gOrder.push(it.game); } gItems[it.game].push(it); });
@@ -16153,6 +16155,14 @@ async function lldMatchRecapSlides(m, wk) {
     [a, b].forEach(t => (t.roster || []).forEach(p => { if (p.isStarter) starters.push({ p, fid: t.fid }); }));
     starters.sort((x, y) => y.p.score - x.p.score);
     if (starters.length) { LLD_ST.topFid = starters[0].fid; out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE GAME</div>${starters.slice(0, 4).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`)); }
+    try {
+        if (lldGbgOn()) {
+            const myF = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0'), mineM = String(a.fid) === myF || String(b.fid) === myF;
+            const note = t => out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">No replay for this game</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc(t)}</div>`));
+            const G = await lldGbgBuild(m, mineM ? myF : String(a.fid), wk, !mineM);
+            if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for these starters (ESPN had nothing for this week, or none of the plays matched).');
+        }
+    } catch (e) { console.warn('gbg match', e); if (lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
     [a, b].forEach(t => {
         const bn = (t.roster || []).filter(p => !p.isStarter).sort((x, y) => y.score - x.score)[0];
         if (bn && bn.score > 0) out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">${stName(t.fid)} · BEST ON THE BENCH</div>${stPRow(bn, t.fid, bn.score.toFixed(1), 0.3)}<div class="st-sub st-a" style="--d:.8s">Points that never counted</div>`));
@@ -16188,6 +16198,17 @@ async function lldEmbedStory(host, kind, wk, idx, mref) {
     } catch (e) { console.warn('embed story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-sub">Could not load this ${kind === 'mrecap' ? 'recap' : 'preview'}</div></div>`); }
 }
 $(document).on('click', '#lld-story .emb-replay', function (e) { e.stopPropagation(); if (LLD_ST.slides.length) stShow(0); });
+// find this matchup in the week preview; if the preview was built without it, add it from the matchup on screen
+function lldPvFind(P, m) {
+    let i = P.games.findIndex(g => (g.t1.fid === m.t1.fid && g.t2.fid === m.t2.fid) || (g.t1.fid === m.t2.fid && g.t2.fid === m.t1.fid));
+    if (i >= 0) return i;
+    try {
+        if (!(m.t1.roster || []).length || !(m.t2.roster || []).length) return -1;
+        const w = computeWinProb(m.t1, m.t2, P.proj || {});
+        P.games.push({ i: P.games.length, wk: P.pw, t1: m.t1, t2: m.t2, p1: w.p1, m1: w.mean1, m2: w.mean2 });
+        return P.games.length - 1;
+    } catch (e) { return -1; }
+}
 async function lldFillEmbed(m, state, wk, idx) {
     const host = $('#lld-emb-host'), below = $('#lld-emb-below');
     if (!host.length) return;
@@ -16195,7 +16216,7 @@ async function lldFillEmbed(m, state, wk, idx) {
         if (state === 'pre') {
             const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
             if (window._liveScoreIndex !== idx || !$('#lld-emb-host').length) return;
-            const i = P.games.findIndex(g => (g.t1.fid === m.t1.fid && g.t2.fid === m.t2.fid) || (g.t1.fid === m.t2.fid && g.t2.fid === m.t1.fid));
+            const i = lldPvFind(P, m);
             if (i < 0) host.html('<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Preview is not available for this matchup yet.</div>');
             else lldEmbedStory(host, 'matchup', wk, i);
             openMatchupPreview({ host: below });
@@ -16214,7 +16235,7 @@ async function lldScoresPreviewStory() {
     if (!m || !wk) { openMatchupPreview(); return; }
     try {
         const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
-        const i = P.games.findIndex(g => (g.t1.fid === m.t1.fid && g.t2.fid === m.t2.fid) || (g.t1.fid === m.t2.fid && g.t2.fid === m.t1.fid));
+        const i = lldPvFind(P, m);
         if (i < 0) { openMatchupPreview(); return; }
         lldOpenStory('matchup', wk, i, true);
     } catch (e) { console.warn('preview story', e); openMatchupPreview(); }
