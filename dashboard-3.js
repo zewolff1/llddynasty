@@ -13887,10 +13887,53 @@ async function lldEspnRender() {
         if (evs.some(e => (e.status || {}).type && e.status.type.state === 'in')) LLDE.T = setTimeout(() => { if (window._scoresViewMode === 'nfl' && LLDE.view === 'list') lldEspnRender(); }, 30000);
     } catch (e) { console.warn('espn', e); $('#scores-content-container .lld-esp').html('<div class="esp-msg">Could not load NFL games from ESPN right now.</div>'); }
 }
+// ---- estimated fantasy points per play, from the play text and the LLD scoring rules (approximate: text is read, not official stats) ----
+const LLD_ESPN_PTS = { pyd: .04, ptd: 4, ryd: .1, rtd: 6, rec: .5, recyd: .1, two: 2, int: 3, fr: 1, ff: 1, sack: 2, tkl: 1, ast: .5, tfl: 2, pd: 1, deftd: 6, fl: -1 };
+function lldEspnTok(s) {
+    const out = [], re = /\b([A-Z])\.\s?((?:St\.\s)?[A-Z][A-Za-z'’\-]*(?:\s(?:Jr|Sr|II|III|IV)\b\.?)?)/g; let m;
+    while ((m = re.exec(s))) out.push({ k: (m[1] + m[2].replace(/\s(Jr|Sr|II|III|IV)\b\.?/, '')).toLowerCase().replace(/[^a-z]/g, ''), i: m.index, e: re.lastIndex });
+    return out;
+}
+function lldEspnPlayPts(text) {
+    const P = LLD_ESPN_PTS, t = String(text || ''), low = t.toLowerCase(), r = []; const add = (k, v, w) => { if (k && v) r.push({ k, v, w }); };
+    if (!t || /no play|penalty on|timeout|end game|end of|two-minute|punts|kicks off|kickoff|field goal|extra point|\bpunt\b/i.test(t) && !/two-point/i.test(t) && !/fumble/i.test(t)) return r;
+    const tk = lldEspnTok(t); if (!tk.length) return r;
+    const td = /touchdown/i.test(t) && !/nullified|no good/i.test(t), ym = t.match(/for (-?\d+) yards?/i), y = ym ? parseInt(ym[1], 10) : (/no gain/i.test(t) ? 0 : null);
+    const parens = (() => { const m = [...t.matchAll(/\(([^)]*)\)/g)]; return m.length ? lldEspnTok(m[m.length - 1][1]) : []; })();
+    const psep = (() => { const m = [...t.matchAll(/\(([^)]*)\)/g)]; return m.length ? m[m.length - 1][1].split(/[;,]/).length : 0; })();
+    const isPass = /\bpass\b/.test(low);
+    if (/two-point/i.test(t)) { if (/is good|succeeds|conversion good/i.test(t)) { add(tk[0].k, P.two, '2-pt'); if (isPass && tk[1]) add(tk[1].k, P.two, '2-pt'); } return r; }
+    if (isPass) {
+        if (/incomplete/i.test(low)) { if (parens[0]) add(parens[0].k, P.pd, 'pass defended'); return r; }
+        if (/intercepted/i.test(low)) { const im = t.match(/intercepted by\s+([A-Z]\.\s?(?:St\.\s)?[A-Za-z'’\-]+)/i); if (im) { const it = lldEspnTok(im[1])[0]; if (it) add(it.k, P.int, 'INT'); } return r; }
+        if (y != null) {
+            add(tk[0].k, y * P.pyd, 'pass yds'); const ti = t.search(/ to [A-Z]\./); const rc = tk.find(x => ti >= 0 && x.i > ti);
+            if (rc) { add(rc.k, P.rec + y * P.recyd, 'rec'); if (td) { add(tk[0].k, P.ptd, 'pass TD'); add(rc.k, P.rtd, 'rec TD'); } }
+            parens.forEach(x => add(x.k, psep > 1 ? P.ast : P.tkl, 'tackle'));
+        }
+        return r;
+    }
+    if (/sacked/i.test(low)) { parens.forEach(x => add(x.k, P.sack / Math.max(1, psep), 'sack')); return r; }
+    if (/fumbles/i.test(low)) {
+        const fm = t.match(/forced by\s+([A-Z]\.\s?(?:St\.\s)?[A-Za-z'’\-]+)/i); if (fm) { const f = lldEspnTok(fm[1])[0]; if (f) add(f.k, P.ff, 'forced fumble'); }
+        const rm = t.match(/recovered by\s+([A-Z]{2,3})-\s?([A-Z]\.\s?(?:St\.\s)?[A-Za-z'’\-]+)/i); if (rm) { const rc = lldEspnTok(rm[2])[0]; if (rc) r.push({ k: rc.k, v: P.fr, w: 'recovery', team: rm[1].toUpperCase() }); r.push({ k: tk[0].k, v: P.fl, w: 'fumble lost', lostTo: rm[1].toUpperCase() }); }
+    }
+    if (y != null && !/fumbles/i.test(low)) {
+        add(tk[0].k, y * P.ryd, 'rush yds'); if (td) add(tk[0].k, P.rtd, 'rush TD');
+        parens.forEach(x => add(x.k, y < 0 ? P.tfl / Math.max(1, psep) : (psep > 1 ? P.ast : P.tkl), y < 0 ? 'TFL' : 'tackle'));
+    }
+    return r;
+}
 function lldEspnPlayMine(MY, gTeams, text) {
     if (!MY || !text) return '';
-    const t = String(text).toLowerCase().replace(/[\s.]/g, ''), seen = {}, out = [];
-    MY.list.forEach(x => { if (gTeams.indexOf(x.team) < 0) return; const parts = String(x.name).replace(/\./g, ' ').trim().split(/\s+/), ini = (parts[0] || '').charAt(0).toLowerCase(), last = parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, ''); if (!last || seen[x.name + x.team]) return; if (t.indexOf(ini + last) >= 0) { seen[x.name + x.team] = 1; out.push(`<span class="esp-ch ${x.w}">${x.w === 'me' ? 'YOU' : 'OPP'} · ${lldEsc(x.name)}</span>`); } });
+    const ev = lldEspnPlayPts(text), tk = lldEspnTok(String(text)), seen = {}, out = [];
+    MY.list.forEach(x => {
+        if (gTeams.indexOf(x.team) < 0) return;
+        const parts = String(x.name).replace(/\./g, ' ').trim().split(/\s+/), ini = (parts[0] || '').charAt(0).toLowerCase(), last = parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, ''); if (!last || seen[x.name + x.team]) return;
+        const key = ini + last; if (!tk.some(z => z.k === key)) return; seen[x.name + x.team] = 1;
+        let pts = 0; ev.forEach(e => { if (e.k !== key) return; if (e.team && e.team !== x.team) return; if (e.lostTo && e.lostTo === x.team) return; pts += e.v; });
+        out.push(`<span class="esp-ch ${x.w}">${x.w === 'me' ? 'YOU' : 'OPP'} · ${lldEsc(x.name)}${pts ? ` <b>${pts > 0 ? '+' : ''}${pts.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`);
+    });
     return out.length ? `<div class="esp-mine">${out.join('')}</div>` : '';
 }
 async function lldEspnGame(keep) {
