@@ -13857,6 +13857,16 @@ function lldEspnStatus(ev) {
     if (ty.state === 'post') return { t: 'post', txt: ty.shortDetail || 'Final' };
     return { t: 'pre', txt: new Date(ev.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) };
 }
+const lldEspnNt = a => ({ WSH: 'WAS', JAX: 'JAC', LA: 'LAR' })[a] || a || '';
+const lldEspnKey = (nm, tm) => { const w = String(nm || '').replace(/[.,]/g, ' ').trim().split(/\s+/).filter(Boolean); if (!w.length) return ''; const f = w[0].charAt(0).toLowerCase(); let rest = w.slice(1).filter(x => !/^(jr|sr|ii|iii|iv|v)$/i.test(x)).join('').toLowerCase().replace(/[^a-z]/g, ''); return f + rest + '|' + lldEspnNt(String(tm || '').toUpperCase()); };
+// my matchup's players (me / opponent) keyed by first initial + last name + team, so ESPN names can be labelled
+function lldEspnMine() {
+    const m = (window._liveScoreMatchups || []).find(x => x.isMe); if (!m) return null;
+    const me = String(m.t1.fid) === String(fid) ? m.t1 : m.t2, op = me === m.t1 ? m.t2 : m.t1, map = {}, list = [];
+    [[me, 'me'], [op, 'op']].forEach(([t, w]) => (t.roster || []).forEach(p => { const k = lldEspnKey(p.name, p.team); if (k) { map[k] = { w, st: p.isStarter, name: p.name, team: lldEspnNt(p.team) }; list.push(map[k]); } }));
+    return { map, list, meName: me.name, opName: op.name };
+}
+const lldEspnChip = x => x ? `<span class="esp-ch ${x.w}">${x.w === 'me' ? 'YOU' : 'OPP'}${x.st ? '' : ' · BENCH'}</span>` : '';
 async function lldEspnRender() {
     const box = $('#scores-content-container'); if (!box.length) return;
     clearTimeout(LLDE.T);
@@ -13865,14 +13875,23 @@ async function lldEspnRender() {
     try {
         const wk = lldEspnWk(), yr = parseInt((typeof selectedYear !== 'undefined' && selectedYear) || year, 10) || new Date().getFullYear();
         const d = await lldEspnJson('/scoreboard' + (wk ? '?seasontype=2&week=' + wk + '&dates=' + yr : '')), evs = d.events || [];
+        const MY = lldEspnMine();
         const cards = evs.map(ev => {
             const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {}), s = lldEspnStatus(ev);
-            const row = t => `<div class="esp-t${t.win ? ' w' : ''}"><img src="${lldEsc(t.logo)}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><span>${lldEsc(t.rec)}</span><em>${s.t === 'pre' ? '' : lldEsc(t.score)}</em></div>`;
-            return `<button type="button" class="esp-g ${s.t}" data-id="${lldEsc(ev.id)}">${row(aw)}${row(hm)}<div class="esp-s">${s.t === 'in' ? '<i class="esp-live"></i>' : ''}${lldEsc(s.txt)}</div></button>`;
+            const row = t => `<div class="esp-t${t.win ? ' w' : ''}"><img src="${lldEsc(getNFLLogoUrl(lldEspnNt(t.ab)))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><span>${lldEsc(t.rec)}</span><em>${s.t === 'pre' ? '' : lldEsc(t.score)}</em></div>`;
+            const mn = MY ? MY.list.filter(x => x.st && (x.team === lldEspnNt(aw.ab) || x.team === lldEspnNt(hm.ab))) : [], nm1 = mn.filter(x => x.w === 'me').length, no1 = mn.filter(x => x.w === 'op').length;
+            const mine = (nm1 || no1) ? `<div class="esp-mine">${nm1 ? `<span class="esp-ch me">${nm1} YOURS</span>` : ''}${no1 ? `<span class="esp-ch op">${no1} OPP</span>` : ''}</div>` : '';
+            return `<button type="button" class="esp-g ${s.t}" data-id="${lldEsc(ev.id)}" style="--ta:${(NFL_TEAM_COLORS[lldEspnNt(aw.ab)] || ['#334155'])[0]};--th:${(NFL_TEAM_COLORS[lldEspnNt(hm.ab)] || ['#334155'])[0]}">${row(aw)}${row(hm)}<div class="esp-s">${s.t === 'in' ? '<i class="esp-live"></i>' : ''}${lldEsc(s.txt)}</div>${mine}</button>`;
         }).join('');
         $('#scores-content-container .lld-esp').html(`<div class="esp-wk"><button type="button" class="esp-wb" data-d="-1">‹</button> <b>${lldEsc((d.week && d.week.number) ? 'Week ' + d.week.number : (wk ? 'Week ' + wk : 'This week'))}</b> <button type="button" class="esp-wb" data-d="1">›</button><br>tap a game for the box score and play by play</div><div class="esp-grid">${cards || '<div class="esp-msg">No games found.</div>'}</div>`);
         if (evs.some(e => (e.status || {}).type && e.status.type.state === 'in')) LLDE.T = setTimeout(() => { if (window._scoresViewMode === 'nfl' && LLDE.view === 'list') lldEspnRender(); }, 30000);
     } catch (e) { console.warn('espn', e); $('#scores-content-container .lld-esp').html('<div class="esp-msg">Could not load NFL games from ESPN right now.</div>'); }
+}
+function lldEspnPlayMine(MY, gTeams, text) {
+    if (!MY || !text) return '';
+    const t = String(text).toLowerCase().replace(/[\s.]/g, ''), seen = {}, out = [];
+    MY.list.forEach(x => { if (gTeams.indexOf(x.team) < 0) return; const parts = String(x.name).replace(/\./g, ' ').trim().split(/\s+/), ini = (parts[0] || '').charAt(0).toLowerCase(), last = parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, ''); if (!last || seen[x.name + x.team]) return; if (t.indexOf(ini + last) >= 0) { seen[x.name + x.team] = 1; out.push(`<span class="esp-ch ${x.w}">${x.w === 'me' ? 'YOU' : 'OPP'} · ${lldEsc(x.name)}</span>`); } });
+    return out.length ? `<div class="esp-mine">${out.join('')}</div>` : '';
 }
 async function lldEspnGame(keep) {
     const box = $('#scores-content-container'); clearTimeout(LLDE.T);
@@ -13881,31 +13900,33 @@ async function lldEspnGame(keep) {
     const hd = (d.header && d.header.competitions && d.header.competitions[0]) || {}, cp = hd.competitors || [];
     const aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {});
     const stt = (hd.status && hd.status.type) || {}, live = stt.state === 'in';
+    const MY = lldEspnMine(), gTeams = [lldEspnNt(aw.ab), lldEspnNt(hm.ab)], lg = ab => getNFLLogoUrl(lldEspnNt(ab)), tc = ab => (NFL_TEAM_COLORS[lldEspnNt(ab)] || ['#475569'])[0];
     const tabs = [['box', 'Box score'], ['plays', 'Plays'], ['score', 'Scoring'], ['team', 'Team stats']];
     let body = '';
     if (LLDE.tab === 'box') {
         (d.boxscore && d.boxscore.players || []).forEach(tm => {
-            body += `<div class="esp-th">${lldEsc((tm.team || {}).displayName || '')}</div>`;
+            const tab = (tm.team || {}).abbreviation || '';
+            body += `<div class="esp-th" style="border-left-color:${tc(tab)}"><img src="${lldEsc(lg(tab))}" onerror="this.style.display='none'">${lldEsc((tm.team || {}).displayName || '')}</div>`;
             (tm.statistics || []).forEach(g => {
                 const labs = g.labels || [];
-                body += `<div class="esp-tw"><table class="esp-tb"><tr><th>${lldEsc((g.name || '').toUpperCase())}</th>${labs.map(l => `<th>${lldEsc(l)}</th>`).join('')}</tr>${(g.athletes || []).map(a => `<tr><td>${lldEsc((a.athlete || {}).displayName || '')}</td>${(a.stats || []).map(x => `<td>${lldEsc(x)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+                body += `<div class="esp-tw"><table class="esp-tb"><tr><th>${lldEsc((g.name || '').toUpperCase())}</th>${labs.map(l => `<th>${lldEsc(l)}</th>`).join('')}</tr>${(g.athletes || []).map(a => `<tr><td>${lldEsc((a.athlete || {}).displayName || '')}${MY ? lldEspnChip(MY.map[lldEspnKey((a.athlete || {}).displayName, tab)]) : ''}</td>${(a.stats || []).map(x => `<td>${lldEsc(x)}</td>`).join('')}</tr>`).join('')}</table></div>`;
             });
         });
         if (!body) body = '<div class="esp-msg">Player stats appear once the game starts.</div>';
     } else if (LLDE.tab === 'team') {
         const tms = (d.boxscore && d.boxscore.teams) || [];
-        if (tms.length === 2) { const a = tms[0], b = tms[1], bm = {}; (b.statistics || []).forEach(s => bm[s.name] = s.displayValue); body = `<div class="esp-tw"><table class="esp-tb"><tr><th></th><th>${lldEsc((a.team || {}).abbreviation)}</th><th>${lldEsc((b.team || {}).abbreviation)}</th></tr>${(a.statistics || []).map(s => `<tr><td>${lldEsc(s.label)}</td><td>${lldEsc(s.displayValue)}</td><td>${lldEsc(bm[s.name])}</td></tr>`).join('')}</table></div>`; }
+        if (tms.length === 2) { const a = tms[0], b = tms[1], bm = {}; (b.statistics || []).forEach(s => bm[s.name] = s.displayValue); body = `<div class="esp-tw"><table class="esp-tb"><tr><th></th><th><img class="esp-lg" src="${lldEsc(lg((a.team || {}).abbreviation))}"></th><th><img class="esp-lg" src="${lldEsc(lg((b.team || {}).abbreviation))}"></th></tr>${(a.statistics || []).map(s => `<tr><td>${lldEsc(s.label)}</td><td>${lldEsc(s.displayValue)}</td><td>${lldEsc(bm[s.name])}</td></tr>`).join('')}</table></div>`; }
         else body = '<div class="esp-msg">No team stats yet.</div>';
     } else if (LLDE.tab === 'score') {
         const sp = d.scoringPlays || [];
-        body = sp.length ? sp.map(p => `<div class="esp-pl sc"><b>${lldEsc((p.team || {}).abbreviation || '')} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text)}</span><i>${lldEsc(p.awayScore)}–${lldEsc(p.homeScore)}</i></div>`).join('') : '<div class="esp-msg">No scoring yet.</div>';
+        body = sp.length ? sp.map(p => { const ab = (p.team || {}).abbreviation || ''; return `<div class="esp-pl sc" style="--tc:${tc(ab)}"><img class="esp-pi" src="${lldEsc(lg(ab))}" onerror="this.style.visibility='hidden'"><div class="esp-pt"><b>${lldEsc(ab)} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text)}</span>${lldEspnPlayMine(MY, gTeams, p.text)}<i>${lldEsc(p.awayScore)}–${lldEsc(p.homeScore)}</i></div></div>`; }).join('') : '<div class="esp-msg">No scoring yet.</div>';
     } else {
         const drv = ((d.drives && d.drives.previous) || []).slice(); if (d.drives && d.drives.current) drv.push(d.drives.current);
         const plays = []; drv.forEach(dr => (dr.plays || []).forEach(p => plays.push({ p, dr })));
         plays.reverse();
-        body = plays.length ? plays.slice(0, 250).map(({ p, dr }) => `<div class="esp-pl${p.scoringPlay ? ' sc' : ''}"><b>${lldEsc(((dr.team || {}).abbreviation) || '')} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text || p.shortText || '')}</span>${p.start && p.start.downDistanceText ? `<i>${lldEsc(p.start.downDistanceText)}</i>` : ''}</div>`).join('') : '<div class="esp-msg">No plays yet.</div>';
+        body = plays.length ? plays.slice(0, 250).map(({ p, dr }) => { const ab = (dr.team || {}).abbreviation || ''; return `<div class="esp-pl${p.scoringPlay ? ' sc' : ''}" style="--tc:${tc(ab)}"><img class="esp-pi" src="${lldEsc(lg(ab))}" onerror="this.style.visibility='hidden'"><div class="esp-pt"><b>${lldEsc(ab)} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text || p.shortText || '')}</span>${lldEspnPlayMine(MY, gTeams, p.text || p.shortText)}${p.start && p.start.downDistanceText ? `<i>${lldEsc(p.start.downDistanceText)}</i>` : ''}</div></div>`; }).join('') : '<div class="esp-msg">No plays yet.</div>';
     }
-    const sc = t => `<div class="esp-hs${t.win ? ' w' : ''}"><img src="${lldEsc(t.logo)}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><em>${lldEsc(t.score)}</em></div>`;
+    const sc = t => `<div class="esp-hs${t.win ? ' w' : ''}" style="--tc:${tc(t.ab)}"><img src="${lldEsc(lg(t.ab))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><em>${lldEsc(t.score)}</em></div>`;
     const prev = box.find('.esp-body').scrollTop() || 0;
     box.html(buildScoresViewToggleHtml() + `<div class="lld-esp"><button type="button" class="esp-back">‹ All games</button><div class="esp-head">${sc(aw)}<div class="esp-hm">${live ? '<i class="esp-live"></i>' : ''}${lldEsc(stt.shortDetail || stt.description || '')}</div>${sc(hm)}</div><div class="esp-tabs">${tabs.map(([k, l]) => `<button type="button" class="esp-tab${LLDE.tab === k ? ' on' : ''}" data-k="${k}">${l}</button>`).join('')}</div><div class="esp-body">${body}</div></div>`);
     if (keep) box.find('.esp-body').scrollTop(prev);
