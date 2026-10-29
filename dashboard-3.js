@@ -13540,15 +13540,35 @@ $(document).on('click', '.gx-mvbar .mv', function (e) {
     } else lay[pid] = k;
     lldGthLaySave(lay); lldGthCapRender();
 });
+// Tapping an empty Gotham spot opens the normal quick-swap menu (same rows as setting your lineup) with the players who can go there.
 $(document).on('click', '.gx-ph[data-slot]', function (e) {
-    e.preventDefault(); e.stopPropagation(); const ph = $(this), had = ph.next().hasClass('gx-pick'); $('.gx-pick,.gx-mvbar').remove(); if (had) return;
-    const cap = this.dataset.slot === 'cap', pz = this.dataset.pos, ids = $('#slots-captain .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
-    const list = $('#gth-lay .player-row[data-pid], #slots-bench .player-row[data-pid]').toArray().filter(r => { const i = lldGthInfo(r), isC = ids.indexOf(i.pid) >= 0, inBn = $(r).closest('#slots-bench').length > 0; return cap ? !isC : (inBn && (!pz || LLD_GTH_ELIG[pz].indexOf(i.pos) >= 0)); }).map(lldGthInfo);
-    ph.after(`<div class="gx-pick" data-slot="${this.dataset.slot}"><div class="q">${cap ? 'Choose a captain' : 'Choose a ' + (pz || 'reserve') + ' from your bench'}</div>${list.length ? list.map(i => `<button data-pick="${i.pid}"><span>${lldShEsc(i.name)} <small>${i.pos}</small></span><small>${i.played ? 'FINAL ' : 'PROJ '}${i.v.toFixed(1)}</small></button>`).join('') : '<div class="q">No eligible player.</div>'}</div>`);
+    e.preventDefault(); e.stopPropagation(); $('.gx-pick,.gx-mvbar').remove();
+    const cap = this.dataset.slot === 'cap', pz = this.dataset.pos;
+    const capIds = $('#slots-captain .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
+    const benchIds = $('#slots-bench .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
+    try { syncProjFromDisplay(); } catch (x) { }
+    const players = Array.from(currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow')).map(row => {
+        const cb = row.querySelector('input[type="checkbox"]'), pL = row.querySelector('td a[class*="position_"]');
+        if (!cb || !pL || irPids.has(cb.value) || taxiPids.has(cb.value) || (window._lldPlayedPids && window._lldPlayedPids.has(cb.value))) return null;
+        const { name, shortName, pos, realPos, team } = parseMFLName(pL.textContent);
+        return { pid: cb.value, name, shortName, pos, realPos, team, proj: getRowProj(row), sec: row.querySelectorAll('td')[1]?.textContent.split('(')[0].trim() || 'BYE' };
+    }).filter(p => p && capIds.indexOf(String(p.pid)) < 0 && (cap || (benchIds.indexOf(String(p.pid)) >= 0 && (!pz || LLD_GTH_ELIG[pz].indexOf(p.realPos) >= 0))));
+    window._gthPick = { cap };
+    $('#menu-move-action').hide();
+    $('#menu-player-info-container').html(`<div class="empty-slot-header gth-pick-h">${cap ? 'Choose a captain' : 'Fill ' + (pz || 'reserve') + ' spot'}</div>`);
+    const list = $('#quick-swap-list').empty();
+    players.sort((a, b) => b.proj - a.proj).forEach(p => list.append(buildSwapRow(p)));
+    if (!players.length) list.html('<div style="padding:16px;text-align:center;color:var(--text-dim)">No eligible player.</div>');
+    $('#player-context-menu').addClass('active');
 });
-$(document).on('click', '.gx-pick [data-pick]', function (e) {
-    e.preventDefault(); e.stopPropagation(); const lay = lldGthLay(); lay[this.dataset.pick] = $(this).closest('.gx-pick').attr('data-slot') === 'cap' ? 'cap' : 'rs'; lldGthLaySave(lay); lldGthCapRender();
-});
+document.addEventListener('click', function (e) {
+    const it = e.target.closest && e.target.closest('.swap-item:not(.active-player-preview)');
+    if (!it || !window._gthPick || !document.querySelector('#menu-player-info-container .gth-pick-h') || !$('#player-context-menu').hasClass('active')) return;
+    if (e.target.closest('.proj-popup-trigger, .pa-breakdown-trigger')) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    const lay = lldGthLay(); lay[String($(it).data('pid'))] = window._gthPick.cap ? 'cap' : 'rs'; lldGthLaySave(lay); window._gthPick = null;
+    try { hideMenu(); } catch (x) { $('#player-context-menu').removeClass('active'); } lldGthCapRender();
+}, true);
 // Position buttons open the Captain / Reserves / Bench bar instead of the normal slot menu while Gotham layout is showing.
 ['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) {
     if (!document.body.classList.contains('lld-gth-lay')) return;
