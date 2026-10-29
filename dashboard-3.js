@@ -13759,7 +13759,7 @@ function lldBetaHtml() {
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('NFL box scores and play by play (ESPN) on the Scores tab')}${onoff('espn')}${lab('Game by game replay slide in the Week recap story (needs ESPN above)')}${onoff('gbg')}<div id="lld-gbg-set" style="${lldBv('gbg') === '1' ? '' : 'display:none;'}">${lldGbgPanel()}</div>` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('NFL box scores and play by play (ESPN) on the Scores tab')}${onoff('espn')}${lab('New Scores layout: matchup bar, NFL games bar, league switcher (needs ESPN above for the NFL bar)')}${onoff('scn')}${lab('Game by game replay slide in the Week recap story (needs ESPN above)')}${onoff('gbg')}<div id="lld-gbg-set" style="${lldBv('gbg') === '1' ? '' : 'display:none;'}">${lldGbgPanel()}</div>` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -14147,7 +14147,88 @@ $(document).on('click', '.esp-wb', function () { const w = (lldEspnWk() || 1) + 
 $(document).on('click', '.esp-back', function () { LLDE.view = 'list'; lldEspnRender(); });
 $(document).on('click', '.esp-tab', function () { LLDE.tab = this.dataset.k; lldEspnGame(true); });
 
+
+// ===== New Scores layout (beta, switch scn): league button, a fantasy matchup bar with a sticky Median / Recap button, and an NFL games bar =====
+function lldScnOn() { try { return lldDev() && lldBv('scn') === '1'; } catch (e) { return false; } }
+function lldScnWeekOver() { const ms = window._liveScoreMatchups || []; try { return ms.length > 0 && ms.every(m => lldMatchState(m) === 'fin'); } catch (e) { return false; } }
+function lldScnBar() {
+    const esc = lldChatEsc, mode = window._scoresViewMode || 'matchups', ms = window._liveScoreMatchups || [], idx = window._liveScoreIndex || 0, over = lldScnWeekOver();
+    const sl = (mode === 'sleeper' && typeof lldSltShown === 'function') ? lldSltShown()[LLD_SLT.st.l || 0] : null;
+    const nm = sl ? sl.name : (LLD.leagueName || 'My league');
+    let h = `<div class="scn" id="lld-scn"><div class="scn-lg"><button type="button" class="scn-lgb" id="scn-lgb"><span>${esc(nm)}</span><i>▾ switch league</i></button></div><div id="scn-menu" hidden></div>`;
+    if (mode !== 'sleeper') {
+        h += `<div class="scn-rl">FANTASY MATCHUPS</div><div class="scn-row"><button type="button" class="scn-arr" data-a="m" data-d="-1" aria-label="Previous matchup">‹</button><div class="scn-strip" id="scn-ms">`;
+        h += `<button type="button" class="scn-med${(mode === 'median' || mode === 'recap') ? ' on' : ''}" data-k="med">${over ? 'Recap<small>weekly</small>' : 'Median<small>league</small>'}</button>`;
+        h += ms.map((m, i) => `<button type="button" class="scn-mc${mode === 'matchups' && i === idx ? ' on' : ''}${m.isMe ? ' me' : ''}" data-i="${i}"><img src="${esc(m.t1.logo)}" onerror="this.style.display='none'"><img src="${esc(m.t2.logo)}" onerror="this.style.display='none'"><span class="sc">${lldRvChip(`${m.t1.score.toFixed(0)}–${m.t2.score.toFixed(0)}`, m)}</span></button>`).join('');
+        h += `</div><button type="button" class="scn-arr" data-a="m" data-d="1" aria-label="Next matchup">›</button></div>`;
+    }
+    if (lldEspnOn()) h += `<div class="scn-rl">NFL GAMES</div><div class="scn-row"><button type="button" class="scn-arr" data-a="g" data-d="-1" aria-label="Previous game">‹</button><div class="scn-strip" id="scn-gs"><span class="scn-ld">Loading games…</span></div><button type="button" class="scn-arr" data-a="g" data-d="1" aria-label="Next game">›</button></div>`;
+    h += '</div>';
+    document.body.classList.add('lld-scn');
+    setTimeout(lldScnFillGames, 0);
+    return h;
+}
+async function lldScnFillGames() {
+    const box = document.getElementById('scn-gs'); if (!box) return;
+    try {
+        const wk = lldEspnWk(), d = await lldLpGames(wk), evs = d.events || [], box2 = document.getElementById('scn-gs'); if (!box2) return;
+        window._lldScnGames = evs.map(e => e.id);
+        box2.innerHTML = evs.map(ev => {
+            const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {}), st = lldEspnStatus(ev);
+            const row = t => `<div class="t${t.win ? ' w' : ''}"><img src="${lldEsc(getNFLLogoUrl(lldEspnNt(t.ab)))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><em>${st.t === 'pre' ? '' : lldEsc(t.score)}</em></div>`;
+            const on = (window._scoresViewMode === 'nfl') && String(LLDE.id) === String(ev.id);
+            return `<button type="button" class="scn-gc${on ? ' on' : ''}" data-id="${lldEsc(ev.id)}">${row(aw)}${row(hm)}<div class="s${st.t === 'in' ? ' live' : ''}">${lldEsc(st.txt)}</div></button>`;
+        }).join('') || '<span class="scn-ld">No games found.</span>';
+        lldScnCenter();
+    } catch (e) { box.innerHTML = '<span class="scn-ld">Could not load NFL games.</span>'; }
+}
+function lldScnCenter() {
+    [['scn-ms', '.scn-mc.on'], ['scn-gs', '.scn-gc.on']].forEach(([id, sel]) => { const st = document.getElementById(id), el = st && st.querySelector(sel); if (el) st.scrollTo({ left: el.offsetLeft - st.clientWidth / 2 + el.offsetWidth / 2, behavior: 'smooth' }); else if (st && id === 'scn-ms') st.scrollLeft = 0; });
+}
+async function lldScnShowMatchup(i) { window._scoresViewMode = 'matchups'; window._liveScoreIndex = i; await renderLiveScoreCard(); lldScnCenter(); }
+async function lldScnShowMedian() { if (lldScnWeekOver()) { window._scoresViewMode = 'recap'; await renderWeeklyRecap(); } else { window._scoresViewMode = 'median'; await renderLeagueMedianView(); } }
+async function lldScnShowGame(id) { window._scoresViewMode = 'nfl'; LLDE.view = 'game'; LLDE.id = id; LLDE.tab = 'box'; await lldEspnGame(false); }
+async function lldScnShowMfl() { window._scoresViewMode = 'matchups'; await renderLiveScoreCard(); }
+async function lldScnShowSleeper(k) { const S = LLD_SLT.st; S.l = k; S.mi = ''; S.m = 0; window._scoresViewMode = 'sleeper'; await lldSltRender(); }
+function lldScnMenu() {
+    const m = document.getElementById('scn-menu'); if (!m) return; const esc = lldChatEsc, mode = window._scoresViewMode || 'matchups';
+    const L = (lldSltOn() && lldSltUser() && typeof lldSltShown === 'function') ? lldSltShown() : [];
+    let h = `<div class="mh">YOUR LEAGUES</div><button type="button" data-lg="mfl" class="${mode !== 'sleeper' ? 'on' : ''}"><span>${esc(LLD.leagueName || 'My league')}<small>MyFantasyLeague</small></span></button>`;
+    h += L.map((l, k) => `<button type="button" data-lg="${k}" class="${mode === 'sleeper' && (LLD_SLT.st.l || 0) === k ? 'on' : ''}"><span>${esc(l.name)}<small>Sleeper</small></span></button>`).join('');
+    if (lldSltOn() && lldSltUser() && !LLD_SLT.leagues) h += '<div class="mh">Loading Sleeper leagues…</div>';
+    else if (lldSltOn() && !lldSltUser()) h += '<button type="button" data-lg="set"><span>Add your Sleeper username<small>Settings, Sleeper tab</small></span></button>';
+    m.innerHTML = h;
+}
+$(document).on('click', '#scn-lgb', async function (e) {
+    e.stopPropagation(); const m = document.getElementById('scn-menu'); if (!m) return; m.hidden = !m.hidden; if (m.hidden) return;
+    lldScnMenu();
+    if (lldSltOn() && lldSltUser() && !LLD_SLT.leagues) { try { LLD_SLT.leagues = await lldSltLeagues(); } catch (x) { } lldScnMenu(); }
+});
+$(document).on('click', '#scn-menu [data-lg]', async function (e) {
+    e.stopPropagation(); const v = this.dataset.lg; document.getElementById('scn-menu').hidden = true;
+    if (v === 'set') { try { $('.open-settings-btn').first().trigger('click'); setTimeout(() => $('.settings-tab-btn[data-target="tab-sleeper"]').show().trigger('click'), 80); } catch (x) { } return; }
+    if (v === 'mfl') await lldScnShowMfl(); else await lldScnShowSleeper(+v);
+});
+$(document).on('click', function (e) { const m = document.getElementById('scn-menu'); if (m && !m.hidden && !e.target.closest('#scn-menu, #scn-lgb')) m.hidden = true; });
+$(document).on('click', '#scn-ms .scn-med', function () { lldScnShowMedian(); });
+$(document).on('click', '#scn-ms .scn-mc', function () { lldScnShowMatchup(+this.dataset.i); });
+$(document).on('click', '#scn-gs .scn-gc', function () { lldScnShowGame(this.dataset.id); });
+$(document).on('click', '.scn-arr', function () {
+    const d = +this.dataset.d, mode = window._scoresViewMode || 'matchups';
+    if (this.dataset.a === 'm') {
+        const n = (window._liveScoreMatchups || []).length, N = n + 1; if (!n) return;
+        let cur = (mode === 'median' || mode === 'recap') ? 0 : mode === 'matchups' ? (window._liveScoreIndex || 0) + 1 : -1;
+        const nx = cur < 0 ? (d > 0 ? 1 : N - 1) : (cur + d + N) % N;
+        if (nx === 0) lldScnShowMedian(); else lldScnShowMatchup(nx - 1);
+    } else {
+        const ids = window._lldScnGames || []; if (!ids.length) return;
+        const cur = mode === 'nfl' ? ids.findIndex(x => String(x) === String(LLDE.id)) : -1, nx = cur < 0 ? (d > 0 ? 0 : ids.length - 1) : (cur + d + ids.length) % ids.length;
+        lldScnShowGame(ids[nx]);
+    }
+});
 function buildScoresViewToggleHtml() {
+    if (lldScnOn()) return lldScnBar();
+    document.body.classList.remove('lld-scn'); // the old layout is in use
     const mode = window._scoresViewMode || 'matchups';
     const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
         const linkBtn = `<button class="scores-recap-link-btn" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Weekly Recap ›</button>`;
@@ -16770,7 +16851,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const yts1 = t1.yetToPlay > 0 ? `${t1.yetToPlay} yet to play` : 'Done';
     const yts2 = t2.yetToPlay > 0 ? `${t2.yetToPlay} yet to play` : 'Done';
 
-       const tabsHtml = buildLiveScoreTabsHtml(matchups, idx);
+       const tabsHtml = lldScnOn() ? '' : buildLiveScoreTabsHtml(matchups, idx);
        const leagueMedian = computeMedianFromTeams(getUniqueTeamsFromMatchups(matchups));
      // Fetch projections for both teams; only pull the real-time ajax feed for the live week —
     // past weeks don't have an in-progress game to poll.
