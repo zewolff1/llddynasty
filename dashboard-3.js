@@ -15315,6 +15315,10 @@ $(document).on('change', '.lld-gbg-c', function () { const c = lldGbgCfg(); c.sh
 $(document).on('click', '.lld-gbg-mv', function () { const c = lldGbgCfg(), n = c.order.indexOf(this.dataset.k), m = n + (+this.dataset.d); if (n < 0 || m < 0 || m >= c.order.length) return; const t = c.order[n]; c.order[n] = c.order[m]; c.order[m] = t; lldGbgSave(c); $('#lld-gbg-set').html(lldGbgPanel()); });
 $(document).on('click', '.lld-gbg-rs', function () { lldSet('lld_gbg_cfg', '{}'); $('#lld-gbg-set').html(lldGbgPanel()); });
 $(document).on('click', '.lld-b-btn[data-k="gbg"]', function () { $('#lld-gbg-set').toggle(this.dataset.v === '1'); });
+$(document).on('click', '.gbg-spb', function (e) {
+    e.stopPropagation(); const c = lldGbgCfg(); c.spd = Math.max(0.1, Math.min(3, Math.round(c.spd * (+this.dataset.d > 0 ? 1.33 : 0.75) * 100) / 100)); lldGbgSave(c);
+    const h = document.querySelector('#lld-story .gbg'); if (h && h._gbg) h._gbg.fresh();
+});
 async function lldGbgBuild(mg, me, wk, notMine) {
     const src = { t1: mg.t1, t2: mg.t2, mine: !notMine, own: t => String(t.fid) === String(me), wk };
     const prep = await lldRvReplayPrep(src); if (!prep) return null;
@@ -15346,12 +15350,12 @@ function lldGbgDelay(st, C) {
 function lldGbgTotal(G) { const C = lldGbgCfg(); return G.steps.reduce((t, s) => t + lldGbgDelay(s, C), 0) + 1800; }
 function lldGbgRun(host, G) {
     if (!host) return;
-    const C = lldGbgCfg(), tok = String(Date.now()) + Math.random(); host.dataset.tok = tok;
+    const tok = String(Date.now()) + Math.random(); host.dataset.tok = tok;
     const alive = () => host.isConnected && host.dataset.tok === tok, esc = lldChatEsc, f1 = n => n.toFixed(1);
     const sums = part => { let a = 0, b = 0; G.list.forEach(x => { (x.w === 'me' ? (a += part[x.pid] || 0) : (b += part[x.pid] || 0)); }); return [a, b]; };
     const lgo = fid => `<img class="gbg-lgo" src="${getFranchiseLogoUrl(fid)}" onerror="this.style.display='none'">`;
     function draw(i) {
-        const st = i >= 0 ? G.steps[i] : null, part = st ? st.part : {}, [a, b] = sums(part), gi = st ? st.g : 0;
+        const C = lldGbgCfg(), st = i >= 0 ? G.steps[i] : null, part = st ? st.part : {}, [a, b] = sums(part), gi = st ? st.g : 0;
         const left = k => Math.max(0, (G.fin[k]) - (k === 'me' ? a : b)), w = Math.min(99, Math.max(1, Math.round(100 / (1 + Math.exp(-((a + left('me') * .6) - (b + left('op') * .6)) / 14)))));
         const doneG = st ? G.steps.slice(0, i + 1).filter(s => s.k === 'end').length : 0;
         const B = {
@@ -15372,8 +15376,21 @@ function lldGbgRun(host, G) {
         host.innerHTML = C.order.filter(k => C.show[k]).map(k => B[k]()).join('');
     }
     draw(-1); let i = -1;
-    const tick = () => { if (!alive()) return; if (LLD_ST.pause) { setTimeout(tick, 200); return; } i++; if (i >= G.steps.length) return; draw(i); setTimeout(tick, lldGbgDelay(G.steps[i], C)); };
-    setTimeout(tick, 400 / Math.max(.25, LLD_ST.speed || 1));
+    const bar = () => document.querySelector('#lld-story .st-bars span.cur u'), t0 = Date.now();
+    const rest = () => { const C = lldGbgCfg(); let r = 1800; for (let j = Math.max(0, i + 1); j < G.steps.length; j++) r += lldGbgDelay(G.steps[j], C); return r; };
+    const fresh = () => { // re-aim the progress bar at the end of the replay (called at the start and whenever the speed changes)
+        const u = bar(); if (!u) return; const C = lldGbgCfg(), tot = lldGbgTotal(G), r = rest(), p = Math.max(0, Math.min(1, 1 - r / tot));
+        u.style.animation = 'none'; u.style.transition = 'none'; u.style.width = (p * 100) + '%'; void u.offsetWidth; u.style.transition = 'width ' + r + 'ms linear'; u.style.width = '100%';
+        const v = document.querySelector('#lld-story .gbg-spv'); if (v) v.textContent = C.spd.toFixed(2).replace(/0$/, '') + 's / play';
+    };
+    host._gbg = { fresh };
+    const tick = () => {
+        if (!alive()) return; if (LLD_ST.pause) { setTimeout(tick, 200); return; }
+        i++;
+        if (i >= G.steps.length) { const fin = () => { if (!alive()) return; if (LLD_ST.pause) { setTimeout(fin, 200); return; } stShow(LLD_ST.i + 1); }; setTimeout(fin, 1800 / Math.max(.25, LLD_ST.speed || 1)); return; }
+        draw(i); setTimeout(tick, lldGbgDelay(G.steps[i], lldGbgCfg()));
+    };
+    fresh(); setTimeout(tick, 400 / Math.max(.25, LLD_ST.speed || 1));
 }
 async function lldStorySlides(kind, wk, idx) {
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
@@ -15395,7 +15412,7 @@ async function lldStorySlides(kind, wk, idx) {
             if (lldGbgOn()) {
                 const note = t => out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">No replay this week</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc(t)}</div>`));
                 if (!mg) note('No matchup found for your team this week.');
-                else { const G = await lldGbgBuild(mg, me, wk); if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for your starters (ESPN had nothing for this week, or none of the plays matched).'); }
+                else { const G = await lldGbgBuild(mg, me, wk); if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div><div class="gbg-sp"><button type="button" class="gbg-spb" data-d="1">◂ Slower</button><b class="gbg-spv"></b><button type="button" class="gbg-spb" data-d="-1">Faster ▸</button></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for your starters (ESPN had nothing for this week, or none of the plays matched).'); }
             }
         } catch (e) { console.warn('gbg build', e); if (lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
         if (S.top) LLD_ST.topFid = S.top.fid;
@@ -15509,7 +15526,7 @@ function stShow(i) {
     const S = LLD_ST; if (i < 0) i = 0; if (i >= S.slides.length) { if (S.embed) { $('#lld-story').addClass('emb-done'); return; } stClose(); return; }
     $('#lld-story').removeClass('emb-done');
     S.i = i; const sl = S.slides[i], box = $('#lld-story');
-    box.css('--dur', sl.gbg ? (lldGbgTotal(sl.gbg) / 1000).toFixed(2) + 's' : (5.4 / S.speed).toFixed(2) + 's');
+    box.css('--dur', sl.gbg ? '99999s' : (5.4 / S.speed).toFixed(2) + 's');
     box.find('.st-bars').html(S.slides.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'cur' : ''}"><u></u></span>`).join(''));
     const T = S.stt || '';
     box.find('.st-stage').css('background', T ? LLD_STT_BG[T] : sl.bg).html(`${T ? '<div class="stt-deco">' + lldSttDeco(T, S.kind, S.wk) + '</div>' : ''}<div class="st-in">${T === 'leather' ? '<div class="stt-mast st-a">THE DYNASTY GAZETTE</div>' : ''}${sl.html}${T === 'leather' ? '<div class="stt-rule"></div>' : ''}</div>`);
@@ -16149,20 +16166,20 @@ function lldScTabs(state, tab) {
 }
 async function lldMatchRecapSlides(m, wk) {
     const a = m.t1, b = m.t2, won = a.score >= b.score ? a : b, lost = won === a ? b : a, margin = Math.abs(a.score - b.score), out = [];
+    try {
+        if (lldGbgOn()) {
+            const myF = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0'), mineM = String(a.fid) === myF || String(b.fid) === myF;
+            const note = t => out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">No replay for this game</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc(t)}</div>`));
+            const G = await lldGbgBuild(m, mineM ? myF : String(a.fid), wk, !mineM);
+            if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div><div class="gbg-sp"><button type="button" class="gbg-spb" data-d="1">◂ Slower</button><b class="gbg-spv"></b><button type="button" class="gbg-spb" data-d="-1">Faster ▸</button></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for these starters (ESPN had nothing for this week, or none of the plays matched).');
+        }
+    } catch (e) { console.warn('gbg match', e); if (lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
     out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">WEEK ${wk} FINAL</div><div class="st-vs st-a" style="--d:.15s">${stLogo(a.fid, 84)}<span>vs</span>${stLogo(b.fid, 84)}</div><div class="st-row2 st-a" style="--d:.4s"><b>${stName(a.fid)}</b><i>${a.score.toFixed(2)}</i></div><div class="st-row2 st-a" style="--d:.55s"><b>${stName(b.fid)}</b><i>${b.score.toFixed(2)}</i></div>`));
     out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">${margin < 10 ? 'DOWN TO THE WIRE' : margin >= 50 ? 'BLOWOUT' : 'THE WINNER'}</div>${stLogo(won.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(won.fid)}</div>${stNum(margin, 1, 'gold')}<div class="st-sub st-a" style="--d:.6s">point win over ${stName(lost.fid)}</div>`));
     const starters = [];
     [a, b].forEach(t => (t.roster || []).forEach(p => { if (p.isStarter) starters.push({ p, fid: t.fid }); }));
     starters.sort((x, y) => y.p.score - x.p.score);
     if (starters.length) { LLD_ST.topFid = starters[0].fid; out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE GAME</div>${starters.slice(0, 4).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`)); }
-    try {
-        if (lldGbgOn()) {
-            const myF = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0'), mineM = String(a.fid) === myF || String(b.fid) === myF;
-            const note = t => out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">No replay for this game</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc(t)}</div>`));
-            const G = await lldGbgBuild(m, mineM ? myF : String(a.fid), wk, !mineM);
-            if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for these starters (ESPN had nothing for this week, or none of the plays matched).');
-        }
-    } catch (e) { console.warn('gbg match', e); if (lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
     [a, b].forEach(t => {
         const bn = (t.roster || []).filter(p => !p.isStarter).sort((x, y) => y.score - x.score)[0];
         if (bn && bn.score > 0) out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">${stName(t.fid)} · BEST ON THE BENCH</div>${stPRow(bn, t.fid, bn.score.toFixed(1), 0.3)}<div class="st-sub st-a" style="--d:.8s">Points that never counted</div>`));
