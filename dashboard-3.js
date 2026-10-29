@@ -1,3 +1,4 @@
+try { if (document.body) { document.body.classList.add('lld-sh-pend'); setTimeout(function () { document.body.classList.remove('lld-sh-pend'); }, 9000); } } catch (e) { }
 // ===== LOADING OVERLAY + PULL TO REFRESH (beta switches "ldr" and "ptr", commissioner franchises only, default off) =====
 // The overlay goes up as soon as this file runs and comes down once the header and the first rows are in, so tabs do not pop in one by one.
 (function () {
@@ -13226,7 +13227,7 @@ function lldShRender() {
     let el = $('#lld-sh'); if (!el.length) { el = $('<div id="lld-sh"></div>'); anchor.before(el); }
     const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
     try { el.html(lldShHtml()); } catch (e) { console.warn('sh', e); el.empty(); }
-    document.body.classList.add('lld-shb');
+    document.body.classList.add('lld-shb'); document.body.classList.remove('lld-sh-pend');
     try { if (typeof reapplyAllTeamStyles === 'function') reapplyAllTeamStyles(); } catch (e) { }
     lldShVis();
     if ((sub === 'contracts') && !window._lldShD && !window._lldShBusy) lldShLoad();
@@ -13843,7 +13844,8 @@ function computeTeamProjectedTotal(roster, projMap) {
 // ===== NFL box scores & play by play from ESPN's public feed (beta switch "espn", commissioner franchises only, default off) =====
 function lldEspnOn() { try { return lldDev() && lldBv('espn') === '1'; } catch (e) { return false; } }
 const LLD_ESPN = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
-const LLDE = { view: 'list', id: null, tab: 'box', T: null };
+const LLDE = { view: 'list', id: null, tab: 'box', T: null, wk: null };
+function lldEspnWk() { const w = parseInt(LLDE.wk || window._liveScoreActiveWeek || window._liveScoreCurrentWeek, 10); return w >= 1 && w <= 22 ? w : null; }
 async function lldEspnJson(path) {
     const r = await fetch(LLD_ESPN + path, { cache: 'no-store' }); if (!r.ok) throw new Error('ESPN ' + r.status); return r.json();
 }
@@ -13861,13 +13863,14 @@ async function lldEspnRender() {
     if (LLDE.view === 'game') return lldEspnGame(true);
     box.html(buildScoresViewToggleHtml() + '<div class="lld-esp"><div class="esp-msg">Loading NFL games…</div></div>');
     try {
-        const d = await lldEspnJson('/scoreboard'), evs = d.events || [];
+        const wk = lldEspnWk(), yr = parseInt((typeof selectedYear !== 'undefined' && selectedYear) || year, 10) || new Date().getFullYear();
+        const d = await lldEspnJson('/scoreboard' + (wk ? '?seasontype=2&week=' + wk + '&dates=' + yr : '')), evs = d.events || [];
         const cards = evs.map(ev => {
             const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {}), s = lldEspnStatus(ev);
             const row = t => `<div class="esp-t${t.win ? ' w' : ''}"><img src="${lldEsc(t.logo)}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><span>${lldEsc(t.rec)}</span><em>${s.t === 'pre' ? '' : lldEsc(t.score)}</em></div>`;
             return `<button type="button" class="esp-g ${s.t}" data-id="${lldEsc(ev.id)}">${row(aw)}${row(hm)}<div class="esp-s">${s.t === 'in' ? '<i class="esp-live"></i>' : ''}${lldEsc(s.txt)}</div></button>`;
         }).join('');
-        $('#scores-content-container .lld-esp').html(`<div class="esp-wk">${lldEsc((d.week && d.week.number) ? 'Week ' + d.week.number : 'This week')} · tap a game for the box score and play by play</div><div class="esp-grid">${cards || '<div class="esp-msg">No games found.</div>'}</div>`);
+        $('#scores-content-container .lld-esp').html(`<div class="esp-wk"><button type="button" class="esp-wb" data-d="-1">‹</button> <b>${lldEsc((d.week && d.week.number) ? 'Week ' + d.week.number : (wk ? 'Week ' + wk : 'This week'))}</b> <button type="button" class="esp-wb" data-d="1">›</button><br>tap a game for the box score and play by play</div><div class="esp-grid">${cards || '<div class="esp-msg">No games found.</div>'}</div>`);
         if (evs.some(e => (e.status || {}).type && e.status.type.state === 'in')) LLDE.T = setTimeout(() => { if (window._scoresViewMode === 'nfl' && LLDE.view === 'list') lldEspnRender(); }, 30000);
     } catch (e) { console.warn('espn', e); $('#scores-content-container .lld-esp').html('<div class="esp-msg">Could not load NFL games from ESPN right now.</div>'); }
 }
@@ -13909,6 +13912,7 @@ async function lldEspnGame(keep) {
     if (live) LLDE.T = setTimeout(() => { if (window._scoresViewMode === 'nfl' && LLDE.view === 'game') lldEspnGame(true); }, 20000);
 }
 $(document).on('click', '.esp-g', function () { LLDE.view = 'game'; LLDE.id = this.dataset.id; LLDE.tab = 'box'; lldEspnGame(false); });
+$(document).on('click', '.esp-wb', function () { const w = (lldEspnWk() || 1) + parseInt(this.dataset.d, 10); LLDE.wk = Math.min(18, Math.max(1, w)); lldEspnRender(); });
 $(document).on('click', '.esp-back', function () { LLDE.view = 'list'; lldEspnRender(); });
 $(document).on('click', '.esp-tab', function () { LLDE.tab = this.dataset.k; lldEspnGame(true); });
 
