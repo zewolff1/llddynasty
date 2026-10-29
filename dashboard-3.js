@@ -12378,7 +12378,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
@@ -13460,35 +13460,101 @@ function lldPtrOn() { return true; }
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
 function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || (lldDev() && lldBv('gth') === '1'); } catch (e) { return false; } }
 const LLD_GTH = { features: {} }; // feature name -> { on: fn, render: fn }. New Gotham features register here.
-// ---- Gotham: Captain pick on the Lineup (assumed rules, easy to change: captain scores x1.5, locks when their game starts) ----
-const LLD_GTH_CAP = { mult: 1.5 };
-function lldGthCapKey() { return 'lld_gth_cap_' + String(fid).padStart(4, '0') + '_' + (window._liveScoreCurrentWeek || 'w'); }
-function lldGthCapRender() {
-    if (!lldGthOn()) { $('#gth-cap-bar, .gth-c').remove(); return; }
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') { $('#gth-cap-bar').remove(); return; }
-    const cap = lldGet(lldGthCapKey(), ''), M = LLD_GTH_CAP.mult;
-    let found = null;
-    $('#slots-starters .player-row[data-pid]').each(function () {
-        const row = $(this); if (row.hasClass('empty-slot')) return;
-        const pid = String(row.data('pid')), isC = pid === cap;
-        let b = row.find('.gth-c'); if (!b.length) { b = $(`<button type="button" class="gth-c" data-pid="${pid}">C</button>`); row.append(b); }
-        b.toggleClass('on', isC).toggleClass('lock', row.hasClass('lld-played'));
-        if (isC) { const sc = parseFloat(row.find('.lld-pscore b').text()), pj = parseFloat(row.find('.proj-popup-trigger').attr('data-proj')); const played = isFinite(sc) && row.hasClass('lld-played'); found = { name: row.data('pname'), pts: played ? sc : pj, played }; }
-    });
-    const host = document.querySelector('.sticky-block[data-block="starters"]'); if (!host) return;
-    const bonus = found && isFinite(found.pts) ? (found.pts * (M - 1)).toFixed(1) : null;
-    const html = found ? `<span class="k">★ CAPTAIN</span><b>${lldShEsc(found.name)}</b><span class="v">×${M} · +${bonus || '–'} ${found.played ? 'bonus' : 'projected bonus'}</span>` : `<span class="k">★ CAPTAIN</span><span class="v">Tap the C on a starter to pick your captain (×${M})</span>`;
-    let bar = document.getElementById('gth-cap-bar'); if (!bar) { host.insertAdjacentHTML('beforebegin', '<div id="gth-cap-bar"></div>'); bar = document.getElementById('gth-cap-bar'); }
-    if (bar.innerHTML !== html) bar.innerHTML = html;
+// ---- Gotham: Captains / Reserves / Bench layout on the Lineup (view only until Gotham exists on MFL; choices saved on this device) ----
+const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'FLEX'], base: 8, dep: 2 };
+const LLD_GTH_ELIG = { QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], FLEX: ['RB', 'WR', 'TE'] };
+function lldGthCapKey() { return 'lld_gth_lay_' + String(fid).padStart(4, '0'); }
+function lldGthLay() { try { return JSON.parse(lldGet(lldGthCapKey(), '{}')) || {}; } catch (e) { return {}; } }
+function lldGthLaySave(m) { lldSet(lldGthCapKey(), JSON.stringify(m)); }
+function lldGthInfo(row) {
+    const r = $(row), played = r.hasClass('lld-played');
+    const sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
+    return { pid: String(r.attr('data-pid')), name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos: (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase(), v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc) };
 }
-$(document).on('click touchend', '.gth-c', function (e) {
-    e.preventDefault(); e.stopPropagation(); if (e.type === 'touchend') return;
-    if (this.classList.contains('lock')) { try { lldPlayedToast('Locked: that game has started'); } catch (x) { } return; }
-    const pid = String(this.dataset.pid), cur = lldGet(lldGthCapKey(), '');
-    const curRow = cur ? $(`#slots-starters .player-row[data-pid="${cur}"]`) : $();
-    if (cur && cur !== pid && curRow.hasClass('lld-played')) { try { lldPlayedToast('Captain is locked: their game has started'); } catch (x) { } return; }
-    lldSet(lldGthCapKey(), cur === pid ? '' : pid); lldGthCapRender();
+function lldGthFit(caps, rs) {
+    const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
+    const fill = (i, types) => { for (const t of types) { if (open[t] > 0 && LLD_GTH_ELIG[t].indexOf(i.pos) >= 0) { open[t]--; slot[i.pid] = t; return true; } } return false; };
+    caps.forEach(i => { if (!fill(i, ['QB', 'RB', 'WR', 'TE', 'FLEX'])) slot[i.pid] = 'extra'; });
+    [['QB', 'RB', 'WR', 'TE'], ['FLEX']].forEach(tp => rs.forEach(i => { if (slot[i.pid] === undefined) fill(i, tp); }));
+    return { open, slot };
+}
+function lldGthCapRender() {
+    const onLineup = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'lineup';
+    if (!lldGthOn() || !onLineup) { if (!lldGthOn()) { $('#gth-lay').remove(); document.body.classList.remove('lld-gth-lay'); } return; }
+    const benchBlock = document.querySelector('.sticky-block[data-block="bench"]'); if (!benchBlock) return;
+    document.body.classList.add('lld-gth-lay');
+    let host = document.getElementById('gth-lay');
+    if (!host) { benchBlock.insertAdjacentHTML('beforebegin', '<div id="gth-lay"><div id="gth-sum"></div><div class="gx-sec"><div class="gx-sh cap"><span>Captains</span><em id="gth-cn"></em><b class="bx" id="gth-cx"></b></div><div class="roster-grid" id="slots-captain"></div></div><div class="gx-sec"><div class="gx-sh"><span>Reserves</span><em id="gth-rn"></em><b class="bx gr" id="gth-rx"></b></div><div class="roster-grid" id="slots-reserves"></div></div></div>'); host = document.getElementById('gth-lay'); }
+    const lay = lldGthLay(), M = LLD_GTH_CAP.mult;
+    const rows = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]:not(.empty-slot), #slots-captain .player-row[data-pid], #slots-reserves .player-row[data-pid]').toArray();
+    const caps = [], rs = [], bn = [];
+    rows.forEach(r => {
+        const i = lldGthInfo(r); if (!r.dataset.gorig) r.dataset.gorig = $(r).closest('#slots-starters').length ? 'rs' : 'bn';
+        const w = lay[i.pid] || r.dataset.gorig; i.row = r; r.classList.remove('gth-cp');
+        if (w === 'cap' && caps.length < LLD_GTH_CAP.max) { caps.push(i); r.classList.add('gth-cp'); } else if (w === 'bn') bn.push(i); else rs.push(i);
+    });
+    caps.sort((a, b) => b.v - a.v);
+    const fit = lldGthFit(caps, rs);
+    rs.sort((a, b) => ((fit.slot[b.pid] ? 1 : 0) - (fit.slot[a.pid] ? 1 : 0)) || b.v - a.v);
+    $('.gth-bn,.gx-in,.gx-div,.gx-ph,.gx-mvbar').remove();
+    const place = (cont, list) => { const el = document.getElementById(cont); list.forEach((i, k) => { if (el.children[k] !== i.row) el.insertBefore(i.row, el.children[k] || null); }); };
+    place('slots-captain', caps); place('slots-reserves', rs);
+    const nc = rs.filter(i => fit.slot[i.pid]).length;
+    const dp = Math.min(Math.max(0, LLD_GTH_CAP.base - rs.length) * LLD_GTH_CAP.dep, (M - 1) * 50);
+    let capPts = 0, bonus = 0, best = 0;
+    caps.forEach(i => { const b = i.v * (M - 1); capPts += i.v; bonus += b; const d = $(i.row).find('.lld-det').first(); d.append(`<div class="gth-bn">★ ×${M} · +${b.toFixed(1)}</div><div class="gx-in y">STARTS · ${fit.slot[i.pid]}</div>`); });
+    rs.forEach((i, k) => {
+        const on = !!fit.slot[i.pid]; if (on) best += i.v; $(i.row).toggleClass('gx-out', !on);
+        $(i.row).find('.lld-det').first().append(`<div class="gx-in ${on ? 'y' : 'n'}">${on ? 'COUNTS · ' + fit.slot[i.pid] : 'NOT COUNTING'}</div>` + (on && dp ? `<div class="gth-bn">▲ reserve +${dp}% · +${(i.v * dp / 100).toFixed(1)}</div>` : ''));
+        if (k === nc - 1 && rs.length > nc) $(i.row).after('<div class="gx-div">below this line do not count</div>');
+    });
+    bn.forEach(i => $(i.row).removeClass('gx-out'));
+    const openL = []; Object.keys(fit.open).forEach(t => { for (let z = 0; z < fit.open[t]; z++) openL.push(t); });
+    const anchor = nc ? rs[nc - 1].row : null;
+    openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t}</b><span>Empty${t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
+    if (bn.length) $('#slots-reserves').append('<div class="gx-ph opt" data-slot="rs">Add a reserve (optional)</div>');
+    if (caps.length < LLD_GTH_CAP.max && rs.length + bn.length > 0) $('#slots-captain').append(`<div class="gx-ph cap opt" data-slot="cap">${caps.length ? 'Add another captain (optional)' : 'No captain · tap to add one (optional)'}</div>`);
+    const tot = capPts + bonus + best * (1 + dp / 100), chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t} ${f}/${n}</b>`; }).join(' · ');
+    $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
+    $('#gth-cn').text(caps.length + '/' + LLD_GTH_CAP.max); $('#gth-cx').text(caps.length ? '+' + bonus.toFixed(1) + ' bonus' : '×' + M);
+    $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(nc + ' counting · ' + best.toFixed(1));
+    let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
+    $('#gth-bnn').text(bn.length);
+    place('slots-bench', bn);
+    $('#slots-bench .empty-slot').hide();
+}
+function lldGthSheet(pid) {
+    const had = $(`.gx-mvbar[data-pid="${pid}"]`).length; $('.gx-mvbar,.gx-pick').remove(); if (had) return;
+    const lay = lldGthLay(), row = $(`#gth-lay .player-row[data-pid="${pid}"], #slots-bench .player-row[data-pid="${pid}"]`).first();
+    const cur = row.closest('#slots-captain').length ? 'cap' : row.closest('#slots-reserves').length ? 'rs' : 'bn';
+    const o = (k, t, s) => `<button class="mv ${k === 'cap' ? 'cap ' : ''}${cur === k ? 'on' : ''}" data-mv="${k}">${t}<small>${s}</small></button>`;
+    row.after(`<div class="gx-mvbar" data-pid="${pid}">${o('cap', '★ Captain', 'Always starts')}${o('rs', 'Reserves', 'Starts if it fits')}${o('bn', 'Bench', "Doesn't start")}</div>`);
+}
+$(document).on('click', '.gx-mvbar .mv', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    const bar = $(this).closest('.gx-mvbar'), pid = String(bar.attr('data-pid')), k = this.dataset.mv, sw = this.dataset.sw, lay = lldGthLay();
+    const capIds = $('#slots-captain .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
+    if (sw) { lay[sw] = lay[pid] === 'bn' ? 'bn' : 'rs'; lay[pid] = 'cap'; }
+    else if (k === 'cap' && capIds.indexOf(pid) < 0 && capIds.length >= LLD_GTH_CAP.max) {
+        bar.addClass('sw').html('<div class="q">Captains are full. Swap with which captain?</div>' + capIds.map(c => `<button class="mv cap" data-sw="${c}">${lldShEsc($(`#slots-captain .player-row[data-pid="${c}"]`).attr('data-pname') || c)}</button>`).join('')); return;
+    } else lay[pid] = k;
+    lldGthLaySave(lay); lldGthCapRender();
 });
+$(document).on('click', '.gx-ph[data-slot]', function (e) {
+    e.preventDefault(); e.stopPropagation(); const ph = $(this), had = ph.next().hasClass('gx-pick'); $('.gx-pick,.gx-mvbar').remove(); if (had) return;
+    const cap = this.dataset.slot === 'cap', pz = this.dataset.pos, ids = $('#slots-captain .player-row[data-pid]').toArray().map(r => String(r.dataset.pid));
+    const list = $('#gth-lay .player-row[data-pid], #slots-bench .player-row[data-pid]').toArray().filter(r => { const i = lldGthInfo(r), isC = ids.indexOf(i.pid) >= 0, inBn = $(r).closest('#slots-bench').length > 0; return cap ? !isC : (inBn && (!pz || LLD_GTH_ELIG[pz].indexOf(i.pos) >= 0)); }).map(lldGthInfo);
+    ph.after(`<div class="gx-pick" data-slot="${this.dataset.slot}"><div class="q">${cap ? 'Choose a captain' : 'Choose a ' + (pz || 'reserve') + ' from your bench'}</div>${list.length ? list.map(i => `<button data-pick="${i.pid}"><span>${lldShEsc(i.name)} <small>${i.pos}</small></span><small>${i.played ? 'FINAL ' : 'PROJ '}${i.v.toFixed(1)}</small></button>`).join('') : '<div class="q">No eligible player.</div>'}</div>`);
+});
+$(document).on('click', '.gx-pick [data-pick]', function (e) {
+    e.preventDefault(); e.stopPropagation(); const lay = lldGthLay(); lay[this.dataset.pick] = $(this).closest('.gx-pick').attr('data-slot') === 'cap' ? 'cap' : 'rs'; lldGthLaySave(lay); lldGthCapRender();
+});
+// Position buttons open the Captain / Reserves / Bench bar instead of the normal slot menu while Gotham layout is showing.
+['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) {
+    if (!document.body.classList.contains('lld-gth-lay')) return;
+    const b = e.target.closest && e.target.closest('#gth-lay .move-handle-btn, #slots-bench .move-handle-btn'); if (!b) return;
+    e.stopImmediatePropagation(); e.preventDefault(); if (ev === 'click') { const row = b.closest('.player-row'); if (row && row.dataset.pid) lldGthSheet(String(row.dataset.pid)); }
+}, true));
 LLD_GTH.features.captain = { render: lldGthCapRender };
 setInterval(() => { try { if (lldGthOn()) lldGthCapRender(); } catch (e) { } }, 2500);
 function lldGthApply() { document.body.classList.toggle('lld-gth', lldGthOn()); if (!lldGthOn()) return; Object.keys(LLD_GTH.features).forEach(k => { try { LLD_GTH.features[k].render && LLD_GTH.features[k].render(); } catch (e) { console.warn('gotham ' + k, e); } }); }
@@ -13505,7 +13571,7 @@ function lldBetaHtml() {
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('NFL box scores and play by play (ESPN) on the Scores tab')}${onoff('espn')}` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -13754,11 +13820,83 @@ function computeTeamProjectedTotal(roster, projMap) {
     return total;
 }
 
+// ===== NFL box scores & play by play from ESPN's public feed (beta switch "espn", commissioner franchises only, default off) =====
+function lldEspnOn() { try { return lldDev() && lldBv('espn') === '1'; } catch (e) { return false; } }
+const LLD_ESPN = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
+const LLDE = { view: 'list', id: null, tab: 'box', T: null };
+async function lldEspnJson(path) {
+    const r = await fetch(LLD_ESPN + path, { cache: 'no-store' }); if (!r.ok) throw new Error('ESPN ' + r.status); return r.json();
+}
+const lldEsc = t => $('<i>').text(t == null ? '' : t).html();
+function lldEspnTeam(c) { const t = c.team || {}; return { ab: t.abbreviation || '', logo: t.logo || '', name: t.displayName || t.name || '', score: c.score != null ? c.score : '', win: !!c.winner, rec: ((c.records || [])[0] || {}).summary || '' }; }
+function lldEspnStatus(ev) {
+    const st = ev.status || {}, ty = st.type || {};
+    if (ty.state === 'in') return { t: 'in', txt: 'Q' + st.period + ' ' + (st.displayClock || '') };
+    if (ty.state === 'post') return { t: 'post', txt: ty.shortDetail || 'Final' };
+    return { t: 'pre', txt: new Date(ev.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) };
+}
+async function lldEspnRender() {
+    const box = $('#scores-content-container'); if (!box.length) return;
+    clearTimeout(LLDE.T);
+    if (LLDE.view === 'game') return lldEspnGame(true);
+    box.html(buildScoresViewToggleHtml() + '<div class="lld-esp"><div class="esp-msg">Loading NFL games…</div></div>');
+    try {
+        const d = await lldEspnJson('/scoreboard'), evs = d.events || [];
+        const cards = evs.map(ev => {
+            const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {}), s = lldEspnStatus(ev);
+            const row = t => `<div class="esp-t${t.win ? ' w' : ''}"><img src="${lldEsc(t.logo)}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><span>${lldEsc(t.rec)}</span><em>${s.t === 'pre' ? '' : lldEsc(t.score)}</em></div>`;
+            return `<button type="button" class="esp-g ${s.t}" data-id="${lldEsc(ev.id)}">${row(aw)}${row(hm)}<div class="esp-s">${s.t === 'in' ? '<i class="esp-live"></i>' : ''}${lldEsc(s.txt)}</div></button>`;
+        }).join('');
+        $('#scores-content-container .lld-esp').html(`<div class="esp-wk">${lldEsc((d.week && d.week.number) ? 'Week ' + d.week.number : 'This week')} · tap a game for the box score and play by play</div><div class="esp-grid">${cards || '<div class="esp-msg">No games found.</div>'}</div>`);
+        if (evs.some(e => (e.status || {}).type && e.status.type.state === 'in')) LLDE.T = setTimeout(() => { if (window._scoresViewMode === 'nfl' && LLDE.view === 'list') lldEspnRender(); }, 30000);
+    } catch (e) { console.warn('espn', e); $('#scores-content-container .lld-esp').html('<div class="esp-msg">Could not load NFL games from ESPN right now.</div>'); }
+}
+async function lldEspnGame(keep) {
+    const box = $('#scores-content-container'); clearTimeout(LLDE.T);
+    if (!keep) box.html(buildScoresViewToggleHtml() + '<div class="lld-esp"><div class="esp-msg">Loading game…</div></div>');
+    let d; try { d = await lldEspnJson('/summary?event=' + encodeURIComponent(LLDE.id)); } catch (e) { box.find('.lld-esp').html('<button type="button" class="esp-back">‹ All games</button><div class="esp-msg">Could not load this game.</div>'); return; }
+    const hd = (d.header && d.header.competitions && d.header.competitions[0]) || {}, cp = hd.competitors || [];
+    const aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {});
+    const stt = (hd.status && hd.status.type) || {}, live = stt.state === 'in';
+    const tabs = [['box', 'Box score'], ['plays', 'Plays'], ['score', 'Scoring'], ['team', 'Team stats']];
+    let body = '';
+    if (LLDE.tab === 'box') {
+        (d.boxscore && d.boxscore.players || []).forEach(tm => {
+            body += `<div class="esp-th">${lldEsc((tm.team || {}).displayName || '')}</div>`;
+            (tm.statistics || []).forEach(g => {
+                const labs = g.labels || [];
+                body += `<div class="esp-tw"><table class="esp-tb"><tr><th>${lldEsc((g.name || '').toUpperCase())}</th>${labs.map(l => `<th>${lldEsc(l)}</th>`).join('')}</tr>${(g.athletes || []).map(a => `<tr><td>${lldEsc((a.athlete || {}).displayName || '')}</td>${(a.stats || []).map(x => `<td>${lldEsc(x)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+            });
+        });
+        if (!body) body = '<div class="esp-msg">Player stats appear once the game starts.</div>';
+    } else if (LLDE.tab === 'team') {
+        const tms = (d.boxscore && d.boxscore.teams) || [];
+        if (tms.length === 2) { const a = tms[0], b = tms[1], bm = {}; (b.statistics || []).forEach(s => bm[s.name] = s.displayValue); body = `<div class="esp-tw"><table class="esp-tb"><tr><th></th><th>${lldEsc((a.team || {}).abbreviation)}</th><th>${lldEsc((b.team || {}).abbreviation)}</th></tr>${(a.statistics || []).map(s => `<tr><td>${lldEsc(s.label)}</td><td>${lldEsc(s.displayValue)}</td><td>${lldEsc(bm[s.name])}</td></tr>`).join('')}</table></div>`; }
+        else body = '<div class="esp-msg">No team stats yet.</div>';
+    } else if (LLDE.tab === 'score') {
+        const sp = d.scoringPlays || [];
+        body = sp.length ? sp.map(p => `<div class="esp-pl sc"><b>${lldEsc((p.team || {}).abbreviation || '')} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text)}</span><i>${lldEsc(p.awayScore)}–${lldEsc(p.homeScore)}</i></div>`).join('') : '<div class="esp-msg">No scoring yet.</div>';
+    } else {
+        const drv = ((d.drives && d.drives.previous) || []).slice(); if (d.drives && d.drives.current) drv.push(d.drives.current);
+        const plays = []; drv.forEach(dr => (dr.plays || []).forEach(p => plays.push({ p, dr })));
+        plays.reverse();
+        body = plays.length ? plays.slice(0, 250).map(({ p, dr }) => `<div class="esp-pl${p.scoringPlay ? ' sc' : ''}"><b>${lldEsc(((dr.team || {}).abbreviation) || '')} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text || p.shortText || '')}</span>${p.start && p.start.downDistanceText ? `<i>${lldEsc(p.start.downDistanceText)}</i>` : ''}</div>`).join('') : '<div class="esp-msg">No plays yet.</div>';
+    }
+    const sc = t => `<div class="esp-hs${t.win ? ' w' : ''}"><img src="${lldEsc(t.logo)}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><em>${lldEsc(t.score)}</em></div>`;
+    const prev = box.find('.esp-body').scrollTop() || 0;
+    box.html(buildScoresViewToggleHtml() + `<div class="lld-esp"><button type="button" class="esp-back">‹ All games</button><div class="esp-head">${sc(aw)}<div class="esp-hm">${live ? '<i class="esp-live"></i>' : ''}${lldEsc(stt.shortDetail || stt.description || '')}</div>${sc(hm)}</div><div class="esp-tabs">${tabs.map(([k, l]) => `<button type="button" class="esp-tab${LLDE.tab === k ? ' on' : ''}" data-k="${k}">${l}</button>`).join('')}</div><div class="esp-body">${body}</div></div>`);
+    if (keep) box.find('.esp-body').scrollTop(prev);
+    if (live) LLDE.T = setTimeout(() => { if (window._scoresViewMode === 'nfl' && LLDE.view === 'game') lldEspnGame(true); }, 20000);
+}
+$(document).on('click', '.esp-g', function () { LLDE.view = 'game'; LLDE.id = this.dataset.id; LLDE.tab = 'box'; lldEspnGame(false); });
+$(document).on('click', '.esp-back', function () { LLDE.view = 'list'; lldEspnRender(); });
+$(document).on('click', '.esp-tab', function () { LLDE.tab = this.dataset.k; lldEspnGame(true); });
+
 function buildScoresViewToggleHtml() {
     const mode = window._scoresViewMode || 'matchups';
     const btn = (m, label) => `<button class="scores-view-toggle-btn" data-mode="${m}" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${mode===m?'var(--accent-blue)':'var(--card-border)'}; background:${mode===m?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${mode===m?'#fff':'var(--text-dim)'};">${label}</button>`;
         const linkBtn = `<button class="scores-recap-link-btn" style="padding:6px 14px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Weekly Recap ›</button>`;
-    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">${btn('matchups','Matchups')}${btn('median','League Median')}${(typeof lldSltOn === 'function' && lldSltOn()) ? btn('sleeper','Sleeper') : ''}${linkBtn}</div>`;
+    return `<div style="display:flex; gap:6px; justify-content:center; margin-bottom:10px; flex-wrap:wrap;">${btn('matchups','Matchups')}${btn('median','League Median')}${(typeof lldSltOn === 'function' && lldSltOn()) ? btn('sleeper','Sleeper') : ''}${lldEspnOn() ? btn('nfl','NFL Games') : ''}${linkBtn}</div>`;
 }
 
 async function renderLeagueMedianView() {
@@ -16621,6 +16759,8 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
             await renderLeagueMedianView();
         } else if ((window._scoresViewMode || 'matchups') === 'sleeper' && lldSltOn()) {
             if (!document.getElementById('lld-slt')) await lldSltRender();
+        } else if ((window._scoresViewMode || 'matchups') === 'nfl' && lldEspnOn()) {
+            if (!document.querySelector('#scores-content-container .lld-esp')) await lldEspnRender();
         } else if ((window._scoresViewMode || 'matchups') === 'recap') {
             await renderWeeklyRecap();
         } else {
@@ -17669,6 +17809,7 @@ async function checkNotifBadge() {
         window._scoresViewMode = $(this).data('mode');
                 if (window._scoresViewMode === 'median') await renderLeagueMedianView();
         else if (window._scoresViewMode === 'sleeper') await lldSltRender();
+        else if (window._scoresViewMode === 'nfl') { LLDE.view = 'list'; await lldEspnRender(); }
         else if (window._scoresViewMode === 'recap') await renderWeeklyRecap();
         else await renderLiveScoreCard();
     });
