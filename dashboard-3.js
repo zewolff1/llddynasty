@@ -163,27 +163,80 @@ function lldBuildScene(name) {
     if (row) { row.classList.add('has-scene'); row.insertBefore(el, row.firstChild); }
     else header.parentNode.insertBefore(el, header);
 }
+// ===== TICKER: sections the owner can choose, order and size (tap the ticker to edit) =====
+const LLD_TK_SRC = {
+    standings: { n: 'Standings', d: 'Every team, best record first', max: 12, def: 12, on: 1 },
+    matchups: { n: 'Matchups', d: 'This week\u2019s scores, or who plays whom', max: 8, def: 6, on: 1 },
+    last: { n: 'Last Week', d: 'Final scores plus the high score of the week', max: 8, def: 4, on: 0 },
+    tx: { n: 'Transactions', d: 'Latest adds, drops and trades', max: 12, def: 6, on: 1 },
+    proj: { n: 'Top Projections', d: 'Highest projected players this week', max: 10, def: 5, on: 1 },
+    projt: { n: 'Team Projections', d: 'Lineups projected to score the most this week', max: 8, def: 3, on: 0 },
+    draft: { n: 'Draft Order', d: 'Projected round 1 order (lowest Max PF picks first, champion last)', max: 12, def: 12, on: 1 },
+    block: { n: 'Trade Block', d: 'Players owners marked Seeking Trades', max: 10, def: 6, on: 1 },
+    streak: { n: 'Streaks', d: 'Teams on a run of wins or losses', max: 8, def: 3, on: 0 },
+    pf: { n: 'Points Leaders', d: 'Top scorers on the season so far', max: 12, def: 5, on: 0 },
+    board: { n: 'Message Board', d: 'Newest topics from the league board', max: 8, def: 4, on: 0 }
+};
+const LLD_TK_ORDER = ['standings', 'matchups', 'last', 'tx', 'proj', 'projt', 'draft', 'block', 'streak', 'pf', 'board'];
+function lldTkName(id) {
+    if (id === 'draft') return ((parseInt((location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear(), 10) || new Date().getFullYear()) + 1) + ' Draft Order';
+    return (LLD_TK_SRC[id] || {}).n || id;
+}
+function lldTkCfg() {
+    let c = null; try { c = JSON.parse(lldGet('lld_tick_cfg', 'null')); } catch (e) { }
+    const have = {}; ((c && c.list) || []).forEach(x => { if (x && LLD_TK_SRC[x.id]) have[x.id] = x; });
+    const list = []; ((c && c.list) || []).forEach(x => { if (x && LLD_TK_SRC[x.id] && !list.some(y => y.id === x.id)) list.push({ id: x.id, on: !!x.on, n: Math.max(1, Math.min(LLD_TK_SRC[x.id].max, parseInt(x.n, 10) || LLD_TK_SRC[x.id].def)) }); });
+    LLD_TK_ORDER.forEach(id => { if (!have[id]) list.push({ id, on: !!LLD_TK_SRC[id].on, n: LLD_TK_SRC[id].def }); });
+    const spd = c && [0.6, 1, 1.5].indexOf(+c.spd) >= 0 ? +c.spd : 1;
+    return { spd, list };
+}
+function lldTkSave(c) { lldSet('lld_tick_cfg', JSON.stringify(c)); }
 let _lldRailIdx = 0;
 function lldRotateRail() {
     const hs = document.querySelectorAll('#lld-scene .d-h');
     const items = window._lldItems || [];
     if (!hs.length || !items.length) return;
-    hs.forEach((h, i) => { h.textContent = String(items[(_lldRailIdx + i) % items.length] || '').replace(/\[\[L:\d+\|([^\]]*)\]\]/g, '$1').replace(/^(SCORE|TRADE ALERT): /, '').slice(0, 34); });
+    hs.forEach((h, i) => { h.textContent = String(items[(_lldRailIdx + i) % items.length] || '').replace(/\[\[[LT]:\d+\|([^\]]*)\]\]/g, '$1').replace(/^(SCORE|TRADE ALERT): /, '').slice(0, 34); });
     _lldRailIdx = (_lldRailIdx + 1) % items.length;
 }
-function lldSetTicker(items) {
+function lldSetTicker(items, secs) {
     window._lldItems = items || [];
     lldRotateRail();
     const sp = document.querySelector('#lld-ticker span.tk-t');
     if (!sp || !items || !items.length) return;
     const sep = '   ' + (LLD_TICK_SEP[lldEffStyle()] || '\u2605') + '   ';
-    const txt = items.join(sep) + sep;
-    const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const yr0 = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg0 = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
-    const html = esc(txt + txt).replace(/\[\[L:(\d+)\|([^\]]*)\]\]/g, (m, id) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">`);
-    if (html.indexOf('tk-lg') >= 0) sp.innerHTML = html; else sp.textContent = txt + txt;
-    sp.style.setProperty('--tkdur', Math.max(16, Math.round(txt.replace(/\[\[L:\d+\|[^\]]*\]\]/g, 'XXX').length * 0.2)) + 's');
-    sp.style.animationDuration = Math.max(16, Math.round(txt.replace(/\[\[L:\d+\|[^\]]*\]\]/g, 'XXX').length * 0.2)) + 's';
+    // [[L:id|NAME]] shows just the team logo, [[T:id|NAME]] shows the logo and the name
+    const tok = s => esc(s).replace(/\[\[([LT]):(\d+)\|([^\]]*)\]\]/g, (m, k, id, nmx) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">` + (k === 'T' ? `<b class="tk-nm">${nmx}</b>` : ''));
+    const flat = (secs && secs.length ? secs.reduce((a, s) => a.concat(s.items), []) : items);
+    const plain = flat.join(sep) + sep;
+    let html;
+    if (secs && secs.length) {
+        const one = secs.map(s => `<span class="tk-sec" data-n="${esc(s.name)}">${s.items.map(tok).join(esc(sep))}${esc(sep)}</span>`).join('<span class="tk-gap"></span>');
+        html = one + '<span class="tk-gap"></span>' + one;
+    } else html = tok(plain + plain);
+    sp.innerHTML = html;
+    const len = plain.replace(/\[\[L:\d+\|[^\]]*\]\]/g, 'XXX').replace(/\[\[T:\d+\|([^\]]*)\]\]/g, 'XXX $1').length;
+    const dur = Math.max(16, Math.round(len * 0.2 * lldTkCfg().spd)) + 's';
+    sp.style.setProperty('--tkdur', dur);
+    sp.style.animationDuration = dur;
+    const lb = document.querySelector('#lld-ticker .tk-l');
+    if (lb && secs && secs.length) lb.textContent = secs[0].name;
+    if (secs && secs.length) lldTkWatch();
+}
+// the label on the left names the section that is passing the left edge
+function lldTkWatch() {
+    if (window._lldTkIv) return;
+    window._lldTkIv = setInterval(() => {
+        const el = document.getElementById('lld-ticker'); if (!el || document.hidden) return;
+        const sp = el.querySelector('.tk-t'), lb = el.querySelector('.tk-l'); if (!sp || !lb) return;
+        const ss = sp.querySelectorAll('.tk-sec'); if (!ss.length) return;
+        const wl = sp.parentElement.getBoundingClientRect().left + 14;
+        let nm = null;
+        for (let i = 0; i < ss.length; i++) { const r = ss[i].getBoundingClientRect(); if (r.left <= wl && r.right > wl) { nm = ss[i].dataset.n; break; } }
+        if (nm && lb.textContent !== nm) lb.textContent = nm;
+    }, 250);
 }
 async function lldTickJson(url) {
     for (let a = 0; a < 5; a++) {
@@ -196,52 +249,225 @@ async function lldTickJson(url) {
     }
     return null;
 }
-// Live ticker: this week's scores + the latest league transactions, straight from MFL
-// the ticker shows league standings for now (the scores/moves feed is kept below as lldFillTickerFeed)
+function lldTkRender() {
+    const cfg = lldTkCfg(), D = window._lldTickData || {};
+    const secs = [];
+    cfg.list.forEach(x => { if (!x.on) return; const arr = (D[x.id] || []).slice(0, x.n); if (arr.length) secs.push({ id: x.id, name: lldTkName(x.id), items: arr }); });
+    if (!secs.length) return false;
+    lldSetTicker(secs.reduce((a, s) => a.concat(s.items), []), secs);
+    return true;
+}
+async function lldTkPlayers(yr, lg, ids) {
+    window._lldTickPl = window._lldTickPl || {};
+    const need = [...new Set(ids)].filter(i => !window._lldTickPl[i]);
+    for (let i = 0; i < need.length; i += 50) {
+        const d = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=players&L=${lg}&PLAYERS=${need.slice(i, i + 50).join(',')}&JSON=1`);
+        [].concat(d?.players?.player || []).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); window._lldTickPl[p.id] = { name: n.length > 1 ? n[1] + ' ' + n[0] : n[0], pos: p.position || '' }; });
+    }
+    return id => window._lldTickPl[id] || { name: '#' + id, pos: '' };
+}
+const LLD_TK_GET = {
+    standings: async c => c.rows.map((r, i) => `${i + 1}. ${c.lt(r.id)} ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`),
+    matchups: async c => {
+        if (!c.wkS) return [];
+        return [].concat(c.wkS.matchup).map(m => {
+            const f = [].concat(m.franchise || []); if (f.length < 2) return null;
+            const a = parseFloat(f[0].score) || 0, b = parseFloat(f[1].score) || 0;
+            return a || b ? `${c.lt(f[0].id)} ${a.toFixed(1)} \u2013 ${b.toFixed(1)} ${c.lt(f[1].id)}` : `${c.lt(f[0].id)} vs ${c.lt(f[1].id)}`;
+        }).filter(Boolean);
+    },
+    last: async c => {
+        if (!c.lastW) return [];
+        const g = [].concat(c.lastW.matchup).map(m => { const f = [].concat(m.franchise || []); if (f.length < 2) return null; return { a: f[0].id, b: f[1].id, x: parseFloat(f[0].score) || 0, y: parseFloat(f[1].score) || 0 }; }).filter(Boolean);
+        if (!g.length) return [];
+        const sides = []; g.forEach(m => { sides.push([m.a, m.x]); sides.push([m.b, m.y]); });
+        const hi = sides.slice().sort((p, q) => q[1] - p[1])[0], lo = sides.slice().sort((p, q) => p[1] - q[1])[0];
+        const cl = g.slice().sort((p, q) => Math.abs(p.x - p.y) - Math.abs(q.x - q.y))[0], bl = g.slice().sort((p, q) => Math.abs(q.x - q.y) - Math.abs(p.x - p.y))[0];
+        const res = m => { const w = m.x >= m.y; return `${c.tt(w ? m.a : m.b)} ${(w ? m.x : m.y).toFixed(1)} \u2013 ${(w ? m.y : m.x).toFixed(1)} ${c.tt(w ? m.b : m.a)}`; };
+        return [`WEEK ${c.lastW.week} HIGH SCORE: ${c.tt(hi[0])} ${hi[1].toFixed(1)}`, `CLOSEST GAME: ${res(cl)}`, `BIGGEST BLOWOUT: ${res(bl)}`, `LOWEST SCORE: ${c.tt(lo[0])} ${lo[1].toFixed(1)}`].concat(g.map(res));
+    },
+    tx: async c => {
+        const d = await c.J('tx', `${MFL_ORIGIN}/${c.yr}/export?TYPE=transactions&L=${c.lg}&COUNT=25&JSON=1`);
+        const tx = [].concat(d?.transactions?.transaction || []);
+        const ids = []; tx.forEach(t => String(t.transaction || '').split(/[|,]/).forEach(x => { if (/^\d{3,6}$/.test(x)) ids.push(x); }));
+        const pn = await lldTkPlayers(c.yr, c.lg, ids);
+        const out = [];
+        tx.forEach(t => {
+            const ty = String(t.type || '').toUpperCase();
+            if (ty === 'TRADE') { out.push(`TRADE: ${c.tt(t.franchise)} AND ${c.tt(t.franchise2)} MAKE A DEAL`); return; }
+            if (!/FREE_AGENT|WAIVER|BBID/.test(ty)) return;
+            const parts = String(t.transaction || '').split('|');
+            const add = (parts[0] || '').split(',').filter(x => /^\d{3,6}$/.test(x))[0], drop = (parts[1] || '').split(',').filter(x => /^\d{3,6}$/.test(x))[0];
+            if (add) out.push(`${c.tt(t.franchise)} ADD ${pn(add).name}${drop ? ', DROP ' + pn(drop).name : ''}`);
+            else if (drop) out.push(`${c.tt(t.franchise)} CUT ${pn(drop).name}`);
+        });
+        return out;
+    },
+    proj: async c => {
+        if (!c.wkS) return [];
+        const d = await c.J('proj', `${MFL_ORIGIN}/${c.yr}/export?TYPE=projectedScores&L=${c.lg}&W=${c.wkS.week}&JSON=1`);
+        const rep = parseInt(d?.projectedScores?.week, 10);
+        if (!isNaN(rep) && rep !== parseInt(c.wkS.week, 10)) return [];
+        const top = [].concat(d?.projectedScores?.playerScore || []).map(p => ({ id: p.id, s: parseFloat(p.score) || 0 })).sort((a, b) => b.s - a.s).slice(0, 10);
+        const pn = await lldTkPlayers(c.yr, c.lg, top.map(p => p.id));
+        return top.map(p => `${pn(p.id).name} ${pn(p.id).pos} ${p.s.toFixed(1)} PROJ`);
+    },
+    projt: async c => {
+        if (!c.wkS) return [];
+        const d = await c.J('live', `${MFL_ORIGIN}/${c.yr}/export?TYPE=liveScoring&L=${c.lg}&W=${c.wkS.week}&JSON=1`);
+        let fr = [].concat(d?.liveScoring?.franchise || d?.franchise || []);
+        if (!fr.length) [].concat(d?.liveScoring?.matchup || d?.matchup || []).forEach(m => { fr = fr.concat(m.franchise || []); });
+        return fr.map(f => ({ id: f.id, p: parseFloat(f.projectedScore) || 0 })).filter(x => x.p > 0).sort((a, b) => b.p - a.p).map(x => `${c.tt(x.id)} ${x.p.toFixed(1)} PROJ`);
+    },
+    draft: async c => {
+        const ny = parseInt(c.yr, 10) + 1;
+        const [stRes, fp] = await Promise.all([
+            fetch(`${MFL_ORIGIN}/${c.yr}/standings?L=${c.lg}`, { credentials: 'include', cache: 'no-store' }).then(r => r.text()),
+            lldTickJson(`${MFL_ORIGIN}/${c.yr}/export?TYPE=futureDraftPicks&L=${c.lg}&JSON=1`)
+        ]);
+        const doc = new DOMParser().parseFromString(stRes, 'text/html');
+        let maxIdx = -1;
+        doc.querySelectorAll('table.report tr').forEach(tr => {
+            if (maxIdx !== -1) return;
+            const idx = [...tr.querySelectorAll('th')].map(th => th.textContent.replace(/\s+/g, ' ').trim()).findIndex(t => /max\s*pf|max\s*pts|potential/i.test(t));
+            if (idx !== -1) maxIdx = idx;
+        });
+        const num = s => parseFloat(String(s || '0').replace(/,/g, '')) || 0;
+        const teams = [];
+        doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+            const m = row.querySelector('td.fname a')?.getAttribute('href').match(/F=(\d+)/i); if (!m) return;
+            const nums = (row.querySelector('td.h2hwlt')?.textContent || '').match(/\d+/g) || [];
+            const w = parseInt(nums[0] || 0), l = parseInt(nums[1] || 0), t = parseInt(nums[2] || 0), gp = w + l + t, cells = row.querySelectorAll('td');
+            const direct = row.querySelector('td.maxpf, td.pp, td.mpf, td.maxpoints');
+            teams.push({ fid: m[1].padStart(4, '0'), pct: gp ? (w + t / 2) / gp : 0, pf: num(row.querySelector('td.pf')?.textContent), maxpf: num(direct ? direct.textContent : (maxIdx >= 0 && cells[maxIdx] ? cells[maxIdx].textContent : 0)) });
+        });
+        if (!teams.length || !teams.some(t => t.maxpf > 0)) return [];
+        let known = null; try { known = Object.keys(CHAMPIONSHIPS).find(f => (CHAMPIONSHIPS[f] || []).map(String).includes(String(c.yr))); } catch (e) { }
+        const top = teams.slice().sort((a, b) => b.pct - a.pct || b.pf - a.pf)[0];
+        const champ = (known && String(known).padStart(4, '0')) || top.fid;
+        const order = teams.filter(t => t.fid !== champ).sort((a, b) => a.maxpf - b.maxpf || a.pf - b.pf).concat(teams.filter(t => t.fid === champ));
+        const own = {};
+        [].concat(fp?.futureDraftPicks?.franchise || []).forEach(f => [].concat(f.futureDraftPick || []).forEach(p => {
+            if (String(p.year) !== String(ny) || String(p.round) !== '1') return;
+            own[String(p.originalPickFor || f.id).padStart(4, '0')] = String(f.id).padStart(4, '0');
+        }));
+        return order.map((t, i) => { const o = own[t.fid] || t.fid; return `${i + 1}. ${c.tt(o)}${o !== t.fid ? ' (VIA ' + c.nmS(t.fid).toUpperCase() + ')' : ''}`; });
+    },
+    block: async c => {
+        try { if (!window._lldTbLatest || !window._lldTbAt || Date.now() - window._lldTbAt > 300000) { await lldTbSeekEvents(); window._lldTbAt = Date.now(); } } catch (e) { console.warn('ticker block', e); }
+        const lt = window._lldTbLatest || {};
+        const bd = await lldTickJson(`${MFL_ORIGIN}/${c.yr}/export?TYPE=tradeBait&L=${c.lg}&JSON=1`);
+        const still = {}; if (bd) [].concat(bd?.tradeBaits?.tradeBait || []).forEach(b => { still[String(b.franchise_id || b.franchise || '').padStart(4, '0')] = new Set(String(b.willGiveUp || '').split(',').map(s => s.trim())); });
+        const teams = [], ids = [];
+        Object.keys(lt).forEach(f => {
+            const g = Object.keys(lt[f] || {}).filter(id => /^\d{3,6}$/.test(id) && lldTbParseLabel(lt[f][id]).s === 'S' && (!bd || (still[f] && still[f].has(id))));
+            if (g.length) { teams.push([f, g]); g.forEach(i => ids.push(i)); }
+        });
+        const pn = await lldTkPlayers(c.yr, c.lg, ids);
+        return teams.map(([f, g]) => `${c.tt(f)}: ${g.map(i => pn(i).name + (pn(i).pos ? ' ' + pn(i).pos : '')).join(', ')}`);
+    },
+    streak: async c => {
+        const run = {};
+        c.done.forEach(w => [].concat(w.matchup).forEach(m => [].concat(m.franchise || []).forEach(f => {
+            const k = String(f.id).padStart(4, '0'), r = String(f.result || '').toUpperCase().charAt(0);
+            const s = run[k] || (run[k] = { t: '', n: 0 });
+            if (r === 'W' || r === 'L') { if (s.t === r) s.n++; else { s.t = r; s.n = 1; } } else { s.t = ''; s.n = 0; }
+        })));
+        return Object.keys(run).filter(k => run[k].n >= 3).sort((a, b) => run[b].n - run[a].n).map(k => `${c.tt(k)} ${run[k].t === 'W' ? 'WON' : 'LOST'} ${run[k].n} STRAIGHT`);
+    },
+    pf: async c => c.rows.slice().sort((a, b) => b.pf - a.pf).map((r, i) => `${i + 1}. ${c.tt(r.id)} ${r.pf.toFixed(1)} PF`),
+    board: async c => {
+        const rr = await fetch(`${MFL_ORIGIN}/${c.yr}/export?TYPE=rss&L=${c.lg}`, { credentials: 'include', cache: 'no-store' });
+        const xml = new DOMParser().parseFromString(await rr.text(), 'text/xml');
+        return [...xml.querySelectorAll('item > title')].map(n => n.textContent.replace(/\s+/g, ' ').trim()).filter(t => t && t.length < 110).slice(0, 8);
+    }
+};
+// fetches the chosen sections one by one (MFL throttles) and keeps what it got in window._lldTickData
+async function lldTkLoad(ids) {
+    const yr = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
+    const c = { yr, lg, memo: {} };
+    c.J = (k, u) => c.memo[k] || (c.memo[k] = lldTickJson(u));
+    const pad = id => String(id).padStart(4, '0');
+    if (!window._lldTickNames) {
+        const ld = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=league&L=${lg}&JSON=1`);
+        const nmz = {}; [].concat(ld?.league?.franchises?.franchise || []).forEach(f => { if (f && f.id) nmz[pad(f.id)] = (f.name && String(f.name).trim()) || ('Team ' + (parseInt(f.id, 10) || f.id)); });
+        if (Object.keys(nmz).length) window._lldTickNames = nmz;
+    }
+    c.nmS = f => { const id = pad(f); const n = String((window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id))).replace(/[\[\]|]/g, ''); return n.length > 20 ? n.slice(0, 19).trim() + '.' : n; };
+    c.lt = f => `[[L:${pad(f)}|${c.nmS(f).toUpperCase()}]]`;
+    c.tt = f => `[[T:${pad(f)}|${c.nmS(f).toUpperCase()}]]`;
+    const sd = await c.J('sd', `${MFL_ORIGIN}/${yr}/export?TYPE=schedule&L=${lg}&JSON=1`) || {};
+    const wks = [].concat(sd?.schedule?.weeklySchedule || []).filter(w => w && w.matchup);
+    const wkDone = w => [].concat(w.matchup).every(m => [].concat(m.franchise || []).every(f => f.result));
+    c.wkS = wks.find(w => [].concat(w.matchup).some(m => [].concat(m.franchise || []).some(f => !f.result))) || wks[wks.length - 1];
+    c.done = wks.filter(wkDone); c.lastW = c.done[c.done.length - 1];
+    if (c.wkS) {
+        const pr = {}; [].concat(c.wkS.matchup).forEach(m => { const f = [].concat(m.franchise || []); if (f.length < 2) return; const a = pad(f[0].id), b = pad(f[1].id); pr[a] = [b]; pr[b] = [a]; });
+        window._tickWeek = { week: c.wkS.week, pairs: pr }; try { refreshTeamInfoPanel(); } catch (e) { }
+    }
+    const std = await c.J('st', `${MFL_ORIGIN}/${yr}/export?TYPE=leagueStandings&L=${lg}&JSON=1`) || {};
+    c.rows = [].concat(std?.leagueStandings?.franchise || []).map(f => ({ id: f.id, w: parseInt(f.h2hw, 10) || 0, l: parseInt(f.h2hl, 10) || 0, t: parseInt(f.h2ht, 10) || 0, pf: parseFloat(f.pf) || 0 })).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
+    window._lldTickData = window._lldTickData || {};
+    let ok = 0;
+    for (const id of ids) {
+        try {
+            const items = await LLD_TK_GET[id](c);
+            window._lldTickData[id] = items; ok++;
+            if (!window._lldTkShown && items.length && lldTkRender()) window._lldTkShown = true;
+        } catch (e) { console.warn('ticker ' + id, e); }
+    }
+    return ok;
+}
 async function lldFillTicker(staticItems, attempt) {
     attempt = attempt || 0;
-    if (!attempt) { if (window._lldTickBusy && Date.now() - window._lldTickBusy < 20000) return; window._lldTickBusy = Date.now(); }
-    let cached = null; try { cached = JSON.parse(localStorage.getItem('lld_tick_std') || 'null'); } catch (e) { }
-    if (!attempt) lldSetTicker(cached && cached.length ? cached : ['LOADING STANDINGS…']); // last good standings show instantly while fresh ones load
-    // year/lid are declared further down the file, so work them out here
-    const yr = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
+    if (!attempt) { if (window._lldTickBusy && Date.now() - window._lldTickBusy < 20000) { lldTkRender(); return; } window._lldTickBusy = Date.now(); }
+    let cached = null; try { cached = JSON.parse(lldGet('lld_tick_sec', 'null')); } catch (e) { }
+    if (!window._lldTickData && cached && cached.d) window._lldTickData = cached.d;
+    if (!attempt) { window._lldTkShown = false; if (!lldTkRender()) lldSetTicker(['LOADING TICKER\u2026']); else window._lldTkShown = true; } // last good lines show instantly while fresh ones load
+    const ids = lldTkCfg().list.filter(x => x.on).map(x => x.id);
+    if (!ids.length) { lldSetTicker(['TAP HERE TO CHOOSE WHAT THE TICKER SHOWS']); return; }
     try {
-        const d = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=leagueStandings&L=${lg}&JSON=1`) || {};
-        const fr = [].concat(d?.leagueStandings?.franchise || []);
-        if (!window._lldTickNames) {
-            window._lldTickNames = {};
-            const ld = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=league&L=${lg}&JSON=1`);
-            [].concat(ld?.league?.franchises?.franchise || []).forEach(f => { if (f && f.id) window._lldTickNames[String(f.id).padStart(4, '0')] = (f.name && String(f.name).trim()) || ('Team ' + (parseInt(f.id, 10) || f.id)); });
-        }
-        const nm = f => { const id = String(f).padStart(4, '0'); const n = (window._lldTickNames && window._lldTickNames[id]) || ('Team ' + (parseInt(id, 10) || id)); return n.length > 20 ? n.slice(0, 19).trim() + '.' : n; };
-        const rows = fr.map(f => ({ id: f.id, w: parseInt(f.h2hw, 10) || 0, l: parseInt(f.h2hl, 10) || 0, t: parseInt(f.h2ht, 10) || 0, pf: parseFloat(f.pf) || 0 })).sort((a, b) => b.w - a.w || a.l - b.l || b.pf - a.pf);
-        if (!rows.length) throw new Error('no standings');
-        const items = ['STANDINGS'].concat(rows.map((r, i) => `${i + 1}. [[L:${String(r.id).padStart(4, '0')}|${nm(r.id).toUpperCase()}]] ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`));
-        try {
-            const sd = await lldTickJson(`${MFL_ORIGIN}/${yr}/export?TYPE=schedule&L=${lg}&JSON=1`) || {};
-            const wks = [].concat(sd?.schedule?.weeklySchedule || []).filter(w => w && w.matchup);
-            const wkS = wks.find(w => [].concat(w.matchup).some(m => [].concat(m.franchise || []).some(f => !f.result))) || wks[wks.length - 1];
-            if (wkS) {
-                const pr = {}; [].concat(wkS.matchup).forEach(m => { const f = [].concat(m.franchise || []); if (f.length < 2) return; const a = String(f[0].id).padStart(4, '0'), b = String(f[1].id).padStart(4, '0'); pr[a] = [b]; pr[b] = [a]; });
-                window._tickWeek = { week: wkS.week, pairs: pr }; try { refreshTeamInfoPanel(); } catch (e) { }
-                const lg2 = id => `[[L:${String(id).padStart(4, '0')}|${nm(id).toUpperCase()}]]`;
-                items.push('WEEK ' + wkS.week + ' MATCHUPS');
-                [].concat(wkS.matchup).forEach(m => {
-                    const f = [].concat(m.franchise || []); if (f.length < 2) return;
-                    const a = parseFloat(f[0].score) || 0, b = parseFloat(f[1].score) || 0;
-                    items.push(a || b ? `${lg2(f[0].id)} ${a.toFixed(1)} \u2013 ${b.toFixed(1)} ${lg2(f[1].id)}` : `${lg2(f[0].id)} vs ${lg2(f[1].id)}`);
-                });
-            }
-        } catch (e) { console.warn('ticker matchups', e); }
-        lldSetTicker(items); try { localStorage.setItem('lld_tick_std', JSON.stringify(items)); } catch (e) { }
+        const ok = await lldTkLoad(ids);
+        if (!ok) throw new Error('no ticker data');
+        lldTkRender();
+        lldSet('lld_tick_sec', JSON.stringify({ d: window._lldTickData }));
     } catch (e) {
-        console.warn('ticker standings', e);
-        // never show an error: keep the last good standings (or a loading line) and try again in a bit
-        if (!(cached && cached.length)) lldSetTicker(['LOADING STANDINGS…']);
+        console.warn('ticker', e);
+        // never show an error: keep the last good lines (or a loading line) and try again in a bit
         if (attempt < 8) setTimeout(() => lldFillTicker(staticItems, attempt + 1), 15000 + attempt * 10000);
-        else if (!(cached && cached.length)) lldSetTicker(['LLD DYNASTY']);
+        else if (!window._lldTkShown) lldSetTicker(['LLD DYNASTY']);
     }
 }
+// ----- the editor that opens when you tap the ticker -----
+function lldTkOpen() {
+    let o = document.getElementById('lld-tke'); if (!o) { o = document.createElement('div'); o.id = 'lld-tke'; document.body.appendChild(o); }
+    const cfg = lldTkCfg(), on = lldTickOn(lldEffStyle());
+    const row = (x, i) => { const s = LLD_TK_SRC[x.id]; return `<div class="tke-row ${x.on ? '' : 'dis'}" data-i="${i}"><div class="tke-mv"><button data-a="up" ${i ? '' : 'disabled'}>\u25B2</button><button data-a="dn" ${i < cfg.list.length - 1 ? '' : 'disabled'}>\u25BC</button></div><div class="tke-n"><b>${lldTkName(x.id)}</b><span>${s.d}</span>${x.on ? `<div class="tke-cnt">Show <button data-a="m">\u2212</button><i>${x.n}</i><button data-a="p">+</button> items</div>` : ''}</div><button class="tke-sw ${x.on ? 'on' : ''}" data-a="t" aria-label="${lldTkName(x.id)} on or off"></button></div>`; };
+    o.innerHTML = `<div class="tke-bd" data-a="x"></div><div class="tke-pn"><div class="tke-top"><h2>Edit ticker</h2><button class="tke-x" data-a="x" aria-label="Close">\u2715</button></div><p class="tke-sub">Changes apply right away and are saved on this device.</p><div class="tke-row tke-master"><div class="tke-n"><b>Show the ticker</b><span>Turn the whole bar on or off</span></div><button class="tke-sw ${on ? 'on' : ''}" data-a="mst" aria-label="Ticker on or off"></button></div><div class="tke-lab">Scroll speed</div><div class="tke-spd">${[['1.5', 'Slow'], ['1', 'Normal'], ['0.6', 'Fast']].map(a => `<button data-a="spd" data-v="${a[0]}" class="${+a[0] === cfg.spd ? 'on' : ''}">${a[1]}</button>`).join('')}</div><div class="tke-lab">What it shows \u00B7 top scrolls first</div>${cfg.list.map(row).join('')}<button class="tke-rs" data-a="rs">Reset to defaults</button></div>`;
+    o.classList.add('o');
+}
+function lldTkChanged() {
+    const ids = lldTkCfg().list.filter(x => x.on).map(x => x.id), D = window._lldTickData || {};
+    if (ids.some(id => !D[id])) { window._lldTickBusy = 0; lldFillTicker(null); }
+    else if (!lldTkRender()) lldSetTicker(['TAP HERE TO CHOOSE WHAT THE TICKER SHOWS']);
+    lldTkOpen();
+}
+$(document).on('click', '#lld-ticker', function () { lldTkOpen(); });
+$(document).on('click', '#lld-tk-edit', function () { lldTkOpen(); });
+$(document).on('click', '#lld-tke [data-a]', function (e) {
+    const b = this, a = b.dataset.a, cfg = lldTkCfg(), r = b.closest('.tke-row'), i = r ? +r.dataset.i : -1, x = cfg.list[i];
+    if (a === 'x') { document.getElementById('lld-tke').classList.remove('o'); return; }
+    if (a === 'mst') { lldApplyTick(lldTickOn(lldEffStyle()) ? 'off' : 'on'); lldTkOpen(); return; }
+    if (a === 'spd') { cfg.spd = +b.dataset.v; lldTkSave(cfg); lldTkChanged(); return; }
+    if (a === 'rs') { lldSet('lld_tick_cfg', ''); lldTkChanged(); return; }
+    if (!x) return;
+    if (a === 't') x.on = !x.on;
+    else if (a === 'm') x.n = Math.max(1, x.n - 1);
+    else if (a === 'p') x.n = Math.min(LLD_TK_SRC[x.id].max, x.n + 1);
+    else if (a === 'up' && i) { cfg.list[i] = cfg.list[i - 1]; cfg.list[i - 1] = x; }
+    else if (a === 'dn' && i < cfg.list.length - 1) { cfg.list[i] = cfg.list[i + 1]; cfg.list[i + 1] = x; }
+    lldTkSave(cfg); lldTkChanged();
+});
 async function lldFillTickerFeed(staticItems) {
     if (staticItems) { lldSetTicker(staticItems); return; }
     lldSetTicker(['LOADING SCORES AND MOVES…']);
@@ -971,7 +1197,7 @@ function lldBuildTicker(name) {
     const sc = (LLD_STYLES[name] || {}).scene || {};
     const el = document.createElement('div'); el.id = 'lld-ticker';
     const word = LLD_TICK_WORD[name] || (/^season_/.test(name) ? 'HOLIDAY' : /^nfl_/.test(name) ? 'GAME DAY' : /^lg_/.test(name) ? 'LEAGUE' : 'LIVE');
-    el.innerHTML = '<em class="tk-l"></em><span class="tk-w"><span class="tk-t"></span></span>';
+    el.innerHTML = '<em class="tk-l"></em><span class="tk-w"><span class="tk-t"></span></span><span class="tk-g">\u2699</span>';
     el.querySelector('.tk-l').textContent = word;
     if (sc.tickBg) { el.style.setProperty('--tk-bg', sc.tickBg); el.style.setProperty('--tk-on', sc.tickFg || '#fff'); }
     else {
@@ -9189,6 +9415,7 @@ $('body').append(`
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'on':''}" data-v="on">On</button>
                         <button class="lld-hdr-btn lld-tick-btn ${lldTickOn(lldEffStyle())?'':'on'}" data-v="off">Off</button>
                     </div>
+                    <button class="lld-hdr-btn" id="lld-tk-edit" style="width:100%; margin:-6px 0 16px;">Choose what the ticker shows</button>
                     ${lldBetaHtml()}
             </div>
 
