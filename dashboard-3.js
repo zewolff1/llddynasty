@@ -12991,7 +12991,7 @@ function lldRvReplayShow() {
     const el = lldLpPlace(inner), n = r.steps.length;
     const nav = `<div class="rp-nav"><button type="button" data-a="prev"${r.i <= 0 ? ' disabled' : ''}>‹</button><button type="button" data-a="auto">${r.auto ? '❚❚ Pause' : '▶ Auto'}</button><button type="button" data-a="next">${r.i >= n ? 'Finish' : '›'}</button><span class="rp-c">${r.i} / ${n}</span><button type="button" data-a="mode">${r.mode === 'all' ? 'All plays' : 'Big plays'}</button><button type="button" data-a="skip">Skip</button></div>`;
     let body;
-    if (r.i <= 0) body = '<div class="lp-t"><i>REPLAY</i><span>Tap › to step through the plays, or ▶ Auto.</span></div>';
+    if (r.i <= 0) body = '<div class="lp-t"><i>REPLAY</i><span>Playing automatically. Tap ❚❚ Pause or an arrow to step through yourself.</span></div>';
     else {
         const s = r.steps[r.i - 1], it = s.item;
         const chips = it.ch.map(c => { const d = c.v * s.scale(c.x); return `<span class="esp-ch ${c.x.w}">${lldHead(c.x.pid)}${r.lbl[c.x.w]} · ${lldEsc(c.x.name)}${d ? ` <b>${d > 0 ? '+' : ''}${d.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`; }).join('');
@@ -13029,6 +13029,7 @@ async function lldRvReplay() {
     if (!prep.big.length) window._lldRvRun.mode = 'all';
     const b2 = document.getElementById('lld-rv-all'); if (b2) { b2.textContent = 'Replaying… tap to skip'; b2.dataset.m = 'skip'; }
     lldRvReplayShow(); lldRvReplayDraw();
+    lldRvReplaySetAuto(true); // plays by itself; Pause or an arrow takes over
 }
 // after each Scoreboard render: add the Reveal-all button and hide the win-% bar, percentages and winner badge until everyone is revealed
 function lldRvBar() {
@@ -14156,6 +14157,7 @@ function lldScnBar() {
     const sl = (mode === 'sleeper' && typeof lldSltShown === 'function') ? lldSltShown()[LLD_SLT.st.l || 0] : null;
     const nm = sl ? sl.name : (LLD.leagueName || 'My league');
     let h = `<div class="scn" id="lld-scn"><div class="scn-lg"><button type="button" class="scn-lgb" id="scn-lgb"><span>${esc(nm)}</span><i>▾ switch league</i></button></div><div id="scn-menu" hidden></div>`;
+    if (mode !== 'sleeper') h += lldScnWeekHtml();
     if (mode !== 'sleeper') {
         h += `<div class="scn-rl">FANTASY MATCHUPS</div><div class="scn-row"><button type="button" class="scn-arr" data-a="m" data-d="-1" aria-label="Previous matchup">‹</button><div class="scn-strip" id="scn-ms">`;
         h += `<button type="button" class="scn-med${(mode === 'median' || mode === 'recap') ? ' on' : ''}" data-k="med">${over ? 'Recap<small>weekly</small>' : 'Median<small>league</small>'}</button>`;
@@ -14168,6 +14170,14 @@ function lldScnBar() {
     setTimeout(lldScnFillGames, 0);
     return h;
 }
+function lldScnWeekHtml() {
+    const wk = parseInt(window._liveScoreActiveWeek, 10) || lldEspnWk() || 1, cur = parseInt(window._liveScoreCurrentWeek, 10), open = !!window._lldScnWkOpen;
+    const live = wk === cur, over = lldScnWeekOver();
+    const chip = live ? '<span class="scn-st live">● Live</span>' : (over ? '<span class="scn-st">Final</span>' : '<span class="scn-st pre">Upcoming</span>');
+    return `<div class="scn-wkr"><button type="button" id="scn-wk"><small>WEEK</small><b>${wk}</b><i>${open ? '▴' : '▾'}</i></button>${chip}</div>${open ? `<div class="scn-wkp">${Array.from({ length: 18 }, (_, i) => i + 1).map(w => `<button type="button" data-w="${w}" class="${w === wk ? 'on' : ''}">${w}${w === cur ? '<em>live</em>' : ''}</button>`).join('')}</div>` : ''}`;
+}
+$(document).on('click', '#scn-wk', async function () { window._lldScnWkOpen = !window._lldScnWkOpen; const box = document.getElementById('lld-scn'); if (!box) return; box.querySelectorAll('.scn-wkr, .scn-wkp').forEach(x => x.remove()); box.querySelector('.scn-lg').insertAdjacentHTML('afterend', lldScnWeekHtml()); });
+$(document).on('click', '.scn-wkp [data-w]', async function () { window._lldScnWkOpen = false; window._liveScoreWeekPickerOpen = false; LLDE.wk = null; if (window._scoresViewMode === 'nfl') window._scoresViewMode = 'matchups'; await loadLiveScores(+this.dataset.w); });
 async function lldScnFillGames() {
     const box = document.getElementById('scn-gs'); if (!box) return;
     try {
@@ -14213,18 +14223,8 @@ $(document).on('click', function (e) { const m = document.getElementById('scn-me
 $(document).on('click', '#scn-ms .scn-med', function () { lldScnShowMedian(); });
 $(document).on('click', '#scn-ms .scn-mc', function () { lldScnShowMatchup(+this.dataset.i); });
 $(document).on('click', '#scn-gs .scn-gc', function () { lldScnShowGame(this.dataset.id); });
-$(document).on('click', '.scn-arr', function () {
-    const d = +this.dataset.d, mode = window._scoresViewMode || 'matchups';
-    if (this.dataset.a === 'm') {
-        const n = (window._liveScoreMatchups || []).length, N = n + 1; if (!n) return;
-        let cur = (mode === 'median' || mode === 'recap') ? 0 : mode === 'matchups' ? (window._liveScoreIndex || 0) + 1 : -1;
-        const nx = cur < 0 ? (d > 0 ? 1 : N - 1) : (cur + d + N) % N;
-        if (nx === 0) lldScnShowMedian(); else lldScnShowMatchup(nx - 1);
-    } else {
-        const ids = window._lldScnGames || []; if (!ids.length) return;
-        const cur = mode === 'nfl' ? ids.findIndex(x => String(x) === String(LLDE.id)) : -1, nx = cur < 0 ? (d > 0 ? 0 : ids.length - 1) : (cur + d + ids.length) % ids.length;
-        lldScnShowGame(ids[nx]);
-    }
+$(document).on('click', '.scn-arr', function () { // arrows only scroll the bar; tapping a card selects it
+    const st = document.getElementById(this.dataset.a === 'm' ? 'scn-ms' : 'scn-gs'); if (st) st.scrollBy({ left: (+this.dataset.d) * Math.max(120, st.clientWidth * .8), behavior: 'smooth' });
 });
 function buildScoresViewToggleHtml() {
     if (lldScnOn()) return lldScnBar();
@@ -14384,7 +14384,7 @@ function recapLegalSwapPick(g, cands, roster, projMap) {
         .sort((a, b) => (projMap[b.pid] || 0) - (projMap[a.pid] || 0))[0];
 }
 
-function recapTeamChip(t, align) {
+function recapTeamChipObj(t, align) {
     return `<span style="display:inline-flex; align-items:center; gap:5px; min-width:0;">
         <img src="${t.logo}" onerror="this.style.display='none'" style="width:18px; height:18px; border-radius:50%; object-fit:cover; background:var(--card-bg); flex-shrink:0;">
         <span data-team-style="${t.fid}" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</span>
@@ -14407,7 +14407,7 @@ async function renderWeeklyRecap() {
     const header = `
         <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
-            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
+            <div class="scn-oldwk" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px;">
                 <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer;">‹</button>
                 <div class="dashboard-pill stacked-pill" style="border-bottom-color:var(--accent-blue);">
                     <span class="pill-label">RECAP · WEEK</span>
@@ -14790,6 +14790,7 @@ function recapTeamName(f, size) {
     return `<span data-team-style="${f}" style="font-size:${size || 10}px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${leagueFranchises[f] || f}</span>`;
 }
 function recapTeamChip(f, size) {
+    if (f && typeof f === 'object') return recapTeamChipObj(f, size); // callers that pass a team object (weekly recap)
     return `<span style="display:inline-flex; align-items:center; gap:6px; min-width:0;">${recapLogo(f, size || 22)}${recapTeamName(f, 11)}</span>`;
 }
 function recapHeadshot(pid, size) {
@@ -16922,7 +16923,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const activeWk = window._liveScoreActiveWeek;
     const isLiveWk = activeWk === window._liveScoreCurrentWeek;
     const weekPickerOpen = !!window._liveScoreWeekPickerOpen;
-    const weekPillsRowHtml = weekPickerOpen ? `
+    const weekPillsRowHtml = (weekPickerOpen && !lldScnOn()) ? `
         <div style="display:flex; flex-wrap:wrap; gap:6px; padding:8px 2px 10px; justify-content:center;">
             ${Array.from({length: 18}, (_, i) => i + 1).map(w => {
                 const isActive = w === activeWk;
@@ -16943,7 +16944,7 @@ async function renderLiveScoreCard() {    const container = $('#scores-content-c
     const html = `
                <div style="padding:10px;">
             ${buildScoresViewToggleHtml()}
-            <div class="live-score-refresh-wrap" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
+            <div class="live-score-refresh-wrap scn-oldwk" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
                 <button class="live-score-week-prev" style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:#fff; font-size:calc(12px * var(--ts,1)); font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
                 <div class="dashboard-pill stacked-pill" id="live-score-week-selector-pill" style="cursor:pointer; border-bottom-color:var(--accent-blue);">
                     <span class="pill-label">WEEK ${weekPickerOpen ? '▲' : '▼'}</span>
