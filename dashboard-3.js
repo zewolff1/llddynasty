@@ -15390,8 +15390,12 @@ async function lldStorySlides(kind, wk, idx) {
             if (sp) out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
         } catch (e) { console.warn('spotlight', e); }
         try {
-            if (mg && lldGbgOn()) { const G = await lldGbgBuild(mg, me, wk); if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div>`); sl.gbg = G; out.push(sl); } }
-        } catch (e) { console.warn('gbg build', e); }
+            if (lldGbgOn()) {
+                const note = t => out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">No replay this week</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc(t)}</div>`));
+                if (!mg) note('No matchup found for your team this week.');
+                else { const G = await lldGbgBuild(mg, me, wk); if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for your starters (ESPN had nothing for this week, or none of the plays matched).'); }
+            }
+        } catch (e) { console.warn('gbg build', e); if (lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
         if (S.top) LLD_ST.topFid = S.top.fid;
         if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
         if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`));
