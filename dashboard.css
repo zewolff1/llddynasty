@@ -4617,3 +4617,8 @@ body.lld-sh-pend #tab-header-area{visibility:hidden}
 .esp-ch.op{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.5)}
 .esp-mine{display:flex;flex-wrap:wrap;gap:4px}.esp-mine .esp-ch{margin:0}
 .esp-ch b{margin-left:3px;color:#fff;font-weight:900}
+#lld-lastplay{display:flex;gap:10px;align-items:flex-start;margin:0 0 10px;padding:9px 12px;border-radius:12px;border:1px solid var(--card-border);background:rgba(0,0,0,.25)}
+#lld-lastplay .lp-lg{width:30px;height:30px;object-fit:contain;flex:0 0 auto}
+#lld-lastplay .lp-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+#lld-lastplay .lp-t i{font-style:normal;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.08em;color:var(--text-dim)}
+#lld-lastplay .lp-t span{font-size:calc(12px * var(--ts,1));font-weight:700;line-height:1.35;color:var(--text-main,#e5e7eb)}
