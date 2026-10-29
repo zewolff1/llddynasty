@@ -4762,3 +4762,10 @@ body.lld-scn .scn-oldwk{display:none!important}
 #lld-tke .tke-spd button{flex:1;padding:10px 6px;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-main);font-weight:800;font-size:calc(12px * var(--ts,1));cursor:pointer}
 #lld-tke .tke-spd button.on{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
 #lld-tke .tke-rs{margin-top:6px;border:0;background:none;color:var(--text-dim);text-decoration:underline;font-size:calc(12px * var(--ts,1));cursor:pointer;padding:6px 0}
+
+#gth-chars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#gth-chars .gth-ch{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:84px;padding:10px 6px;border-radius:12px;border:1px solid var(--card-border);background:rgba(0,0,0,.25);color:var(--text-main);font:inherit;cursor:pointer}
+#gth-chars .gth-ch .m{font-size:calc(26px * var(--ts,1));line-height:1}
+#gth-chars .gth-ch b{font-size:calc(11px * var(--ts,1));letter-spacing:.08em;text-transform:uppercase}
+#gth-chars .gth-ch.on{border-color:#00ceb8;box-shadow:0 0 0 1px #00ceb8 inset;background:rgba(0,206,184,.12)}
+#gth-chars .gth-ch.blank{border-style:dashed;color:var(--text-dim);cursor:default}
