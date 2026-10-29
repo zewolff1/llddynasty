@@ -12804,7 +12804,7 @@ function lldRvRevealAll() {
 function lldRvWrap(txt, k) {
     if (!lldRvOn()) return txt;
     const on = lldRvHas(k), part = (window._lldRvPart && k[0] === 'p') ? window._lldRvPart[k.slice(1)] : undefined;
-    if (part !== undefined && !on) return `<span class="lld-rv on" data-k="${k}" data-v="${txt}">${part.toFixed((String(txt).split('.')[1] || '').length || 1)}</span>`;
+    if (part !== undefined) return `<span class="lld-rv on" data-k="${k}" data-v="${txt}">${part.toFixed((String(txt).split('.')[1] || '').length || 1)}</span>`;
     return `<span class="lld-rv${on ? ' on' : ''}" data-k="${k}" data-v="${txt}">${on ? txt : '<i>tap</i>'}</span>`;
 }
 // matchup chips along the top: blurred (tap to show) once the matchup has any score on it
@@ -12902,12 +12902,18 @@ function lldRvTeam(fid) {
 })();
 
 // ---- Reveal replay (beta, ESPN switch): Reveal all scores plays every scoring play one at a time in the Last play box, and the totals, player scores and win % build with it ----
+// where the shown matchup comes from: the MFL scoreboard, or the Sleeper scoreboard tab
+function lldRvSource() {
+    if (window._scoresViewMode === 'sleeper' && window._lldSltCtx) { const c = window._lldSltCtx; return { t1: c.t1, t2: c.t2, mine: !!(c.t1.own || c.t2.own), own: t => !!t.own, wk: parseInt(c.wk, 10), host: document.getElementById('lld-slt'), sl: true, pm: c.pm, p1: c.p1, p2: c.p2 }; }
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex]; if (!m) return null;
+    return { t1: m.t1, t2: m.t2, mine: !!m.isMe, own: t => String(t.fid) === String(fid), wk: parseInt(window._liveScoreActiveWeek, 10), host: document.getElementById('live-score-card-inner'), sl: false, pm: window._lldRvPm, p1: window._lldRvP1, p2: window._lldRvP2 };
+}
 function lldRvClock(c) { const m = String(c || '').match(/(\d+):(\d+)/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0; }
 async function lldRvReplayPrep() {
-    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex], wk = parseInt(window._liveScoreActiveWeek, 10); if (!m || !wk) return null;
-    const mine = !!m.isMe, lbl = {}, list = [];
-    [[m.t1, 'me'], [m.t2, 'op']].forEach(([t, w]) => {
-        const ms = mine ? String(t.fid) === String(fid) : null, ww = mine ? (ms ? 'me' : 'op') : w;
+    const src = lldRvSource(), wk = src && src.wk; if (!src || !wk) return null;
+    const mine = src.mine, lbl = {}, list = [];
+    [[src.t1, 'me'], [src.t2, 'op']].forEach(([t, w]) => {
+        const ms = mine ? src.own(t) : null, ww = mine ? (ms ? 'me' : 'op') : w;
         lbl[ww] = mine ? (ms ? 'YOU' : 'OPP') : String(t.name || '').split(' ').slice(-1)[0].slice(0, 8).toUpperCase();
         (t.roster || []).forEach(p => { if (p.isStarter) { const parts = String(p.name).replace(/\./g, ' ').trim().split(/\s+/); list.push({ w: ww, pid: String(p.pid), name: p.name, team: lldEspnNt(p.team), score: p.score || 0, key: (parts[0] || '').charAt(0).toLowerCase() + parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, '') }); } });
     });
@@ -12940,21 +12946,23 @@ async function lldRvReplayPrep() {
     items.forEach((i, k) => { i.ch.forEach(c => { cum[c.x.pid] = (cum[c.x.pid] || 0) + c.v; }); i.idx = k; all.push({ item: i, big: bigSet.has(i), part: Object.assign({}, ...list.map(x => ({ [x.pid]: Math.max(0, (cum[x.pid] || 0) * scale(x)) }))), scale }); });
     return { list, lbl, all, big: all.filter(s => s.big), scale };
 }
-function lldRvReplayDraw() {
-    const r = window._lldRvRun; if (!r) return;
-    const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
-    const part = window._lldRvPart || {};
-    document.querySelectorAll('.lld-rv[data-k^="p"]').forEach(el => { const pid = el.dataset.k.slice(1); if (part[pid] === undefined) return; el.classList.add('on'); el.textContent = part[pid].toFixed((String(el.dataset.v || '').split('.')[1] || '').length || 1); });
-    try { lldRvRecalc(); } catch (e) { }
-    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex]; if (!m) return;
-    const c1 = lldRvCalc(m.t1, window._lldRvPm, window._lldRvP1), c2 = lldRvCalc(m.t2, window._lldRvPm, window._lldRvP2);
+function lldRvReplayWp(host, src) {
+    const c1 = lldRvCalc(src.t1, src.pm, src.p1), c2 = lldRvCalc(src.t2, src.pm, src.p2);
     const a = Math.min(99, Math.max(1, Math.round(100 / (1 + Math.exp(-(c1.proj - c2.proj) / 14))))), b = 100 - a;
-    const pct = []; inner.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(el => {
+    const pct = []; host.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(el => {
         if (el.getAttribute('title') === 'Winning matchup') return; el.classList.add('on');
         if (!el.children.length && /^\s*\d{1,3}(\.\d+)?%\s*$/.test(el.textContent)) pct.push(el);
         else { const kids = [...el.children]; if (kids.length && kids.some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) { if (kids[0]) kids[0].style.width = a + '%'; if (kids[1]) kids[1].style.width = b + '%'; } }
     });
     if (pct[0]) pct[0].textContent = a + '%'; if (pct[1]) pct[1].textContent = b + '%';
+}
+function lldRvReplayDraw() {
+    const r = window._lldRvRun; if (!r) return; const src = lldRvSource(); if (!src || !src.host) return;
+    if (src.sl) { try { lldSltDraw(); } catch (e) { } return; } // the Sleeper view redraws itself from the partial scores
+    const part = window._lldRvPart || {};
+    document.querySelectorAll('.lld-rv[data-k^="p"]').forEach(el => { const pid = el.dataset.k.slice(1); if (part[pid] === undefined) return; el.classList.add('on'); el.textContent = part[pid].toFixed((String(el.dataset.v || '').split('.')[1] || '').length || 1); });
+    try { lldRvRecalc(); } catch (e) { }
+    lldRvReplayWp(src.host, src);
 }
 function lldLpPlace(inner) {
     let el = document.getElementById('lld-lastplay'); if (el) return el;
@@ -12968,12 +12976,12 @@ function lldRvReplayEnd() {
     const r = window._lldRvRun; lldRvReplayStop();
     try { (r ? r.list : []).forEach(x => { lldRvS().add(lldRvKey('p' + x.pid)); }); lldRvSave(); } catch (e) { }
     lldRvRevealAll();
-    try { renderLiveScoreCard(); } catch (e) { }
+    try { if (window._scoresViewMode === 'sleeper') lldSltDraw(); else renderLiveScoreCard(); } catch (e) { }
     setTimeout(() => { try { lldLastPlayRefresh(); } catch (e) { } }, 1200);
 }
-const lldHead = pid => `<img class="lp-hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${lldEsc(pid)}.png" onerror="this.style.display='none'">`;
+const lldHead = pid => String(pid)[0] === 's' ? (/^s[A-Z]{2,3}$/.test(String(pid)) ? '' : `<img class="lp-hs" src="https://sleepercdn.com/content/nfl/players/thumb/${lldEsc(String(pid).slice(1))}.jpg" onerror="this.style.display='none'">`) : `<img class="lp-hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${lldEsc(pid)}.png" onerror="this.style.display='none'">`;
 function lldRvReplayShow() {
-    const r = window._lldRvRun; if (!r) return; const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
+    const r = window._lldRvRun; if (!r) return; const src0 = lldRvSource(), inner = src0 && src0.host; if (!inner) return;
     const el = lldLpPlace(inner), n = r.steps.length;
     const nav = `<div class="rp-nav"><button type="button" data-a="prev"${r.i <= 0 ? ' disabled' : ''}>‹</button><button type="button" data-a="auto">${r.auto ? '❚❚ Pause' : '▶ Auto'}</button><button type="button" data-a="next">${r.i >= n ? 'Finish' : '›'}</button><span class="rp-c">${r.i} / ${n}</span><button type="button" data-a="mode">${r.mode === 'all' ? 'All plays' : 'Big plays'}</button><button type="button" data-a="skip">Skip</button></div>`;
     let body;
@@ -12994,6 +13002,7 @@ function lldRvReplayGo(k) {
     lldRvReplayShow(); lldRvReplayDraw();
 }
 function lldRvReplaySetAuto(on) { const r = window._lldRvRun; if (!r) return; r.auto = on; if (r.timer) clearInterval(r.timer); r.timer = on ? setInterval(() => lldRvReplayGo(r.i + 1), r.mode === 'all' ? 900 : 1300) : null; lldRvReplayShow(); }
+$(document).on('click', '#lld-lastplay .rp-again', function (e) { e.preventDefault(); e.stopPropagation(); lldRvReplay(); });
 $(document).on('click', '#lld-lastplay .rp-nav button', function (e) {
     e.preventDefault(); e.stopPropagation(); const r = window._lldRvRun; if (!r) return; const a = this.dataset.a;
     if (a === 'next') { lldRvReplaySetAuto(false); lldRvReplayGo(r.i + 1); }
@@ -13503,7 +13512,7 @@ function lldSltDraw() {
         const mk = (pid, slotIndex, isStarter) => { const p = P[pid] || { n: pid, pos: '', tm: '' }, pos = p.pos === 'DEF' ? 'Def' : p.pos; return { pid: 's' + pid, sid: pid, name: p.n, shortName: p.n, pos, team: nflT(p.tm), score: (m.players_points || {})[pid] || 0, isStarter, slotIndex, opp: '', gsr: null, rawStatus: '' }; };
         const roster = (m.starters || []).map((pid, i) => (pid && pid !== '0') ? mk(pid, i, true) : null).filter(Boolean).concat(ids.filter(x => !st.has(x)).map((pid, i) => mk(pid, 100 + i, false)));
         const ytp = roster.filter(p => p.isStarter && !deriveLiveStatus(p).done).length;
-        return { fid: 's' + m.roster_id, name: t.name, logo: t.av || 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg', score: m.points || 0, roster, yetToPlay: ytp, rec: t.rec };
+        return { own: t.owner === LLD_SLT.uid, fid: 's' + m.roster_id, name: t.name, logo: t.av || 'https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/NFL.svg', score: m.points || 0, roster, yetToPlay: ytp, rec: t.rec };
     };
     const t1 = mkTeam(A), t2 = mkTeam(B);
     const projTot = t => t.roster.reduce((a, p) => { if (!p.isStarter) return a; const d = deriveLiveStatus(p); return a + (d.done ? p.score : (pm[p.pid] != null ? pm[p.pid] : p.score)); }, 0);
@@ -13512,13 +13521,15 @@ function lldSltDraw() {
     const wp = computeWinProb(t1, t2, pm), tc1 = '#3b82f6', tc2 = '#a855f7';
     const c1 = t1.score > t2.score ? '#22c55e' : t1.score < t2.score ? '#ef4444' : '#fff', c2 = t2.score > t1.score ? '#22c55e' : t2.score < t1.score ? '#ef4444' : '#fff';
     const yts = t => t.yetToPlay > 0 ? `${t.yetToPlay} yet to play` : 'Done';
-    h += `<div class="lld-rv-lu-wrap"><button type="button" class="lld-rv-lu-b" data-m="show">Reveal all scores</button></div>`;
+    window._lldSltCtx = { t1, t2, wk: S.w, pm, p1: t1Proj, p2: t2Proj };
+    h += `<div class="lld-rv-lu-wrap"><button type="button" class="lld-rv-lu-b" data-m="show">${window._lldRvRun ? 'Replaying… tap to skip' : 'Reveal all scores'}</button></div>`;
     let body = buildScoreHeaderHtml3({ t1, t2, c1, c2, yts1: yts(t1), yts2: yts(t2), t1Proj, t2Proj, wp, leagueMedian: med, projMedian: pmed, tc1, tc2, pm }) + buildPairedRosterHtml(t1.roster, t2.roster, pm, { gameInfo: {}, stats: {} }, tc1, tc2);
     body = body.replace(/https:\/\/www\.mflscripts\.com\/playerImages_80x107\/mfl_s([^"]*?)\.png/g, (m, id) => /^[A-Z]{2,3}$/.test(id) ? `https://sleepercdn.com/images/team_logos/nfl/${id.toLowerCase()}.png` : `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`);
     h += body + (hasPj ? '' : '<div class="sl-err" style="margin-top:6px">No projections from Sleeper for this week.</div>');
     host.innerHTML = h;
     const hid = !document.querySelector('#lld-slt .lld-rv:not(.on), #lld-slt .lld-rvc:not(.on)'); const b = host.querySelector('.lld-rv-lu-b'); if (b && hid && host.querySelector('.lld-rv, .lld-rvc')) { b.textContent = 'Hide all scores'; b.dataset.m = 'hide'; }
     if (!rvOn && b) b.parentElement.remove();
+    if (window._lldRvRun) { if (b) b.dataset.m = 'skip'; try { lldRvReplayShow(); lldRvReplayWp(host, lldRvSource()); } catch (e) { } } else { try { lldLastPlayRefresh(); } catch (e) { } }
 }
 async function lldSltRender() {
     const container = $('#scores-content-container');
@@ -16791,12 +16802,12 @@ async function lldLastPlayRefresh() {
     if (window._lldRvRun) return;
     const old = document.getElementById('lld-lastplay');
     if (!lldEspnOn()) { if (old) old.remove(); return; }
-    const inner = document.getElementById('live-score-card-inner'), m = (window._liveScoreMatchups || [])[window._liveScoreIndex], wk = parseInt(window._liveScoreActiveWeek, 10);
-    if (!inner || !m || !wk) { if (old) old.remove(); return; }
+    const src = lldRvSource(), inner = src && src.host, wk = src && src.wk;
+    if (!inner || !wk) { if (old) old.remove(); return; }
     if (lldRvOn() && inner.querySelector('.lld-rvt:not(.on)')) { if (old) old.remove(); return; } // scores still hidden: no spoilers
-    const list = [], mine = !!m.isMe, lbl = { me: 'A', op: 'B' };
-    [[m.t1, 'me'], [m.t2, 'op']].forEach(([t, w]) => {
-        const mineSide = mine ? String(t.fid) === String(fid) : null;
+    const list = [], mine = src.mine, lbl = { me: 'A', op: 'B' };
+    [[src.t1, 'me'], [src.t2, 'op']].forEach(([t, w]) => {
+        const mineSide = mine ? src.own(t) : null;
         const ww = mine ? (mineSide ? 'me' : 'op') : w; lbl[ww] = mine ? (mineSide ? 'YOU' : 'OPP') : String(t.name || '').split(' ').slice(-1)[0].slice(0, 8).toUpperCase();
         (t.roster || []).forEach(p => { if (p.isStarter) list.push({ w: ww, st: true, name: p.name, team: lldEspnNt(p.team), pid: String(p.pid) }); });
     });
@@ -16820,7 +16831,7 @@ async function lldLastPlayRefresh() {
     let el = document.getElementById('lld-lastplay');
     if (!best) { if (el) el.remove(); return; }
     const ab = (best.dr.team || {}).abbreviation || '', logo = getNFLLogoUrl(lldEspnNt(ab)), g = best.gT.join(' @ ');
-    const html = `<img class="lp-lg" src="${lldEsc(logo)}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>LAST PLAY · ${lldEsc(g)} · Q${lldEsc((best.p.period || {}).number)} ${lldEsc((best.p.clock || {}).displayValue || '')}</i><span>${lldEsc(best.p.text || best.p.shortText || '')}</span>${best.chips}</div>`;
+    const html = `<img class="lp-lg" src="${lldEsc(logo)}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>LAST PLAY · ${lldEsc(g)} · Q${lldEsc((best.p.period || {}).number)} ${lldEsc((best.p.clock || {}).displayValue || '')}</i><span>${lldEsc(best.p.text || best.p.shortText || '')}</span>${best.chips}${lldRvOn() ? '<button type="button" class="rp-again">↻ Replay all scoring plays</button>' : ''}</div>`;
     if (!el) el = lldLpPlace(inner);
     if (el.innerHTML !== html) el.innerHTML = html;
 }
