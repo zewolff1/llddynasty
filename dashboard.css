@@ -4616,3 +4616,4 @@ body.lld-sh-pend #tab-header-area{visibility:hidden}
 .esp-ch.me{background:rgba(45,212,191,.18);color:#2dd4bf;border:1px solid rgba(45,212,191,.55)}
 .esp-ch.op{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.5)}
 .esp-mine{display:flex;flex-wrap:wrap;gap:4px}.esp-mine .esp-ch{margin:0}
+.esp-ch b{margin-left:3px;color:#fff;font-weight:900}
