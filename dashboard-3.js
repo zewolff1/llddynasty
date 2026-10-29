@@ -12961,6 +12961,7 @@ function lldRvReplayWp(host, src) {
         else { const kids = [...el.children]; if (kids.length && kids.some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) { if (kids[0]) kids[0].style.width = a + '%'; if (kids[1]) kids[1].style.width = b + '%'; } }
     });
     if (pct[0]) pct[0].textContent = a + '%'; if (pct[1]) pct[1].textContent = b + '%';
+    host.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(el => { if (!el.children.length && /\d{1,3}(\.\d+)?\s*%\s*[^\d%]{1,14}\s*\d{1,3}(\.\d+)?\s*%/.test(el.textContent)) { el.classList.add('on'); el.textContent = el.textContent.replace(/\d{1,3}(?:\.\d+)?(\s*%\s*[^\d%]{1,14}\s*)\d{1,3}(?:\.\d+)?(\s*%)/, a + '$1' + b + '$2'); } });
 }
 function lldRvReplayDraw() {
     const r = window._lldRvRun; if (!r) return; const src = lldRvSource(); if (!src || !src.host) return;
@@ -13047,6 +13048,7 @@ function lldRvBar() {
         if (el.children.length === 0 && /^\s*\d{1,3}(\.\d+)?%\s*$/.test(el.textContent)) mark(el);
         else if (el.getAttribute('title') === 'Winning matchup') mark(el);
         else if (el.children.length === 0 && /^\s*win probability\s*$/i.test(el.textContent)) mark(el);
+        else if (el.children.length === 0 && el.textContent.length < 48 && /\d{1,3}(\.\d+)?\s*%\s*[^\d%]{1,14}\s*\d{1,3}(\.\d+)?\s*%/.test(el.textContent)) mark(el); // "15% – 85% to win" style lines (Brick, SportsCenter)
         else if (el.children.length && el.children.length <= 2 && el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height <= 12 && [...el.children].some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) mark(el);
     });
     // above/below-median arrows give the score away, so they stay hidden until everyone is revealed
@@ -17003,7 +17005,7 @@ function liveStatusRank(p) {
 }
 
 // Strip above the starters: who is on the field right now for each side, with the game clock, plus the sort control
-function buildLiveNowHtml(t1, t2, pm) {
+function buildLiveNowHtml(t1, t2, pm, barOnly) {
     const mode = window._liveScoreSort || 'slot';
     const cols = (typeof scoreTeamColors === 'function') ? scoreTeamColors(t1.fid, t2.fid) : ['#3b82f6', '#3b82f6'];
     const live = t => (t.roster || []).filter(p => p.isStarter && deriveLiveStatus(p).playing).sort((a, b) => (a.slotIndex || 0) - (b.slotIndex || 0));
@@ -17019,6 +17021,7 @@ function buildLiveNowHtml(t1, t2, pm) {
     const sbCur = lldGet('lld_sb', 'theme'), sbOpen = !!window._lldSbOpen; // closed every time the page loads; opens only when tapped
     const sbChip = (v, l) => `<button type="button" class="lld-sb-btn lld-sbchip ${sbCur === v ? 'on' : ''}" data-v="${v}">${l}</button>`;
     const sbBar = `<div class="lld-sbbar"><button type="button" class="lld-sbopt-toggle">\u2699 Scoreboard</button><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${sbChip('theme', 'Match theme')}${sbChip('default', 'Default')}</div><div class="lld-sbchips" ${sbOpen ? '' : 'hidden'}>${LLD_SB_LAYOUTS.map(x => sbChip(x[0], x[1])).join('')}<button type="button" class="lld-sbtint-btn lld-sbchip ${lldGet('lld_sbtint', '') === '1' ? 'on' : ''}">Theme colors</button></div></div>`;
+    if (barOnly) return `<div id="live-now-strip" style="margin:0 0 12px;">${sbBar}</div>`; // other weeks: nobody is playing, but the Scoreboard gear stays
     return `<div id="live-now-strip" style="margin:0 0 12px;">
         ${sbBar}
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
@@ -17087,10 +17090,10 @@ async function injectLiveNowStrip() {
     if (!inner || !m) return;
     const old = document.getElementById('live-now-strip'); if (old) old.remove();
     if (window._scMatchState && window._scMatchState !== 'live' && (window._scTab || 'first') === 'first') return; // Preview/Recap tab: strip belongs to Scoreboard only
-    if (window._liveScoreActiveWeek !== window._liveScoreCurrentWeek) return; // past weeks have nobody playing
-    let pm = null; try { pm = await fetchWeekProjectedScoresMap(window._liveScoreActiveWeek); } catch (e) {}
+    const other = window._liveScoreActiveWeek !== window._liveScoreCurrentWeek; // past or future week: no "playing now" row, just the gear
+    let pm = null; if (!other) { try { pm = await fetchWeekProjectedScoresMap(window._liveScoreActiveWeek); } catch (e) {} }
     if (document.getElementById('live-now-strip')) return;
-    const html = buildLiveNowHtml(m.t1, m.t2, pm), first = inner.firstElementChild;
+    const html = buildLiveNowHtml(m.t1, m.t2, pm, other), first = inner.firstElementChild;
     if (first) first.insertAdjacentHTML('afterend', html); else inner.insertAdjacentHTML('afterbegin', html);
 }
 // Run the strip after every scoreboard render, without touching renderLiveScoreCard itself
