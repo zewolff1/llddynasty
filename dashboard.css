@@ -4680,3 +4680,7 @@ body.lld-sh-pend #tab-header-area{visibility:hidden}
 #lld-story .gbg-log{display:flex;flex-direction:column;gap:3px}
 #lld-story .gbg-lr{display:flex;gap:7px;font-size:calc(10.5px * var(--ts,1));line-height:1.3;opacity:.8;padding:3px 7px;border-radius:8px;background:rgba(0,0,0,.2);border-left:3px solid #5eead4}#lld-story .gbg-lr.op{border-left-color:#fca5a5}
 #lld-story .gbg-lr em{font-style:normal;font-weight:900;flex:0 0 auto;opacity:.8;min-width:58px}
+
+#lld-story .gbg-sp{pointer-events:auto;display:flex;justify-content:center;align-items:center;gap:10px;margin-top:6px;position:relative;z-index:6}
+#lld-story .gbg-spb{font:inherit;font-weight:800;font-size:calc(11px * var(--ts,1));color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:6px 12px;cursor:pointer}
+#lld-story .gbg-spv{font-size:calc(11px * var(--ts,1));opacity:.85;min-width:84px;text-align:center}
