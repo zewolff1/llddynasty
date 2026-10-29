@@ -12915,8 +12915,8 @@ function lldRvSource() {
 }
 function lldRvSig() { const s = lldRvSource(); return s ? [s.sl ? 's' : 'm', s.wk, s.t1.fid, s.t2.fid].join('|') : ''; }
 function lldRvClock(c) { const m = String(c || '').match(/(\d+):(\d+)/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0; }
-async function lldRvReplayPrep() {
-    const src = lldRvSource(), wk = src && src.wk; if (!src || !wk) return null;
+async function lldRvReplayPrep(srcIn) {
+    const src = srcIn || lldRvSource(), wk = src && src.wk; if (!src || !wk) return null;
     const mine = src.mine, lbl = {}, list = [];
     [[src.t1, 'me'], [src.t2, 'op']].forEach(([t, w]) => {
         const ms = mine ? src.own(t) : null, ww = mine ? (ms ? 'me' : 'op') : w;
@@ -13744,6 +13744,8 @@ document.addEventListener('click', function (e) {
 LLD_GTH.features.captain = { render: lldGthCapRender };
 setInterval(() => { try { if (lldGthOn()) lldGthCapRender(); } catch (e) { } }, 2500);
 function lldGthApply() { document.body.classList.toggle('lld-gth', lldGthOn()); if (!lldGthOn()) return; Object.keys(LLD_GTH.features).forEach(k => { try { LLD_GTH.features[k].render && LLD_GTH.features[k].render(); } catch (e) { console.warn('gotham ' + k, e); } }); }
+function lldGbgDef() { return { spd: 1.2, big: 2, gap: 1.5, log: 5, order: ['score', 'wp', 'games', 'play', 'players', 'log'], show: { score: 1, wp: 1, games: 1, play: 1, players: 1, log: 1 } }; }
+function lldGbgLab() { return { score: 'Scoreboard', wp: 'Win probability', games: 'Game strip', play: 'Current play', players: 'Player points', log: 'Play log' }; }
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
@@ -13757,7 +13759,7 @@ function lldBetaHtml() {
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
         ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('NFL box scores and play by play (ESPN) on the Scores tab')}${onoff('espn')}` : ''}
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('NFL box scores and play by play (ESPN) on the Scores tab')}${onoff('espn')}${lab('Game by game replay slide in the Week recap story (needs ESPN above)')}${onoff('gbg')}<div id="lld-gbg-set" style="${lldBv('gbg') === '1' ? '' : 'display:none;'}">${lldGbgPanel()}</div>` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -15293,6 +15295,84 @@ async function lldPoAt(wk) {
     } catch (e) { console.warn('poAt', e); }
     window._poAt[wk] = out; return out;
 }
+
+// ===== Game by game replay slide (beta, switch gbg): plays that change a starter's fantasy points in your matchup, one NFL game at a time =====
+function lldGbgOn() { try { return lldDev() && lldBv('gbg') === '1'; } catch (e) { return false; } }
+function lldGbgCfg() {
+    let c = {}; try { c = JSON.parse(lldGet('lld_gbg_cfg', '{}')) || {}; } catch (e) { }
+    const o = Object.assign({}, lldGbgDef(), c); o.show = Object.assign({}, lldGbgDef().show, c.show || {});
+    o.order = (c.order || []).filter(k => lldGbgLab()[k]); lldGbgDef().order.forEach(k => { if (o.order.indexOf(k) < 0) o.order.push(k); }); return o;
+}
+function lldGbgSave(c) { lldSet('lld_gbg_cfg', JSON.stringify(c)); }
+function lldGbgPanel() {
+    const c = lldGbgCfg(), sl = (k, l, mn, mx, st, u) => `<div style="display:grid;grid-template-columns:1fr 54px;gap:2px 8px;align-items:center;font-size:calc(11px * var(--ts,1));font-weight:800;color:var(--text-dim);margin-bottom:8px"><span>${l}</span><b data-gv="${k}" style="text-align:right;color:var(--accent-blue)">${c[k]}${u}</b><input type="range" class="lld-gbg-r" data-k="${k}" data-u="${u}" min="${mn}" max="${mx}" step="${st}" value="${c[k]}" style="grid-column:1 / -1;width:100%"></div>`;
+    return `<div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin:0 0 8px">Game replay speed</div>${sl('spd', 'Seconds per play', 0.1, 3, 0.05, 's')}${sl('big', 'Extra time on big plays (6+ pts)', 1, 4, 0.25, '×')}${sl('gap', 'Pause between games', 0, 4, 0.25, 's')}${sl('log', 'Play log length', 3, 12, 1, '')}<div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px">Layout</div>${c.order.map((k, n) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--card-border)"><label style="flex:1;display:flex;gap:8px;align-items:center;font-size:calc(12px * var(--ts,1));font-weight:800"><input type="checkbox" class="lld-gbg-c" data-k="${k}"${c.show[k] ? ' checked' : ''}> ${lldGbgLab()[k]}</label><button type="button" class="lld-hdr-btn lld-gbg-mv" data-k="${k}" data-d="-1"${n ? '' : ' disabled'}>▲</button><button type="button" class="lld-hdr-btn lld-gbg-mv" data-k="${k}" data-d="1"${n < c.order.length - 1 ? '' : ' disabled'}>▼</button></div>`).join('')}<button type="button" class="lld-hdr-btn lld-gbg-rs" style="margin-top:8px">Reset replay settings</button>`;
+}
+$(document).on('input', '.lld-gbg-r', function () { const c = lldGbgCfg(); c[this.dataset.k] = +this.value; lldGbgSave(c); $(`[data-gv="${this.dataset.k}"]`).text(this.value + this.dataset.u); });
+$(document).on('change', '.lld-gbg-c', function () { const c = lldGbgCfg(); c.show[this.dataset.k] = this.checked ? 1 : 0; lldGbgSave(c); });
+$(document).on('click', '.lld-gbg-mv', function () { const c = lldGbgCfg(), n = c.order.indexOf(this.dataset.k), m = n + (+this.dataset.d); if (n < 0 || m < 0 || m >= c.order.length) return; const t = c.order[n]; c.order[n] = c.order[m]; c.order[m] = t; lldGbgSave(c); $('#lld-gbg-set').html(lldGbgPanel()); });
+$(document).on('click', '.lld-gbg-rs', function () { lldSet('lld_gbg_cfg', '{}'); $('#lld-gbg-set').html(lldGbgPanel()); });
+$(document).on('click', '.lld-b-btn[data-k="gbg"]', function () { $('#lld-gbg-set').toggle(this.dataset.v === '1'); });
+async function lldGbgBuild(mg, me, wk) {
+    const src = { t1: mg.t1, t2: mg.t2, mine: true, own: t => String(t.fid) === String(me), wk };
+    const prep = await lldRvReplayPrep(src); if (!prep) return null;
+    const gOrder = [], gItems = {};
+    prep.all.forEach(s => { const it = s.item; if (!gItems[it.game]) { gItems[it.game] = []; gOrder.push(it.game); } gItems[it.game].push(it); });
+    const sc = prep.scale, cum = {}, steps = [], games = [], fin = { me: 0, op: 0 };
+    prep.list.forEach(x => { fin[x.w] += x.score || 0; });
+    const snap = () => Object.assign({}, cum);
+    gOrder.forEach((g, gi) => {
+        games.push({ t: g, n: gItems[g].length });
+        steps.push({ k: 'intro', g: gi, part: snap() });
+        gItems[g].forEach((it, pi) => {
+            const gains = it.ch.map(c => ({ x: c.x, v: c.v * sc(c.x) })).filter(c => c.v);
+            if (!gains.length) return;
+            gains.forEach(c => { cum[c.x.pid] = (cum[c.x.pid] || 0) + c.v; });
+            steps.push({ k: 'play', g: gi, it, gains, part: snap() });
+        });
+        steps.push({ k: 'end', g: gi, part: snap() });
+    });
+    const fix = steps.filter(s => s.k === 'play'); games.forEach((g, gi) => { g.n = fix.filter(s => s.g === gi).length; });
+    return { steps, games, list: prep.list, lbl: prep.lbl, fin, a: mg.t1.fid === me ? mg.t1 : mg.t2, b: mg.t1.fid === me ? mg.t2 : mg.t1 };
+}
+function lldGbgDelay(st, C) {
+    const sp = Math.max(.25, LLD_ST.speed || 1);
+    if (st.k !== 'play') return Math.max(120, C.gap * 1000 / sp);
+    const big = Math.max.apply(null, st.gains.map(c => Math.abs(c.v))) >= 6;
+    return Math.max(100, C.spd * (big ? C.big : 1) * 1000 / sp);
+}
+function lldGbgTotal(G) { const C = lldGbgCfg(); return G.steps.reduce((t, s) => t + lldGbgDelay(s, C), 0) + 1800; }
+function lldGbgRun(host, G) {
+    if (!host) return;
+    const C = lldGbgCfg(), tok = String(Date.now()) + Math.random(); host.dataset.tok = tok;
+    const alive = () => host.isConnected && host.dataset.tok === tok, esc = lldChatEsc, f1 = n => n.toFixed(1);
+    const sums = part => { let a = 0, b = 0; G.list.forEach(x => { (x.w === 'me' ? (a += part[x.pid] || 0) : (b += part[x.pid] || 0)); }); return [a, b]; };
+    const lgo = fid => `<img class="gbg-lgo" src="${getFranchiseLogoUrl(fid)}" onerror="this.style.display='none'">`;
+    function draw(i) {
+        const st = i >= 0 ? G.steps[i] : null, part = st ? st.part : {}, [a, b] = sums(part), gi = st ? st.g : 0;
+        const left = k => Math.max(0, (G.fin[k]) - (k === 'me' ? a : b)), w = Math.min(99, Math.max(1, Math.round(100 / (1 + Math.exp(-((a + left('me') * .6) - (b + left('op') * .6)) / 14)))));
+        const doneG = st ? G.steps.slice(0, i + 1).filter(s => s.k === 'end').length : 0;
+        const B = {
+            score: () => `<div class="gbg-b"><div class="gbg-cl"><div class="gbg-tm">${lgo(G.a.fid)}<b>${esc(leagueFranchises[G.a.fid] || G.a.name || '')}</b></div><div><span class="gbg-n">${f1(a)}</span><span class="gbg-d"> - </span><span class="gbg-n">${f1(b)}</span></div><div class="gbg-tm r">${lgo(G.b.fid)}<b>${esc(leagueFranchises[G.b.fid] || G.b.name || '')}</b></div></div></div>`,
+            wp: () => `<div class="gbg-b"><div class="gbg-wp"><i style="width:${w}%;background:#5eead4"></i><i style="width:${100 - w}%;background:#fca5a5"></i></div><div class="gbg-wl"><span>${w}%</span><span>WIN PROBABILITY</span><span>${100 - w}%</span></div></div>`,
+            games: () => `<div class="gbg-b"><div class="gbg-gs">${G.games.map((g, n) => { const d = doneG > n, c = st && n === gi && !d; return `<div class="gbg-gc${c ? ' c' : d ? ' d' : ''}">${d ? '✓ ' : ''}${esc(g.t)}</div>`; }).join('')}</div></div>`,
+            play: () => {
+                if (!st) return `<div class="gbg-b"><div class="gbg-gh"><b>Ready</b><small>${G.games.length} game${G.games.length === 1 ? '' : 's'} with plays that affect your matchup</small></div></div>`;
+                const g = G.games[st.g];
+                if (st.k === 'intro') return `<div class="gbg-b"><div class="gbg-gh"><small>GAME ${st.g + 1} OF ${G.games.length}</small><b>${esc(g.t)}</b><small>${g.n} play${g.n === 1 ? '' : 's'} affect your matchup</small></div></div>`;
+                if (st.k === 'end') { let ya = 0, yb = 0; G.steps.slice(0, i + 1).forEach(s => { if (s.k === 'play' && s.g === st.g) s.gains.forEach(c => { c.x.w === 'me' ? ya += c.v : yb += c.v; }); }); return `<div class="gbg-b"><div class="gbg-gh"><small>FINAL · ${esc(g.t)}</small><b>Game summary</b><div class="gbg-sc"><span style="color:#5eead4">${esc(G.lbl.me || 'YOU')} ${ya >= 0 ? '+' : ''}${f1(ya)}</span><span style="color:#fca5a5">${esc(G.lbl.op || 'OPP')} ${yb >= 0 ? '+' : ''}${f1(yb)}</span></div></div></div>`; }
+                const it = st.it, big = Math.max.apply(null, st.gains.map(c => Math.abs(c.v))) >= 6, first = st.gains[0].x;
+                return `<div class="gbg-b"><div class="gbg-play${big ? ' big' : first.w === 'me' ? ' me' : ' op'}">${lldHead(first.pid)}<div><i>${esc(g.t)} · Q${it.per} ${esc(it.clock)} · PLAY ${st.g >= 0 ? G.steps.slice(0, i + 1).filter(s => s.k === 'play' && s.g === st.g).length : 0} OF ${g.n}</i><span class="t">${esc(it.txt)}</span>${st.gains.map(c => `<span class="gbg-ch ${c.x.w}">${esc(G.lbl[c.x.w] || '')} · ${esc(c.x.name)}<b>${c.v >= 0 ? '+' : ''}${c.v.toFixed(1)}</b></span>`).join(' ')}</div></div></div>`;
+            },
+            players: () => { const cur = st && st.k === 'play' ? st.gains.map(c => c.x.pid) : [], inG = st ? new Set(G.steps.filter(s => s.k === 'play' && s.g === st.g).flatMap(s => s.gains.map(c => c.x.pid))) : new Set(); return `<div class="gbg-b"><div class="gbg-pp">${G.list.filter(x => x.w === 'me').concat(G.list.filter(x => x.w === 'op')).map(x => `<div class="gbg-pr ${x.w}${cur.indexOf(x.pid) >= 0 ? ' fl' : ''}" style="${inG.has(x.pid) || !st ? '' : 'opacity:.55'}"><span>${esc(x.name)} <small>${esc(x.team)}</small></span><span>${f1(part[x.pid] || 0)}</span></div>`).join('')}</div></div>`; },
+            log: () => { const rows = []; for (let j = i; j >= 0 && rows.length < C.log; j--) { const z = G.steps[j]; if (z.k !== 'play') continue; const q = z.gains[0]; rows.push(`<div class="gbg-lr ${q.x.w}"><em>${esc(z.it.game.split(' @ ')[0])} Q${z.it.per} ${esc(z.it.clock)}</em><span>${esc(z.it.txt)} <b>(${z.gains.map(c => (c.v >= 0 ? '+' : '') + c.v.toFixed(1)).join(' / ')})</b></span></div>`); } return `<div class="gbg-b"><div class="gbg-log">${rows.join('')}</div></div>`; }
+        };
+        host.innerHTML = C.order.filter(k => C.show[k]).map(k => B[k]()).join('');
+    }
+    draw(-1); let i = -1;
+    const tick = () => { if (!alive()) return; if (LLD_ST.pause) { setTimeout(tick, 200); return; } i++; if (i >= G.steps.length) return; draw(i); setTimeout(tick, lldGbgDelay(G.steps[i], C)); };
+    setTimeout(tick, 400 / Math.max(.25, LLD_ST.speed || 1));
+}
 async function lldStorySlides(kind, wk, idx) {
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
@@ -15309,6 +15389,9 @@ async function lldStorySlides(kind, wk, idx) {
             const mine = mg && (mg.t1.fid === me ? mg.t1 : mg.t2), sp = mine && lldSpotlight(mine);
             if (sp) out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
         } catch (e) { console.warn('spotlight', e); }
+        try {
+            if (mg && lldGbgOn()) { const G = await lldGbgBuild(mg, me, wk); if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div>`); sl.gbg = G; out.push(sl); } }
+        } catch (e) { console.warn('gbg build', e); }
         if (S.top) LLD_ST.topFid = S.top.fid;
         if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
         if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`));
@@ -15420,9 +15503,11 @@ function stShow(i) {
     const S = LLD_ST; if (i < 0) i = 0; if (i >= S.slides.length) { if (S.embed) { $('#lld-story').addClass('emb-done'); return; } stClose(); return; }
     $('#lld-story').removeClass('emb-done');
     S.i = i; const sl = S.slides[i], box = $('#lld-story');
+    box.css('--dur', sl.gbg ? (lldGbgTotal(sl.gbg) / 1000).toFixed(2) + 's' : (5.4 / S.speed).toFixed(2) + 's');
     box.find('.st-bars').html(S.slides.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'cur' : ''}"><u></u></span>`).join(''));
     const T = S.stt || '';
     box.find('.st-stage').css('background', T ? LLD_STT_BG[T] : sl.bg).html(`${T ? '<div class="stt-deco">' + lldSttDeco(T, S.kind, S.wk) + '</div>' : ''}<div class="st-in">${T === 'leather' ? '<div class="stt-mast st-a">THE DYNASTY GAZETTE</div>' : ''}${sl.html}${T === 'leather' ? '<div class="stt-rule"></div>' : ''}</div>`);
+    if (sl.gbg) { try { lldGbgRun(box.find('.gbg')[0], sl.gbg); } catch (e) { console.warn('gbg', e); } }
     box.find('[data-count]').each(function () {
         const el = this, to = parseFloat(el.dataset.count) || 0, dec = parseInt(el.dataset.dec, 10) || 0, t0 = performance.now() + 350, dur = 1100;
         (function tick(t) { const p = Math.max(0, Math.min(1, (t - t0) / dur)); el.textContent = (to * (1 - Math.pow(1 - p, 3))).toFixed(dec) + (el.dataset.suf || ''); if (p < 1 && document.body.contains(el)) requestAnimationFrame(tick); })(performance.now());
