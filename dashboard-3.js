@@ -12787,6 +12787,7 @@ function lldRvKey(k) { return (window._liveScoreActiveWeek || window._liveScoreC
 function lldRvHas(k) { return lldRvS().has(lldRvKey(k)); }
 // put every score back behind its tap (all weeks), on whatever is on screen
 function lldRvHideAll() {
+    try { lldRvReplayStop(); $('#lld-lastplay').remove(); } catch (e) { }
     window._lldRvSet = new Set(); lldRvSave();
     document.querySelectorAll('.lld-rv.on').forEach(el => { el.classList.remove('on', 'pop'); el.innerHTML = '<i>tap</i>'; });
     document.querySelectorAll('.lld-rvh.on').forEach(el => { if (el.dataset.k !== 'wp') el.classList.remove('on'); });
@@ -12802,7 +12803,8 @@ function lldRvRevealAll() {
 }
 function lldRvWrap(txt, k) {
     if (!lldRvOn()) return txt;
-    const on = lldRvHas(k);
+    const on = lldRvHas(k), part = (window._lldRvPart && k[0] === 'p') ? window._lldRvPart[k.slice(1)] : undefined;
+    if (part !== undefined && !on) return `<span class="lld-rv on" data-k="${k}" data-v="${txt}">${part.toFixed((String(txt).split('.')[1] || '').length || 1)}</span>`;
     return `<span class="lld-rv${on ? ' on' : ''}" data-k="${k}" data-v="${txt}">${on ? txt : '<i>tap</i>'}</span>`;
 }
 // matchup chips along the top: blurred (tap to show) once the matchup has any score on it
@@ -12820,11 +12822,13 @@ function lldRvCalc(t, pm, tProj) {
     st.forEach(p => {
         const pj = (pm && pm[p.pid] != null) ? Number(pm[p.pid]) : null, status = deriveLiveStatus(p);
         const open = !status.playing && !status.done && p.score === 0 && pj !== null;
-        if (lldRvHas('p' + p.pid)) { score += p.score; proj += p.score; n++; }
+        const part = window._lldRvPart ? window._lldRvPart[String(p.pid)] : undefined;
+        if (part !== undefined) { score += part; proj += Math.max(part, pj || 0); n++; }
+        else if (lldRvHas('p' + p.pid)) { score += p.score; proj += p.score; n++; }
         else if (open) proj += pj;
         else hidden++;
     });
-    const none = hidden === 0;
+    const none = hidden === 0 && !window._lldRvRun;
     return { score: none ? t.score : score, proj: (none && tProj != null && isFinite(tProj)) ? Number(tProj) : proj, n, hidden, all: none };
 }
 function lldRvHeader(html, o) {
@@ -12882,26 +12886,120 @@ function lldRvTeam(fid) {
     document.addEventListener('touchstart', () => { mv = false; }, { capture: true, passive: true });
     document.addEventListener('touchmove', () => { mv = true; }, { capture: true, passive: true });
     const hit = e => e.target && e.target.closest ? e.target.closest('.lld-rv:not(.on), .lld-rvt, .lld-rvc:not(.on)') : null;
-    const act = el => { const k = el.dataset.k || ''; if (el.classList.contains('lld-rvc')) { lldRvS().add(lldRvKey(k)); lldRvSave(); el.classList.add('on'); return; } if (el.classList.contains('lld-rvt')) lldRvTeam(k.slice(1)); else if (k[0] === 'p') lldRvPlayer(k.slice(1), 0); };
+    const act = el => { const k = el.dataset.k || ''; if (el.classList.contains('lld-rvc')) { lldRvS().add(lldRvKey(k)); lldRvSave(); el.classList.add('on'); return; } if (lldEspnOn() && (el.classList.contains('lld-rvt') || k[0] === 'p')) { lldRvReplay(); return; } if (el.classList.contains('lld-rvt')) lldRvTeam(k.slice(1)); else if (k[0] === 'p') lldRvPlayer(k.slice(1), 0); };
     document.addEventListener('touchend', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); if (mv) return; e.preventDefault(); act(el); }, true);
     document.addEventListener('click', e => { const el = hit(e); if (!el) return; e.stopImmediatePropagation(); e.preventDefault(); act(el); }, true);
     document.addEventListener('click', e => {
         const b = e.target && e.target.closest ? e.target.closest('#lld-rv-all') : null; if (!b) return;
         e.stopImmediatePropagation(); e.preventDefault();
-        if (b.dataset.m === 'hide') lldRvHideAll(); else lldRvRevealAll();
+        if (b.dataset.m === 'skip') lldRvReplayEnd(); else if (b.dataset.m === 'hide') lldRvHideAll(); else if (lldEspnOn()) lldRvReplay(); else lldRvRevealAll();
     }, true);
     document.addEventListener('click', e => {
         const b = e.target && e.target.closest ? e.target.closest('.lld-rv-lu-b, .lld-rv-hide') : null; if (!b) return;
         e.stopImmediatePropagation(); e.preventDefault();
-        if (b.classList.contains('lld-rv-hide') || b.dataset.m === 'hide') lldRvHideAll(); else lldRvRevealAll();
+        if (b.dataset.m === 'skip') lldRvReplayEnd(); else if (b.classList.contains('lld-rv-hide') || b.dataset.m === 'hide') lldRvHideAll(); else if (lldEspnOn()) lldRvReplay(); else lldRvRevealAll();
     }, true);
 })();
+
+// ---- Reveal replay (beta, ESPN switch): Reveal all scores plays every scoring play one at a time in the Last play box, and the totals, player scores and win % build with it ----
+function lldRvClock(c) { const m = String(c || '').match(/(\d+):(\d+)/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0; }
+async function lldRvReplayPrep() {
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex], wk = parseInt(window._liveScoreActiveWeek, 10); if (!m || !wk) return null;
+    const mine = !!m.isMe, lbl = {}, list = [];
+    [[m.t1, 'me'], [m.t2, 'op']].forEach(([t, w]) => {
+        const ms = mine ? String(t.fid) === String(fid) : null, ww = mine ? (ms ? 'me' : 'op') : w;
+        lbl[ww] = mine ? (ms ? 'YOU' : 'OPP') : String(t.name || '').split(' ').slice(-1)[0].slice(0, 8).toUpperCase();
+        (t.roster || []).forEach(p => { if (p.isStarter) { const parts = String(p.name).replace(/\./g, ' ').trim().split(/\s+/); list.push({ w: ww, pid: String(p.pid), name: p.name, team: lldEspnNt(p.team), score: p.score || 0, key: (parts[0] || '').charAt(0).toLowerCase() + parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, '') }); } });
+    });
+    const teams = {}; list.forEach(x => teams[x.team] = 1);
+    const sb = await lldLpGames(wk), evs = (sb.events || []).filter(ev => ((ev.status || {}).type || {}).state !== 'pre' && (((ev.competitions || [])[0] || {}).competitors || []).some(c => teams[lldEspnNt((c.team || {}).abbreviation)]));
+    const items = []; let seq = 0;
+    for (const ev of evs) {
+        const d = await lldLpSummary(ev), hd = (d.header && d.header.competitions && d.header.competitions[0]) || {}, gT = (hd.competitors || []).map(c => lldEspnNt((c.team || {}).abbreviation));
+        const drv = ((d.drives && d.drives.previous) || []).slice(); if (d.drives && d.drives.current) drv.push(d.drives.current);
+        drv.forEach(dr => (dr.plays || []).forEach(p => {
+            const txt = p.text || p.shortText || ''; if (!txt) return; const pts = lldEspnPlayPts(txt); if (!pts.length) return; const tk = lldEspnTok(txt), ch = [];
+            list.forEach(x => {
+                if (gT.indexOf(x.team) < 0 || !x.key || !tk.some(z => z.k === x.key)) return; let v = 0;
+                pts.forEach(e => { if (e.k !== x.key) return; if (e.team && e.team !== x.team) return; if (e.lostTo && e.lostTo === x.team) return; v += e.v; });
+                if (v) ch.push({ x, v });
+            });
+            if (!ch.length) return;
+            const per = (p.period || {}).number || 1;
+            items.push({ ts: Date.parse(p.wallclock || '') || 0, gk: per * 10000 - lldRvClock((p.clock || {}).displayValue), seq: seq++, txt, game: gT.join(' @ '), per, clock: (p.clock || {}).displayValue || '', ab: (dr.team || {}).abbreviation || '', ch });
+        }));
+    }
+    if (!items.length) return null;
+    const useTs = items.filter(i => i.ts).length >= items.length * .9;
+    items.sort((a, b) => useTs ? (a.ts - b.ts || a.seq - b.seq) : (a.gk - b.gk || a.seq - b.seq));
+    const tot = {}; items.forEach(i => i.ch.forEach(c => { tot[c.x.pid] = (tot[c.x.pid] || 0) + c.v; }));
+    const scale = x => tot[x.pid] > .5 ? x.score / tot[x.pid] : 0;
+    // show only the bigger plays (at most 28); the small ones still count toward the totals as they go by
+    let thr = .9; const big = t => items.filter(i => Math.max(...i.ch.map(c => Math.abs(c.v))) >= t);
+    while (big(thr).length > 28 && thr < 12) thr += .3;
+    const shown = new Set(big(thr)), cum = {}, steps = [];
+    items.forEach(i => { i.ch.forEach(c => { cum[c.x.pid] = (cum[c.x.pid] || 0) + c.v; }); if (shown.has(i)) steps.push({ item: i, part: Object.assign({}, ...list.map(x => ({ [x.pid]: Math.max(0, (cum[x.pid] || 0) * scale(x)) }))), scale }); });
+    return { list, lbl, steps, scale };
+}
+function lldRvReplayDraw() {
+    const r = window._lldRvRun; if (!r) return;
+    const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
+    const part = window._lldRvPart || {};
+    document.querySelectorAll('.lld-rv[data-k^="p"]').forEach(el => { const pid = el.dataset.k.slice(1); if (part[pid] === undefined) return; el.classList.add('on'); el.textContent = part[pid].toFixed((String(el.dataset.v || '').split('.')[1] || '').length || 1); });
+    try { lldRvRecalc(); } catch (e) { }
+    const m = (window._liveScoreMatchups || [])[window._liveScoreIndex]; if (!m) return;
+    const c1 = lldRvCalc(m.t1, window._lldRvPm, window._lldRvP1), c2 = lldRvCalc(m.t2, window._lldRvPm, window._lldRvP2);
+    const a = Math.min(99, Math.max(1, Math.round(100 / (1 + Math.exp(-(c1.proj - c2.proj) / 14))))), b = 100 - a;
+    const pct = []; inner.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(el => {
+        if (el.getAttribute('title') === 'Winning matchup') return; el.classList.add('on');
+        if (!el.children.length && /^\s*\d{1,3}(\.\d+)?%\s*$/.test(el.textContent)) pct.push(el);
+        else { const kids = [...el.children]; if (kids.length && kids.some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) { if (kids[0]) kids[0].style.width = a + '%'; if (kids[1]) kids[1].style.width = b + '%'; } }
+    });
+    if (pct[0]) pct[0].textContent = a + '%'; if (pct[1]) pct[1].textContent = b + '%';
+}
+function lldRvReplayBox(html) {
+    const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
+    let el = document.getElementById('lld-lastplay');
+    if (!el) { const first = inner.querySelector('.lld-sbwrap') || inner.firstElementChild, h = '<div id="lld-lastplay"></div>'; if (first) first.insertAdjacentHTML('afterend', h); else inner.insertAdjacentHTML('afterbegin', h); el = document.getElementById('lld-lastplay'); }
+    el.innerHTML = html;
+}
+function lldRvReplayStop() { const r = window._lldRvRun; if (r && r.timer) clearInterval(r.timer); window._lldRvRun = null; window._lldRvPart = null; }
+function lldRvReplayEnd() {
+    const r = window._lldRvRun; lldRvReplayStop();
+    try { (r ? r.list : []).forEach(x => { lldRvS().add(lldRvKey('p' + x.pid)); }); lldRvSave(); } catch (e) { }
+    lldRvRevealAll();
+    try { renderLiveScoreCard(); } catch (e) { }
+}
+function lldRvReplayNext() {
+    const r = window._lldRvRun; if (!r) return;
+    if (r.i >= r.steps.length) { lldRvReplayEnd(); return; }
+    const s = r.steps[r.i++], it = s.item, prev = r.prev || {};
+    window._lldRvPart = Object.assign({}, window._lldRvPart, s.part);
+    const chips = it.ch.map(c => { const d = c.v * s.scale(c.x); return `<span class="esp-ch ${c.x.w}">${r.lbl[c.x.w]} · ${lldEsc(c.x.name)}${d ? ` <b>${d > 0 ? '+' : ''}${d.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`; }).join('');
+    lldRvReplayBox(`<img class="lp-lg" src="${lldEsc(getNFLLogoUrl(lldEspnNt(it.ab)))}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>SCORING PLAY ${r.i} OF ${r.steps.length} · ${lldEsc(it.game)} · Q${lldEsc(it.per)} ${lldEsc(it.clock)}</i><span>${lldEsc(it.txt)}</span><div class="esp-mine">${chips}</div></div>`);
+    lldRvReplayDraw();
+}
+async function lldRvReplay() {
+    if (window._lldRvRun || window._lldRvLoading) return;
+    const btn = document.getElementById('lld-rv-all'); if (btn) btn.textContent = 'Loading plays…';
+    window._lldRvLoading = true; let prep = null;
+    try { prep = await lldRvReplayPrep(); } catch (e) { console.warn('replay prep', e); }
+    window._lldRvLoading = false;
+    if (!prep || !prep.steps.length) { lldRvRevealAll(); return; }
+    const part = {}; prep.list.forEach(x => { part[x.pid] = 0; });
+    window._lldRvPart = part; window._lldRvRun = { list: prep.list, lbl: prep.lbl, steps: prep.steps, i: 0, timer: null };
+    lldRvReplayBox('<div class="lp-t"><i>REPLAY</i><span>Here come the scoring plays…</span></div>');
+    const b2 = document.getElementById('lld-rv-all'); if (b2) { b2.textContent = 'Replaying… tap to skip'; b2.dataset.m = 'skip'; }
+    lldRvReplayDraw();
+    window._lldRvRun.timer = setInterval(lldRvReplayNext, 1300);
+}
 // after each Scoreboard render: add the Reveal-all button and hide the win-% bar, percentages and winner badge until everyone is revealed
 function lldRvBar() {
     const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
     const have = document.getElementById('lld-rv-all');
     if (!lldRvOn() || !inner.querySelector('.lld-rv')) { if (have) have.remove(); return; }
     if (!have) inner.insertAdjacentHTML('afterbegin', '<div id="lld-rv-wrap"><button type="button" id="lld-rv-all" data-m="show">Reveal all scores</button></div>');
+    else if (window._lldRvRun) { have.textContent = 'Replaying… tap to skip'; have.dataset.m = 'skip'; }
     else { const hid = !inner.querySelector('.lld-rv:not(.on)'); have.textContent = hid ? 'Hide all scores' : 'Reveal all scores'; have.dataset.m = hid ? 'hide' : 'show'; }
     const head = inner.querySelector('.lld-sbwrap, .lld-sbmain') || inner;
     const roster = inner.querySelector('.lld-sec'), mark = el => { if (!el.classList.contains('lld-rvh')) { el.classList.add('lld-rvh'); el.dataset.k = 'wp'; } };
@@ -16668,11 +16766,12 @@ async function lldLpSummary(ev) {
     const d = await lldEspnJson('/summary?event=' + encodeURIComponent(ev.id)); LLDLP.sum[ev.id] = { t: Date.now(), d }; return d;
 }
 async function lldLastPlayRefresh() {
+    if (window._lldRvRun) return;
     const old = document.getElementById('lld-lastplay');
-    if (!lldEspnOn() || lldRvOn()) { if (old) old.remove(); return; }
+    if (!lldEspnOn()) { if (old) old.remove(); return; }
     const inner = document.getElementById('live-score-card-inner'), m = (window._liveScoreMatchups || [])[window._liveScoreIndex], wk = parseInt(window._liveScoreActiveWeek, 10);
     if (!inner || !m || !wk) { if (old) old.remove(); return; }
-    if (window._scMatchState && window._scMatchState !== 'live' && (window._scTab || 'first') === 'first') { if (old) old.remove(); return; }
+    if (lldRvOn() && inner.querySelector('.lld-rvt:not(.on)')) { if (old) old.remove(); return; } // scores still hidden: no spoilers
     const list = [], mine = !!m.isMe, lbl = { me: 'A', op: 'B' };
     [[m.t1, 'me'], [m.t2, 'op']].forEach(([t, w]) => {
         const mineSide = mine ? String(t.fid) === String(fid) : null;
@@ -16704,6 +16803,7 @@ async function lldLastPlayRefresh() {
     if (el.innerHTML !== html) el.innerHTML = html;
 }
 setInterval(() => { try { if (document.getElementById('live-score-card-inner')) lldLastPlayRefresh(); } catch (e) { } }, 25000);
+$(document).on('click touchend', '.lld-rv, .lld-rvt, .lld-rvh, #lld-rv-all, .lld-rv-lu-b', () => { setTimeout(() => { try { lldLastPlayRefresh(); } catch (e) { } }, 700); });
 async function injectLiveNowStrip() {
     const inner = document.getElementById('live-score-card-inner');
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
@@ -16722,7 +16822,7 @@ renderLiveScoreCard = async function () {
     await _origRenderLiveScoreCard.apply(this, arguments);
     try { lldRvBar(); } catch (e) { }
     injectLiveNowStrip();
-    try { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } catch (e) { }
+    try { if (window._lldRvRun) lldRvReplayDraw(); else { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } } catch (e) { }
 };
 window.lldRerenderScores = function () { return renderLiveScoreCard(); };
 $(document).off('click.livesort').on('click.livesort', '.live-sort-btn', function (e) {
@@ -20462,6 +20562,20 @@ async function lldChatLoadActivity() {
         const move = /IR|TAXI/.test(ty);
         items.push({ kind: 'tx', ms, fid: f1, label: L[0], color: L[1], cols: move ? [{ label: 'Moved', color: '#e2e8f0', ents: add.concat(drop) }] : [{ label: /WAIVER|BBID/.test(ty) ? 'Claimed' : (/AUCTION/.test(ty) ? 'Won' : 'Added'), color: '#22c55e', ents: add }, { label: 'Dropped', color: '#ef4444', ents: drop }] });
     });
+    // MFL can log one move several times (a drop of two players also appears as each single drop, and retries repeat it): within the same minute, same team and same kind of move, keep only the biggest entry
+    try {
+        const sig = it => (it.cols || []).map(c => (c.label || '') + ':' + (c.ents || []).map(e => e.id || e.pick || '').sort().join(',')).join('/');
+        const idset = it => new Set((it.cols || []).reduce((a, c) => a.concat((c.ents || []).map(e => (c.label || '') + ':' + (e.id || e.pick || ''))), []));
+        const cand = items.filter(it => it.kind === 'tx' && !it.fid2 && !it.offer);
+        const gone = new Set();
+        cand.forEach((x, i) => cand.forEach((y, j) => {
+            if (i === j || gone.has(x) || gone.has(y) || x.fid !== y.fid || x.label !== y.label || Math.floor(x.ms / 60000) !== Math.floor(y.ms / 60000)) return;
+            const sx = idset(x), sy = idset(y); if (!sx.size) return;
+            const sub = [...sx].every(k => sy.has(k));
+            if (sub && (sx.size < sy.size || (sx.size === sy.size && i > j))) gone.add(x);
+        }));
+        for (let i = items.length - 1; i >= 0; i--) if (gone.has(items[i])) items.splice(i, 1);
+    } catch (e) { console.warn('chat dedupe', e); }
     // pending trade offers (the API only exposes ones involving you; accepted trades appear above as completed trades)
     offers.forEach(o => {
         const a = String(o.offeringteam || o.offeringTeam || '').padStart(4, '0'), b = String(o.offeredto || o.offeredTo || '').padStart(4, '0');
