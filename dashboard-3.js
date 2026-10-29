@@ -12934,12 +12934,11 @@ async function lldRvReplayPrep() {
     items.sort((a, b) => useTs ? (a.ts - b.ts || a.seq - b.seq) : (a.gk - b.gk || a.seq - b.seq));
     const tot = {}; items.forEach(i => i.ch.forEach(c => { tot[c.x.pid] = (tot[c.x.pid] || 0) + c.v; }));
     const scale = x => tot[x.pid] > .5 ? x.score / tot[x.pid] : 0;
-    // show only the bigger plays (at most 28); the small ones still count toward the totals as they go by
     let thr = .9; const big = t => items.filter(i => Math.max(...i.ch.map(c => Math.abs(c.v))) >= t);
     while (big(thr).length > 28 && thr < 12) thr += .3;
-    const shown = new Set(big(thr)), cum = {}, steps = [];
-    items.forEach(i => { i.ch.forEach(c => { cum[c.x.pid] = (cum[c.x.pid] || 0) + c.v; }); if (shown.has(i)) steps.push({ item: i, part: Object.assign({}, ...list.map(x => ({ [x.pid]: Math.max(0, (cum[x.pid] || 0) * scale(x)) }))), scale }); });
-    return { list, lbl, steps, scale };
+    const bigSet = new Set(big(thr)), cum = {}, all = [];
+    items.forEach((i, k) => { i.ch.forEach(c => { cum[c.x.pid] = (cum[c.x.pid] || 0) + c.v; }); i.idx = k; all.push({ item: i, big: bigSet.has(i), part: Object.assign({}, ...list.map(x => ({ [x.pid]: Math.max(0, (cum[x.pid] || 0) * scale(x)) }))), scale }); });
+    return { list, lbl, all, big: all.filter(s => s.big), scale };
 }
 function lldRvReplayDraw() {
     const r = window._lldRvRun; if (!r) return;
@@ -12957,11 +12956,12 @@ function lldRvReplayDraw() {
     });
     if (pct[0]) pct[0].textContent = a + '%'; if (pct[1]) pct[1].textContent = b + '%';
 }
-function lldRvReplayBox(html) {
-    const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
-    let el = document.getElementById('lld-lastplay');
-    if (!el) { const first = inner.querySelector('.lld-sbwrap') || inner.firstElementChild, h = '<div id="lld-lastplay"></div>'; if (first) first.insertAdjacentHTML('afterend', h); else inner.insertAdjacentHTML('afterbegin', h); el = document.getElementById('lld-lastplay'); }
-    el.innerHTML = html;
+function lldLpPlace(inner) {
+    let el = document.getElementById('lld-lastplay'); if (el) return el;
+    const anchor = inner.querySelector('.lld-sbwrap') || inner.querySelector('.lld-sbmain');
+    const h = '<div id="lld-lastplay"></div>';
+    if (anchor) anchor.insertAdjacentHTML('afterend', h); else { const sec = inner.querySelector('.lld-sec'); if (sec) sec.insertAdjacentHTML('beforebegin', h); else inner.insertAdjacentHTML('beforeend', h); }
+    return document.getElementById('lld-lastplay');
 }
 function lldRvReplayStop() { const r = window._lldRvRun; if (r && r.timer) clearInterval(r.timer); window._lldRvRun = null; window._lldRvPart = null; }
 function lldRvReplayEnd() {
@@ -12969,29 +12969,51 @@ function lldRvReplayEnd() {
     try { (r ? r.list : []).forEach(x => { lldRvS().add(lldRvKey('p' + x.pid)); }); lldRvSave(); } catch (e) { }
     lldRvRevealAll();
     try { renderLiveScoreCard(); } catch (e) { }
+    setTimeout(() => { try { lldLastPlayRefresh(); } catch (e) { } }, 1200);
 }
-function lldRvReplayNext() {
-    const r = window._lldRvRun; if (!r) return;
-    if (r.i >= r.steps.length) { lldRvReplayEnd(); return; }
-    const s = r.steps[r.i++], it = s.item, prev = r.prev || {};
-    window._lldRvPart = Object.assign({}, window._lldRvPart, s.part);
-    const chips = it.ch.map(c => { const d = c.v * s.scale(c.x); return `<span class="esp-ch ${c.x.w}">${r.lbl[c.x.w]} · ${lldEsc(c.x.name)}${d ? ` <b>${d > 0 ? '+' : ''}${d.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`; }).join('');
-    lldRvReplayBox(`<img class="lp-lg" src="${lldEsc(getNFLLogoUrl(lldEspnNt(it.ab)))}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>SCORING PLAY ${r.i} OF ${r.steps.length} · ${lldEsc(it.game)} · Q${lldEsc(it.per)} ${lldEsc(it.clock)}</i><span>${lldEsc(it.txt)}</span><div class="esp-mine">${chips}</div></div>`);
-    lldRvReplayDraw();
+const lldHead = pid => `<img class="lp-hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${lldEsc(pid)}.png" onerror="this.style.display='none'">`;
+function lldRvReplayShow() {
+    const r = window._lldRvRun; if (!r) return; const inner = document.getElementById('live-score-card-inner'); if (!inner) return;
+    const el = lldLpPlace(inner), n = r.steps.length;
+    const nav = `<div class="rp-nav"><button type="button" data-a="prev"${r.i <= 0 ? ' disabled' : ''}>‹</button><button type="button" data-a="auto">${r.auto ? '❚❚ Pause' : '▶ Auto'}</button><button type="button" data-a="next">${r.i >= n ? 'Finish' : '›'}</button><span class="rp-c">${r.i} / ${n}</span><button type="button" data-a="mode">${r.mode === 'all' ? 'All plays' : 'Big plays'}</button><button type="button" data-a="skip">Skip</button></div>`;
+    let body;
+    if (r.i <= 0) body = '<div class="lp-t"><i>REPLAY</i><span>Tap › to step through the plays, or ▶ Auto.</span></div>';
+    else {
+        const s = r.steps[r.i - 1], it = s.item;
+        const chips = it.ch.map(c => { const d = c.v * s.scale(c.x); return `<span class="esp-ch ${c.x.w}">${lldHead(c.x.pid)}${r.lbl[c.x.w]} · ${lldEsc(c.x.name)}${d ? ` <b>${d > 0 ? '+' : ''}${d.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`; }).join('');
+        body = `<img class="lp-lg" src="${lldEsc(getNFLLogoUrl(lldEspnNt(it.ab)))}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>PLAY ${r.i} OF ${n} · ${lldEsc(it.game)} · Q${lldEsc(it.per)} ${lldEsc(it.clock)}</i><span>${lldEsc(it.txt)}</span><div class="esp-mine">${chips}</div></div>`;
+    }
+    el.className = 'rp'; el.innerHTML = `<div class="rp-top">${body}</div>${nav}`;
 }
+function lldRvReplayGo(k) {
+    const r = window._lldRvRun; if (!r) return; const n = r.steps.length;
+    if (k > n) { lldRvReplayEnd(); return; }
+    r.i = Math.max(0, k);
+    const zero = {}; r.list.forEach(x => { zero[x.pid] = 0; });
+    window._lldRvPart = r.i ? Object.assign({}, r.steps[r.i - 1].part) : zero;
+    lldRvReplayShow(); lldRvReplayDraw();
+}
+function lldRvReplaySetAuto(on) { const r = window._lldRvRun; if (!r) return; r.auto = on; if (r.timer) clearInterval(r.timer); r.timer = on ? setInterval(() => lldRvReplayGo(r.i + 1), r.mode === 'all' ? 900 : 1300) : null; lldRvReplayShow(); }
+$(document).on('click', '#lld-lastplay .rp-nav button', function (e) {
+    e.preventDefault(); e.stopPropagation(); const r = window._lldRvRun; if (!r) return; const a = this.dataset.a;
+    if (a === 'next') { lldRvReplaySetAuto(false); lldRvReplayGo(r.i + 1); }
+    else if (a === 'prev') { lldRvReplaySetAuto(false); lldRvReplayGo(r.i - 1); }
+    else if (a === 'auto') lldRvReplaySetAuto(!r.auto);
+    else if (a === 'skip') lldRvReplayEnd();
+    else if (a === 'mode') { const cur = r.i ? r.steps[r.i - 1].item.idx : -1; r.mode = r.mode === 'all' ? 'big' : 'all'; r.steps = r.mode === 'all' ? r.prep.all : r.prep.big; let k = 0; while (k < r.steps.length && r.steps[k].item.idx <= cur) k++; const was = r.auto; if (r.timer) clearInterval(r.timer); r.timer = null; r.auto = false; lldRvReplayGo(k); if (was) lldRvReplaySetAuto(true); }
+});
 async function lldRvReplay() {
     if (window._lldRvRun || window._lldRvLoading) return;
     const btn = document.getElementById('lld-rv-all'); if (btn) btn.textContent = 'Loading plays…';
     window._lldRvLoading = true; let prep = null;
     try { prep = await lldRvReplayPrep(); } catch (e) { console.warn('replay prep', e); }
     window._lldRvLoading = false;
-    if (!prep || !prep.steps.length) { lldRvRevealAll(); return; }
+    if (!prep || !prep.all.length) { lldRvRevealAll(); return; }
     const part = {}; prep.list.forEach(x => { part[x.pid] = 0; });
-    window._lldRvPart = part; window._lldRvRun = { list: prep.list, lbl: prep.lbl, steps: prep.steps, i: 0, timer: null };
-    lldRvReplayBox('<div class="lp-t"><i>REPLAY</i><span>Here come the scoring plays…</span></div>');
+    window._lldRvPart = part; window._lldRvRun = { list: prep.list, lbl: prep.lbl, prep, mode: 'big', steps: prep.big.length ? prep.big : prep.all, i: 0, timer: null, auto: false };
+    if (!prep.big.length) window._lldRvRun.mode = 'all';
     const b2 = document.getElementById('lld-rv-all'); if (b2) { b2.textContent = 'Replaying… tap to skip'; b2.dataset.m = 'skip'; }
-    lldRvReplayDraw();
-    window._lldRvRun.timer = setInterval(lldRvReplayNext, 1300);
+    lldRvReplayShow(); lldRvReplayDraw();
 }
 // after each Scoreboard render: add the Reveal-all button and hide the win-% bar, percentages and winner badge until everyone is revealed
 function lldRvBar() {
@@ -14030,7 +14052,7 @@ function lldEspnPlayMine(MY, gTeams, text) {
         const parts = String(x.name).replace(/\./g, ' ').trim().split(/\s+/), ini = (parts[0] || '').charAt(0).toLowerCase(), last = parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, ''); if (!last || seen[x.name + x.team]) return;
         const key = ini + last; if (!tk.some(z => z.k === key)) return; seen[x.name + x.team] = 1;
         let pts = 0; ev.forEach(e => { if (e.k !== key) return; if (e.team && e.team !== x.team) return; if (e.lostTo && e.lostTo === x.team) return; pts += e.v; });
-        out.push(`<span class="esp-ch ${x.w}">${MY.lbl ? MY.lbl[x.w] : (x.w === 'me' ? 'YOU' : 'OPP')} · ${lldEsc(x.name)}${pts ? ` <b>${pts > 0 ? '+' : ''}${pts.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`);
+        out.push(`<span class="esp-ch ${x.w}">${x.pid ? lldHead(x.pid) : ''}${MY.lbl ? MY.lbl[x.w] : (x.w === 'me' ? 'YOU' : 'OPP')} · ${lldEsc(x.name)}${pts ? ` <b>${pts > 0 ? '+' : ''}${pts.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`);
     });
     return out.length ? `<div class="esp-mine">${out.join('')}</div>` : '';
 }
@@ -16776,7 +16798,7 @@ async function lldLastPlayRefresh() {
     [[m.t1, 'me'], [m.t2, 'op']].forEach(([t, w]) => {
         const mineSide = mine ? String(t.fid) === String(fid) : null;
         const ww = mine ? (mineSide ? 'me' : 'op') : w; lbl[ww] = mine ? (mineSide ? 'YOU' : 'OPP') : String(t.name || '').split(' ').slice(-1)[0].slice(0, 8).toUpperCase();
-        (t.roster || []).forEach(p => { if (p.isStarter) list.push({ w: ww, st: true, name: p.name, team: lldEspnNt(p.team) }); });
+        (t.roster || []).forEach(p => { if (p.isStarter) list.push({ w: ww, st: true, name: p.name, team: lldEspnNt(p.team), pid: String(p.pid) }); });
     });
     const MY = { list, lbl, map: {} }, teams = {}; list.forEach(x => teams[x.team] = 1);
     let sb; try { sb = await lldLpGames(wk); } catch (e) { return; }
@@ -16799,7 +16821,7 @@ async function lldLastPlayRefresh() {
     if (!best) { if (el) el.remove(); return; }
     const ab = (best.dr.team || {}).abbreviation || '', logo = getNFLLogoUrl(lldEspnNt(ab)), g = best.gT.join(' @ ');
     const html = `<img class="lp-lg" src="${lldEsc(logo)}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>LAST PLAY · ${lldEsc(g)} · Q${lldEsc((best.p.period || {}).number)} ${lldEsc((best.p.clock || {}).displayValue || '')}</i><span>${lldEsc(best.p.text || best.p.shortText || '')}</span>${best.chips}</div>`;
-    if (!el) { const first = inner.firstElementChild; const h = '<div id="lld-lastplay"></div>'; if (first) first.insertAdjacentHTML('afterend', h); else inner.insertAdjacentHTML('afterbegin', h); el = document.getElementById('lld-lastplay'); }
+    if (!el) el = lldLpPlace(inner);
     if (el.innerHTML !== html) el.innerHTML = html;
 }
 setInterval(() => { try { if (document.getElementById('live-score-card-inner')) lldLastPlayRefresh(); } catch (e) { } }, 25000);
@@ -16822,7 +16844,7 @@ renderLiveScoreCard = async function () {
     await _origRenderLiveScoreCard.apply(this, arguments);
     try { lldRvBar(); } catch (e) { }
     injectLiveNowStrip();
-    try { if (window._lldRvRun) lldRvReplayDraw(); else { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } } catch (e) { }
+    try { if (window._lldRvRun) { lldRvReplayShow(); lldRvReplayDraw(); } else { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } } catch (e) { }
 };
 window.lldRerenderScores = function () { return renderLiveScoreCard(); };
 $(document).off('click.livesort').on('click.livesort', '.live-sort-btn', function (e) {
