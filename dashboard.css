@@ -4589,3 +4589,30 @@ body.lld-gth-lay .lineup-section[data-section="starters"],body.lld-gth-lay .line
 body.lld-gth-lay #lineup-notifications,body.lld-gth-lay #lineup-dashboard-inject{display:none!important}
 body.lld-sh-pend #tab-header-area{visibility:hidden}
 .esp-wb{background:rgba(255,255,255,.08);border:1px solid var(--card-border);color:#fff;border-radius:8px;width:30px;height:28px;font-size:16px;font-weight:900;cursor:pointer}.esp-wk b{margin:0 10px}
+/* NFL games: match the rest of the site */
+.lld-esp .esp-pl,.lld-esp .esp-pl span,.lld-esp .esp-tb td{color:var(--text-main,#e5e7eb)}
+.lld-esp .esp-g{background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(0,0,0,.3));border-left:3px solid var(--ta,#334155);border-right:3px solid var(--th,#334155)}
+.lld-esp .esp-t img{width:26px;height:26px}
+.lld-esp .esp-head{padding:14px 16px;background:linear-gradient(90deg,color-mix(in srgb,var(--tcA,#334155) 0%,transparent),rgba(0,0,0,.3));border-radius:16px}
+.lld-esp .esp-hs{gap:10px;flex:1}.lld-esp .esp-hs:last-child{flex-direction:row-reverse}
+.lld-esp .esp-hs img{width:44px;height:44px}
+.lld-esp .esp-hs b{font-size:calc(13px * var(--ts,1));letter-spacing:.06em;color:var(--text-dim)}
+.lld-esp .esp-hs em{font-style:normal;font-weight:900;font-size:calc(30px * var(--ts,1));font-variant-numeric:tabular-nums;color:#fff;line-height:1}
+.lld-esp .esp-hs{border-bottom:3px solid var(--tc,transparent);padding-bottom:4px}
+.lld-esp .esp-tab{color:var(--text-dim);font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+.lld-esp .esp-tab.on{background:var(--accent-blue,#3b82f6);border-color:var(--accent-blue,#3b82f6);color:#fff}
+.lld-esp .esp-th{display:flex;align-items:center;gap:8px;border-left:4px solid var(--accent-blue);padding:6px 10px;background:rgba(0,0,0,.25);border-radius:8px;margin:14px 0 6px;color:#fff}
+.lld-esp .esp-th img,.esp-lg{width:22px;height:22px;object-fit:contain}
+.lld-esp .esp-tb th:first-child{color:var(--accent-blue)}
+.lld-esp .esp-tb td:first-child{color:#fff;font-weight:800}
+.lld-esp .esp-pl{flex-direction:row;align-items:flex-start;gap:10px;border-left:3px solid var(--tc,transparent);background:rgba(255,255,255,.05);padding:9px 10px}
+.lld-esp .esp-pl.sc{background:rgba(74,222,128,.08);border-color:#4ade80}
+.lld-esp .esp-pi{width:28px;height:28px;object-fit:contain;flex:0 0 auto;margin-top:1px}
+.lld-esp .esp-pt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lld-esp .esp-pt b{font-size:calc(10px * var(--ts,1));letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase}
+.lld-esp .esp-pt span{font-size:calc(12.5px * var(--ts,1));line-height:1.35;font-weight:600}
+.lld-esp .esp-pt i{font-style:normal;font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim)}
+.esp-ch{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:calc(8.5px * var(--ts,1));font-weight:900;letter-spacing:.06em;vertical-align:middle;white-space:nowrap}
+.esp-ch.me{background:rgba(45,212,191,.18);color:#2dd4bf;border:1px solid rgba(45,212,191,.55)}
+.esp-ch.op{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.5)}
+.esp-mine{display:flex;flex-wrap:wrap;gap:4px}.esp-mine .esp-ch{margin:0}
