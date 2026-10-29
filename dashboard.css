@@ -4587,3 +4587,5 @@ body.lld-gth-lay .lineup-section[data-section="starters"],body.lld-gth-lay .line
 .gx-ph.slot b{min-width:46px;text-align:center;border:1px solid rgba(248,113,113,.6);color:#fca5a5;border-radius:999px;padding:5px 0;font-size:12px}
 .gx-ph.slot span{font-size:13px;color:#94a3b8;font-weight:700}
 body.lld-gth-lay #lineup-notifications,body.lld-gth-lay #lineup-dashboard-inject{display:none!important}
+body.lld-sh-pend #tab-header-area{visibility:hidden}
+.esp-wb{background:rgba(255,255,255,.08);border:1px solid var(--card-border);color:#fff;border-radius:8px;width:30px;height:28px;font-size:16px;font-weight:900;cursor:pointer}.esp-wk b{margin:0 10px}
