@@ -9168,8 +9168,8 @@ $('body').append(`
                     </div>
                     <div id="display-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
                 </div>
-<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Tap-to-reveal scores</div>
-<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Tap-to-reveal scores (live and finished scores stay hidden until you tap)</div>
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Hide scores</div>
+<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Hide scores: live and unfinished scores stay hidden until you tap. Applies to the current week, and to the week just played until Wednesday</div>
 <div style="display:flex; gap:6px; margin-bottom:16px;">${[['1','On'],['0','Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('rv') === v ? 'on' : ''}" data-k="rv" data-v="${v}">${l}</button>`).join('')}</div><button type="button" class="lld-hdr-btn lld-rv-hide" style="margin:-6px 0 16px;">Hide all scores again</button>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Text Size</div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Text Size</div>
@@ -12384,7 +12384,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '0', shb: '1', slt: '0', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 function lldBv(k) { if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
@@ -12782,7 +12782,27 @@ function lldNavApply() {
 }
 
 // ----- Tap-to-reveal scores (beta only, default off): hides player + team scores, bars and NFL game scores until tapped -----
-function lldRvOn() { try { return lldBv('rv') === '1'; } catch (e) { return false; } }
+// Hide scores only applies to weeks that are not finished: it stays on through Tuesday and stops at midnight (Eastern) when Wednesday starts
+function lldRvWeekEnd(w) {
+    const k0 = window._lldWk1Kick; if (!k0) return 0;
+    const q = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date(k0)).forEach(x => { q[x.type] = parseInt(x.value, 10); });
+    const d = new Date(Date.UTC(q.year, q.month - 1, q.day)); let off = 4 - d.getUTCDay(); if (off > 3) off -= 7; else if (off < -3) off += 7;
+    d.setUTCDate(d.getUTCDate() + off + 7 * (w - 1) + 6); // the Wednesday after that week's Thursday
+    return lldEtMs(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0);
+}
+function lldRvApplies(w) {
+    w = parseInt(w, 10); if (!w) return true;
+    const end = lldRvWeekEnd(w); if (end) return Date.now() < end;
+    const cur = parseInt(window._liveScoreCurrentWeek, 10); return !cur || w >= cur; // until the season start date is known
+}
+function lldRvOn() {
+    try {
+        if (lldBv('rv') !== '1') return false;
+        const wk = (window._scoresViewMode === 'sleeper' && window._lldSltCtx) ? window._lldSltCtx.wk : window._liveScoreActiveWeek;
+        return lldRvApplies(wk);
+    } catch (e) { return false; }
+}
+setTimeout(() => { try { lldFirstKickoff().then(k => { window._lldWk1Kick = k; try { lldRefreshScoreboard(); } catch (e) { } }).catch(() => { }); } catch (e) { } }, 1500);
 function lldRvS() {
     if (!window._lldRvSet) { let a = []; try { a = JSON.parse(lldGet('lld_rv_' + (typeof myFid !== 'undefined' ? myFid : ''), '[]')) || []; } catch (e) { } window._lldRvSet = new Set(a); }
     return window._lldRvSet;
@@ -12952,6 +12972,16 @@ async function lldRvReplayPrep(srcIn) {
     items.forEach((i, k) => { i.ch.forEach(c => { cum[c.x.pid] = (cum[c.x.pid] || 0) + c.v; }); i.idx = k; all.push({ item: i, big: bigSet.has(i), part: Object.assign({}, ...list.map(x => ({ [x.pid]: Math.max(0, (cum[x.pid] || 0) * scale(x)) }))), scale }); });
     return { list, lbl, all, big: all.filter(s => s.big), scale };
 }
+function lldRvPctEls(head, roster) {
+    const re = /^\s*\d{1,3}(\.\d+)?\s*%(\s*win)?\s*$/i, out = [];
+    head.querySelectorAll('*').forEach(el => {
+        if (roster && roster.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) return;
+        if (!re.test(el.textContent) || [...el.children].some(c => re.test(c.textContent))) return;
+        out.push(el);
+    });
+    return out;
+}
+function lldRvSetPct(el, v) { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (/\d{1,3}(\.\d+)?(?=\s*%)/.test(n.nodeValue)) { n.nodeValue = n.nodeValue.replace(/\d{1,3}(\.\d+)?(?=\s*%)/, String(v)); return; } } }
 function lldRvReplayWp(host, src) {
     const c1 = lldRvCalc(src.t1, src.pm, src.p1), c2 = lldRvCalc(src.t2, src.pm, src.p2);
     const a = Math.min(99, Math.max(1, Math.round(100 / (1 + Math.exp(-(c1.proj - c2.proj) / 14))))), b = 100 - a;
@@ -12961,6 +12991,7 @@ function lldRvReplayWp(host, src) {
         else { const kids = [...el.children]; if (kids.length && kids.some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) { if (kids[0]) kids[0].style.width = a + '%'; if (kids[1]) kids[1].style.width = b + '%'; } }
     });
     if (pct[0]) pct[0].textContent = a + '%'; if (pct[1]) pct[1].textContent = b + '%';
+    try { const pe = lldRvPctEls(host, host.querySelector('.lld-sec')).filter(e => e.closest('.lld-rvh')); if (pe.length >= 2 && !pct.length) { pe.slice(0, 2).forEach((e, i) => { const h = e.closest('.lld-rvh'); h.classList.add('on'); lldRvSetPct(e, i ? b : a); }); } } catch (e) { }
     host.querySelectorAll('.lld-rvh[data-k="wp"]').forEach(el => { if (!el.children.length && /\d{1,3}(\.\d+)?\s*%\s*[^\d%]{1,14}\s*\d{1,3}(\.\d+)?\s*%/.test(el.textContent)) { el.classList.add('on'); el.textContent = el.textContent.replace(/\d{1,3}(?:\.\d+)?(\s*%\s*[^\d%]{1,14}\s*)\d{1,3}(?:\.\d+)?(\s*%)/, a + '$1' + b + '$2'); } });
 }
 function lldRvReplayDraw() {
@@ -13051,6 +13082,7 @@ function lldRvBar() {
         else if (el.children.length === 0 && el.textContent.length < 48 && /\d{1,3}(\.\d+)?\s*%\s*[^\d%]{1,14}\s*\d{1,3}(\.\d+)?\s*%/.test(el.textContent)) mark(el); // "15% – 85% to win" style lines (Brick, SportsCenter)
         else if (el.children.length && el.children.length <= 2 && el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height <= 12 && [...el.children].some(c => /(width|height):\s*\d+(\.\d+)?%/.test(c.getAttribute('style') || ''))) mark(el);
     });
+    try { lldRvPctEls(head, roster).forEach(mark); } catch (e) { } // "100% WIN" style numbers too
     // above/below-median arrows give the score away, so they stay hidden until everyone is revealed
     head.querySelectorAll('*').forEach(el => {
         if (roster && roster.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) return;
@@ -13431,7 +13463,7 @@ setInterval(() => { if (lldShOn() && $('#tab-team').is(':visible')) { const el =
 
 // ===== SLEEPER SCOREBOARD TAB (beta switch "slt", commissioner franchises only, default off) =====
 // A "Sleeper" button on Scores. Type your Sleeper username once; your NFL leagues for the season show as chips, with the same matchup layout.
-function lldSltOn() { try { return lldDev() && lldBv('slt') === '1'; } catch (e) { return false; } }
+function lldSltOn() { try { return lldBv('slt') === '1'; } catch (e) { return false; } }
 const LLD_SLT = { st: { l: 0, w: 0, m: 0, busy: false, err: '' }, cache: {}, players: null };
 function lldSltUser() { return lldGet('lld_slt_user', ''); }
 function lldSltCfg() { let c = {}; try { c = JSON.parse(lldGet('lld_slt_cfg', '{}')) || {}; } catch (e) { } c.on = c.on || {}; c.team = c.team || {}; return c; }
@@ -13761,8 +13793,9 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Beta features</div>
-        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('NFL box scores and play by play (ESPN) on the Scores tab')}${onoff('espn')}${lab('New Scores layout: matchup bar, NFL games bar, league switcher (needs ESPN above for the NFL bar)')}${onoff('scn')}${lab('Game by game replay slide in the Week recap story (needs ESPN above)')}${onoff('gbg')}<div id="lld-gbg-set" style="${lldBv('gbg') === '1' ? '' : 'display:none;'}">${lldGbgPanel()}</div>` : ''}
+        <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 10px;">Scores and Sleeper</div>
+        ${lab('Sleeper scoreboard tab on Scores (your Sleeper leagues)')}${onoff('slt')}${lab('New Scores layout: matchup bar, NFL games bar, league switcher')}${onoff('scn')}${lab('Game by game replay slide in the Week recap story')}${onoff('gbg')}<div id="lld-gbg-set" style="${lldBv('gbg') === '1' ? '' : 'display:none;'}">${lldGbgPanel()}</div>
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -14012,7 +14045,7 @@ function computeTeamProjectedTotal(roster, projMap) {
 }
 
 // ===== NFL box scores & play by play from ESPN's public feed (beta switch "espn", commissioner franchises only, default off) =====
-function lldEspnOn() { try { return lldDev() && lldBv('espn') === '1'; } catch (e) { return false; } }
+function lldEspnOn() { return true; } // graduated from beta: NFL games, last play and the reveal replay are on for everyone
 const LLD_ESPN = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
 const LLDE = { view: 'list', id: null, tab: 'box', T: null, wk: null };
 function lldEspnWk() { const w = parseInt(LLDE.wk || window._liveScoreActiveWeek || window._liveScoreCurrentWeek, 10); return w >= 1 && w <= 22 ? w : null; }
@@ -14152,7 +14185,7 @@ $(document).on('click', '.esp-tab', function () { LLDE.tab = this.dataset.k; lld
 
 
 // ===== New Scores layout (beta, switch scn): league button, a fantasy matchup bar with a sticky Median / Recap button, and an NFL games bar =====
-function lldScnOn() { try { return lldDev() && lldBv('scn') === '1'; } catch (e) { return false; } }
+function lldScnOn() { try { return lldBv('scn') === '1'; } catch (e) { return false; } }
 function lldScnWeekOver() { const ms = window._liveScoreMatchups || []; try { return ms.length > 0 && ms.every(m => lldMatchState(m) === 'fin'); } catch (e) { return false; } }
 function lldScnBar() {
     const esc = lldChatEsc, mode = window._scoresViewMode || 'matchups', ms = window._liveScoreMatchups || [], idx = window._liveScoreIndex || 0, over = lldScnWeekOver();
@@ -15383,7 +15416,7 @@ async function lldPoAt(wk) {
 }
 
 // ===== Game by game replay slide (beta, switch gbg): plays that change a starter's fantasy points in your matchup, one NFL game at a time =====
-function lldGbgOn() { try { return lldDev() && lldBv('gbg') === '1'; } catch (e) { return false; } }
+function lldGbgOn() { try { return lldBv('gbg') === '1'; } catch (e) { return false; } }
 function lldGbgCfg() {
     let c = {}; try { c = JSON.parse(lldGet('lld_gbg_cfg', '{}')) || {}; } catch (e) { }
     const o = Object.assign({}, lldGbgDef(), c); o.show = Object.assign({}, lldGbgDef().show, c.show || {});
