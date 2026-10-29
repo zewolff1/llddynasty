@@ -5420,6 +5420,7 @@ window._capYears = Object.keys(capByYear).sort();
 
         
         contractsStatsData = { totalPlayers, totalIR, totalTaxi, posCounts: {...posCounts} };
+        window._lldConLocal = { fid: String(fid).padStart(4, '0'), exp: contractPlayers.filter(p => p.years === 1).map(p => p.salary || 0) };
         if (playerFiltersActive) {
             contractPlayers = contractPlayers.filter(p => {
                 const yrs = p.years || 0;
@@ -6469,7 +6470,7 @@ function getBestBenchOption(slot) {
     }
 
     // ----- AUTO-SAVE LINEUP (beta switch "asv"): saves a moment after any move, then re-reads MFL to prove it stuck -----
-    function lldAsvOn() { return true; }
+    function lldAsvOn() { try { return !lldGthOn(); } catch (e) { return true; } } // in Gotham mode you press Submit yourself
     let _asvT = null, _asvBusy = false;
     function lldAsvToast(msg, bad, keep) {
         let el = document.getElementById('lld-asv'); if (!el) { el = document.createElement('div'); el.id = 'lld-asv'; el.style.cssText = 'position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483000;max-width:92vw;border-radius:12px;padding:10px 14px;font:800 12px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;align-items:center;gap:10px'; document.body.appendChild(el); }
@@ -13603,12 +13604,14 @@ function lldShBlocks(vf, sub) {
         const used = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
         let rank = '';
         if (d && d.teams[vf]) { const T = lldShTotals(d, sy), mine = T[vf], order = Object.keys(T).sort((a, b) => T[b] - T[a]); rank = `${order.indexOf(vf) + 1}`; rank = kv('Spent rank', `#${rank} of ${order.length}`); }
-        if (cap && used != null) { const pc = used / cap * 100; A.push(`<div class="bk left" data-b="cap"><i>Cap ${sy}</i>${rank}${pbar(pc, 'p')}</div>`); W.push(LLD_SH.wCon[0]); }
-        if (d && d.teams[vf]) {
-            const mine = d.exp.filter(x => x.fid === vf), tot = mine.reduce((s, x) => s + x.sal, 0), dd = d.dead[vf] || [], dt = dd.reduce((s, x) => s + x.amt, 0);
-            A.push(`<div class="bk" data-b="exp"><i>Expiring</i><div class="m">${mine.length}</div><div class="s2"><b>${lldShM(tot)}</b> this year</div></div>`); W.push(LLD_SH.wCon[1]);
-            A.push(`<div class="bk" data-b="dead"><i>Dead money</i><div class="m">${lldShM(dt)}</div><div class="s2">${dd.length} player${dd.length === 1 ? '' : 's'}</div></div>`); W.push(LLD_SH.wCon[2]);
-        } else if (cap && used != null) { lldShLoad(); }
+        const L = window._lldConLocal && window._lldConLocal.fid === vf ? window._lldConLocal : null;
+        if (cap && used != null) { const pc = used / cap * 100; A.push(`<div class="bk left" data-b="cap"><i>Cap ${sy} \u00B7 ${lldShM(cap)}</i>${kv('Used', lldShM(used))}${kv('Left', lldShM(cap - used))}${rank}${pbar(pc, 'p')}</div>`); W.push(LLD_SH.wCon[0]); }
+        // the league-wide numbers can be slow or missing, so the expiring total falls back to this team's own contract rows
+        const exL = (d && d.teams[vf]) ? d.exp.filter(x => x.fid === vf).map(x => x.sal) : (L ? L.exp : null);
+        if (exL) { const tot = exL.reduce((s, x) => s + x, 0); A.push(`<div class="bk" data-b="exp"><i>Expiring</i><div class="m">${exL.length}</div><div class="s2"><b>${lldShM(tot)}</b> this year</div></div>`); W.push(LLD_SH.wCon[1]); }
+        if (d) { const dd = d.dead[vf] || [], dt = dd.reduce((s, x) => s + x.amt, 0); A.push(`<div class="bk" data-b="dead"><i>Dead money</i><div class="m">${lldShM(dt)}</div><div class="s2">${dd.length} player${dd.length === 1 ? '' : 's'}</div></div>`); W.push(LLD_SH.wCon[2]); }
+        else { A.push(`<div class="bk" data-b="dead"><i>Dead money</i><div class="m">\u2026</div><div class="s2">loading</div></div>`); W.push(LLD_SH.wCon[2]); }
+        if (!d) lldShLoad();
     }
     return A.length ? `<div class="blks" style="grid-template-columns:${W.map(x => `minmax(0,${x}fr)`).join(' ')}">${A.join('')}</div>` : '';
 }
@@ -13906,14 +13909,24 @@ function lldGthFit(caps, rs) {
     [['QB', 'RB', 'WR', 'TE'], ['FLEX']].forEach(tp => rs.forEach(i => { if (slot[i.pid] === undefined) fill(i, tp); }));
     return { open, slot };
 }
+// Character picker (layout test): Joker plus two empty spots for now. The pick is saved on this device.
+const LLD_GTH_CHARS = [{ id: 'joker', name: 'Joker', mark: '\uD83C\uDCCF' }, { id: '', name: '' }, { id: '', name: '' }];
+function lldGthChars() {
+    const box = document.getElementById('gth-chars'); if (!box) return;
+    const key = 'lld_gth_char_' + String(fid).padStart(4, '0'), cur = lldGet(key, '');
+    box.innerHTML = LLD_GTH_CHARS.map((c, i) => c.id ? `<button type="button" class="gth-ch ${cur === c.id ? 'on' : ''}" data-ch="${c.id}"><span class="m">${c.mark}</span><b>${c.name}</b></button>` : `<div class="gth-ch blank"><span class="m">+</span><b>Empty</b></div>`).join('');
+    const n = document.getElementById('gth-chn'); if (n) n.textContent = cur ? (LLD_GTH_CHARS.find(c => c.id === cur) || {}).name || '' : 'none picked';
+}
+$(document).on('click', '#gth-chars .gth-ch[data-ch]', function () { const key = 'lld_gth_char_' + String(fid).padStart(4, '0'); lldSet(key, lldGet(key, '') === this.dataset.ch ? '' : this.dataset.ch); lldGthChars(); });
 function lldGthCapRender() {
     const onLineup = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'lineup';
     if (!lldGthOn() || !onLineup) { if (!lldGthOn()) { $('#gth-lay').remove(); document.body.classList.remove('lld-gth-lay'); } return; }
     const benchBlock = document.querySelector('.sticky-block[data-block="bench"]'); if (!benchBlock) return;
     document.body.classList.add('lld-gth-lay');
     let host = document.getElementById('gth-lay');
-    if (!host) { benchBlock.insertAdjacentHTML('beforebegin', '<div id="gth-lay"><div id="gth-sum"></div><div class="gx-sec"><div class="gx-sh cap"><span>Captains</span><em id="gth-cn"></em><b class="bx" id="gth-cx"></b></div><div class="roster-grid" id="slots-captain"></div></div><div class="gx-sec"><div class="gx-sh"><span>Reserves</span><em id="gth-rn"></em><b class="bx gr" id="gth-rx"></b></div><div class="roster-grid" id="slots-reserves"></div></div></div>'); host = document.getElementById('gth-lay'); }
+    if (!host) { benchBlock.insertAdjacentHTML('beforebegin', '<div id="gth-lay"><div id="gth-sum"></div><div class="gx-sec"><div class="gx-sh"><span>Character</span><em id="gth-chn"></em></div><div id="gth-chars"></div></div><div class="gx-sec"><div class="gx-sh cap"><span>Captains</span><em id="gth-cn"></em><b class="bx" id="gth-cx"></b></div><div class="roster-grid" id="slots-captain"></div></div><div class="gx-sec"><div class="gx-sh"><span>Reserves</span><em id="gth-rn"></em><b class="bx gr" id="gth-rx"></b></div><div class="roster-grid" id="slots-reserves"></div></div></div>'); host = document.getElementById('gth-lay'); }
     const lay = lldGthLay(), M = LLD_GTH_CAP.mult;
+    lldGthChars();
     const rows = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]:not(.empty-slot), #slots-captain .player-row[data-pid], #slots-reserves .player-row[data-pid]').toArray();
     const caps = [], rs = [], bn = [];
     rows.forEach(r => {
