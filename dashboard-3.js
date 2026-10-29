@@ -13857,7 +13857,7 @@ function lldEspnStatus(ev) {
     if (ty.state === 'post') return { t: 'post', txt: ty.shortDetail || 'Final' };
     return { t: 'pre', txt: new Date(ev.date).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) };
 }
-const lldEspnNt = a => ({ WSH: 'WAS', JAX: 'JAC', LA: 'LAR' })[a] || a || '';
+const lldEspnNt = a => ({ WSH: 'WAS', JAX: 'JAC', LA: 'LAR', LV: 'LVR', GB: 'GBP', KC: 'KCC', NE: 'NEP', NO: 'NOS', SF: 'SFO', TB: 'TBB' })[a] || a || '';
 const lldEspnKey = (nm, tm) => { const w = String(nm || '').replace(/[.,]/g, ' ').trim().split(/\s+/).filter(Boolean); if (!w.length) return ''; const f = w[0].charAt(0).toLowerCase(); let rest = w.slice(1).filter(x => !/^(jr|sr|ii|iii|iv|v)$/i.test(x)).join('').toLowerCase().replace(/[^a-z]/g, ''); return f + rest + '|' + lldEspnNt(String(tm || '').toUpperCase()); };
 // my matchup's players (me / opponent) keyed by first initial + last name + team, so ESPN names can be labelled
 function lldEspnMine() {
@@ -13932,7 +13932,7 @@ function lldEspnPlayMine(MY, gTeams, text) {
         const parts = String(x.name).replace(/\./g, ' ').trim().split(/\s+/), ini = (parts[0] || '').charAt(0).toLowerCase(), last = parts.slice(1).filter(y => !/^(jr|sr|ii|iii|iv|v)$/i.test(y)).join('').toLowerCase().replace(/[^a-z]/g, ''); if (!last || seen[x.name + x.team]) return;
         const key = ini + last; if (!tk.some(z => z.k === key)) return; seen[x.name + x.team] = 1;
         let pts = 0; ev.forEach(e => { if (e.k !== key) return; if (e.team && e.team !== x.team) return; if (e.lostTo && e.lostTo === x.team) return; pts += e.v; });
-        out.push(`<span class="esp-ch ${x.w}">${x.w === 'me' ? 'YOU' : 'OPP'} · ${lldEsc(x.name)}${pts ? ` <b>${pts > 0 ? '+' : ''}${pts.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`);
+        out.push(`<span class="esp-ch ${x.w}">${MY.lbl ? MY.lbl[x.w] : (x.w === 'me' ? 'YOU' : 'OPP')} · ${lldEsc(x.name)}${pts ? ` <b>${pts > 0 ? '+' : ''}${pts.toFixed(2).replace(/0$/, '')}</b>` : ''}</span>`);
     });
     return out.length ? `<div class="esp-mine">${out.join('')}</div>` : '';
 }
@@ -16654,6 +16654,56 @@ function buildLiveNowHtml(t1, t2, pm) {
         ${total ? `<div class="lld-ln-grid" style="--rows:${total > 4 ? 2 : 1};">${tiles}</div>` : ''}
     </div>`;
 }
+
+// ---- Last play line under the scoreboard (beta, ESPN switch): newest play in the shown matchup that involves one of the starters ----
+const LLDLP = { sb: {}, sum: {}, wk: null, T: null };
+async function lldLpGames(wk) {
+    const yr = parseInt((typeof selectedYear !== 'undefined' && selectedYear) || year, 10) || new Date().getFullYear(), key = wk + '|' + yr, c = LLDLP.sb[key];
+    if (c && Date.now() - c.t < 60000) return c.d;
+    const d = await lldEspnJson('/scoreboard?seasontype=2&week=' + wk + '&dates=' + yr); LLDLP.sb[key] = { t: Date.now(), d }; return d;
+}
+async function lldLpSummary(ev) {
+    const st = ((ev.status || {}).type || {}).state, c = LLDLP.sum[ev.id], ttl = st === 'in' ? 20000 : 300000;
+    if (c && Date.now() - c.t < ttl) return c.d;
+    const d = await lldEspnJson('/summary?event=' + encodeURIComponent(ev.id)); LLDLP.sum[ev.id] = { t: Date.now(), d }; return d;
+}
+async function lldLastPlayRefresh() {
+    const old = document.getElementById('lld-lastplay');
+    if (!lldEspnOn() || lldRvOn()) { if (old) old.remove(); return; }
+    const inner = document.getElementById('live-score-card-inner'), m = (window._liveScoreMatchups || [])[window._liveScoreIndex], wk = parseInt(window._liveScoreActiveWeek, 10);
+    if (!inner || !m || !wk) { if (old) old.remove(); return; }
+    if (window._scMatchState && window._scMatchState !== 'live' && (window._scTab || 'first') === 'first') { if (old) old.remove(); return; }
+    const list = [], mine = !!m.isMe, lbl = { me: 'A', op: 'B' };
+    [[m.t1, 'me'], [m.t2, 'op']].forEach(([t, w]) => {
+        const mineSide = mine ? String(t.fid) === String(fid) : null;
+        const ww = mine ? (mineSide ? 'me' : 'op') : w; lbl[ww] = mine ? (mineSide ? 'YOU' : 'OPP') : String(t.name || '').split(' ').slice(-1)[0].slice(0, 8).toUpperCase();
+        (t.roster || []).forEach(p => { if (p.isStarter) list.push({ w: ww, st: true, name: p.name, team: lldEspnNt(p.team) }); });
+    });
+    const MY = { list, lbl, map: {} }, teams = {}; list.forEach(x => teams[x.team] = 1);
+    let sb; try { sb = await lldLpGames(wk); } catch (e) { return; }
+    const evs = (sb.events || []).filter(ev => ((ev.status || {}).type || {}).state !== 'pre' && (((ev.competitions || [])[0] || {}).competitors || []).some(c => teams[lldEspnNt((c.team || {}).abbreviation)]));
+    let best = null;
+    for (const ev of evs) {
+        let d; try { d = await lldLpSummary(ev); } catch (e) { continue; }
+        const hd = (d.header && d.header.competitions && d.header.competitions[0]) || {}, gT = (hd.competitors || []).map(c => lldEspnNt((c.team || {}).abbreviation));
+        const drv = ((d.drives && d.drives.previous) || []).slice(); if (d.drives && d.drives.current) drv.push(d.drives.current);
+        for (let i = drv.length - 1; i >= 0 && !(best && best.ev === ev); i--) {
+            const pl = (drv[i].plays || []);
+            for (let j = pl.length - 1; j >= 0; j--) {
+                const txt = pl[j].text || pl[j].shortText || '', chips = lldEspnPlayMine(MY, gT, txt); if (!chips) continue;
+                const ts = Date.parse(pl[j].wallclock || '') || 0; if (!best || ts > best.ts || (!best.ts && !ts)) best = { ts, ev, d, p: pl[j], dr: drv[i], chips, gT };
+                break;
+            }
+        }
+    }
+    let el = document.getElementById('lld-lastplay');
+    if (!best) { if (el) el.remove(); return; }
+    const ab = (best.dr.team || {}).abbreviation || '', logo = getNFLLogoUrl(lldEspnNt(ab)), g = best.gT.join(' @ ');
+    const html = `<img class="lp-lg" src="${lldEsc(logo)}" onerror="this.style.visibility='hidden'"><div class="lp-t"><i>LAST PLAY · ${lldEsc(g)} · Q${lldEsc((best.p.period || {}).number)} ${lldEsc((best.p.clock || {}).displayValue || '')}</i><span>${lldEsc(best.p.text || best.p.shortText || '')}</span>${best.chips}</div>`;
+    if (!el) { const first = inner.firstElementChild; const h = '<div id="lld-lastplay"></div>'; if (first) first.insertAdjacentHTML('afterend', h); else inner.insertAdjacentHTML('afterbegin', h); el = document.getElementById('lld-lastplay'); }
+    if (el.innerHTML !== html) el.innerHTML = html;
+}
+setInterval(() => { try { if (document.getElementById('live-score-card-inner')) lldLastPlayRefresh(); } catch (e) { } }, 25000);
 async function injectLiveNowStrip() {
     const inner = document.getElementById('live-score-card-inner');
     const m = (window._liveScoreMatchups || [])[window._liveScoreIndex];
@@ -16672,6 +16722,7 @@ renderLiveScoreCard = async function () {
     await _origRenderLiveScoreCard.apply(this, arguments);
     try { lldRvBar(); } catch (e) { }
     injectLiveNowStrip();
+    try { document.getElementById('lld-lastplay') && document.getElementById('lld-lastplay').remove(); lldLastPlayRefresh(); } catch (e) { }
 };
 window.lldRerenderScores = function () { return renderLiveScoreCard(); };
 $(document).off('click.livesort').on('click.livesort', '.live-sort-btn', function (e) {
