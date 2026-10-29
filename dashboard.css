@@ -4622,3 +4622,11 @@ body.lld-sh-pend #tab-header-area{visibility:hidden}
 #lld-lastplay .lp-t{display:flex;flex-direction:column;gap:3px;min-width:0}
 #lld-lastplay .lp-t i{font-style:normal;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.08em;color:var(--text-dim)}
 #lld-lastplay .lp-t span{font-size:calc(12px * var(--ts,1));font-weight:700;line-height:1.35;color:var(--text-main,#e5e7eb)}
+.esp-ch .lp-hs{width:18px;height:18px;border-radius:50%;object-fit:cover;object-position:top;vertical-align:middle;margin:-2px 4px -2px -4px;background:rgba(255,255,255,.1)}
+#lld-lastplay.rp{display:block}
+#lld-lastplay .rp-top{display:flex;gap:10px;align-items:flex-start}
+#lld-lastplay .rp-nav{display:flex;align-items:center;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--card-border);flex-wrap:wrap}
+#lld-lastplay .rp-nav button{font:inherit;font-weight:900;font-size:calc(11px * var(--ts,1));border:1px solid var(--card-border);background:rgba(255,255,255,.06);color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;min-width:38px}
+#lld-lastplay .rp-nav button:disabled{opacity:.35}
+#lld-lastplay .rp-nav button[data-a="skip"]{margin-left:auto;color:var(--text-dim)}
+#lld-lastplay .rp-c{font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);font-variant-numeric:tabular-nums}
