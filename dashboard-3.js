@@ -61,7 +61,7 @@ const LLD_STYLES = {
     "sportscenter": { name: "90s Sports Desk", group: "Full themes", file: "sportscenter", fonts: "family=Anton&family=Oswald:wght@500;600;700", scene: {"title": "DYNASTY TONIGHT", "sub": "Scores and moves", "stripes": ["#e31837", "#ffffff"], "live": true, "tickBg": "#e31837", "tickFg": "#ffffff", "bg": "linear-gradient(180deg, #1d44c4 0%, #0a1330 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "italic": true} },
     "arcade": { name: "Gridiron Arcade", group: "Full themes", file: "more", fonts: "family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&family=Press+Start+2P", scene: {"title": "FRANCHISE MODE", "sub": "Insert coin", "grid": true, "scan": true, "bg": "linear-gradient(180deg, #1a222d 0%, #0b0f14 100%)", "font": "\"Teko\", sans-serif", "fw": 700, "spaced": true} },
     "leather": { name: "Leatherheads", group: "Full themes", file: "more", fonts: "family=Playfair+Display:ital,wght@0,700;0,900;1,700", scene: {"title": "THE GAZETTE", "sub": "Vol. V", "tick": ["WIRE: LEAGUE WEEK UNDER WAY", "LINEUPS LOCK AT KICKOFF", "FRANCHISE NEWS TO FOLLOW"], "tickBg": "#120d0a", "tickFg": "#d9b25f", "bg": "linear-gradient(180deg, #3a2b1f 0%, #1c1612 100%)", "font": "\"Playfair Display\", Georgia, serif", "fw": 900} },
-    "stadium": { name: "Stadium", group: "Full themes", file: "more", fonts: "family=Oswald:wght@500;600;700&family=Share+Tech+Mono", scene: {"title": "GAME DAY", "sub": "Under the lights", "stars": true, "starsY": 22, "yards": true, "lights": true, "bg": "radial-gradient(60% 80% at 8% 0%, rgba(255,240,200,.55), transparent 70%), radial-gradient(60% 80% at 92% 0%, rgba(255,240,200,.55), transparent 70%), linear-gradient(180deg, #0a1426 0 34%, #1f6b3a 34% 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "stadium": { name: "Stadium", group: "Full themes", file: "more", fonts: "family=Oswald:wght@500;600;700&family=Share+Tech+Mono&family=Playfair+Display:wght@600;800&family=Special+Elite", scene: {"title": "GAME DAY", "sub": "Under the lights", "stars": true, "starsY": 22, "yards": true, "lights": true, "bg": "radial-gradient(60% 80% at 8% 0%, rgba(255,240,200,.55), transparent 70%), radial-gradient(60% 80% at 92% 0%, rgba(255,240,200,.55), transparent 70%), linear-gradient(180deg, #0a1426 0 34%, #1f6b3a 34% 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
     "season_fall": { name: "Fall", group: "Seasonal", file: "more", fonts: "family=Bitter:wght@600;800", scene: {"title": "FALL FOOTBALL", "sub": "Sweater weather", "bg": "linear-gradient(180deg, #8a4214 0%, #4a230c 100%)", "font": "\"Bitter\", Georgia, serif", "fw": 800, "g": "🍁"} },
     "season_halloween": { name: "Halloween", group: "Seasonal", file: "more", fonts: "family=Metamorphous", scene: {"title": "HAPPY HALLOWEEN", "sub": "Spooky season", "moon": true, "bg": "linear-gradient(180deg, #3a1d5e 0%, #1a0f2b 100%)", "font": "\"Metamorphous\", Georgia, serif", "fw": 400, "g": "👻"} },
     "season_thanksgiving": { name: "Thanksgiving", group: "Seasonal", file: "more", fonts: "family=Libre+Baskerville:wght@700", scene: {"title": "THANKSGIVING WEEK", "sub": "Football, family, leftovers", "bg": "linear-gradient(180deg, #7a2f2f 0%, #46211f 100%)", "font": "\"Libre Baskerville\", Georgia, serif", "fw": 700, "g": "🍂"} },
@@ -1220,6 +1220,18 @@ function lldApplyTick(v) {
     lldBuildTicker(lldEffStyle());
 }
 $(document).on('click', '.lld-tick-btn', function () { lldApplyTick(this.dataset.v); });
+// Stadium theme rooms: Scores = the stadium, Team > Lineup = locker room, every other page = manager's office
+function lldStadScene() {
+    const b = document.body; if (!b) return;
+    let sc = '';
+    if (b.classList.contains('theme-stadium')) {
+        const t = (($('.tab-content.active').first().attr('id')) || 'tab-team').toLowerCase(), sub = ($('#subtabs-team .sub-tab-btn.active').text() || '').trim().toLowerCase();
+        sc = /scoreboard/.test(t) ? '' : (/tab-team/.test(t) && (!sub || /lineup/.test(sub)) ? 'stad-locker' : 'stad-office');
+    }
+    ['stad-locker', 'stad-office'].forEach(c => { if (b.classList.contains(c) !== (c === sc)) b.classList.toggle(c, c === sc); });
+}
+setInterval(() => { try { lldStadScene(); } catch (e) { } }, 500);
+$(document).on('click', '.tab-btn, .sub-tab-btn', function () { setTimeout(lldStadScene, 30); setTimeout(lldStadScene, 400); });
 //LLDFX-PURE-START
 // Subtle seasonal background animation (pure CSS/DOM, no images). kind: fall | halloween | thanksgiving | christmas
 const LLD_FX_MAP = { season_fall: 'fall', season_halloween: 'halloween', season_thanksgiving: 'thanksgiving', season_christmas: 'christmas' };
@@ -1278,7 +1290,23 @@ function lldHeaderName() {
     const img = document.getElementById('custom-header-logo');
     if (img) { const d = document.createElement('div'); d.id = 'lld-league-name'; d.textContent = t; img.replaceWith(d); }
     else { const d = document.getElementById('lld-league-name'); if (d && t) d.textContent = t; }
+    setTimeout(lldFitName, 0); setTimeout(lldFitName, 600);
 }
+// shrink the league name so it never runs under the header buttons
+function lldFitName() {
+    const e = document.getElementById('lld-league-name'); if (!e) return;
+    e.style.fontSize = '';
+    if (!e.clientWidth) return;
+    let sz = parseFloat(getComputedStyle(e).fontSize) || 19;
+    while (sz > 10 && e.scrollWidth > e.clientWidth + 1) { sz -= 0.5; e.style.fontSize = sz + 'px'; }
+}
+(function () {
+    let t = null; const go = () => { clearTimeout(t); t = setTimeout(lldFitName, 150); };
+    window.addEventListener('resize', go); window.addEventListener('orientationchange', go);
+    try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); } catch (e) { }
+    try { new MutationObserver(go).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) { }
+    setTimeout(go, 800); setTimeout(go, 2500);
+})();
 function lldApplyWide() { document.body.classList.toggle('lld-wide', lldGet('lld_wide', '0') === '1'); $('.lld-wide-btn').each(function () { $(this).toggleClass('on', (this.dataset.v === 'wide') === (lldGet('lld_wide', '0') === '1')); }); }
 $(document).on('click', '.lld-wide-btn', function () { lldSet('lld_wide', this.dataset.v === 'wide' ? '1' : '0'); lldApplyWide(); });
 function lldApplyStyle(name) {
@@ -13900,7 +13928,7 @@ function lldGthLaySave(m) { lldSet(lldGthCapKey(), JSON.stringify(m)); }
 function lldGthInfo(row) {
     const r = $(row), played = r.hasClass('lld-played');
     const sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
-    return { pid: String(r.attr('data-pid')), name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos: (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase(), v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc) };
+    return { pid: String(r.attr('data-pid')), name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos: (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase(), v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
 }
 function lldGthFit(caps, rs) {
     const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
@@ -13909,15 +13937,39 @@ function lldGthFit(caps, rs) {
     [['QB', 'RB', 'WR', 'TE'], ['FLEX']].forEach(tp => rs.forEach(i => { if (slot[i.pid] === undefined) fill(i, tp); }));
     return { open, slot };
 }
-// Character picker (layout test): Joker plus two empty spots for now. The pick is saved on this device.
-const LLD_GTH_CHARS = [{ id: 'joker', name: 'Joker', mark: '\uD83C\uDCCF' }, { id: '', name: '' }, { id: '', name: '' }];
+// Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
+const LLD_GTH_CHARS = [{ id: 'batman', name: 'Batman', mark: '\uD83E\uDD87' }, { id: 'joker', name: 'Joker', mark: '\uD83C\uDCCF' }, { id: 'catwoman', name: 'Catwoman', mark: '\uD83D\uDC08\u200D\u2B1B' }];
+const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
+const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
+function lldGthCharKey() { return 'lld_gth_char_' + String(fid).padStart(4, '0'); }
+function lldGthWildKey() { return 'lld_gth_wild_' + String(fid).padStart(4, '0'); }
 function lldGthChars() {
     const box = document.getElementById('gth-chars'); if (!box) return;
-    const key = 'lld_gth_char_' + String(fid).padStart(4, '0'), cur = lldGet(key, '');
-    box.innerHTML = LLD_GTH_CHARS.map((c, i) => c.id ? `<button type="button" class="gth-ch ${cur === c.id ? 'on' : ''}" data-ch="${c.id}"><span class="m">${c.mark}</span><b>${c.name}</b></button>` : `<div class="gth-ch blank"><span class="m">+</span><b>Empty</b></div>`).join('');
-    const n = document.getElementById('gth-chn'); if (n) n.textContent = cur ? (LLD_GTH_CHARS.find(c => c.id === cur) || {}).name || '' : 'none picked';
+    const cur = lldGet(lldGthCharKey(), '');
+    box.innerHTML = LLD_GTH_CHARS.map(c => `<button type="button" class="gth-ch ${cur === c.id ? 'on' : ''}" data-ch="${c.id}"><span class="m">${c.mark}</span><b>${c.name}</b>${LLD_GTH_ABIL[c.id] ? '' : '<small>ability soon</small>'}</button>`).join('');
+    const n = document.getElementById('gth-chn'); if (n) n.textContent = cur ? ((LLD_GTH_CHARS.find(c => c.id === cur) || {}).name || '') : 'none picked';
+    if (!document.getElementById('gth-abil')) box.insertAdjacentHTML('afterend', '<div id="gth-abil"></div>');
 }
-$(document).on('click', '#gth-chars .gth-ch[data-ch]', function () { const key = 'lld_gth_char_' + String(fid).padStart(4, '0'); lldSet(key, lldGet(key, '') === this.dataset.ch ? '' : this.dataset.ch); lldGthChars(); });
+$(document).on('click', '#gth-chars .gth-ch[data-ch]', function () { lldSet(lldGthCharKey(), lldGet(lldGthCharKey(), '') === this.dataset.ch ? '' : this.dataset.ch); lldGthCapRender(); });
+$(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this.value); lldGthCapRender(); });
+// Joker's Wild Card: works out the change to the total and fills the ability card
+function lldGthJoker(caps, rs, fit, dp, M) {
+    const box = document.getElementById('gth-abil'); if (!box) return 0;
+    if (lldGet(lldGthCharKey(), '') !== 'joker') { box.innerHTML = ''; return 0; }
+    const ab = LLD_GTH_ABIL.joker, J = LLD_GTH_JOKER, cnt = caps.concat(rs.filter(i => fit.slot[i.pid]));
+    let wid = lldGet(lldGthWildKey(), ''); if (!cnt.some(i => i.pid === wid)) wid = '';
+    const opts = `<option value="">Choose your Wild Card</option>` + cnt.map(i => `<option value="${i.pid}" ${i.pid === wid ? 'selected' : ''}>${i.name} (${i.pos})</option>`).join('');
+    const w = cnt.find(i => i.pid === wid);
+    let delta = 0, status = cnt.length ? 'Pick a player below.' : 'Set your lineup first, then pick a Wild Card.';
+    if (w) {
+        const c = caps.indexOf(w) >= 0 ? w.v * M : w.v * (1 + dp / 100), up = c * (J.win - 1), down = c * (J.lose - 1);
+        $(w.row).find('.lld-det').first().append(`<div class="gth-bn gth-wc">\uD83C\uDCCF WILD CARD \u00B7 beat ${w.pj ? w.pj.toFixed(1) : 'proj'} for \u00D7${J.win}</div>`);
+        if (w.played) { const hit = w.pj > 0 ? w.v >= w.pj : false; delta = hit ? up : down; status = hit ? `Hit! ${w.name} beat his projection of ${w.pj.toFixed(1)}: <b class="up">+${up.toFixed(1)}</b>` : `Missed. ${w.name} fell short of ${w.pj.toFixed(1)}: <b class="dn">${down.toFixed(1)}</b>`; }
+        else status = `Beat ${w.pj ? w.pj.toFixed(1) : 'his projection'}: <b class="up">+${up.toFixed(1)}</b> \u00B7 fall short: <b class="dn">${down.toFixed(1)}</b>`;
+    }
+    box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83C\uDCCF ${ab.name}</b></div><p>${ab.desc}</p><select id="gth-wild">${opts}</select><div class="st">${status}</div></div>`;
+    return delta;
+}
 function lldGthCapRender() {
     const onLineup = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'lineup';
     if (!lldGthOn() || !onLineup) { if (!lldGthOn()) { $('#gth-lay').remove(); document.body.classList.remove('lld-gth-lay'); } return; }
@@ -13955,7 +14007,8 @@ function lldGthCapRender() {
     openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t}</b><span>Empty${t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
     if (bn.length) $('#slots-reserves').append('<div class="gx-ph opt" data-slot="rs">Add a reserve (optional)</div>');
     if (caps.length < LLD_GTH_CAP.max && rs.length + bn.length > 0) $('#slots-captain').append(`<div class="gx-ph cap opt" data-slot="cap">${caps.length ? 'Add another captain (optional)' : 'No captain · tap to add one (optional)'}</div>`);
-    const tot = capPts + bonus + best * (1 + dp / 100), chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t} ${f}/${n}</b>`; }).join(' · ');
+    const jk = lldGthJoker(caps, rs, fit, dp, M);
+    const tot = capPts + bonus + best * (1 + dp / 100) + jk, chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t} ${f}/${n}</b>`; }).join(' · ');
     $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
     $('#gth-cn').text(caps.length + '/' + LLD_GTH_CAP.max); $('#gth-cx').text(caps.length ? '+' + bonus.toFixed(1) + ' bonus' : '×' + M);
     $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(nc + ' counting · ' + best.toFixed(1));
@@ -17492,6 +17545,15 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
             }
         } catch (e) { console.warn('Could not look up missing player names', e); }
 
+        // Bench players who already played can come back as 0 from the detailed feed, so their points are also read from the plain feed (what the Lineup page uses)
+        const bnScores = {};
+        try {
+            const bd = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=${activeWeek}&JSON=1`) || {};
+            const asB = v => (Array.isArray(v) ? v : (v ? [v] : []));
+            let bf = []; const bm = asB(bd?.liveScoring?.matchup || bd?.matchup);
+            if (bm.length) bm.forEach(x => bf.push(...asB(x.franchise))); else bf = asB(bd?.liveScoring?.franchise || bd?.franchise);
+            bf.forEach(f => { let pl = f.players || f.player || []; if (pl && !Array.isArray(pl) && pl.player) pl = pl.player; const o = bnScores[String(f.id).padStart(4, '0')] = {}; asB(pl).forEach(q => { o[String(q.id)] = parseFloat(q.score) || 0; }); });
+        } catch (e) { console.warn('bench scores', e); }
         await lldEnsureFranchiseNames();
         const matchups = liveMatchupsRaw.map(m => {
             let franchises = m.franchise;
@@ -17511,7 +17573,8 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
 
                 const roster = players.map(p => {
                     const pid = p.id ?? p.player_id ?? p.pid ?? '';
-                    const pScore = parseFloat(p.score ?? p.points ?? p.pts ?? 0) || 0;
+                    let pScore = parseFloat(p.score ?? p.points ?? p.pts ?? 0) || 0;
+                    if (!pScore && bnScores[fid2] && bnScores[fid2][String(pid)]) pScore = bnScores[fid2][String(pid)];
                     const gsrRaw = p.gameSecondsRemaining ?? p.game_seconds_remaining ?? p.secondsRemaining ?? null;
                     const rawStatus = p.status ?? p.gameStatus ?? p.game_status ?? null;
                     const info = playerInfoMap[pid] || {};
