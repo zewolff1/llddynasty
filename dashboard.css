@@ -4769,3 +4769,164 @@ body.lld-scn .scn-oldwk{display:none!important}
 #gth-chars .gth-ch b{font-size:calc(11px * var(--ts,1));letter-spacing:.08em;text-transform:uppercase}
 #gth-chars .gth-ch.on{border-color:#00ceb8;box-shadow:0 0 0 1px #00ceb8 inset;background:rgba(0,206,184,.12)}
 #gth-chars .gth-ch.blank{border-style:dashed;color:var(--text-dim);cursor:default}
+
+/* ===== Stadium theme v2: turf + concourse + jumbotron (background, tabs, buttons) ===== */
+html body.theme-stadium, html body.theme-stadium#body_home {
+    background-color: #0f3a22 !important;
+    background-image:
+        radial-gradient(70% 280px at 4% 0, rgba(255,244,214,.5), transparent 70%),
+        radial-gradient(70% 280px at 96% 0, rgba(255,244,214,.5), transparent 70%),
+        repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 2px, transparent 2px 9px),
+        linear-gradient(180deg, #0b1220 0, #121b2b 150px, #0c2a18 230px, transparent 230px),
+        repeating-linear-gradient(180deg, transparent 0 78px, rgba(255,255,255,.2) 78px 80px),
+        repeating-linear-gradient(180deg, transparent 0 38px, rgba(255,255,255,.08) 38px 39px),
+        repeating-linear-gradient(90deg, #1c6a38 0 46px, #18602f 46px 92px) !important;
+    background-size: 100% 160px, 100% 160px, 100% 160px, 100% 100%, auto, auto, auto !important;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat, repeat !important;
+    background-attachment: scroll !important;
+}
+html body.theme-stadium .league-tabs { counter-reset: lldsec; display: flex !important; gap: 5px; background: transparent !important; border: 0 !important; padding: 0 !important; border-radius: 0 !important; }
+html body.theme-stadium .league-tabs .tab-btn {
+    counter-increment: lldsec; position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 10px 2px 11px !important; border: 0 !important; border-radius: 6px; color: #c9d6cf;
+    background: linear-gradient(180deg, #232d3d, #161e2b) !important; text-transform: uppercase; letter-spacing: .14em;
+    -webkit-mask: radial-gradient(circle 6px at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 6px at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+            mask: radial-gradient(circle 6px at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 6px at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+}
+html body.theme-stadium .league-tabs .tab-btn::before { content: "SEC " counter(lldsec); display: block; font: 400 calc(8px * var(--ts,1)) "Share Tech Mono", monospace; letter-spacing: .2em; opacity: .7; margin-bottom: 1px; }
+html body.theme-stadium .league-tabs .tab-btn::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 4px; border-bottom: 2px dotted rgba(255,255,255,.18); }
+html body.theme-stadium .league-tabs .tab-btn.active { background: linear-gradient(180deg, #303b50, #1c2535) !important; color: #ffb627 !important; text-shadow: 0 0 8px rgba(255,182,39,.8); border: 0 !important; }
+html body.theme-stadium .league-tabs .tab-btn.active::after { border-bottom: 3px solid #ffb627; border-radius: 2px; box-shadow: 0 0 8px rgba(255,182,39,.9); bottom: 3px; }
+html body.theme-stadium .sub-tab-btn {
+    position: relative; border-radius: 3px !important; color: #dfe8e2; letter-spacing: .16em; text-transform: uppercase;
+    background: linear-gradient(180deg, #3a4150, #242a36) !important; border: 1px solid #556 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 0 #0a0d12;
+}
+html body.theme-stadium .sub-tab-btn::before, html body.theme-stadium .sub-tab-btn::after { content: ""; position: absolute; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%; background: #8a93a3; box-shadow: inset 0 -1px 0 #3a4150; }
+html body.theme-stadium .sub-tab-btn::before { left: 6px; } html body.theme-stadium .sub-tab-btn::after { right: 6px; }
+html body.theme-stadium .sub-tab-btn.active { background: linear-gradient(180deg, #ffe35c, #ffd400) !important; color: #171300 !important; border-color: #fff3a3 !important; box-shadow: inset 0 1px 0 #fff8c9, 0 2px 0 #7a6700; }
+html body.theme-stadium .sub-tab-btn.active::before, html body.theme-stadium .sub-tab-btn.active::after { background: #7a6700; box-shadow: none; }
+/* end-zone arrow buttons */
+html body.theme-stadium .accept-optimal-btn, html body.theme-stadium #lineup-submit-float, html body.theme-stadium .lld-fv-open {
+    border: 0 !important; border-radius: 0 !important; padding-right: 26px !important; font-weight: 700 !important; letter-spacing: .14em; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%); filter: drop-shadow(0 2px 0 rgba(0,0,0,.5));
+}
+html body.theme-stadium .accept-optimal-btn { background: linear-gradient(180deg, #5af0b0, #19d98b) !important; color: #07140c !important; }
+html body.theme-stadium #lineup-submit-float { background: linear-gradient(180deg, #ffe35c, #ffd400) !important; color: #171300 !important; }
+html body.theme-stadium .lld-fv-open { background: rgba(0,0,0,.55) !important; color: #fff !important; box-shadow: inset 0 0 0 2px #fff; }
+/* scoreboard strip: LED dot-matrix */
+html body.theme-stadium #lld-ticker { border-radius: 4px; border: 2px solid #2b2f36 !important; box-shadow: 0 0 0 2px #0a0c10, 0 0 14px rgba(255,182,39,.2) inset; background-image: radial-gradient(circle, rgba(0,0,0,.65) 0 1.1px, transparent 1.2px) !important; background-size: 4px 4px !important; }
+
+/* ===== Stadium rooms: Scores = stadium, Lineup = locker room, everything else = manager's office (class set by lldStadScene) ===== */
+html body.theme-stadium.stad-locker, html body.theme-stadium.stad-locker#body_home {
+    background-color: #1c242d !important;
+    background-image:
+        linear-gradient(180deg, transparent 0 262px, rgba(0,0,0,.4) 262px 275px, transparent 275px),
+        linear-gradient(180deg, #9a6b36 0, #7a4f25 55%, #5a3817 100%),
+        url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2266%22%20height%3D%22230%22%3E%3Crect%20width%3D%2266%22%20height%3D%22230%22%20fill%3D%22%230a0f14%22/%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20x2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%233b5f8f%22/%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%232f4f7c%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23243e63%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%2262%22%20height%3D%22226%22%20rx%3D%222%22%20fill%3D%22url%28%23g%29%22/%3E%3Crect%20x%3D%223%22%20y%3D%223%22%20width%3D%221%22%20height%3D%22224%22%20fill%3D%22%23ffffff%22%20fill-opacity%3D%22.18%22/%3E%3Cg%20fill%3D%22%230b1520%22%3E%3Crect%20x%3D%2210%22%20y%3D%2214%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2220%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2226%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2232%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%22186%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%22192%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%22198%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3Crect%20x%3D%2210%22%20y%3D%22204%22%20width%3D%2246%22%20height%3D%222.5%22/%3E%3C/g%3E%3Crect%20x%3D%2214%22%20y%3D%2256%22%20width%3D%2238%22%20height%3D%2216%22%20fill%3D%22%23e9c46a%22/%3E%3Crect%20x%3D%2217%22%20y%3D%2260%22%20width%3D%2232%22%20height%3D%222%22%20fill%3D%22%237a5b17%22/%3E%3Crect%20x%3D%2217%22%20y%3D%2265%22%20width%3D%2222%22%20height%3D%222%22%20fill%3D%22%237a5b17%22/%3E%3Crect%20x%3D%2247%22%20y%3D%22104%22%20width%3D%227%22%20height%3D%2226%22%20rx%3D%222%22%20fill%3D%22%23cfd8e3%22/%3E%3C/svg%3E"),
+        repeating-linear-gradient(90deg, rgba(0,0,0,.3) 0 2px, transparent 2px 52px),
+        repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 2px, transparent 2px 52px),
+        linear-gradient(180deg, #2a343f, #1c242d) !important;
+    background-size: 100% 275px, 100% 30px, 66px 232px, auto, auto, auto !important;
+    background-position: 0 0, 0 232px, 0 0, 0 0, 0 0, 0 0 !important;
+    background-repeat: no-repeat, no-repeat, repeat-x, repeat, repeat, no-repeat !important;
+}
+html body.theme-stadium.stad-office, html body.theme-stadium.stad-office#body_home {
+    background-color: #36200f !important;
+    background-image:
+        linear-gradient(180deg, transparent 0 236px, rgba(0,0,0,.5) 236px 252px, transparent 252px),
+        linear-gradient(180deg, #e2bd62, #9a7424 60%, #6b4e14),
+        url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22150%22%20height%3D%22200%22%3E%3Crect%20x%3D%2230%22%20y%3D%2240%22%20width%3D%2290%22%20height%3D%22110%22%20fill%3D%22%23c9a24a%22/%3E%3Crect%20x%3D%2236%22%20y%3D%2246%22%20width%3D%2278%22%20height%3D%2298%22%20fill%3D%22%230c1a14%22/%3E%3Crect%20x%3D%2242%22%20y%3D%2252%22%20width%3D%2266%22%20height%3D%2286%22%20fill%3D%22%231c3a2c%22/%3E%3Ccircle%20cx%3D%2275%22%20cy%3D%2284%22%20r%3D%2214%22%20fill%3D%22%232e5a44%22/%3E%3Crect%20x%3D%2255%22%20y%3D%22104%22%20width%3D%2240%22%20height%3D%2228%22%20rx%3D%2210%22%20fill%3D%22%232e5a44%22/%3E%3Crect%20x%3D%2260%22%20y%3D%22154%22%20width%3D%2230%22%20height%3D%228%22%20fill%3D%22%23c9a24a%22/%3E%3C/svg%3E"),
+        repeating-linear-gradient(90deg, #17392b 0 10px, #122f23 10px 12px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 6px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,.35) 0 2px, transparent 2px 60px),
+        linear-gradient(180deg, #4a2e1a, #36200f) !important;
+    background-size: 100% 252px, 100% 18px, 150px 200px, 100% 218px, auto, auto, auto !important;
+    background-position: 0 0, 0 218px, 0 0, 0 0, 0 0, 0 0, 0 0 !important;
+    background-repeat: no-repeat, no-repeat, repeat-x, no-repeat, repeat, repeat, no-repeat !important;
+}
+html:has(body.theme-stadium.stad-locker) { background-color: #1c242d !important; }
+html:has(body.theme-stadium.stad-office) { background-color: #36200f !important; }
+/* locker room */
+html body.theme-stadium.stad-locker .league-tabs .tab-btn { background: linear-gradient(180deg, #436a9c, #2c4a73) !important; color: #e8eef7; border: 1px solid #0b1520 !important; border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 3px 0 #0b1520; font-weight: 700; -webkit-mask: none; mask: none; }
+html body.theme-stadium.stad-locker .league-tabs .tab-btn::before { content: "LOCKER " counter(lldsec); }
+html body.theme-stadium.stad-locker .league-tabs .tab-btn::after { display: none; }
+html body.theme-stadium.stad-locker .league-tabs .tab-btn.active { background: #f1ead2 !important; color: #161006 !important; border-color: #c9bd94 !important; text-shadow: none; transform: rotate(-1.5deg) translateY(-2px); box-shadow: 0 4px 0 rgba(0,0,0,.45); clip-path: polygon(0 8%, 3% 0, 6% 8%, 9% 0, 12% 8%, 100% 0, 100% 100%, 0 92%); }
+html body.theme-stadium.stad-locker .sub-tab-btn { background: #1d2733 !important; color: #e8eef7; border: 1px solid #3a4a5e !important; border-radius: 2px !important; box-shadow: none; }
+html body.theme-stadium.stad-locker .sub-tab-btn::before, html body.theme-stadium.stad-locker .sub-tab-btn::after { display: none; }
+html body.theme-stadium.stad-locker .sub-tab-btn.active { background: #f1ead2 !important; color: #161006 !important; border-color: #c9bd94 !important; transform: rotate(-1deg); box-shadow: 0 3px 0 rgba(0,0,0,.45); }
+html body.theme-stadium.stad-locker .accept-optimal-btn, html body.theme-stadium.stad-locker #lineup-submit-float { clip-path: none; filter: none; border-radius: 6px !important; padding-right: 14px !important; background: #c8102e !important; color: #fff !important; box-shadow: inset 0 0 0 3px #c8102e, inset 0 0 0 5px rgba(255,255,255,.85), 0 3px 0 #5a0613; }
+html body.theme-stadium.stad-locker #lineup-submit-float { background: #e9c46a !important; color: #1a1200 !important; box-shadow: inset 0 0 0 3px #e9c46a, inset 0 0 0 5px rgba(0,0,0,.6), 0 3px 0 #6b520f; }
+html body.theme-stadium.stad-locker .player-row { background: linear-gradient(90deg, #2c4a73 0 6px, rgba(29,39,51,.96) 6px) !important; border: 1px solid #0b1520 !important; border-left: 0 !important; border-radius: 2px !important; box-shadow: 0 3px 0 rgba(0,0,0,.5); }
+html body.theme-stadium.stad-locker .player-row::after { display: none; }
+html body.theme-stadium.stad-locker .section-header { background: #e9c46a; color: #1a1200; border: 0; letter-spacing: .3em; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35); }
+html body.theme-stadium.stad-locker #lld-sh .th { background: linear-gradient(90deg, #2c4a73 0 6px, #1d2733 6px) !important; border: 1px solid #0b1520; box-shadow: 0 3px 0 rgba(0,0,0,.5); border-radius: 2px; }
+html body.theme-stadium.stad-locker #lld-sh .th .nm { background: #e9c46a; color: #1a1200; padding: 1px 10px; letter-spacing: .1em; text-transform: uppercase; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35); }
+/* manager's office */
+html body.theme-stadium.stad-office .league-tabs .tab-btn { background: linear-gradient(180deg, #f0d58a, #c9a24a 50%, #a47e2c) !important; color: #2a1c05; font-family: "Playfair Display", Georgia, serif; font-weight: 700; border: 1px solid #6b4e14 !important; border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 3px 0 #2a1c05; -webkit-mask: none; mask: none; }
+html body.theme-stadium.stad-office .league-tabs .tab-btn::before { content: "FILE " counter(lldsec, upper-alpha); font-family: "Special Elite", "Courier New", monospace; opacity: .6; }
+html body.theme-stadium.stad-office .league-tabs .tab-btn::after { display: none; }
+html body.theme-stadium.stad-office .league-tabs .tab-btn.active { background: linear-gradient(180deg, #143a2b, #0d2a1f) !important; color: #e9c46a !important; border-color: #e9c46a !important; text-shadow: 0 0 6px rgba(233,196,106,.5); }
+html body.theme-stadium.stad-office .sub-tab-btn { background: #cdb985 !important; color: #3b2a12; font-family: "Playfair Display", Georgia, serif; border: 1px solid #8a7440 !important; border-bottom: 0 !important; border-radius: 9px 9px 0 0 !important; box-shadow: none; }
+html body.theme-stadium.stad-office .sub-tab-btn::before, html body.theme-stadium.stad-office .sub-tab-btn::after { display: none; }
+html body.theme-stadium.stad-office .sub-tab-btn.active { background: #efe4c3 !important; color: #2a1d0b !important; box-shadow: 0 -2px 0 rgba(0,0,0,.2); }
+html body.theme-stadium.stad-office .accept-optimal-btn, html body.theme-stadium.stad-office #lineup-submit-float { clip-path: none; filter: none; border-radius: 4px !important; padding-right: 14px !important; background: #5a3a22 !important; color: #e9c46a !important; border: 2px dashed #d9b45a !important; outline: 3px solid #5a3a22; font-family: "Playfair Display", Georgia, serif; box-shadow: 0 4px 0 rgba(0,0,0,.4); }
+html body.theme-stadium.stad-office .player-row { background: linear-gradient(180deg, rgba(58,36,20,.96), rgba(40,24,12,.96)) !important; border: 1px solid #c9a24a !important; border-left: 6px solid #9a2b2b !important; border-radius: 2px !important; box-shadow: 0 3px 0 rgba(0,0,0,.45); }
+html body.theme-stadium.stad-office .player-row::after { display: none; }
+html body.theme-stadium.stad-office .section-header { background: rgba(0,0,0,.45); color: #e9c46a; border-color: #c9a24a; font-family: "Playfair Display", Georgia, serif; letter-spacing: .24em; }
+html body.theme-stadium.stad-office #lld-sh .th { background: linear-gradient(180deg, #4a2e1a, #36200f) !important; border: 2px solid #c9a24a; box-shadow: 0 4px 0 rgba(0,0,0,.45); border-radius: 2px; }
+html body.theme-stadium.stad-office #lld-sh .th .nm { font-family: "Playfair Display", Georgia, serif; color: #e9c46a; letter-spacing: .06em; }
+
+/* ===== Arcade theme v2: synthwave grid, colored pixel tabs, push buttons ===== */
+html body.theme-arcade, html body.theme-arcade#body_home {
+    background-color: #07031a !important;
+    background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 3px),
+        radial-gradient(circle at 12% 18%, #fff 0 1px, transparent 1.5px), radial-gradient(circle at 78% 9%, #9fe7ff 0 1px, transparent 1.5px), radial-gradient(circle at 55% 30%, #fff 0 1px, transparent 1.5px), radial-gradient(circle at 90% 42%, #ffd1ee 0 1px, transparent 1.5px), radial-gradient(circle at 30% 50%, #fff 0 1px, transparent 1.5px),
+        radial-gradient(60% 18% at 50% 62%, rgba(255,79,163,.45), transparent 70%),
+        repeating-conic-gradient(from 0deg at 50% 0, rgba(53,224,255,.45) 0 .6deg, transparent .6deg 7.5deg),
+        repeating-linear-gradient(180deg, transparent 0 22px, rgba(255,79,163,.28) 22px 23px),
+        linear-gradient(180deg, #07031a 0, #140a3a 62%, #07031a 62%, #0b0626 100%) !important;
+    background-size: auto, 100% 100vh, 100% 100vh, 100% 100vh, 100% 100vh, 100% 100vh, 100% 100vh, 100% 38vh, 100% 38vh, 100% 100vh !important;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 100%, 0 100%, 0 0 !important;
+    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat !important;
+    background-attachment: scroll, fixed, fixed, fixed, fixed, fixed, fixed, fixed, fixed, fixed !important;
+}
+html:has(body.theme-arcade) { background-color: #07031a !important; }
+html body.theme-arcade .league-tabs { counter-reset: lldsec; display: flex !important; gap: 7px; background: transparent !important; border: 0 !important; padding: 4px 3px !important; border-radius: 0 !important; }
+html body.theme-arcade .league-tabs .tab-btn { --c: #35e0ff; counter-increment: lldsec; position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 9px 2px 8px !important; border: 0 !important; border-radius: 0 !important; background: #0d0826 !important; color: var(--c) !important; font: 400 calc(8px * var(--ts,1)) / 1.2 "Press Start 2P", monospace !important; letter-spacing: 0 !important; text-transform: uppercase; box-shadow: 0 -3px 0 0 var(--c), 0 3px 0 0 var(--c), -3px 0 0 0 var(--c), 3px 0 0 0 var(--c) !important; }
+html body.theme-arcade .league-tabs .tab-btn:nth-child(2) { --c: #ff4fa3; } html body.theme-arcade .league-tabs .tab-btn:nth-child(3) { --c: #ffe14a; } html body.theme-arcade .league-tabs .tab-btn:nth-child(4) { --c: #35ff8a; } html body.theme-arcade .league-tabs .tab-btn:nth-child(5) { --c: #ff8a3d; }
+html body.theme-arcade .league-tabs .tab-btn::before { content: "P" counter(lldsec); display: block; font-size: calc(6px * var(--ts,1)); opacity: .6; margin-bottom: 5px; }
+html body.theme-arcade .league-tabs .tab-btn.active { background: var(--c) !important; color: #000 !important; box-shadow: 0 -3px 0 0 #fff, 0 3px 0 0 #fff, -3px 0 0 0 #fff, 3px 0 0 0 #fff, 0 0 18px var(--c) !important; transform: translateY(-2px); border-bottom: 0 !important; }
+html body.theme-arcade .league-tabs .tab-btn.active::after { content: "\25B6"; position: absolute; top: -15px; left: 50%; margin-left: -5px; font-size: 9px; color: #fff; transform: rotate(90deg); animation: lldarcbl .8s steps(2) infinite; }
+@keyframes lldarcbl { 50% { opacity: 0; } }
+html body.theme-arcade .sub-tab-btn { background: transparent !important; color: #35e0ff !important; font: 400 calc(7px * var(--ts,1)) / 1.2 "Press Start 2P", monospace !important; letter-spacing: 0 !important; text-transform: uppercase; border: 2px dashed rgba(53,224,255,.5) !important; border-radius: 0 !important; padding: 10px 6px !important; }
+html body.theme-arcade .sub-tab-btn.active { background: #ff4fa3 !important; color: #fff !important; border: 2px solid #fff !important; box-shadow: 3px 3px 0 #5a0b38; }
+html body.theme-arcade .sub-tab-btn.active::before { content: "\25B6 "; font-size: 6px; }
+html body.theme-arcade .accept-optimal-btn, html body.theme-arcade #lineup-submit-float { border: 0 !important; border-radius: 0 !important; background: #ff2d55 !important; color: #fff !important; font: 400 calc(8px * var(--ts,1)) "Press Start 2P", monospace !important; text-transform: uppercase; box-shadow: 0 -3px 0 0 #ff2d55, 0 3px 0 0 #ff2d55, -3px 0 0 0 #ff2d55, 3px 0 0 0 #ff2d55, 0 8px 0 0 #7a0f2a; }
+html body.theme-arcade .accept-optimal-btn { transform: translateY(-3px); margin: 3px; }
+html body.theme-arcade .accept-optimal-btn:active { transform: translateY(2px); box-shadow: 0 -3px 0 0 #ff2d55, 0 3px 0 0 #ff2d55, -3px 0 0 0 #ff2d55, 3px 0 0 0 #ff2d55, 0 3px 0 0 #7a0f2a; }
+html body.theme-arcade #lineup-submit-float { background: #ffe14a !important; color: #000 !important; box-shadow: 0 -3px 0 0 #ffe14a, 0 3px 0 0 #ffe14a, -3px 0 0 0 #ffe14a, 3px 0 0 0 #ffe14a, 0 8px 0 0 #8a6d00; }
+html body.theme-arcade .player-row { background: rgba(10,8,38,.92) !important; border: 2px solid #35e0ff !important; border-radius: 0 !important; box-shadow: 3px 3px 0 #35e0ff; }
+html body.theme-arcade .section-header { color: #ffe14a; font-family: "Press Start 2P", monospace !important; font-size: calc(8px * var(--ts,1)) !important; }
+
+#gth-chars .gth-ch small{font-size:calc(8px * var(--ts,1));color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase}
+.gth-ab{margin-top:8px;padding:10px 12px;border:1px solid rgba(168,85,247,.6);border-radius:12px;background:rgba(88,28,135,.18)}
+.gth-ab .h b{font-size:calc(13px * var(--ts,1));letter-spacing:.06em;text-transform:uppercase;color:#d8b4fe}
+.gth-ab p{margin:4px 0 8px;font-size:calc(11px * var(--ts,1));color:var(--text-dim);line-height:1.4}
+.gth-ab select{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1px solid var(--card-border);background:rgba(0,0,0,.35);color:var(--text-main);font:inherit;font-weight:700}
+.gth-ab .st{margin-top:8px;font-size:calc(12px * var(--ts,1));font-weight:700}
+.gth-ab .st .up{color:#4ade80}.gth-ab .st .dn{color:#f87171}
+.gth-bn.gth-wc{color:#d8b4fe}
+
+/* r70: league name left, buttons right, name shrinks to fit (never under the buttons) */
+html body .header-top-row:not(.has-scene){display:grid !important;grid-template-columns:minmax(0,1fr) auto !important;column-gap:8px !important;align-items:center !important}
+html body .header-top-row:not(.has-scene) > *{grid-column:1 / -1}
+html body .header-top-row:not(.has-scene) > .header-left-controls{display:none !important}
+html body .header-top-row:not(.has-scene) > .header-center-branding{grid-column:1;grid-row:1;align-items:flex-start !important;text-align:left !important;min-width:0}
+html body .header-top-row:not(.has-scene) > .header-right-controls{grid-column:2;grid-row:1;align-self:center}
+html body #lld-league-name{box-sizing:border-box;text-align:left !important;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:clip}
+
+/* r71: Halloween player rows: no orange dashed border or left bar */
+html body.theme-season_halloween .player-row{border:1px solid var(--card-border) !important;border-left:1px solid var(--card-border) !important;border-radius:10px !important}
+@media (hover: hover){html body.theme-season_halloween .player-row:hover{border-color:var(--card-border) !important}}
