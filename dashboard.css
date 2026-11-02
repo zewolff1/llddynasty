@@ -4930,3 +4930,14 @@ html body #lld-league-name{box-sizing:border-box;text-align:left !important;max-
 /* r71: Halloween player rows: no orange dashed border or left bar */
 html body.theme-season_halloween .player-row{border:1px solid var(--card-border) !important;border-left:1px solid var(--card-border) !important;border-radius:10px !important}
 @media (hover: hover){html body.theme-season_halloween .player-row:hover{border-color:var(--card-border) !important}}
+/* ===== text-size fix (beta): subtabs scroll instead of cutting; lineup rows stay compact ===== */
+@media screen and (max-width:600px){
+  .sub-tabs-container{overflow-x:auto !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .sub-tabs-container::-webkit-scrollbar{display:none}
+  .sub-tabs-group{justify-content:flex-start !important;overflow-x:auto !important;width:max-content !important;min-width:100% !important;scrollbar-width:none}
+  .sub-tabs-group .sub-tab-btn{flex:0 0 auto !important;overflow:visible !important;text-overflow:clip !important;padding:8px 12px !important;font-size:calc(9px * min(var(--ts,1),1.15)) !important}
+  #slots-starters .player-row,#slots-bench .player-row{padding:4px 6px !important;gap:5px !important;min-height:0 !important}
+  #slots-starters .player-row .full-name,#slots-starters .player-row .short-name,#slots-bench .player-row .full-name,#slots-bench .player-row .short-name{font-size:calc(14px * min(var(--ts,1),1.12)) !important;line-height:1.15 !important}
+  #slots-starters .player-row .inline-pos-badge,#slots-bench .player-row .inline-pos-badge{font-size:calc(11px * min(var(--ts,1),1.12)) !important}
+  #slots-starters .matchup-stack,#slots-bench .matchup-stack{font-size:calc(10px * min(var(--ts,1),1.12)) !important;padding:2px 6px !important}
+}
