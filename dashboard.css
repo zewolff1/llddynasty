@@ -4936,6 +4936,8 @@ html body.theme-season_halloween .player-row{border:1px solid var(--card-border)
   .sub-tabs-container::-webkit-scrollbar{display:none}
   .sub-tabs-group{justify-content:flex-start !important;overflow-x:auto !important;width:max-content !important;min-width:100% !important;scrollbar-width:none}
   .sub-tabs-group .sub-tab-btn{flex:0 0 auto !important;overflow:visible !important;text-overflow:clip !important;padding:8px 12px !important;font-size:calc(9px * min(var(--ts,1),1.15)) !important}
+  /* center the tabs when they fit, still scroll when they don't */
+  .sub-tabs-group::before,.sub-tabs-group::after{content:"";flex:0 0 0;margin:auto}
   #slots-starters .player-row,#slots-bench .player-row{padding:4px 6px !important;gap:5px !important;min-height:0 !important}
   #slots-starters .player-row .full-name,#slots-starters .player-row .short-name,#slots-bench .player-row .full-name,#slots-bench .player-row .short-name{font-size:calc(14px * min(var(--ts,1),1.12)) !important;line-height:1.15 !important}
   #slots-starters .player-row .inline-pos-badge,#slots-bench .player-row .inline-pos-badge{font-size:calc(11px * min(var(--ts,1),1.12)) !important}
