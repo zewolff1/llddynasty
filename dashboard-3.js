@@ -22331,11 +22331,24 @@ function lldMyBlockTab() {
     if (fid !== '0000' && fid !== '0001') return;
     $('#subtabs-team .sub-tab-btn').each(function () {
         if (this.dataset.mtb || $(this).text().trim().toLowerCase() !== 'trade') return;
-        this.dataset.mtb = '1'; this.textContent = 'My Trade Block'; this.removeAttribute('onclick');
+        this.dataset.mtb = '1'; this.textContent = 'My Trade Block'; this.removeAttribute('onclick'); this.onclick = null;
     });
 }
-$(document).on('click', '#subtabs-team .sub-tab-btn[data-mtb]', function (e) {
-    e.preventDefault(); e.stopImmediatePropagation();
-    window._tbX = { view: 'mine' }; lldGoLeagueSub('Trades');
+function lldMyBlockGo() {
+    window._tbX = { view: 'mine' };
+    const lb = $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').indexOf('tab-league') > -1; })[0];
+    if (lb) lb.click();
+    setTimeout(function () {
+        const tb = $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Trades'; })[0];
+        if (tb) tb.click(); else if (typeof loadTradeBlockTab === 'function') loadTradeBlockTab();
+    }, 350);
+}
+// capture phase on document so nothing else can swallow the click
+['click'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+        const b = e.target.closest && e.target.closest('#subtabs-team .sub-tab-btn[data-mtb]');
+        if (!b) return;
+        e.preventDefault(); e.stopImmediatePropagation(); lldMyBlockGo();
+    }, true);
 });
 setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
