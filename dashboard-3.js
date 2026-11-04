@@ -22324,3 +22324,18 @@ function lldStatsEnsureTabs() {
 }
 
 }); });
+
+/* ===== beta: Team sub-tab "Trade" becomes "My Trade Block" (franchises 0000 / 0001 only) ===== */
+function lldMyBlockTab() {
+    const fid = String(typeof myFid !== 'undefined' ? myFid : '').padStart(4, '0');
+    if (fid !== '0000' && fid !== '0001') return;
+    $('#subtabs-team .sub-tab-btn').each(function () {
+        if (this.dataset.mtb || $(this).text().trim().toLowerCase() !== 'trade') return;
+        this.dataset.mtb = '1'; this.textContent = 'My Trade Block'; this.removeAttribute('onclick');
+    });
+}
+$(document).on('click', '#subtabs-team .sub-tab-btn[data-mtb]', function (e) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    window._tbX = { view: 'mine' }; lldGoLeagueSub('Trades');
+});
+setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
