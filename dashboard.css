@@ -5007,3 +5007,17 @@ body.lld-sh2 #lld-sh .bk.left .kv b{font-size:calc(15px * var(--ts,1))}
 .tb-mkhead .tb-mklg{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none}
 .tb-mkhead .tb-mkn{font-size:calc(18px * var(--ts,1));font-weight:900}
 .tb-exp{display:inline-block;padding:1px 7px;border-radius:999px;border:1px solid #f59e0b;color:#fbbf24;font-size:calc(9.5px * var(--ts,1));font-weight:900;letter-spacing:.06em;vertical-align:middle}
+
+/* ===== beta (0000 / 0001): league market with every player (logo filter, sort, team line) ===== */
+.tb-logos{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}.tb-logos::-webkit-scrollbar{display:none}
+.tb-lgb{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;cursor:pointer;width:54px;padding:0}
+.tb-lgb .o{width:46px;height:46px;border-radius:50%;background:var(--card-bg);border:2px solid var(--card-border);display:grid;place-items:center;overflow:hidden;font-size:calc(12px * var(--ts,1));font-weight:900;color:#fff;opacity:.5}
+.tb-lgb .o img{width:100%;height:100%;object-fit:cover}
+.tb-lgb.on .o{opacity:1;border-color:#2dd4bf;box-shadow:0 0 0 3px rgba(45,212,191,.3)}
+.tb-lgb.on{color:#fff}
+.tb-sec{display:flex;align-items:center;gap:8px;margin:6px 2px 0;font-size:calc(11px * var(--ts,1));letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:800}
+.tb-sec i{width:10px;height:10px;border-radius:50%;background:var(--c)}.tb-sec b{margin-left:auto;letter-spacing:0;font-weight:700}
+.tb-tl{display:flex;align-items:center;gap:8px;padding:6px 9px;margin-bottom:6px;background:rgba(0,0,0,.25);border-radius:10px;font-size:calc(12px * var(--ts,1));font-weight:800;color:#cbd5e1}
+.tb-tl img{width:20px;height:20px;border-radius:50%;object-fit:cover;flex:none}
+.tb-tl em{margin-left:auto;font-style:normal;color:var(--text-dim);white-space:nowrap;font-weight:700}.tb-tl em b{color:#2dd4bf}
+.tb-more{width:100%;padding:12px;border-radius:14px;border:1px solid var(--card-border);background:var(--card-bg);color:#fff;font-size:calc(13px * var(--ts,1));font-weight:800;cursor:pointer}
