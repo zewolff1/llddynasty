@@ -21783,7 +21783,7 @@ async function lldTbData() {
         let fit = null, oth = null; try { fit = S.fit(pid); } catch (e) { } try { oth = S.startsForOthers(pid); } catch (e) { }
         const hit = c.sal && c.gu != null && c.yrs ? c.sal * (c.gu / 100) * c.yrs : null;
         return { pid, name: lldTbShort(pi.name || pid), pos, team: pi.team || '', rk: rk ? pos + '#' + rk : pos + '#NR', dyn: (dyn[grp] && dyn[grp][pid]) ? grp + '#' + dyn[grp][pid] : 'NR', sal: c.sal || null, yrs: c.yrs, gu: c.gu, hit, own: c.own || '',
-            pct: oth && oth.of ? Math.round(oth.teams / oth.of * 100) : null, wk: fit ? (fit.rn ? fit.rosStart + '/' + fit.rn : fit.inOpt + '/' + fit.n) : null };
+            pct: oth && oth.of ? Math.round(oth.teams / oth.of * 100) : null, wk: fit ? (fit.rn ? fit.rosStart + '/' + fit.rn : fit.inOpt + '/' + fit.n) : null, fw: fit ? (fit.rn ? fit.rosStart : fit.inOpt) : null, fn: fit ? (fit.rn || fit.n) : null };
     };
     // snapshot
     let snap = null;
@@ -21817,7 +21817,7 @@ function lldTbRow(x, st, asks, edit, open, extra) {
     let h = `<div class="tb-row" data-pid="${x.pid}" style="--c:${c}"><div class="tb-rr">${badge}<div class="tb-sep"></div><img class="tb-hs ${trg}" style="cursor:pointer" src="https://www.mflscripts.com/playerImages_80x107/mfl_${x.pid}.png" onerror="this.style.visibility='hidden'">`
         + `<div class="tb-mid ${trg}" style="cursor:pointer"><div class="tb-nm"><span class="tb-n">${e(x.name)}</span><span style="color:${posC};font-size:calc(12px * var(--ts,1));font-weight:900">${e(x.pos)}</span>${x.team ? `<img class="tb-nfl" src="${e(typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(x.team) : '')}" onerror="this.style.display='none'">` : ''}</div>${wants}</div>`
         + `<div class="tb-rt"><b>${e(x.rk)}</b><span>POS RANK</span></div></div>`
-        + `<div class="tb-info"><div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'}${(lldDev() && x.yrs === 1) ? ' <span class="tb-exp">EXPIRING</span>' : ''} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
+        + `<div class="tb-info">${x.tl || ''}<div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'}${(lldDev() && x.yrs === 1) ? ' <span class="tb-exp">EXPIRING</span>' : ''} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
         + lldTbTiles(x) + `</div>`;
     if (edit && open) h += `<div class="tb-pick">${Object.keys(LLDTB_ST).map(k => `<button type="button" data-tbset="${k}" data-pid="${x.pid}" style="--c:${LLDTB_ST[k][1]}" class="${st === k ? 'on' : ''}">${LLDTB_ST[k][0]}</button>`).join('')}${st ? `<button type="button" class="tb-clear" data-tbset="" data-pid="${x.pid}">Clear label</button>` : ''}</div>`;
     if (edit && st === 'S') {
@@ -21847,10 +21847,9 @@ function lldTbDraw() {
         if (!list.length) h += '<div class="tb-sub" style="text-align:center;padding:16px">No players here.</div>';
         h += `<div class="tb-save ${X.dirty ? 'show' : ''}"><span>${X.saving ? 'Saving…' : 'Unsaved changes'}</span><button type="button" class="tb-savebtn" ${X.saving ? 'disabled' : ''}>Save</button></div>`;
     } else {
-        if (lldDev()) h += lldTbMktSel(D, X);
         const fids = Object.keys(leagueFranchises).filter(f => f).sort();
         let any = false;
-        if (lldDev() && X.mk && X.mk.team) { h += lldTbMktTeam(D, X); } else {
+        if (lldDev()) { h += lldTbMktAll(D, X); } else {
         fids.forEach(f => {
             if (f === D.me) return; // the league market is other teams only
             const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => f === D.me ? /^[SWUN]/.test(lab[id]) : /^S/.test(lab[id]));
@@ -21869,6 +21868,53 @@ function lldTbDraw() {
     lldTbMain().html(h + '</div>');
     try { reapplyAllTeamStyles(); } catch (e) { }
 }
+// ----- beta (0000 / 0001): the league market shows every player in the league -----
+const LLDTB_SO = { S: 0, W: 1, U: 2, N: 3, '': 4 };
+function lldTbMktBuild(D) {
+    const S = D.S, out = [], e = lldChatEsc;
+    Object.keys(leagueFranchises).filter(f => f && f !== D.me).sort().forEach(f => {
+        const lab = lldTbLabels(D, f), rc = D.recOf(f) || {}, w = parseInt(String(rc.rec || '').split('-')[0], 10) || 0, po = rc.po == null ? 0 : rc.po;
+        const tl = `<div class="tb-tl"><img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${f}.png" onerror="this.style.display='none'"><span data-team-style="${f}">${e(leagueFranchises[f] || f)}</span><em>${e(rc.rec || '')}${rc.rec ? ' · ' : ''}<b>${po}%</b> playoffs</em></div>`;
+        (D.rosters[f] || []).forEach(id => {
+            const x = Object.assign({}, D.info(id)); let them = null; try { them = S.wkStart(id, f); } catch (err) { }
+            const l = lldTbParseLabel(lab[id]);
+            x.them = them == null ? '–' : them; x.thn = S.W; x.f = f; x.own = f; x.st = lab[id] ? l.s : ''; x.asks = l.a; x.rw = w; x.po = po; x.tl = tl;
+            x.fy = x.fn ? x.fw / x.fn : 0; x.ty = (them != null && S.W) ? them / S.W : 0;
+            out.push(x);
+        });
+    });
+    return out;
+}
+function lldTbMktKey(x, sort) {
+    const so = LLDTB_SO[x.st] != null ? LLDTB_SO[x.st] : 4;
+    return sort === 'status' ? [so, -x.fy] : sort === 'you' ? [-x.fy, -(x.fy - x.ty)] : sort === 'diff' ? [-(x.fy - x.ty), -x.fy] : sort === 'rec' ? [-x.rw, -x.fy] : [-x.po, -x.fy];
+}
+function lldTbMktAll(D, X) {
+    X.mk = Object.assign({ sel: [], sort: 'status', dir: 1, pos: 'ALL', lim: 30 }, X.mk || {});
+    if (!X.mkAll) {
+        setTimeout(function () { try { if (!X.mkAll) X.mkAll = lldTbMktBuild(D); } catch (err) { console.warn('market', err); X.mkAll = []; } if (window._tbX === X && X.view === 'mkt') lldTbDraw(); }, 40);
+        return '<div class="tb-sub" style="text-align:center;padding:30px">Building the league market…</div>';
+    }
+    const M = X.mk, e = lldChatEsc, fids = Object.keys(leagueFranchises).filter(f => f && f !== D.me).sort();
+    const SRT = [['status', 'Trade status'], ['you', 'Weeks for you'], ['diff', 'Start more for you'], ['rec', 'Team record'], ['po', 'Playoff %']];
+    let h = `<div class="tb-logos"><button type="button" class="tb-lgb all ${M.sel.length ? '' : 'on'}" data-mkall="1"><span class="o">ALL</span>All teams</button>` + fids.map(f => `<button type="button" class="tb-lgb ${M.sel.indexOf(f) >= 0 ? 'on' : ''}" data-mklg="${f}"><span class="o"><img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${f}.png" onerror="this.style.display='none'"></span>${e(String(leagueFranchises[f] || f).split(' ').pop())}</button>`).join('') + '</div>';
+    h += `<div class="tb-sub" style="margin:2px 2px 4px;letter-spacing:.12em;text-transform:uppercase;font-weight:800">Sort by</div><div class="tb-fl">${SRT.map(([k, n]) => `<button type="button" data-mksrt="${k}" class="${M.sort === k ? 'on' : ''}">${n}${M.sort === k ? (M.dir > 0 ? ' ↓' : ' ↑') : ''}</button>`).join('')}</div>`;
+    h += `<div class="tb-fl">${['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'].map(p => `<button type="button" data-mkpos="${p}" class="${M.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
+    const L = X.mkAll.filter(x => (M.pos === 'ALL' || x.pos === M.pos) && (!M.sel.length || M.sel.indexOf(x.f) >= 0));
+    L.sort((a, b) => { const p = lldTbMktKey(a, M.sort), q = lldTbMktKey(b, M.sort); for (let i = 0; i < p.length; i++) { if (p[i] !== q[i]) return M.dir * (p[i] - q[i]); } return 0; });
+    let last = null;
+    L.slice(0, M.lim).forEach(x => {
+        if (M.sort === 'status' && x.st !== last) { last = x.st; const T = LLDTB_ST[x.st], n = L.filter(z => z.st === x.st).length; h += `<div class="tb-sec" style="--c:${T ? T[1] : '#64748b'}"><i></i>${T ? T[0] : 'Everyone else'}<b>${n}</b></div>`; }
+        h += lldTbRow(x, x.st, x.asks, false, false, '');
+    });
+    if (L.length > M.lim) h += `<button type="button" class="tb-more" data-mkmore="1">Show 30 more (${L.length - M.lim} left)</button>`;
+    if (!L.length) h += '<div class="tb-sub" style="text-align:center;padding:24px">Nobody matches.</div>';
+    return h;
+}
+$(document).on('click', '.tb [data-mkall]', function () { const X = window._tbX; if (!X || !X.mk) return; X.mk.sel = []; X.mk.lim = 30; lldTbDraw(); });
+$(document).on('click', '.tb [data-mklg]', function () { const X = window._tbX; if (!X || !X.mk) return; const f = this.dataset.mklg, i = X.mk.sel.indexOf(f); if (i >= 0) X.mk.sel.splice(i, 1); else X.mk.sel.push(f); X.mk.lim = 30; lldTbDraw(); });
+$(document).on('click', '.tb [data-mksrt]', function () { const X = window._tbX; if (!X || !X.mk) return; const k = this.dataset.mksrt; if (X.mk.sort === k) X.mk.dir = -X.mk.dir; else { X.mk.sort = k; X.mk.dir = 1; } X.mk.lim = 30; lldTbDraw(); });
+$(document).on('click', '.tb [data-mkmore]', function () { const X = window._tbX; if (!X || !X.mk) return; X.mk.lim += 30; lldTbDraw(); });
 // ===== beta (0000 / 0001): league market for every player on a team, plus the "teams he would start for" popup =====
 function lldTbMktSel(D, X) {
     const cur = (X.mk && X.mk.team) || '', e = lldChatEsc;
