@@ -13557,6 +13557,7 @@ function lldTuneApply() {
 // ===== SLIM BLOCKS TEAM HEADER (beta switch "shb", beta franchises only) =====
 // Name row (logo, team, ▼) with a few small blocks under it. Lineup: Record + This week. Contracts: Cap + Expiring + Dead money.
 const LLD_SH = { lg: 30, nm: 17, l2: 11, mn: 16, lbs: 8, pad: 8, gap: 8, rad: 18, bpv: 6, bph: 6, brd: 10, bgp: 6, rg: 6, wLineup: [1, 1.6], wCon: [1.4, 1, 1] };
+function lldSh2On() { return false; } // the tighter beta header is switched off: the team header is back to the original slim blocks
 function lldShOn() { return lldBeta() && lldBv('shb') === '1'; }
 const lldShEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x]));
 const lldShM = v => '$' + (Math.round(v * 10) / 10).toFixed(1) + 'm';
@@ -13647,11 +13648,11 @@ function lldShBlocks(vf, sub) {
             else if (wk && !(window._lldShPv || {})[wk]) { (window._lldShPv = window._lldShPv || {})[wk] = 1; lldBuildPreview(parseInt(wk, 10)).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { }); }
             A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m" data-team-style="${opp}">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
         }
-        if (lldDev()) { // beta (0000 / 0001): trade block count as a third cell
+        if (lldSh2On()) { // beta (0000 / 0001): trade block count as a third cell
             const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
             A.push(`<div class="bk" data-b="tb"><i>Trade block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">on block</div></div>`); W.push(1);
         }
-    } else if (sub === 'my trade block' && lldDev()) {
+    } else if (sub === 'my trade block' && lldSh2On()) {
         const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
         A.push(`<div class="bk" data-b="tb"><i>On the block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">players</div></div>`); W.push(1);
         const cap2 = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), used2 = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
@@ -13676,7 +13677,7 @@ function lldShHtml() {
     const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
     const nm = lldShEsc(leagueFranchises[vf] || 'My Franchise'), logo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${vf}.png`;
     const sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
-    const blk = lldShBlocks(vf, sub), bar = (lldDev() && window._lldShBar != null) ? `<div class="s2bar"><i style="width:${Math.max(0, Math.min(100, window._lldShBar))}%"></i></div>` : '';
+    const blk = lldShBlocks(vf, sub), bar = (lldSh2On() && window._lldShBar != null) ? `<div class="s2bar"><i style="width:${Math.max(0, Math.min(100, window._lldShBar))}%"></i></div>` : '';
     return `<div class="th blk" style="${lldShCss().replace(/^#lld-sh\{|\}$/g, '')}"><div class="nrow"><button type="button" class="sh-sw"><img class="lg" src="${logo}" onerror="this.style.display='none'"><span class="nm">${nm} <span class="ch">▼</span></span></button>${sub === 'contracts' ? `<button type="button" class="yr" id="lld-sh-yr">${sy} ▼</button>` : ''}</div>${bar}${blk}</div>`;
 }
 function lldShRender() {
@@ -13685,7 +13686,7 @@ function lldShRender() {
     let el = $('#lld-sh'); if (!el.length) { el = $('<div id="lld-sh"></div>'); anchor.before(el); }
     const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
     try { el.html(lldShHtml()); } catch (e) { console.warn('sh', e); el.empty(); }
-    document.body.classList.add('lld-shb'); document.body.classList.toggle('lld-sh2', lldDev()); document.body.classList.remove('lld-sh-pend');
+    document.body.classList.add('lld-shb'); document.body.classList.toggle('lld-sh2', lldSh2On()); document.body.classList.remove('lld-sh-pend');
     try { if (typeof reapplyAllTeamStyles === 'function') reapplyAllTeamStyles(); } catch (e) { }
     lldShVis();
     if ((sub === 'contracts') && !window._lldShD && !window._lldShBusy) lldShLoad();
@@ -21943,6 +21944,7 @@ async function loadTradeBlockTab(where) {
         lldTbDraw();
     } catch (e) { console.warn('trade block', e); box.html('<div style="text-align:center;padding:30px;color:#ef4444">Could not load the trade block. <button type="button" class="tb-retry">Try again</button></div>'); }
 }
+window.loadTradeBlockTab = loadTradeBlockTab; window.lldShRender = lldShRender; // the Team tab button lives outside this closure
 $(document).on('click', '.tb-retry', function () { loadTradeBlockTab(window._tbX && window._tbX.where); });
 $(document).on('click', '.tb [data-tbview]', function () { window._tbX.view = this.dataset.tbview; lldTbDraw(); });
 $(document).on('click', '.tb [data-tbpos]', function () { window._tbX.pos = this.dataset.tbpos; lldTbDraw(); });
@@ -22474,7 +22476,8 @@ function lldMyBlockGo() {
     window._tbX = { view: 'mine', where: 'team' };
     $('#subtabs-team .sub-tab-btn').removeClass('active'); $('#subtabs-team .sub-tab-btn[data-mtb]').addClass('active');
     $('#player-rows-container').html('<div class="loading-indicator">Loading My Trade Block\u2026</div>');
-    loadTradeBlockTab('team'); try { lldShRender(); } catch (e) { }
+    try { window.loadTradeBlockTab('team'); } catch (e) { console.warn('my trade block', e); $('#player-rows-container').html('<div style="text-align:center;padding:30px;color:#ef4444">Could not open My Trade Block. Try again.</div>'); }
+    try { window.lldShRender && window.lldShRender(); } catch (e) { }
     return;
     const lb = $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').indexOf('tab-league') > -1; })[0];
     if (lb) lb.click();
