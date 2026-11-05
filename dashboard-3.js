@@ -21762,7 +21762,12 @@ $(document).on('click', '.tb [data-tirs]', function () {
     lldTiSaveSoon(); lldTbDraw(); lldTdRecount();
 });
 async function lldTbData() {
-    const S = await lldStatsLoad(), con = await lldTbContracts(), tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({}));
+    const pg = m => { try { $('.tb-loadmsg').text(m); } catch (e) { } };
+    pg('Loading stats\u2026'); const S = await lldStatsLoad();
+    pg('Loading contracts\u2026'); const con = await lldTbContracts();
+    pg('Loading trade labels\u2026'); const tb = await lldTbLoad();
+    pg('Loading trade block\u2026'); const baits = await lldTbBaits().catch(() => ({}));
+    pg('Building the cards\u2026');
     const D = S.D, me = String(myFid).padStart(4, '0');
     // season-points rank within position
     const tot = {}, byPos = {};
@@ -21935,14 +21940,14 @@ async function loadTradeBlockTab(where) {
     where = typeof where === 'string' ? where : '';
     window._tbX = Object.assign({}, window._tbX || {}, { where });
     if (where === 'team') $('#lld-tr-bar').remove(); else lldTrBar('block');
-    const box = lldTbMain().html('<div style="text-align:center; padding:40px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase;">Loading trade block…</div>');
+    const box = lldTbMain().html('<div style="text-align:center; padding:40px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase;">Loading trade block…<div class="tb-loadmsg" style="margin-top:8px;font-size:calc(11px * var(--ts,1));opacity:.7;text-transform:none;letter-spacing:0;font-weight:700"></div></div>');
     try {
-        const d = await lldTbData(), mine = d.mine.slice();
+        const d = await Promise.race([lldTbData(), new Promise((_, rj) => setTimeout(() => rj(new Error('Timed out after 90 seconds')), 90000))]), mine = d.mine.slice();
         const lab = lldTbLabels(d, d.me), draftP = {}; mine.forEach(id => { if (lab[id]) draftP[id] = lab[id]; });
         Object.keys(lab).forEach(id => { if (mine.indexOf(id) < 0) return; });
         window._tbX = { d, where, view: (window._tbX && window._tbX.view) || 'mine', pos: 'ALL', open: null, dirty: false, saving: false, mineInfo: mine.map(id => d.info(id)), draft: { m: (d.tb.by[d.me] || {}).m || '', p: draftP } };
         lldTbDraw();
-    } catch (e) { console.warn('trade block', e); box.html('<div style="text-align:center;padding:30px;color:#ef4444">Could not load the trade block. <button type="button" class="tb-retry">Try again</button></div>'); }
+    } catch (e) { console.warn('trade block', e); box.html('<div style="text-align:center;padding:30px;color:#ef4444">Could not load the trade block' + (e && e.message ? ' (' + String(e.message).replace(/[<>&]/g, '') + ')' : '') + '. <button type="button" class="tb-retry">Try again</button></div>'); }
 }
 window.loadTradeBlockTab = loadTradeBlockTab; window.lldShRender = lldShRender; // the Team tab button lives outside this closure
 $(document).on('click', '.tb-retry', function () { loadTradeBlockTab(window._tbX && window._tbX.where); });
@@ -22455,8 +22460,8 @@ function lldStatsEnsureTabs() {
     [['#subtabs-team', "openSubTab(event,'stats')"], ['#subtabs-league', "openLeagueSubTab(event,'league-stats')"]].forEach(([sel, oc]) => {
         const bar = $(sel); if (!bar.length) return; done++;
         let b = bar.find('.sub-tab-btn').filter(function () { return $(this).text().trim().toLowerCase() === 'stats'; }).first();
-        if (!b.length) { const last = bar.find('.sub-tab-btn').last(); if (!last.length) return; b = last.clone().removeClass('active').text('Stats').insertAfter(last); }
-        b.attr('onclick', oc).css('display', '');
+        if (!b.length) { const last = bar.find('.sub-tab-btn').last(); if (!last.length) return; b = last.clone().removeClass('active').removeAttr('data-mtb').text('Stats').insertAfter(last); }
+        b.removeAttr('data-mtb').attr('onclick', oc).css('display', '');
     });
     return done;
 }
@@ -22468,13 +22473,14 @@ function lldMyBlockTab() {
     const fid = String(typeof myFid !== 'undefined' ? myFid : '').padStart(4, '0');
     if (fid !== '0000' && fid !== '0001') return;
     $('#subtabs-team .sub-tab-btn').each(function () {
+        if (this.dataset.mtb && $(this).text().trim().toLowerCase() !== 'my trade block') delete this.dataset.mtb; // a cloned Stats button must not keep the marker
         if (this.dataset.mtb || $(this).text().trim().toLowerCase() !== 'trade') return;
         this.dataset.mtb = '1'; this.textContent = 'My Trade Block'; this.removeAttribute('onclick'); this.onclick = null;
     });
 }
 function lldMyBlockGo() {
     window._tbX = { view: 'mine', where: 'team' };
-    $('#subtabs-team .sub-tab-btn').removeClass('active'); $('#subtabs-team .sub-tab-btn[data-mtb]').addClass('active');
+    $('#subtabs-team .sub-tab-btn').removeClass('active'); $('#subtabs-team .sub-tab-btn[data-mtb]').filter(function () { return $(this).text().trim().toLowerCase() === 'my trade block'; }).addClass('active');
     $('#player-rows-container').html('<div class="loading-indicator">Loading My Trade Block\u2026</div>');
     try { window.loadTradeBlockTab('team'); } catch (e) { console.warn('my trade block', e); $('#player-rows-container').html('<div style="text-align:center;padding:30px;color:#ef4444">Could not open My Trade Block. Try again.</div>'); }
     try { window.lldShRender && window.lldShRender(); } catch (e) { }
@@ -22490,7 +22496,7 @@ function lldMyBlockGo() {
 ['click'].forEach(function (ev) {
     document.addEventListener(ev, function (e) {
         const b = e.target.closest && e.target.closest('#subtabs-team .sub-tab-btn[data-mtb]');
-        if (!b) return;
+        if (!b || $(b).text().trim().toLowerCase() !== 'my trade block') return;
         e.preventDefault(); e.stopImmediatePropagation(); lldMyBlockGo();
     }, true);
 });
