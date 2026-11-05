@@ -13648,6 +13648,19 @@ function lldShCss() {
     const c = LLD_SH;
     return `#lld-sh{--lg:${c.lg}px;--nm:${c.nm}px;--l2:${c.l2}px;--mn:${c.mn}px;--lbs:${c.lbs}px;--pad:${c.pad}px;--gap:${c.gap}px;--rg:${c.rg}px;--bg:${c.bgp}px;--bpv:${c.bpv}px;--bph:${c.bph}px;--brd:${c.brd}px;--rad:${c.rad}px}`;
 }
+// record, playoff chance and dynasty power rank for the header (beta); loads in the background and redraws the header when ready
+function lldShStats(vf) {
+    const out = { rec: null, po: null, dyn: null, n: null }, X = window._lldSX && window._lldSX.S;
+    try {
+        if (X) {
+            const i = X.F.indexOf(vf);
+            if (i >= 0 && X.W) { out.rec = X.wins[i] + '-' + (X.gp[i] - X.wins[i]); out.po = X.base[i].po; }
+            if (X._dynPow) { const k = X._dynPow.findIndex(z => z.f === vf); if (k >= 0) { out.dyn = k + 1; out.n = X._dynPow.length; } }
+            else if (!window._lldDynKick && typeof window.lldDynPower === 'function') { window._lldDynKick = true; window.lldDynPower(X).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { window._lldDynKick = false; }); }
+        } else if (!window._lldSXkick && typeof window.lldStatsLoad === 'function') { window._lldSXkick = true; window.lldStatsLoad().then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { window._lldSXkick = false; }); }
+    } catch (e) { }
+    return out;
+}
 function lldShBlocks(vf, sub) {
     window._lldShBar = null;
     const kv = (l, v) => `<div class="kv"><i>${l}</i><b>${v}</b></div>`;
@@ -13663,7 +13676,8 @@ function lldShBlocks(vf, sub) {
             if (X && ix >= 0 && X.W) po = X.base[ix].po;
             else if (!window._lldSXkick && typeof window.lldStatsLoad === 'function') { window._lldSXkick = true; window.lldStatsLoad().then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { window._lldSXkick = false; }); }
         } catch (e) { }
-        const sm = [s.rank ? `<b>${lldShOrd(s.rank)}</b>` : '', po != null ? `<b>${po}%</b> playoffs` : ''].filter(Boolean).join(' · ');
+        const dyH = lldDev() ? lldShStats(vf).dyn : null;
+        const sm = [s.rank ? `<b>${lldShOrd(s.rank)}</b>` : '', po != null ? `<b>${po}%</b> playoffs` : '', dyH ? `Dyn <b>#${dyH}</b>` : ''].filter(Boolean).join(' · ');
         A.push(`<div class="bk" data-b="rec"><i>${isOff ? "'" + String(parseInt(year) - 1).slice(-2) : 'Record'}</i><div class="m">${lldShEsc(record || '—')}</div>${sm ? `<div class="s2">${sm}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[0]);
         const nx = window._nextOpp?.[vf], tw = window._tickWeek;
         let opp = null, wk = '';
@@ -13679,6 +13693,13 @@ function lldShBlocks(vf, sub) {
             const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
             A.push(`<div class="bk" data-b="tb"><i>Trade block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">on block</div></div>`); W.push(1);
         }
+    } else if (sub === 'my trade block' && lldDev()) {
+        const st = lldShStats(vf), cap3 = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy3 = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
+        let used3 = null; try { if (d) { const T3 = lldShTotals(d, sy3); if (T3[vf] != null) used3 = T3[vf]; } else lldShLoad(); } catch (e) { }
+        if (used3 == null) used3 = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
+        A.push(`<div class="bk" data-b="rec"><i>Record</i><div class="m">${st.rec || '\u2014'}</div><div class="s2">${st.po != null ? `<b>${st.po}%</b> playoffs` : ''}</div></div>`); W.push(1);
+        A.push(`<div class="bk" data-b="cap"><i>Cap room</i><div class="m">${cap3 && used3 != null ? lldShM(cap3 - used3) : '\u2014'}</div><div class="s2">${cap3 && used3 != null ? (used3 / cap3 * 100).toFixed(1) + '% used' : ''}</div></div>`); W.push(1);
+        A.push(`<div class="bk" data-b="dyn"><i>Dynasty</i><div class="m">${st.dyn ? '#' + st.dyn : '\u2014'}</div><div class="s2">${st.n ? 'of ' + st.n + ' teams' : ''}</div></div>`); W.push(1);
     } else if (sub === 'my trade block' && lldSh2On()) {
         const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
         A.push(`<div class="bk" data-b="tb"><i>On the block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">players</div></div>`); W.push(1);
@@ -13772,6 +13793,7 @@ function lldShShow(b) {
 $(document).on('click', '#lld-sh .pv, #lld-sh .bk[data-b="wk"]', function (e) { e.stopPropagation(); $('#lld-hdr-pv').first().trigger('click'); });
 $(document).on('click', '#lld-sh .bk[data-b="tb"]', function () { lldMyBlockGo(); });
 $(document).on('click', '#lld-sh .bk[data-b="rec"]', function () { lldGoLeagueSub('Standings'); });
+$(document).on('click', '#lld-sh .bk[data-b="dyn"]', function () { if (typeof window.lldDpOpen === 'function') window.lldDpOpen(); });
 $(document).on('click', '#lld-sh .bk[data-b="cap"], #lld-sh .bk[data-b="exp"], #lld-sh .bk[data-b="dead"]', function () { if (this.dataset.b === 'exp') window._lldShPop = { tab: 'mine', pos: 'ALL' }; lldShShow(this.dataset.b); });
 $(document).on('click', '#lld-sh-pop .ptab', function () { window._lldShPop.tab = this.dataset.t; lldShShow('exp'); });
 $(document).on('click', '#lld-sh-pop .pf', function () { window._lldShPop.pos = this.dataset.p; lldShShow('exp'); });
@@ -21855,15 +21877,41 @@ function lldTbRow(x, st, asks, edit, open, extra) {
     return h + (extra || '') + '</div>';
 }
 function lldTbMain() { return (window._tbX && window._tbX.where === 'team') ? $('#player-rows-container') : $('#league-content-container'); }
+// beta (0000 / 0001): the trade deadline, read from the league calendar
+async function lldTbDeadline() {
+    if (window._lldTradeDl !== undefined && window._lldTradeDl !== 'busy') return window._lldTradeDl;
+    if (window._lldTradeDl === 'busy') return null;
+    window._lldTradeDl = 'busy';
+    const isDl = ev => /trad(e|ing)/i.test(ev.text) && /(deadline|ends?|clos|lock)/i.test(ev.text);
+    let evs = [];
+    try {
+        const now = new Date(), jobs = [];
+        for (let k = 0; k < 8; k++) { const d = new Date(now.getFullYear(), now.getMonth() + k, 1); jobs.push({ m: d.getMonth(), y: d.getFullYear() }); }
+        const res = await Promise.all(jobs.map(j => fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=123&MONTH=${j.m}&YEAR=${j.y}`, { credentials: 'include' }).then(r => r.text()).then(h => ({ j, h })).catch(() => null)));
+        res.forEach(r => { if (!r) return; const doc = new DOMParser().parseFromString(r.h, 'text/html'); doc.querySelectorAll('td[valign="top"]').forEach(cell => { const de = cell.querySelector('.calendarday'); if (!de) return; const dn = parseInt(de.textContent.trim()); if (isNaN(dn)) return; cell.querySelectorAll('li').forEach(li => { const text = li.textContent.trim(); if (text) evs.push({ date: new Date(r.j.y, r.j.m, dn), text, cls: li.className || '' }); }); }); });
+    } catch (e) { console.warn('trade deadline', e); }
+    const hit = evs.filter(isDl).sort((a, b) => a.date - b.date), today = new Date(); today.setHours(0, 0, 0, 0);
+    const nxt = hit.find(ev => ev.date >= today) || hit[hit.length - 1] || null;
+    window._lldTradeDl = nxt ? { date: nxt.date, text: nxt.text } : null;
+    return window._lldTradeDl;
+}
+function lldTbDeadlineFill() {
+    lldTbDeadline().then(dl => {
+        const el = $('.tb-dl'); if (!el.length || !dl) return;
+        const today = new Date(); today.setHours(0, 0, 0, 0); const days = Math.round((dl.date - today) / 864e5), ds = dl.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const left = days > 1 ? days + ' days left' : days === 1 ? 'Tomorrow' : days === 0 ? 'Today' : 'Passed';
+        el.html(`<span>Trade deadline</span><b>${lldChatEsc(ds)}</b><em class="${days <= 3 ? 'hot' : ''}">${left}</em>`).show();
+    }).catch(() => { });
+}
 function lldTbDraw() {
     const X = window._tbX; if (!X) return;
     const e = lldChatEsc, D = X.d, dr = X.draft;
     const head = `<div class="tb-tabs"><button type="button" data-tbview="mine" class="${X.view === 'mine' ? 'on' : ''}">My players</button><button type="button" data-tbview="mkt" class="${X.view === 'mkt' ? 'on' : ''}">League market</button></div>`;
-    let h = '<div class="tb">' + head;
+    let h = '<div class="tb">' + (lldDev() ? '<div class="tb-dl" style="display:none"></div>' : '') + head;
     window._lldTbMe = D.me;
     if (X.view === 'mine') {
         const sn = D.snap;
-        if (sn) h += `<div class="tb-snap"><div class="tb-sh"><span data-team-style="${D.me}">${e(leagueFranchises[D.me] || 'My team')}</span></div><div class="tb-sg"><div><b>${e(sn.rec)}</b><span>RECORD</span></div><div><b>${sn.rank}</b><span>RANK</span></div><div><b>${(sn.fin || 0).toFixed(1)}</b><span>PROJ. FINISH</span></div><div><b class="g">${sn.po}%</b><span>PLAYOFFS</span></div></div><div class="tb-pb"><i style="width:${Math.max(2, sn.po)}%"></i></div><div class="tb-sub">Playoff chance simulates the rest of the schedule from projected scores. It is an estimate.</div></div>`;
+        if (sn && !lldDev()) h += `<div class="tb-snap"><div class="tb-sh"><span data-team-style="${D.me}">${e(leagueFranchises[D.me] || 'My team')}</span></div><div class="tb-sg"><div><b>${e(sn.rec)}</b><span>RECORD</span></div><div><b>${sn.rank}</b><span>RANK</span></div><div><b>${(sn.fin || 0).toFixed(1)}</b><span>PROJ. FINISH</span></div><div><b class="g">${sn.po}%</b><span>PLAYOFFS</span></div></div><div class="tb-pb"><i style="width:${Math.max(2, sn.po)}%"></i></div><div class="tb-sub">Playoff chance simulates the rest of the schedule from projected scores. It is an estimate.</div></div>`;
         h += `<div class="tb-out"><h4>Your team outlook</h4><div class="tb-mseg">${Object.keys(LLDTB_MODES).map(k => `<button type="button" data-tbmode="${k}" style="--c:${LLDTB_MODES[k][2]}" class="${dr.m === k ? 'on' : ''}"><b>${LLDTB_MODES[k][0]}</b><span>${LLDTB_MODES[k][1]}</span></button>`).join('')}</div></div>`;
         h += `<div class="tb-legend">${Object.keys(LLDTB_ST).map(k => `<span><i style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</span>`).join('')}</div>`;
         const pos = ['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'];
@@ -21893,6 +21941,7 @@ function lldTbDraw() {
         }
     }
     lldTbMain().html(h + '</div>');
+    if (lldDev()) lldTbDeadlineFill();
     try { reapplyAllTeamStyles(); } catch (e) { }
 }
 // ----- beta (0000 / 0001): the league market shows every player in the league -----
@@ -21962,7 +22011,8 @@ async function lldDynPower(S) {
     });
     out.sort((a, b) => a.score - b.score); S._dynPow = out; return out;
 }
-function lldHcOn() { return lldDev(); }
+function lldHcOn() { return false; } // the stat strip moved into the real header blocks
+window.lldDynPower = lldDynPower; window.lldDpOpen = lldDpOpen;
 async function lldHcRender() {
     if (!lldHcOn()) { $('#lld-hc').remove(); return; }
     const anchor = $('#active-team-switcher-btn'); if (!anchor.length) return;
