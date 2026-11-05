@@ -4010,16 +4010,17 @@ window._lldMm = { tab: 'gen', sec: null, groups: [] };
 function lldMmDraw() {
     const M = window._lldMm, el = $('#lld-mm2'), e = lldChatEsc; if (!el.length) return;
     const isC = g => /commish|commissioner|setup/i.test(g.label), gen = M.groups.filter(g => !isC(g)), com = M.groups.filter(isC), list = M.tab === 'com' && com.length ? com : gen;
-    let h = `<button type="button" class="mm2-x" data-mm2x="1">\u2715</button><h2>MFL Menu</h2><div class="mm2-sub">${e(leagueFranchises[String(fid).padStart(4, '0')] || 'My Franchise')}</div>`;
+    const team = e(leagueFranchises[String(fid).padStart(4, '0')] || 'My Franchise');
+    let h = `<div class="mm2-sh"><div class="mm2-hd"><div><b>MFL Menu</b><span>${team}</span></div><button type="button" class="mm2-x" data-mm2x="1">✕</button></div><div class="mm2-bd">`;
     if (M.sec == null) {
         if (com.length) h += `<div class="mm2-seg"><button type="button" data-mm2tab="gen" class="${list === gen ? 'on' : ''}">General</button><button type="button" data-mm2tab="com" class="${list === com ? 'on' : ''}">Commish</button></div>`;
-        h += '<div class="mm2-grid">' + list.map(g => { const i = M.groups.indexOf(g), d = LLD_MM_DESC[g.label.toLowerCase()] || (g.links ? g.links.length + ' links' : 'Open'); return g.links ? `<button type="button" class="mm2-t" data-mm2s="${i}"><b>${e(g.label)}</b><span>${e(d)}</span></button>` : `<a class="mm2-t" href="${e(g.href)}"><b>${e(g.label)}</b><span>${e(d)}</span></a>`; }).join('') + '</div>';
-        if (!list.length) h += '<div class="mm2-sub" style="font-size:15px">MFL\'s menu was not found on this page.</div>';
+        h += '<div class="mm2-grid">' + list.map(g => { const i = M.groups.indexOf(g), n = g.links ? g.links.length : 0, d = LLD_MM_DESC[g.label.toLowerCase()] || (g.links ? n + (n === 1 ? ' link' : ' links') : 'Open'); return g.links ? `<button type="button" class="mm2-t" data-mm2s="${i}"><b>${e(g.label)}</b><span>${e(d)}</span></button>` : `<a class="mm2-t" href="${e(g.href)}"><b>${e(g.label)}</b><span>${e(d)}</span></a>`; }).join('') + '</div>';
+        if (!list.length) h += '<div class="mm2-none">MFL\'s menu was not found on this page.</div>';
     } else {
         const g = M.groups[M.sec];
-        h += `<button type="button" class="mm2-bk" data-mm2b="1">\u2039 All sections</button><div class="mm2-sub" style="margin-bottom:10px">${e(g.label)}</div><div class="mm2-lst">${g.links.map(l => `<a href="${e(l.href)}">${e(l.label)}</a>`).join('')}</div>`;
+        h += `<button type="button" class="mm2-bk" data-mm2b="1">‹ All sections</button><div class="mm2-sec">${e(g.label)}</div><div class="mm2-lst">${g.links.map(l => `<a href="${e(l.href)}">${e(l.label)}</a>`).join('')}</div>`;
     }
-    el.html(h);
+    el.html(h + '</div></div>');
 }
 function lldMmOpen(show) {
     let el = $('#lld-mm2'); if (!el.length) { el = $('<div id="lld-mm2"></div>'); $('body').append(el); }
@@ -4027,8 +4028,9 @@ function lldMmOpen(show) {
     el.toggleClass('on', !!show);
 }
 $(document).on('click', '#lld-mm2 [data-mm2x]', function () { lldMmOpen(false); });
+$(document).on('click', '#lld-mm2', function (e) { if (e.target.id === 'lld-mm2') lldMmOpen(false); });
 $(document).on('click', '#lld-mm2 [data-mm2tab]', function () { window._lldMm.tab = this.dataset.mm2tab; lldMmDraw(); });
-$(document).on('click', '#lld-mm2 [data-mm2s]', function () { window._lldMm.sec = +this.dataset.mm2s; lldMmDraw(); const o = document.getElementById('lld-mm2'); if (o) o.scrollTop = 0; });
+$(document).on('click', '#lld-mm2 [data-mm2s]', function () { window._lldMm.sec = +this.dataset.mm2s; lldMmDraw(); });
 $(document).on('click', '#lld-mm2 [data-mm2b]', function () { window._lldMm.sec = null; lldMmDraw(); });
 function lldToggleMflMenu(show) {
     if (lldDev()) { lldMmOpen(show); return; }
@@ -22041,6 +22043,46 @@ async function lldDpOpen() {
 $(document).on('click', '#lld-hc [data-hc="dyn"]', function () { lldDpOpen(); });
 $(document).on('click', '.team-selector-item', function () { setTimeout(lldHcRender, 900); });
 $(document).ready(function () { [1500, 4000, 8000].forEach(t => setTimeout(function () { try { lldHcRender(); } catch (err) { } }, t)); });
+// beta (0000 / 0001): "Explain this page" walkthrough for the league market
+const LLD_EX_STEPS = [
+    ['Trade deadline', 'The last day trades can be made, with how many days are left. It turns red in the final three days.', '.xd'],
+    ['Team logos', 'Tap logos to see only those teams. The ring shows each team’s outlook: Win Now, Balanced, Next Year or Rebuild. A team that has not set one shows its playoff chance instead.', '.xl'],
+    ['Sorting', 'Sort by trade status, weeks he would start for you, how much more he starts for you than for his team, team record, or playoff chance. Tap the active sort again to flip it.', '.xs'],
+    ['Who he is', 'His name and position. Tap the name for his full player card.', '.pn,.pp'],
+    ['Trade status', 'Where his owner stands. Seeking means they want offers, Willing means they will listen, Unlikely and Unavailable mean they are not moving him.', '.ps'],
+    ['His ranks', 'The big number is his rank this season. Under it: his rank for the rest of the season, then his dynasty rank. The arrow shows if his dynasty value is better (▲) or worse (▼) than his rest of season rank, which is what rebuilding teams look at.', '.prk'],
+    ['His team', 'Who owns him, the team’s outlook (Win Now, Rebuild and so on), their record, and their playoff chance.', '.p2'],
+    ['His contract', 'Salary, cap hit, years left (EXPIRING when it is his last), and how much is guaranteed. The last box checks your cap: a green check means he fits, a red X shows how far over you would be.', '.p3'],
+    ['Weeks he would start', 'The first box is how many weeks he would start for you, and tapping it shows who he would replace. The second is how many weeks he starts for his current team.', '.p4']
+];
+window._lldEx = { i: 0, t: null };
+function lldExSteps() { const dl = window._lldTradeDl; return LLD_EX_STEPS.filter(s => s[2] !== '.xd' || (dl && dl.date)); }
+function lldExDraw() {
+    const X = window._tbX, E = window._lldEx, o = $('#lld-tm-pop .sh'); if (!X || !X.d || !o.length) return;
+    const D = X.d, e = lldChatEsc, steps = lldExSteps(), i = Math.max(0, Math.min(E.i, steps.length - 1)), S = steps[i];
+    const x = (X.mkAll || []).find(z => z.st === 'S') || (X.mkAll || [])[0];
+    const fids = Object.keys(leagueFranchises).filter(f => f && f !== D.me).sort().slice(0, 3);
+    const dl = window._lldTradeDl, today = new Date(); today.setHours(0, 0, 0, 0);
+    const dlH = dl && dl.date ? (() => { const d = Math.round((dl.date - today) / 864e5); return `<div class="xi xd"><div class="tb-dl"><span>Trade deadline</span><b>${e(dl.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}</b><em class="${d <= 3 ? 'hot' : ''}">${d > 1 ? d + ' days left' : d === 1 ? 'Tomorrow' : d === 0 ? 'Today' : 'Passed'}</em></div></div>`; })() : '';
+    o.html(`<div class="hd"><div><b>Explain this page</b><span>Step ${i + 1} of ${steps.length}</span></div><button type="button" class="x" data-tmx="1">✕</button></div><div class="bd2 ex">${dlH}<div class="xi xl tb-logos" style="pointer-events:none">${fids.map(f => lldTbRing(D, f, true)).join('')}</div><div class="xi xs"><div class="tb-fl"><button type="button" class="on">Trade status ↓</button><button type="button">Weeks for you</button><button type="button">Start more for you</button></div></div>${x ? lldTbMktRow(x, X.capRoom) : ''}<div class="exc"><b>${e(S[0])}</b><span>${e(S[1])}</span></div><div class="exd">${steps.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><div class="exl"><button type="button" data-exp="1">‹ Back</button><button type="button" data-exn="1">Next ›</button><button type="button" data-exr="1">↻ Replay</button></div></div>`);
+    o.find('.hl').removeClass('hl'); const sel = S[2]; if (sel.charAt(0) === '.' && /^\.x/.test(sel)) o.find(sel).addClass('hl'); else o.find('.tb-pr').find(sel).addClass('hl');
+    try { reapplyAllTeamStyles(); } catch (err) { }
+}
+function lldExGo(i) {
+    const E = window._lldEx, n = lldExSteps().length; E.i = (i + n) % n; lldExDraw(); clearTimeout(E.t);
+    E.t = setTimeout(function () { if ($('#lld-tm-pop').hasClass('on') && window._lldExOn) lldExGo(E.i + 1 < n ? E.i + 1 : 0); }, 4500);
+}
+async function lldExOpen() {
+    let o = $('#lld-tm-pop'); if (!o.length) { o = $('<div id="lld-tm-pop"><div class="sh"></div></div>'); $('body').append(o); }
+    window._lldExOn = true; o.addClass('on').find('.sh').html('<div class="hd"><div><b>Loading…</b></div><button type="button" class="x" data-tmx="1">✕</button></div>');
+    try { await lldTbDeadline(); } catch (err) { }
+    lldExGo(0);
+}
+$(document).on('click', '.tb [data-exo]', function () { lldExOpen(); });
+$(document).on('click', '#lld-tm-pop [data-exn]', function () { lldExGo(window._lldEx.i + 1); });
+$(document).on('click', '#lld-tm-pop [data-exp]', function () { lldExGo(window._lldEx.i - 1); });
+$(document).on('click', '#lld-tm-pop [data-exr]', function () { lldExGo(0); });
+$(document).on('click', '#lld-tm-pop [data-tmx], #lld-tm-pop', function (e) { if (e.target === this || this.dataset.tmx) { window._lldExOn = false; clearTimeout(window._lldEx.t); } });
 function lldTbMktKey(x, sort) {
     const so = LLDTB_SO[x.st] != null ? LLDTB_SO[x.st] : 4;
     return sort === 'status' ? [so, -x.fy] : sort === 'you' ? [-x.fy, -(x.fy - x.ty)] : sort === 'diff' ? [-(x.fy - x.ty), -x.fy] : sort === 'rec' ? [-x.rw, -x.fy] : [-x.po, -x.fy];
@@ -22055,7 +22097,7 @@ function lldTbMktAll(D, X) {
     }
     const M = X.mk, e = lldChatEsc, fids = Object.keys(leagueFranchises).filter(f => f && f !== D.me).sort();
     const SRT = [['status', 'Trade status'], ['you', 'Weeks for you'], ['diff', 'Start more for you'], ['rec', 'Team record'], ['po', 'Playoff %']];
-    let h = `<div class="tb-logos"><button type="button" class="tb-lgb all ${M.sel.length ? '' : 'on'}" data-mkall="1"><span class="wr2"><span class="o">ALL</span></span>All teams</button>` + fids.map(f => lldTbRing(D, f, M.sel.indexOf(f) >= 0)).join('') + '</div>';
+    let h = `<button type="button" class="tb-how" data-exo="1">\u25B6 Explain this page</button><div class="tb-logos"><button type="button" class="tb-lgb all ${M.sel.length ? '' : 'on'}" data-mkall="1"><span class="wr2"><span class="o">ALL</span></span>All teams</button>` + fids.map(f => lldTbRing(D, f, M.sel.indexOf(f) >= 0)).join('') + '</div>';
     h += `<div class="tb-leg">${Object.keys(LLDTB_MODES).map(k => `<span><i style="background:${LLDTB_MODES[k][2]}"></i>${LLDTB_MODES[k][0]}</span>`).join('')}<span>No outlook set: shows playoff %</span></div>`;
     h += `<div class="tb-sub" style="margin:2px 2px 4px;letter-spacing:.12em;text-transform:uppercase;font-weight:800">Sort by</div><div class="tb-fl">${SRT.map(([k, n]) => `<button type="button" data-mksrt="${k}" class="${M.sort === k ? 'on' : ''}">${n}${M.sort === k ? (M.dir > 0 ? ' ↓' : ' ↑') : ''}</button>`).join('')}</div>`;
     h += `<div class="tb-fl">${['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'].map(p => `<button type="button" data-mkpos="${p}" class="${M.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
