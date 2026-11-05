@@ -5095,3 +5095,8 @@ body.lld-sh2 #lld-sh .bk.left .kv b{font-size:calc(15px * var(--ts,1))}
 #lld-mm2 .mm2-lst a{background:#151d3b;border-radius:14px;padding:16px;color:#fff;font-weight:700;font-size:16px;text-decoration:none;display:flex;justify-content:space-between}
 #lld-mm2 .mm2-lst a::after{content:'\203A';color:#8ea0d0;font-size:20px;line-height:1}
 #lld-mm2 .mm2-lst a:active{background:#1b2548}
+
+/* ===== beta (0000 / 0001): trade deadline banner ===== */
+.tb-dl{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:12px;font-size:calc(12.5px * var(--ts,1));font-weight:800;color:#fcd34d}
+.tb-dl span{letter-spacing:.08em;text-transform:uppercase;font-size:calc(10.5px * var(--ts,1));color:var(--text-dim)}
+.tb-dl b{color:#fff}.tb-dl em{margin-left:auto;font-style:normal;color:#fcd34d}.tb-dl em.hot{color:#ef4444}
