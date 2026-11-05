@@ -5001,3 +5001,9 @@ body.lld-sh2 #lld-sh .bk .pv,body.lld-sh2 #lld-sh .bk img.tl{display:none}
 body.lld-sh2 #lld-sh .bk .kv{font-size:calc(10.5px * var(--ts,1))}
 body.lld-sh2 #lld-sh .bk .pb{display:none}
 body.lld-sh2 #lld-sh .bk.left .kv b{font-size:calc(15px * var(--ts,1))}
+
+/* ===== beta (0000 / 0001): league market team header + expiring badge ===== */
+.tb-mkhead .tb-sh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tb-mkhead .tb-mklg{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none}
+.tb-mkhead .tb-mkn{font-size:calc(18px * var(--ts,1));font-weight:900}
+.tb-exp{display:inline-block;padding:1px 7px;border-radius:999px;border:1px solid #f59e0b;color:#fbbf24;font-size:calc(9.5px * var(--ts,1));font-weight:900;letter-spacing:.06em;vertical-align:middle}
