@@ -869,6 +869,27 @@ function lldStatsExtend(S) {
         });
         return { teams, of: N - 1, pct: tt ? tw / tt : 0 };
     };
+    // beta: every other team, the weeks he would start for them, and who he would replace each of those weeks
+    S.startsDetail = pid => {
+        const pos = S.posOf(pid), out = [], sum = (set, pl) => { let t = 0; pl.forEach(x => { if (set.has(x.pid)) t += x.v; }); return t; };
+        F.forEach((f, t) => {
+            if (t === mi) return;
+            let wk = 0, gain = 0; const weeks = [];
+            for (let wi = 0; wi < W; wi++) {
+                const pool = S.entries[t][wi].filter(e => e.pid !== pid).map(e => ({ pid: e.pid, pos: e.pos, v: e.score })), c = { pid, pos, v: scoreOf(pid, wi) };
+                const a = llsOpt(pool, slots), b = llsOpt(pool.concat([c]), slots);
+                if (b.has(pid)) { wk++; const o = pool.filter(x => a.has(x.pid) && !b.has(x.pid))[0], g = sum(b, pool.concat([c])) - sum(a, pool); gain += g; weeks.push({ wk: wkNum(wi), v: c.v, out: o ? o.pid : null, outV: o ? o.v : 0, g }); }
+            }
+            out.push({ f, wk, n: W, gain, weeks });
+        });
+        return out;
+    };
+    // beta: weeks (of the weeks played) he would start for one team
+    S.wkStart = (pid, f) => {
+        const t = F.indexOf(f); if (t < 0) return null; const pos = S.posOf(pid); let wk = 0;
+        for (let wi = 0; wi < W; wi++) { const ent = S.entries[t][wi].filter(e => e.pid !== pid); if (llsWouldStart(ent.map(e => ({ pid: e.pid, pos: e.pos, v: e.score })), { pid, pos, v: scoreOf(pid, wi) }, slots)) wk++; }
+        return wk;
+    };
     // net points / results vs following projections (my team)
     S.netRows = () => {
         const rows = []; let net = 0, saved = 0, cost = 0;
@@ -12661,6 +12682,7 @@ function lldApplyBeta() {
     try { lldApplyHdrMode(b && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); } catch (e) { }
     try { lldHd2Render(); } catch (e) { }
     try { lldShRender(); } catch (e) { }
+    try { if (lldDev()) lldSet('lld_dev_seen', '1'); } catch (e) { }
     try { lldGthApply(); } catch (e) { }
 }
 setTimeout(lldApplyBeta, 300); setTimeout(lldApplyBeta, 2500); setInterval(lldApplyBeta, 5000);
@@ -13627,6 +13649,10 @@ function lldShBlocks(vf, sub) {
             else if (wk && !(window._lldShPv || {})[wk]) { (window._lldShPv = window._lldShPv || {})[wk] = 1; lldBuildPreview(parseInt(wk, 10)).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { }); }
             A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m" data-team-style="${opp}">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
         }
+        if (lldDev()) { // beta (0000 / 0001): trade block count as a third cell
+            const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
+            A.push(`<div class="bk" data-b="tb"><i>Trade block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">on block</div></div>`); W.push(1);
+        }
     } else if (sub === 'contracts') {
         const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
         const used = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
@@ -13655,7 +13681,7 @@ function lldShRender() {
     let el = $('#lld-sh'); if (!el.length) { el = $('<div id="lld-sh"></div>'); anchor.before(el); }
     const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
     try { el.html(lldShHtml()); } catch (e) { console.warn('sh', e); el.empty(); }
-    document.body.classList.add('lld-shb'); document.body.classList.remove('lld-sh-pend');
+    document.body.classList.add('lld-shb'); document.body.classList.toggle('lld-sh2', lldDev()); document.body.classList.remove('lld-sh-pend');
     try { if (typeof reapplyAllTeamStyles === 'function') reapplyAllTeamStyles(); } catch (e) { }
     lldShVis();
     if ((sub === 'contracts') && !window._lldShD && !window._lldShBusy) lldShLoad();
@@ -13712,6 +13738,7 @@ function lldShShow(b) {
     if (!window._lldShD && b !== 'year') lldShLoad().then(() => { if (window._lldShPopB === b) o.find('.sh').html(lldShPopHtml(b)); });
 }
 $(document).on('click', '#lld-sh .pv, #lld-sh .bk[data-b="wk"]', function (e) { e.stopPropagation(); $('#lld-hdr-pv').first().trigger('click'); });
+$(document).on('click', '#lld-sh .bk[data-b="tb"]', function () { lldMyBlockGo(); });
 $(document).on('click', '#lld-sh .bk[data-b="rec"]', function () { lldGoLeagueSub('Standings'); });
 $(document).on('click', '#lld-sh .bk[data-b="cap"], #lld-sh .bk[data-b="exp"], #lld-sh .bk[data-b="dead"]', function () { if (this.dataset.b === 'exp') window._lldShPop = { tab: 'mine', pos: 'ALL' }; lldShShow(this.dataset.b); });
 $(document).on('click', '#lld-sh-pop .ptab', function () { window._lldShPop.tab = this.dataset.t; lldShShow('exp'); });
@@ -20826,11 +20853,30 @@ $(document).on('click', '.logo-style-btn', function() {
     }
 });
     // --- AUTHENTICATION CHECK ---
+function lldLgnOn() { return lldGet('lld_b_lgn', lldGet('lld_dev_seen', '0')) === '1'; } // new login: only on a device where a beta franchise (0000 / 0001) has signed in; set lld_b_lgn to 0 to turn it off
 function checkLoginStatus() {
     const isLoggedOut = $('a[href*="login?L="], a[href$="/login"]').length > 0;
     if (isLoggedOut) {
         const leagueLogoUrl = LLD.logoUrl || lldLeagueLogoPlaceholder();
-        const loginHtml = `
+        const nm = String(LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || 'Live and Let Dynasty').replace(/[<>&"]/g, '');
+        const loginHtml = lldLgnOn() ? `
+<div id="auth-overlay" class="auth2" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center;">
+    <div class="auth-box a2-card">
+        <img id="auth-logo" class="a2-logo" src="${leagueLogoUrl}" alt="">
+        <div class="a2-kick">${nm}</div>
+        <h2 class="a2-h">Welcome Back</h2>
+        <p class="a2-p">Sign in with your MFL account to manage your team.</p>
+        <form method="POST" action="${MFL_ORIGIN}/${year}/login">
+            <input type="hidden" name="L" value="${lid}">
+            <label class="a2-l">MFL username or email</label>
+            <input type="text" name="USERNAME" class="auth-input" placeholder="you@example.com" autocomplete="username" required>
+            <label class="a2-l">Password</label>
+            <input type="password" name="PASSWORD" class="auth-input" placeholder="Password" autocomplete="current-password" required>
+            <button type="submit" class="auth-btn">Sign in</button>
+            <button type="button" id="auth-guest-btn" class="a2-guest">Browse as guest \u2192</button>
+        </form>
+    </div>
+</div>` : `
 <div id="auth-overlay" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.95);">
     <div class="auth-box">
         <img id="auth-logo" src="${leagueLogoUrl}" style="width:100px; height:100px; object-fit:contain; margin-bottom:18px;">
@@ -20841,7 +20887,7 @@ function checkLoginStatus() {
             <input type="text" name="USERNAME" class="auth-input" placeholder="MFL Username or Email" required style="font-size:calc(16px * var(--ts,1)); padding:14px 16px; margin-bottom:12px;">
             <input type="password" name="PASSWORD" class="auth-input" placeholder="Password" required style="font-size:calc(16px * var(--ts,1)); padding:14px 16px; margin-bottom:20px;">
 <button type="submit" class="auth-btn" style="font-size:calc(16px * var(--ts,1)); padding:14px;">Sign In</button>
-<button type="button" id="auth-guest-btn" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:var(--text-dim); border:1px solid rgba(255,255,255,0.1); border-radius:10px; font-size:calc(13px * var(--ts,1)); font-weight:800; cursor:pointer;">Browse as Guest →</button>        </form>
+<button type="button" id="auth-guest-btn" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:var(--text-dim); border:1px solid rgba(255,255,255,0.1); border-radius:10px; font-size:calc(13px * var(--ts,1)); font-weight:800; cursor:pointer;">Browse as Guest \u2192</button>        </form>
     </div>
 </div>`;
         $('body').append(loginHtml);
@@ -21732,6 +21778,11 @@ function lldTbLabels(d, f) {
     ((d.baits[f] || {}).give || []).forEach(id => { if (/^\d+$/.test(id) && !out[id] && (d.rosters[f] || []).indexOf(id) >= 0) out[id] = 'S'; });
     return out;
 }
+function lldTbTiles(x) {
+    if (x.them != null) return `<div class="tb-st"><div><b>${x.wk == null ? '\u2013' : x.wk}</b><span>weeks he would start for you</span></div><div><b>${x.them}/${x.thn}</b><span>weeks he would start for them</span></div></div>`;
+    const dv = lldDev();
+    return `<div class="tb-st"><div${dv && x.pct != null ? ` class="tb-stb" data-tbteams="${x.pid}"` : ''}><b>${x.pct == null ? '\u2013' : x.pct + '%'}</b><span>of teams he would start for</span></div><div><b>${x.wk == null ? '\u2013' : x.wk}</b><span>weeks he ${x.own === window._lldTbMe ? 'starts for you' : 'would start for you'}</span></div></div>`;
+}
 function lldTbRow(x, st, asks, edit, open, extra) {
     const T = LLDTB_ST[st], c = T ? T[1] : '#94a3b8', e = lldChatEsc;
     const posC = { QB: '#ff4d79', RB: '#2dd4bf', WR: '#60a5fa', TE: '#fbbf24' }[x.pos] || '#a78bfa';
@@ -21743,7 +21794,7 @@ function lldTbRow(x, st, asks, edit, open, extra) {
         + `<div class="tb-mid ${trg}" style="cursor:pointer"><div class="tb-nm"><span class="tb-n">${e(x.name)}</span><span style="color:${posC};font-size:calc(12px * var(--ts,1));font-weight:900">${e(x.pos)}</span>${x.team ? `<img class="tb-nfl" src="${e(typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(x.team) : '')}" onerror="this.style.display='none'">` : ''}</div>${wants}</div>`
         + `<div class="tb-rt"><b>${e(x.rk)}</b><span>POS RANK</span></div></div>`
         + `<div class="tb-info"><div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
-        + `<div class="tb-st"><div><b>${x.pct == null ? '–' : x.pct + '%'}</b><span>of teams he would start for</span></div><div><b>${x.wk == null ? '–' : x.wk}</b><span>weeks he ${x.own === window._lldTbMe ? 'starts for you' : 'would start for you'}</span></div></div></div>`;
+        + lldTbTiles(x) + `</div>`;
     if (edit && open) h += `<div class="tb-pick">${Object.keys(LLDTB_ST).map(k => `<button type="button" data-tbset="${k}" data-pid="${x.pid}" style="--c:${LLDTB_ST[k][1]}" class="${st === k ? 'on' : ''}">${LLDTB_ST[k][0]}</button>`).join('')}${st ? `<button type="button" class="tb-clear" data-tbset="" data-pid="${x.pid}">Clear label</button>` : ''}</div>`;
     if (edit && st === 'S') {
         const tiers = Object.keys(LLDTB_TIERS).map(p => LLDTB_TIERS[p].map(n => `<option value="${p.slice(0, 2)}${n}">Top ${n} ${p}</option>`).join('')).join('');
@@ -21772,8 +21823,10 @@ function lldTbDraw() {
         if (!list.length) h += '<div class="tb-sub" style="text-align:center;padding:16px">No players here.</div>';
         h += `<div class="tb-save ${X.dirty ? 'show' : ''}"><span>${X.saving ? 'Saving…' : 'Unsaved changes'}</span><button type="button" class="tb-savebtn" ${X.saving ? 'disabled' : ''}>Save</button></div>`;
     } else {
+        if (lldDev()) h += lldTbMktSel(D, X);
         const fids = Object.keys(leagueFranchises).filter(f => f).sort();
         let any = false;
+        if (lldDev() && X.mk && X.mk.team) { h += lldTbMktTeam(D, X); } else {
         fids.forEach(f => {
             if (f === D.me) return; // the league market is other teams only
             const lab = f === D.me ? dr.p : lldTbLabels(D, f), ids = Object.keys(lab).filter(id => f === D.me ? /^[SWUN]/.test(lab[id]) : /^S/.test(lab[id]));
@@ -21787,10 +21840,73 @@ function lldTbDraw() {
             h += '</div>';
         });
         if (!any) h += '<div class="tb-sub" style="text-align:center;padding:24px">No other team has set a trade label yet.</div>';
+        }
     }
     lldTbMain().html(h + '</div>');
     try { reapplyAllTeamStyles(); } catch (e) { }
 }
+// ===== beta (0000 / 0001): league market for every player on a team, plus the "teams he would start for" popup =====
+function lldTbMktSel(D, X) {
+    const cur = (X.mk && X.mk.team) || '', e = lldChatEsc;
+    const opts = Object.keys(leagueFranchises).filter(f => f && f !== D.me).sort().map(f => `<option value="${f}" ${cur === f ? 'selected' : ''}>${e(leagueFranchises[f] || f)}</option>`).join('');
+    return `<div class="tb-mksel"><select class="tb-mkteam"><option value="">Players on the trade block (all teams)</option>${opts}</select></div>`;
+}
+function lldTbMktTeam(D, X) {
+    const f = X.mk.team, e = lldChatEsc, S = D.S, lab = lldTbLabels(D, f), rc = D.recOf(f), M = LLDTB_MODES[(D.tb.by[f] || {}).m];
+    const pos = ['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], order = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'PK'];
+    let h = `<div class="tb-team"><div class="tb-th"><span class="tb-tn"><span data-team-style="${f}">${e(leagueFranchises[f] || f)}</span>${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' \u00B7 ' + rc.po + '% playoffs' : ''}</span></div>`;
+    h += `<div class="tb-fl">${pos.map(p => `<button type="button" data-mkpos="${p}" class="${X.mk.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
+    const list = (D.rosters[f] || []).map(id => { const x = Object.assign({}, D.info(id)); try { x.them = S.wkStart(id, f); x.thn = S.W; } catch (err) { x.them = null; } if (x.them == null) x.them = '\u2013'; return x; })
+        .filter(x => X.mk.pos === 'ALL' || x.pos === X.mk.pos).sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || (parseInt(a.rk.split('#')[1], 10) || 999) - (parseInt(b.rk.split('#')[1], 10) || 999));
+    list.forEach(x => { const l = lldTbParseLabel(lab[x.pid]); h += lldTbRow(x, lab[x.pid] ? l.s : '', l.a, false, false, ''); });
+    if (!list.length) h += '<div class="tb-sub" style="text-align:center;padding:16px">No players here.</div>';
+    return h + '</div>';
+}
+$(document).on('change', '.tb .tb-mkteam', function () { const X = window._tbX; if (!X) return; X.mk = { team: this.value, pos: 'ALL' }; lldTbDraw(); });
+$(document).on('click', '.tb [data-mkpos]', function () { const X = window._tbX; if (!X || !X.mk) return; X.mk.pos = this.dataset.mkpos; lldTbDraw(); });
+window._lldTm = { flt: 'all', exp: {}, pid: null, rows: null };
+async function lldTmOpen(pid) {
+    const X = window._tbX; if (!X || !X.d) return;
+    let o = $('#lld-tm-pop'); if (!o.length) { o = $('<div id="lld-tm-pop"><div class="sh"></div></div>'); $('body').append(o); }
+    window._lldTm = { flt: 'all', exp: {}, pid, rows: null };
+    o.addClass('on').find('.sh').html('<div class="hd"><div><b>Loading teams\u2026</b></div><button type="button" class="x" data-tmx="1">\u2715</button></div>');
+    try {
+        const D = X.d, S = D.S, info = D.info(pid), sy = parseInt(year) || 2026, cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0);
+        let T = {}; try { const sh = await lldShLoad(); T = lldShTotals(sh, sy); } catch (e) { }
+        const det = S.startsDetail(pid);
+        window._lldTm.rows = det.map(r => { const used = T[r.f] != null ? T[r.f] : null, space = used != null ? cap - used : null, own = r.f === info.own; return Object.assign({}, r, { used, space, own, fits: own || (space != null && space >= (info.sal || 0)), over: space != null ? (info.sal || 0) - space : 0, counts: r.wk >= r.n / 2 }); })
+            .sort((a, b) => b.wk - a.wk || (b.space || 0) - (a.space || 0));
+        window._lldTm.info = info; window._lldTm.cap = cap;
+        lldTmDraw();
+    } catch (e) { console.warn('teams popup', e); o.find('.sh').html('<div class="hd"><div><b>Could not load teams</b></div><button type="button" class="x" data-tmx="1">\u2715</button></div>'); }
+}
+function lldTmDraw() {
+    const M = window._lldTm, o = $('#lld-tm-pop .sh'); if (!M || !M.rows || !o.length) return;
+    const e = lldChatEsc, m = lldTmMoney, p = M.info, cap = M.cap, sal = p.sal || 0, R = M.rows, S = window._tbX.d.S;
+    const cnt = R.filter(r => r.counts), aff = cnt.filter(r => r.fits).length, f = M.flt;
+    const L = R.filter(r => f === 'all' ? true : f === 'start' ? r.counts : r.counts && r.fits);
+    const nmOf = id => id ? lldTbShort((S.D.pinfo[id] || {}).name || id) : 'an open spot';
+    let h = `<div class="hd"><div><b>${e(p.name)} \u00B7 teams he would start for</b><span>${sal ? m(sal) + ' salary' : 'salary not found'}${p.yrs ? ' \u00B7 ' + p.yrs + ' yr' + (p.yrs > 1 ? 's' : '') : ''}</span></div><button type="button" class="x" data-tmx="1">\u2715</button></div><div class="bd2">`;
+    h += `<div class="sum">He would start for <b>${cnt.length} of ${R.length}</b> teams.${sal && cap ? ` <span class="${aff ? 'g' : 'r'}"><b>${aff}</b> of those have the cap room for his ${m(sal)}.</span>` : ''}</div>`;
+    h += `<div class="fl"><button type="button" data-tmf="all" class="${f === 'all' ? 'on' : ''}">All ${R.length}</button><button type="button" data-tmf="start" class="${f === 'start' ? 'on' : ''}">Would start ${cnt.length}</button><button type="button" data-tmf="fit" class="${f === 'fit' ? 'on' : ''}">Fits cap ${aff}</button></div>`;
+    L.forEach(r => {
+        const nm = e(leagueFranchises[r.f] || r.f), logo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${r.f}.png`;
+        h += `<div class="tm ${r.counts ? '' : 'dim'}"><div class="th"><img class="lg" src="${logo}" onerror="this.style.visibility='hidden'"><div class="tn"><span data-team-style="${r.f}">${nm}</span><small>${r.own ? 'Already on his team' : r.counts ? (r.wk > 0 ? 'Replaces ' + e(nmOf((r.weeks[0] || {}).out)) + (r.weeks.length > 1 ? ' and others' : '') + ' \u00B7 +' + (r.gain / r.wk).toFixed(1) + ' pts a week' : '') : 'Starts less than half the time'}</small></div><span class="wk ${r.counts ? '' : 'lo'}">${r.wk}/${r.n} wks</span></div>`;
+        if (!r.own && r.used != null && cap) {
+            const uw = Math.min(100, r.used / cap * 100), aw = Math.min(sal, Math.max(0, cap - r.used)) / cap * 100;
+            h += `<div class="cap"><div class="cb"><i class="u" style="width:${uw}%"></i><i class="${r.fits ? 'a' : 'o'}" style="width:${r.fits ? aw : Math.min(100 - uw, aw)}%"></i></div><div class="cl"><span>${m(r.used)} used of ${m(cap)}</span>${r.fits ? `<b class="g">\u2713 Fits \u00B7 ${m(r.space - sal)} left after</b>` : `<b class="r">\u2715 ${m(r.over)} over the cap</b>`}</div>${r.fits ? '' : `<div class="cl"><span>They would need to send back ${m(r.over)} in salary.</span></div>`}</div>`;
+        }
+        if (r.weeks.length) { const k = r.f, on = M.exp[k]; h += `<button type="button" class="tg2" data-tme="${k}">${on ? 'Hide weeks \u25B4' : 'See who he replaces each week \u25BE'}</button>` + (on ? `<div class="wl">${r.weeks.map(x => `<div class="wr"><em>Wk ${x.wk}</em><span class="o">Out: ${e(nmOf(x.out))} <small>${x.outV.toFixed(1)} pts</small><br><span class="i">In: ${e(p.name)} <small>${x.v.toFixed(1)} pts</small></span></span><span class="n">+${x.g.toFixed(1)}</span></div>`).join('')}</div>` : ''); }
+        h += '</div>';
+    });
+    if (!L.length) h += '<div class="nx">No teams match.</div>';
+    const sc = o.find('.bd2').scrollTop() || 0; o.html(h + '<div class="fn">Cap uses each team\u2019s salary plus dead money this year, before any salary they send back.</div></div>'); o.find('.bd2').scrollTop(sc);
+}
+function lldTmMoney(v) { return '$' + (Math.round(v * 10) / 10).toFixed(1) + 'm'; }
+$(document).on('click', '.tb [data-tbteams]', function (ev) { ev.preventDefault(); ev.stopPropagation(); lldTmOpen(this.dataset.tbteams); });
+$(document).on('click', '#lld-tm-pop [data-tmf]', function () { window._lldTm.flt = this.dataset.tmf; lldTmDraw(); });
+$(document).on('click', '#lld-tm-pop [data-tme]', function () { const k = this.dataset.tme; window._lldTm.exp[k] = !window._lldTm.exp[k]; lldTmDraw(); });
+$(document).on('click', '#lld-tm-pop', function (ev) { if (ev.target.id === 'lld-tm-pop' || $(ev.target).closest('[data-tmx]').length) $('#lld-tm-pop').removeClass('on'); });
 function lldTrBar(mode) {
     $('#lld-tr-bar').remove(); const c = $('#league-content-container'); if (!c.length) return;
     c.before(`<div id="lld-tr-bar" style="display:flex;gap:6px;justify-content:center;padding:8px 10px 0;">${[['block', 'Trade Block'], ['hub', 'Trades']].map(([v, l]) => `<button type="button" class="lld-tr-btn" data-v="${v}" style="padding:7px 16px;border-radius:999px;font-size:calc(11px * var(--ts,1));font-weight:900;text-transform:uppercase;cursor:pointer;border:1px solid ${mode === v ? 'var(--accent-blue)' : 'var(--card-border)'};background:${mode === v ? 'var(--accent-blue)' : 'rgba(255,255,255,.05)'};color:${mode === v ? '#fff' : 'var(--text-dim)'}">${l}</button>`).join('')}</div>`);
