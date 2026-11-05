@@ -4945,21 +4945,6 @@ body.lld-sh2 #lld-sh .bk .top{justify-content:flex-start}
 body.lld-sh2 #lld-sh .bk.left .kv:nth-of-type(1),body.lld-sh2 #lld-sh .bk.left .kv:nth-of-type(3){display:none}
 body.lld-sh2 #lld-sh .bk.left .kv b{font-size:calc(16px * var(--ts,1))}
 
-/* ===== beta (0000 / 0001): new log in ===== */
-#auth-overlay.auth2{background:radial-gradient(120% 80% at 15% 0%,rgba(0,206,184,.16),transparent 55%),#070b14;padding:24px 16px;overflow:auto}
-.auth2 .a2-card{position:relative;width:100%;max-width:380px;box-sizing:border-box;margin:auto;padding:0 22px 22px;border-radius:26px;background:rgba(18,24,38,.82);border:1px solid rgba(148,163,184,.18);box-shadow:0 24px 60px rgba(0,0,0,.55);text-align:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.auth2 .a2-logo{display:block;width:170px;max-width:60%;height:auto;margin:-64px auto 8px;object-fit:contain;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
-.auth2 .a2-kick{font-size:calc(11px * var(--ts,1));font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-teal)}
-.auth2 .a2-h{margin:8px 0 6px;color:#fff;font-size:calc(26px * var(--ts,1));font-weight:900;text-transform:uppercase;letter-spacing:.02em}
-.auth2 .a2-p{margin:0 0 18px;color:var(--text-dim);font-size:calc(13px * var(--ts,1))}
-.auth2 form{text-align:left}
-.auth2 .a2-l{display:block;margin:0 0 6px 4px;font-size:calc(10px * var(--ts,1));font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
-.auth2 .auth-input{display:block;box-sizing:border-box;width:100%;margin:0 0 14px;padding:15px 16px;border-radius:14px;border:1px solid rgba(148,163,184,.22);background:rgba(8,12,22,.85);color:#fff;font-size:calc(16px * var(--ts,1));outline:none}
-.auth2 .auth-input:focus{border-color:var(--accent-teal);box-shadow:0 0 0 3px rgba(0,206,184,.18)}
-.auth2 .auth-btn{display:block;width:100%;padding:15px;border:0;border-radius:14px;background:var(--accent-teal);color:#04120f;font-size:calc(16px * var(--ts,1));font-weight:900;cursor:pointer;box-shadow:0 8px 24px rgba(0,206,184,.28)}
-.auth2 .a2-guest{display:block;width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid rgba(148,163,184,.2);background:transparent;color:var(--text-dim);font-size:calc(13px * var(--ts,1));font-weight:800;cursor:pointer}
-
-
 /* ===== beta (0000 / 0001): teams he would start for popup + all-players league market ===== */
 .tb-st .tb-stb{cursor:pointer;position:relative;border-color:rgba(45,212,191,.45)!important}
 .tb-st .tb-stb::after{content:'\203A';position:absolute;right:10px;top:4px;color:var(--text-dim);font-size:20px;line-height:1}
@@ -5001,3 +4986,18 @@ body.lld-sh2 #lld-sh .bk.left .kv b{font-size:calc(16px * var(--ts,1))}
 #lld-tm-pop .wr .i{color:#fff;font-weight:800}
 #lld-tm-pop .wr .n{color:#22c55e;font-weight:900;text-align:right;white-space:nowrap}
 #lld-tm-pop .nx,#lld-tm-pop .fn{font-size:calc(11.5px * var(--ts,1));color:var(--text-dim);text-align:center;line-height:1.5}
+
+/* ===== beta (0000 / 0001): slim header tightening ===== */
+body.lld-sh2 #lld-sh .s2bar{height:3px;background:rgba(148,163,184,.18)}
+body.lld-sh2 #lld-sh .s2bar i{display:block;height:100%;background:var(--accent-teal)}
+body.lld-sh2 #lld-sh .nrow{padding:8px 12px}
+body.lld-sh2 #lld-sh .lg{width:30px;height:30px}
+body.lld-sh2 #lld-sh .nm{font-size:calc(15px * var(--ts,1))}
+body.lld-sh2 #lld-sh .bk{padding:7px 10px}
+body.lld-sh2 #lld-sh .bk>i{font-size:calc(8.5px * var(--ts,1));margin-bottom:2px}
+body.lld-sh2 #lld-sh .bk .m{font-size:calc(15px * var(--ts,1))}
+body.lld-sh2 #lld-sh .bk .s2{font-size:calc(10.5px * var(--ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.lld-sh2 #lld-sh .bk .pv,body.lld-sh2 #lld-sh .bk img.tl{display:none}
+body.lld-sh2 #lld-sh .bk .kv{font-size:calc(10.5px * var(--ts,1))}
+body.lld-sh2 #lld-sh .bk .pb{display:none}
+body.lld-sh2 #lld-sh .bk.left .kv b{font-size:calc(15px * var(--ts,1))}
