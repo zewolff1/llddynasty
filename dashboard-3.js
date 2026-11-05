@@ -1592,11 +1592,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
 const DASHBOARD_BUILD_STAMP = "2026-09-23 3";
-$('body').append(`
-    <div id="dashboard-build-stamp" style="position:fixed; bottom:4px; right:6px; z-index:99990; font-size:calc(8px * var(--ts,1)); font-weight:800; color:rgba(255,255,255,0.35); background:rgba(0,0,0,0.4); border-radius:4px; padding:2px 6px; pointer-events:none;">
-        build: ${DASHBOARD_BUILD_STAMP}
-    </div>
-`);
+// (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
 const TEAM_THEMES = LLD.teamThemes;
@@ -4945,6 +4941,7 @@ renderActiveTab();
 function renderActiveTab() {
         // FIX: Target #subtabs-team in the header
 const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup';
+        if (activeSub === 'my trade block') return; // draws itself (beta)
         if (activeSub === 'stats' || activeSub === 'schedule') { /* these draw themselves; a late roster refresh must not paint over them */ if (activeSub === 'stats' && !$('#player-rows-container .lld-stats').length && $('#tab-team').hasClass('active')) lldStatsOpen('team'); return; }
         const container = $('#player-rows-container').empty();
         const tableElement = currentDoc ? currentDoc.querySelector('table.report') : null;
@@ -13624,6 +13621,7 @@ function lldShCss() {
     return `#lld-sh{--lg:${c.lg}px;--nm:${c.nm}px;--l2:${c.l2}px;--mn:${c.mn}px;--lbs:${c.lbs}px;--pad:${c.pad}px;--gap:${c.gap}px;--rg:${c.rg}px;--bg:${c.bgp}px;--bpv:${c.bpv}px;--bph:${c.bph}px;--brd:${c.brd}px;--rad:${c.rad}px}`;
 }
 function lldShBlocks(vf, sub) {
+    window._lldShBar = null;
     const kv = (l, v) => `<div class="kv"><i>${l}</i><b>${v}</b></div>`;
     const pbar = (p, cls) => `<div class="pb ${cls || ''}"><div class="tr"><b style="width:${Math.max(0, Math.min(100, p))}%"></b></div><span>${Math.round(p * 10) / 10}%</span></div>`;
     const d = window._lldShD, A = [], W = [];
@@ -13645,7 +13643,7 @@ function lldShBlocks(vf, sub) {
         if (opp) {
             let pj = '';
             const P = window._pvCache && window._pvCache[wk];
-            if (P) { const g = P.games.find(x => String(x.t1.fid).padStart(4, '0') === vf || String(x.t2.fid).padStart(4, '0') === vf); if (g) { const one = String(g.t1.fid).padStart(4, '0') === vf; pj = `<b>${(one ? g.m1 : g.m2).toFixed(1)}</b> proj · <b>${Math.round((one ? g.p1 : 1 - g.p1) * 100)}%</b> win`; } }
+            if (P) { const g = P.games.find(x => String(x.t1.fid).padStart(4, '0') === vf || String(x.t2.fid).padStart(4, '0') === vf); if (g) { const one = String(g.t1.fid).padStart(4, '0') === vf; window._lldShBar = Math.round((one ? g.p1 : 1 - g.p1) * 100); pj = `<b>${(one ? g.m1 : g.m2).toFixed(1)}</b> proj · <b>${Math.round((one ? g.p1 : 1 - g.p1) * 100)}%</b> win`; } }
             else if (wk && !(window._lldShPv || {})[wk]) { (window._lldShPv = window._lldShPv || {})[wk] = 1; lldBuildPreview(parseInt(wk, 10)).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { }); }
             A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m" data-team-style="${opp}">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
         }
@@ -13653,13 +13651,18 @@ function lldShBlocks(vf, sub) {
             const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
             A.push(`<div class="bk" data-b="tb"><i>Trade block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">on block</div></div>`); W.push(1);
         }
+    } else if (sub === 'my trade block' && lldDev()) {
+        const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
+        A.push(`<div class="bk" data-b="tb"><i>On the block</i><div class="m">${n == null ? '\u2014' : n}</div><div class="s2">players</div></div>`); W.push(1);
+        const cap2 = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), used2 = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
+        if (cap2 && used2 != null) { A.push(`<div class="bk" data-b="cap"><i>Cap left</i><div class="m">${lldShM(cap2 - used2)}</div><div class="s2">${(used2 / cap2 * 100).toFixed(1)}% used</div></div>`); W.push(1); }
     } else if (sub === 'contracts') {
         const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
         const used = window.currentTeamCapUsed != null ? window.currentTeamCapUsed : window._lldCapUsed;
         let rank = '';
         if (d && d.teams[vf]) { const T = lldShTotals(d, sy), mine = T[vf], order = Object.keys(T).sort((a, b) => T[b] - T[a]); rank = `${order.indexOf(vf) + 1}`; rank = kv('Spent rank', `#${rank} of ${order.length}`); }
         const L = window._lldConLocal && window._lldConLocal.fid === vf ? window._lldConLocal : null;
-        if (cap && used != null) { const pc = used / cap * 100; A.push(`<div class="bk left" data-b="cap"><i>Cap ${sy} \u00B7 ${lldShM(cap)}</i>${kv('Used', lldShM(used))}${kv('Left', lldShM(cap - used))}${rank}${pbar(pc, 'p')}</div>`); W.push(LLD_SH.wCon[0]); }
+        if (cap && used != null) { const pc = used / cap * 100; window._lldShBar = pc; A.push(`<div class="bk left" data-b="cap"><i>Cap ${sy} \u00B7 ${lldShM(cap)}</i>${kv('Used', lldShM(used))}${kv('Left', lldShM(cap - used))}${rank}${pbar(pc, 'p')}</div>`); W.push(LLD_SH.wCon[0]); }
         // the league-wide numbers can be slow or missing, so the expiring total falls back to this team's own contract rows
         const exL = (d && d.teams[vf]) ? d.exp.filter(x => x.fid === vf).map(x => x.sal) : (L ? L.exp : null);
         if (exL) { const tot = exL.reduce((s, x) => s + x, 0); A.push(`<div class="bk" data-b="exp"><i>Expiring</i><div class="m">${exL.length}</div><div class="s2"><b>${lldShM(tot)}</b> this year</div></div>`); W.push(LLD_SH.wCon[1]); }
@@ -13673,7 +13676,8 @@ function lldShHtml() {
     const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
     const nm = lldShEsc(leagueFranchises[vf] || 'My Franchise'), logo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${vf}.png`;
     const sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
-    return `<div class="th blk" style="${lldShCss().replace(/^#lld-sh\{|\}$/g, '')}"><div class="nrow"><button type="button" class="sh-sw"><img class="lg" src="${logo}" onerror="this.style.display='none'"><span class="nm">${nm} <span class="ch">▼</span></span></button>${sub === 'contracts' ? `<button type="button" class="yr" id="lld-sh-yr">${sy} ▼</button>` : ''}</div>${lldShBlocks(vf, sub)}</div>`;
+    const blk = lldShBlocks(vf, sub), bar = (lldDev() && window._lldShBar != null) ? `<div class="s2bar"><i style="width:${Math.max(0, Math.min(100, window._lldShBar))}%"></i></div>` : '';
+    return `<div class="th blk" style="${lldShCss().replace(/^#lld-sh\{|\}$/g, '')}"><div class="nrow"><button type="button" class="sh-sw"><img class="lg" src="${logo}" onerror="this.style.display='none'"><span class="nm">${nm} <span class="ch">▼</span></span></button>${sub === 'contracts' ? `<button type="button" class="yr" id="lld-sh-yr">${sy} ▼</button>` : ''}</div>${bar}${blk}</div>`;
 }
 function lldShRender() {
     if (!lldShOn()) { $('#lld-sh').remove(); document.body.classList.remove('lld-shb'); try { window._lldSyncOff && window._lldSyncOff(); } catch (e) { } return; }
@@ -20859,7 +20863,21 @@ function checkLoginStatus() {
     if (isLoggedOut) {
         const leagueLogoUrl = LLD.logoUrl || lldLeagueLogoPlaceholder();
         const nm = String(LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || 'Live and Let Dynasty').replace(/[<>&"]/g, '');
-        const loginHtml = lldLgnOn() ? `
+        const a2css = `<style id="auth2-css">
+#auth-overlay.auth2{background:radial-gradient(120% 80% at 15% 0%,rgba(0,206,184,.18),transparent 55%),#070b14;padding:24px 16px;overflow:auto;box-sizing:border-box}
+.auth2 .a2-card{position:relative;width:100%;max-width:380px;box-sizing:border-box;margin:auto;padding:0 22px 22px;border-radius:26px;background:#121826;border:1px solid rgba(148,163,184,.22);box-shadow:0 24px 60px rgba(0,0,0,.6);text-align:center;font-family:inherit}
+.auth2 .a2-logo{display:block;width:170px;max-width:60%;height:auto;margin:-64px auto 8px;object-fit:contain;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
+.auth2 .a2-kick{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#00ceb8}
+.auth2 .a2-h{margin:8px 0 6px;color:#fff;font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:.02em}
+.auth2 .a2-p{margin:0 0 18px;color:#94a3b8;font-size:13px}
+.auth2 form{text-align:left;margin:0}
+.auth2 .a2-l{display:block;margin:0 0 6px 4px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8}
+.auth2 .auth-input{display:block;box-sizing:border-box;width:100%;margin:0 0 14px;padding:15px 16px;border-radius:14px;border:1px solid rgba(148,163,184,.28);background:#080c16;color:#fff;font-size:16px;outline:none;-webkit-appearance:none;appearance:none}
+.auth2 .auth-input:focus{border-color:#00ceb8;box-shadow:0 0 0 3px rgba(0,206,184,.2)}
+.auth2 .auth-btn{display:block;width:100%;padding:15px;border:0;border-radius:14px;background:#00ceb8;color:#04120f;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 8px 24px rgba(0,206,184,.28);-webkit-appearance:none;appearance:none}
+.auth2 .a2-guest{display:block;width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#94a3b8;font-size:13px;font-weight:800;cursor:pointer}
+</style>`;
+        const loginHtml = lldLgnOn() ? a2css + `
 <div id="auth-overlay" class="auth2" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center;">
     <div class="auth-box a2-card">
         <img id="auth-logo" class="a2-logo" src="${leagueLogoUrl}" alt="">
@@ -21803,7 +21821,7 @@ function lldTbRow(x, st, asks, edit, open, extra) {
     }
     return h + (extra || '') + '</div>';
 }
-function lldTbMain() { return $('#league-content-container'); }
+function lldTbMain() { return (window._tbX && window._tbX.where === 'team') ? $('#player-rows-container') : $('#league-content-container'); }
 function lldTbDraw() {
     const X = window._tbX; if (!X) return;
     const e = lldChatEsc, D = X.d, dr = X.draft;
@@ -21912,18 +21930,20 @@ function lldTrBar(mode) {
     c.before(`<div id="lld-tr-bar" style="display:flex;gap:6px;justify-content:center;padding:8px 10px 0;">${[['block', 'Trade Block'], ['hub', 'Trades']].map(([v, l]) => `<button type="button" class="lld-tr-btn" data-v="${v}" style="padding:7px 16px;border-radius:999px;font-size:calc(11px * var(--ts,1));font-weight:900;text-transform:uppercase;cursor:pointer;border:1px solid ${mode === v ? 'var(--accent-blue)' : 'var(--card-border)'};background:${mode === v ? 'var(--accent-blue)' : 'rgba(255,255,255,.05)'};color:${mode === v ? '#fff' : 'var(--text-dim)'}">${l}</button>`).join('')}</div>`);
 }
 $(document).on('click', '.lld-tr-btn', function () { if (this.dataset.v === 'hub') loadTradeHub(); else loadTradeBlockTab(); });
-async function loadTradeBlockTab() {
-    lldTrBar('block');
+async function loadTradeBlockTab(where) {
+    where = typeof where === 'string' ? where : '';
+    window._tbX = Object.assign({}, window._tbX || {}, { where });
+    if (where === 'team') $('#lld-tr-bar').remove(); else lldTrBar('block');
     const box = lldTbMain().html('<div style="text-align:center; padding:40px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase;">Loading trade block…</div>');
     try {
         const d = await lldTbData(), mine = d.mine.slice();
         const lab = lldTbLabels(d, d.me), draftP = {}; mine.forEach(id => { if (lab[id]) draftP[id] = lab[id]; });
         Object.keys(lab).forEach(id => { if (mine.indexOf(id) < 0) return; });
-        window._tbX = { d, view: (window._tbX && window._tbX.view) || 'mine', pos: 'ALL', open: null, dirty: false, saving: false, mineInfo: mine.map(id => d.info(id)), draft: { m: (d.tb.by[d.me] || {}).m || '', p: draftP } };
+        window._tbX = { d, where, view: (window._tbX && window._tbX.view) || 'mine', pos: 'ALL', open: null, dirty: false, saving: false, mineInfo: mine.map(id => d.info(id)), draft: { m: (d.tb.by[d.me] || {}).m || '', p: draftP } };
         lldTbDraw();
     } catch (e) { console.warn('trade block', e); box.html('<div style="text-align:center;padding:30px;color:#ef4444">Could not load the trade block. <button type="button" class="tb-retry">Try again</button></div>'); }
 }
-$(document).on('click', '.tb-retry', loadTradeBlockTab);
+$(document).on('click', '.tb-retry', function () { loadTradeBlockTab(window._tbX && window._tbX.where); });
 $(document).on('click', '.tb [data-tbview]', function () { window._tbX.view = this.dataset.tbview; lldTbDraw(); });
 $(document).on('click', '.tb [data-tbpos]', function () { window._tbX.pos = this.dataset.tbpos; lldTbDraw(); });
 $(document).on('click', '.tb [data-tbopen]', function () { const X = window._tbX; X.open = X.open === this.dataset.tbopen ? null : this.dataset.tbopen; lldTbDraw(); });
@@ -22451,7 +22471,11 @@ function lldMyBlockTab() {
     });
 }
 function lldMyBlockGo() {
-    window._tbX = { view: 'mine' };
+    window._tbX = { view: 'mine', where: 'team' };
+    $('#subtabs-team .sub-tab-btn').removeClass('active'); $('#subtabs-team .sub-tab-btn[data-mtb]').addClass('active');
+    $('#player-rows-container').html('<div class="loading-indicator">Loading My Trade Block\u2026</div>');
+    loadTradeBlockTab('team'); try { lldShRender(); } catch (e) { }
+    return;
     const lb = $('.tab-btn').filter(function () { return ($(this).attr('onclick') || '').indexOf('tab-league') > -1; })[0];
     if (lb) lb.click();
     setTimeout(function () {
