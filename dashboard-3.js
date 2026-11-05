@@ -21803,7 +21803,7 @@ function lldTbLabels(d, f) {
     return out;
 }
 function lldTbTiles(x) {
-    if (x.them != null) return `<div class="tb-st"><div><b>${x.wk == null ? '\u2013' : x.wk}</b><span>weeks he would start for you</span></div><div><b>${x.them}/${x.thn}</b><span>weeks he would start for them</span></div></div>`;
+    if (x.them != null) return `<div class="tb-st"><div class="tb-stb" data-tbwk="you" data-pid="${x.pid}"><b>${x.wk == null ? '\u2013' : x.wk}</b><span>weeks he would start for you</span></div><div class="tb-stb" data-tbwk="${x.own}" data-pid="${x.pid}"><b>${x.them}/${x.thn}</b><span>weeks he would start for them</span></div></div>`;
     const dv = lldDev();
     return `<div class="tb-st"><div${dv && x.pct != null ? ` class="tb-stb" data-tbteams="${x.pid}"` : ''}><b>${x.pct == null ? '\u2013' : x.pct + '%'}</b><span>of teams he would start for</span></div><div><b>${x.wk == null ? '\u2013' : x.wk}</b><span>weeks he ${x.own === window._lldTbMe ? 'starts for you' : 'would start for you'}</span></div></div>`;
 }
@@ -21817,7 +21817,7 @@ function lldTbRow(x, st, asks, edit, open, extra) {
     let h = `<div class="tb-row" data-pid="${x.pid}" style="--c:${c}"><div class="tb-rr">${badge}<div class="tb-sep"></div><img class="tb-hs ${trg}" style="cursor:pointer" src="https://www.mflscripts.com/playerImages_80x107/mfl_${x.pid}.png" onerror="this.style.visibility='hidden'">`
         + `<div class="tb-mid ${trg}" style="cursor:pointer"><div class="tb-nm"><span class="tb-n">${e(x.name)}</span><span style="color:${posC};font-size:calc(12px * var(--ts,1));font-weight:900">${e(x.pos)}</span>${x.team ? `<img class="tb-nfl" src="${e(typeof getNFLLogoUrl === 'function' ? getNFLLogoUrl(x.team) : '')}" onerror="this.style.display='none'">` : ''}</div>${wants}</div>`
         + `<div class="tb-rt"><b>${e(x.rk)}</b><span>POS RANK</span></div></div>`
-        + `<div class="tb-info"><div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
+        + `<div class="tb-info"><div class="tb-ln"><b>${mny(x.sal)}</b> <i>SAL</i> · <u>${mny(x.hit)}</u> <i>HIT</i> · ${x.yrs ? x.yrs + 'YR' : '–'}${(lldDev() && x.yrs === 1) ? ' <span class="tb-exp">EXPIRING</span>' : ''} · ${x.gu != null ? x.gu + '%' : '–'} <i>GUAR</i> · <s>${e(x.dyn)}</s> <i>DYN</i></div>`
         + lldTbTiles(x) + `</div>`;
     if (edit && open) h += `<div class="tb-pick">${Object.keys(LLDTB_ST).map(k => `<button type="button" data-tbset="${k}" data-pid="${x.pid}" style="--c:${LLDTB_ST[k][1]}" class="${st === k ? 'on' : ''}">${LLDTB_ST[k][0]}</button>`).join('')}${st ? `<button type="button" class="tb-clear" data-tbset="" data-pid="${x.pid}">Clear label</button>` : ''}</div>`;
     if (edit && st === 'S') {
@@ -21878,7 +21878,9 @@ function lldTbMktSel(D, X) {
 function lldTbMktTeam(D, X) {
     const f = X.mk.team, e = lldChatEsc, S = D.S, lab = lldTbLabels(D, f), rc = D.recOf(f), M = LLDTB_MODES[(D.tb.by[f] || {}).m];
     const pos = ['ALL', 'QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], order = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'PK'];
-    let h = `<div class="tb-team"><div class="tb-th"><span class="tb-tn"><span data-team-style="${f}">${e(leagueFranchises[f] || f)}</span>${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</span><span class="tb-sub">${rc ? e(rc.rec) + ' \u00B7 ' + rc.po + '% playoffs' : ''}</span></div>`;
+    let sn = '';
+    try { const ix = S.F.indexOf(f), b = S.base[ix], fin = b && b.rk != null ? b.rk.toFixed(1) : '\u2013'; if (rc) sn = `<div class="tb-sg"><div><b>${e(rc.rec)}</b><span>RECORD</span></div><div><b>${rc.rank}</b><span>RANK</span></div><div><b>${fin}</b><span>PROJ. FINISH</span></div><div><b class="g">${rc.po}%</b><span>PLAYOFFS</span></div></div><div class="tb-pb"><i style="width:${Math.max(2, rc.po)}%"></i></div>`; } catch (err) { }
+    let h = `<div class="tb-snap tb-mkhead"><div class="tb-sh"><img class="tb-mklg" src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${f}.png" onerror="this.style.display='none'"><span class="tb-mkn" data-team-style="${f}">${e(leagueFranchises[f] || f)}</span>${M ? `<span class="tb-mp" style="--c:${M[2]}">${M[0]}</span>` : ''}</div>${sn}</div><div class="tb-team">`;
     h += `<div class="tb-fl">${pos.map(p => `<button type="button" data-mkpos="${p}" class="${X.mk.pos === p ? 'on' : ''}">${p}</button>`).join('')}</div>`;
     const list = (D.rosters[f] || []).map(id => { const x = Object.assign({}, D.info(id)); try { x.them = S.wkStart(id, f); x.thn = S.W; } catch (err) { x.them = null; } if (x.them == null) x.them = '\u2013'; return x; })
         .filter(x => X.mk.pos === 'ALL' || x.pos === X.mk.pos).sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || (parseInt(a.rk.split('#')[1], 10) || 999) - (parseInt(b.rk.split('#')[1], 10) || 999));
@@ -21926,6 +21928,23 @@ function lldTmDraw() {
     if (!L.length) h += '<div class="nx">No teams match.</div>';
     const sc = o.find('.bd2').scrollTop() || 0; o.html(h + '<div class="fn">Cap uses each team\u2019s salary plus dead money this year, before any salary they send back.</div></div>'); o.find('.bd2').scrollTop(sc);
 }
+async function lldTmWeeks(pid, who) {
+    const X = window._tbX; if (!X || !X.d) return;
+    let o = $('#lld-tm-pop'); if (!o.length) { o = $('<div id="lld-tm-pop"><div class="sh"></div></div>'); $('body').append(o); }
+    const D = X.d, S = D.S, p = D.info(pid), e = lldChatEsc, nmOf = id => id ? lldTbShort((S.D.pinfo[id] || {}).name || id) : 'an open spot';
+    let title, sub, rows;
+    if (who === 'you') {
+        const r = S.fit(pid); title = 'Your team'; sub = 'Projected rest of season: who he would replace on your lineup';
+        rows = (r.weeks || []).filter(w => w.starts).map(w => ({ wk: w.wk, out: w.out, outV: w.outV, v: w.v, g: w.gain }));
+    } else {
+        const t = S.startsDetail(pid).find(x => x.f === who); title = leagueFranchises[who] || who; sub = 'Weeks so far: who he would replace on their lineup';
+        rows = t ? t.weeks.map(w => ({ wk: w.wk, out: w.out, outV: w.outV, v: w.v, g: w.g })) : [];
+    }
+    let h = `<div class="hd"><div><b>${e(p.name)} \u00B7 ${e(title)}</b><span>${e(sub)}</span></div><button type="button" class="x" data-tmx="1">\u2715</button></div><div class="bd2">`;
+    h += rows.length ? `<div class="sum">He would start <b>${rows.length}</b> week${rows.length === 1 ? '' : 's'}.</div><div class="wl" style="border-top:0;padding-top:0">${rows.map(x => `<div class="wr"><em>Wk ${x.wk}</em><span class="o">Out: ${e(nmOf(x.out))} <small>${x.outV.toFixed(1)} pts</small><br><span class="i">In: ${e(p.name)} <small>${x.v.toFixed(1)} pts</small></span></span><span class="n">+${x.g.toFixed(1)}</span></div>`).join('')}</div>` : '<div class="nx">He would not start any weeks.</div>';
+    o.addClass('on').find('.sh').html(h + '</div>');
+}
+$(document).on('click', '.tb [data-tbwk]', function (ev) { ev.preventDefault(); ev.stopPropagation(); lldTmWeeks(this.dataset.pid, this.dataset.tbwk); });
 function lldTmMoney(v) { return '$' + (Math.round(v * 10) / 10).toFixed(1) + 'm'; }
 $(document).on('click', '.tb [data-tbteams]', function (ev) { ev.preventDefault(); ev.stopPropagation(); lldTmOpen(this.dataset.tbteams); });
 $(document).on('click', '#lld-tm-pop [data-tmf]', function () { window._lldTm.flt = this.dataset.tmf; lldTmDraw(); });
