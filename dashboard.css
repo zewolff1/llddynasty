@@ -5262,3 +5262,21 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 .lld-yrs-set .scn-ms { width: 100%; margin-top: 8px; background: none; border: 1px solid var(--card-border); border-radius: 10px; color: #fff; padding: 10px; text-align: left; font: inherit; font-weight: 800; }
 .yrs button small, .yr-note, .scn-ms small { display: block; font-size: calc(9px * var(--ts,1)); color: var(--text-dim); font-weight: 600; }
 .yr-note { padding: 4px 6px 6px; }
+
+/* Characters card (beta) */
+#lld-chars{margin:0 0 14px}
+#lld-chars .lc-hd{display:flex;justify-content:space-between;align-items:baseline;margin:10px 2px 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim,#8f98ae);font-weight:800}
+#lld-chars .lc-ld{display:flex;gap:14px;align-items:center;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(245,197,66,.18),var(--bg-card,#131824));border:1px solid #f5c542}
+#lld-chars .lc-av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--bg-dark,#0a0c12);border:2px solid #f5c542;flex:none}
+#lld-chars .lc-ld b{font-size:18px}
+#lld-chars small{display:block;color:var(--text-dim,#8f98ae);font-size:12px}
+#lld-chars .lc-sks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#lld-chars .lc-sk{display:flex;gap:8px;align-items:center;padding:8px;border-radius:14px;background:var(--bg-card,#131824);border:1px solid rgba(255,255,255,.1);min-width:0}
+#lld-chars .lc-sk .lc-av{width:34px;height:34px;font-size:17px;border-width:1px}
+#lld-chars .lc-n{min-width:0;flex:1}#lld-chars .lc-n b{font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#lld-chars .lc-st{font-size:8px;font-weight:800;letter-spacing:.06em;color:#4ade80}
+#lld-chars .lc-sk.bn{opacity:.6}#lld-chars .lc-sk.bn .lc-st{color:var(--text-dim,#8f98ae)}
+#lld-chars .lc-none{grid-column:1/-1;color:var(--text-dim,#8f98ae);font-size:13px;padding:8px}
+
+#lld-chars .lc-av{position:relative;overflow:hidden}
+#lld-chars .lc-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
