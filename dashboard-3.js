@@ -61,7 +61,7 @@ const LLD_STYLES = {
     "sportscenter": { name: "90s Sports Desk", group: "Full themes", file: "sportscenter", fonts: "family=Anton&family=Oswald:wght@500;600;700", scene: {"title": "DYNASTY TONIGHT", "sub": "Scores and moves", "stripes": ["#e31837", "#ffffff"], "live": true, "tickBg": "#e31837", "tickFg": "#ffffff", "bg": "linear-gradient(180deg, #1d44c4 0%, #0a1330 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "italic": true} },
     "arcade": { name: "Gridiron Arcade", group: "Full themes", file: "more", fonts: "family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&family=Press+Start+2P", scene: {"title": "FRANCHISE MODE", "sub": "Insert coin", "grid": true, "scan": true, "bg": "linear-gradient(180deg, #1a222d 0%, #0b0f14 100%)", "font": "\"Teko\", sans-serif", "fw": 700, "spaced": true} },
     "leather": { name: "Leatherheads", group: "Full themes", file: "more", fonts: "family=Playfair+Display:ital,wght@0,700;0,900;1,700", scene: {"title": "THE GAZETTE", "sub": "Vol. V", "tick": ["WIRE: LEAGUE WEEK UNDER WAY", "LINEUPS LOCK AT KICKOFF", "FRANCHISE NEWS TO FOLLOW"], "tickBg": "#120d0a", "tickFg": "#d9b25f", "bg": "linear-gradient(180deg, #3a2b1f 0%, #1c1612 100%)", "font": "\"Playfair Display\", Georgia, serif", "fw": 900} },
-    "stadium": { name: "Stadium", group: "Full themes", file: "more", fonts: "family=Oswald:wght@500;600;700&family=Share+Tech+Mono&family=Playfair+Display:wght@600;800&family=Special+Elite", scene: {"title": "GAME DAY", "sub": "Under the lights", "stars": true, "starsY": 22, "yards": true, "lights": true, "bg": "radial-gradient(60% 80% at 8% 0%, rgba(255,240,200,.55), transparent 70%), radial-gradient(60% 80% at 92% 0%, rgba(255,240,200,.55), transparent 70%), linear-gradient(180deg, #0a1426 0 34%, #1f6b3a 34% 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
+    "stadium": { name: "Stadium", group: "Full themes", file: "more", fonts: "family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=Share+Tech+Mono", scene: {"title": "GAME DAY", "sub": "Under the lights", "stars": true, "starsY": 22, "yards": true, "lights": true, "bg": "radial-gradient(60% 80% at 8% 0%, rgba(255,240,200,.55), transparent 70%), radial-gradient(60% 80% at 92% 0%, rgba(255,240,200,.55), transparent 70%), linear-gradient(180deg, #0a1426 0 34%, #1f6b3a 34% 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "spaced": true, "g": "🏈"} },
     "season_fall": { name: "Fall", group: "Seasonal", file: "more", fonts: "family=Bitter:wght@600;800", scene: {"title": "FALL FOOTBALL", "sub": "Sweater weather", "bg": "linear-gradient(180deg, #8a4214 0%, #4a230c 100%)", "font": "\"Bitter\", Georgia, serif", "fw": 800, "g": "🍁"} },
     "season_halloween": { name: "Halloween", group: "Seasonal", file: "more", fonts: "family=Metamorphous", scene: {"title": "HAPPY HALLOWEEN", "sub": "Spooky season", "moon": true, "bg": "linear-gradient(180deg, #3a1d5e 0%, #1a0f2b 100%)", "font": "\"Metamorphous\", Georgia, serif", "fw": 400, "g": "👻"} },
     "season_thanksgiving": { name: "Thanksgiving", group: "Seasonal", file: "more", fonts: "family=Libre+Baskerville:wght@700", scene: {"title": "THANKSGIVING WEEK", "sub": "Football, family, leftovers", "bg": "linear-gradient(180deg, #7a2f2f 0%, #46211f 100%)", "font": "\"Libre Baskerville\", Georgia, serif", "fw": 700, "g": "🍂"} },
@@ -211,19 +211,28 @@ function lldSetTicker(items, secs) {
     const tok = s => esc(s).replace(/\[\[([LT]):(\d+)\|([^\]]*)\]\]/g, (m, k, id, nmx) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">` + (k === 'T' ? `<b class="tk-nm">${nmx}</b>` : ''));
     const flat = (secs && secs.length ? secs.reduce((a, s) => a.concat(s.items), []) : items);
     const plain = flat.join(sep) + sep;
-    let html;
-    if (secs && secs.length) {
-        const one = secs.map(s => `<span class="tk-sec" data-n="${esc(s.name)}">${s.items.map(tok).join(esc(sep))}${esc(sep)}</span>`).join('<span class="tk-gap"></span>');
-        html = one + '<span class="tk-gap"></span>' + one;
-    } else html = tok(plain + plain);
-    sp.innerHTML = html;
-    const len = plain.replace(/\[\[L:\d+\|[^\]]*\]\]/g, 'XXX').replace(/\[\[T:\d+\|([^\]]*)\]\]/g, 'XXX $1').length;
-    const dur = Math.max(16, Math.round(len * 0.2 * lldTkCfg().spd)) + 's';
-    sp.style.setProperty('--tkdur', dur);
-    sp.style.animationDuration = dur;
-    const lb = document.querySelector('#lld-ticker .tk-l');
-    if (lb && secs && secs.length) lb.textContent = secs[0].name;
-    if (secs && secs.length) lldTkWatch();
+    const slides = [];
+    if (secs && secs.length) secs.forEach(sc => sc.items.forEach(t => slides.push({ s: sc.name, h: tok(t) })));
+    else items.forEach(t => slides.push({ s: '', h: tok(t) }));
+    window._lldTkSlides = slides; window._lldTkI = -1;
+    sp.innerHTML = '';
+    lldTkNext();
+}
+// slideshow ticker: one item at a time, the old one slides up and out while the next slides in
+function lldTkSpan() { const v = lldTkCfg().spd; return v <= 0.6 ? 2500 : v >= 1.5 ? 6000 : 4000; }
+function lldTkNext() {
+    clearTimeout(window._lldTkTm);
+    const el = document.getElementById('lld-ticker'); if (!el) return;
+    const sp = el.querySelector('.tk-t'), sl = window._lldTkSlides || []; if (!sp || !sl.length) return;
+    if (document.hidden && sp.firstChild) { window._lldTkTm = setTimeout(lldTkNext, 1000); return; }
+    window._lldTkI = ((window._lldTkI == null ? -1 : window._lldTkI) + 1) % sl.length;
+    const it = sl[window._lldTkI];
+    const old = sp.querySelector('.tk-sl.in');
+    if (old) { old.classList.remove('in'); old.classList.add('out'); setTimeout(() => { try { old.remove(); } catch (e) { } }, 520); }
+    const d = document.createElement('div'); d.className = 'tk-sl'; d.innerHTML = it.h; sp.appendChild(d);
+    requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add('in')));
+    const lb = el.querySelector('.tk-l'); if (lb && it.s) lb.textContent = it.s;
+    if (sl.length > 1) window._lldTkTm = setTimeout(lldTkNext, lldTkSpan());
 }
 // the label on the left names the section that is passing the left edge
 function lldTkWatch() {
@@ -442,8 +451,8 @@ async function lldFillTicker(staticItems, attempt) {
 function lldTkOpen() {
     let o = document.getElementById('lld-tke'); if (!o) { o = document.createElement('div'); o.id = 'lld-tke'; document.body.appendChild(o); }
     const cfg = lldTkCfg(), on = lldTickOn(lldEffStyle());
-    const row = (x, i) => { const s = LLD_TK_SRC[x.id]; return `<div class="tke-row ${x.on ? '' : 'dis'}" data-i="${i}"><div class="tke-mv"><button data-a="up" ${i ? '' : 'disabled'}>\u25B2</button><button data-a="dn" ${i < cfg.list.length - 1 ? '' : 'disabled'}>\u25BC</button></div><div class="tke-n"><b>${lldTkName(x.id)}</b><span>${s.d}</span>${x.on ? `<div class="tke-cnt">Show <button data-a="m">\u2212</button><i>${x.n}</i><button data-a="p">+</button> items</div>` : ''}</div><button class="tke-sw ${x.on ? 'on' : ''}" data-a="t" aria-label="${lldTkName(x.id)} on or off"></button></div>`; };
-    o.innerHTML = `<div class="tke-bd" data-a="x"></div><div class="tke-pn"><div class="tke-top"><h2>Edit ticker</h2><button class="tke-x" data-a="x" aria-label="Close">\u2715</button></div><p class="tke-sub">Changes apply right away and are saved on this device.</p><div class="tke-row tke-master"><div class="tke-n"><b>Show the ticker</b><span>Turn the whole bar on or off</span></div><button class="tke-sw ${on ? 'on' : ''}" data-a="mst" aria-label="Ticker on or off"></button></div><div class="tke-lab">Scroll speed</div><div class="tke-spd">${[['1.5', 'Slow'], ['1', 'Normal'], ['0.6', 'Fast']].map(a => `<button data-a="spd" data-v="${a[0]}" class="${+a[0] === cfg.spd ? 'on' : ''}">${a[1]}</button>`).join('')}</div><div class="tke-lab">What it shows \u00B7 top scrolls first</div>${cfg.list.map(row).join('')}<button class="tke-rs" data-a="rs">Reset to defaults</button></div>`;
+    const row = (x, i) => { const s = LLD_TK_SRC[x.id]; return `<div class="tke-row ${x.on ? '' : 'dis'}" data-i="${i}"><div class="tke-hd" data-h="1" title="Drag to reorder">\u2261</div><div class="tke-n"><b>${lldTkName(x.id)}</b><span>${s.d}</span>${i ? '<button class="tke-t1" data-a="top">Show first</button>' : '<b style="font-size:10px;color:var(--accent-blue);letter-spacing:.1em">FIRST</b>'}${x.on ? `<div class="tke-cnt">Show <button data-a="m">\u2212</button><i>${x.n}</i><button data-a="p">+</button> items</div>` : ''}</div><button class="tke-sw ${x.on ? 'on' : ''}" data-a="t" aria-label="${lldTkName(x.id)} on or off"></button></div>`; };
+    o.innerHTML = `<div class="tke-bd" data-a="x"></div><div class="tke-pn"><div class="tke-top"><h2>Edit ticker</h2><button class="tke-x" data-a="x" aria-label="Close">\u2715</button></div><p class="tke-sub">Changes apply right away and are saved on this device.</p><div class="tke-row tke-master"><div class="tke-n"><b>Show the ticker</b><span>Turn the whole bar on or off</span></div><button class="tke-sw ${on ? 'on' : ''}" data-a="mst" aria-label="Ticker on or off"></button></div><div class="tke-lab">Time on each slide</div><div class="tke-spd">${[['0.6', 'Quick'], ['1', 'Normal'], ['1.5', 'Slow']].map(a => `<button data-a="spd" data-v="${a[0]}" class="${+a[0] === cfg.spd ? 'on' : ''}">${a[1]}</button>`).join('')}</div><div class="tke-lab">What it shows \u00B7 top plays first \u00B7 drag \u2261 to reorder</div>${cfg.list.map(row).join('')}<button class="tke-rs" data-a="rs">Reset to defaults</button></div>`;
     o.classList.add('o');
 }
 function lldTkChanged() {
@@ -452,6 +461,17 @@ function lldTkChanged() {
     else if (!lldTkRender()) lldSetTicker(['TAP HERE TO CHOOSE WHAT THE TICKER SHOWS']);
     lldTkOpen();
 }
+// drag a row by its handle to reorder
+(function () {
+    let dg = null;
+    document.addEventListener('pointerdown', e => { const h = e.target.closest && e.target.closest('#lld-tke .tke-hd'); if (!h) return; const r = h.closest('.tke-row'); dg = { r, i: +r.dataset.i, y: e.clientY, rows: [...document.querySelectorAll('#lld-tke .tke-row[data-i]')] }; r.classList.add('drag'); try { h.setPointerCapture(e.pointerId); } catch (x) { } e.preventDefault(); });
+    document.addEventListener('pointermove', e => { if (dg) dg.r.style.transform = 'translateY(' + (e.clientY - dg.y) + 'px)'; });
+    document.addEventListener('pointerup', e => {
+        if (!dg) return; const rs = dg.rows, y = e.clientY; let to = rs.length - 1;
+        for (let k = 0; k < rs.length; k++) { const b = rs[k].getBoundingClientRect(); if (k !== dg.i && y < b.top + b.height / 2) { to = k > dg.i ? k - 1 : k; break; } }
+        const cfg = lldTkCfg(), x = cfg.list.splice(dg.i, 1)[0]; cfg.list.splice(to, 0, x); dg = null; lldTkSave(cfg); lldTkChanged();
+    });
+})();
 $(document).on('click', '#lld-ticker', function () { lldTkOpen(); });
 $(document).on('click', '#lld-tk-edit', function () { lldTkOpen(); });
 $(document).on('click', '#lld-tke [data-a]', function (e) {
@@ -464,6 +484,7 @@ $(document).on('click', '#lld-tke [data-a]', function (e) {
     if (a === 't') x.on = !x.on;
     else if (a === 'm') x.n = Math.max(1, x.n - 1);
     else if (a === 'p') x.n = Math.min(LLD_TK_SRC[x.id].max, x.n + 1);
+    else if (a === 'top' && i > 0) { cfg.list.splice(i, 1); cfg.list.unshift(x); }
     else if (a === 'up' && i) { cfg.list[i] = cfg.list[i - 1]; cfg.list[i - 1] = x; }
     else if (a === 'dn' && i < cfg.list.length - 1) { cfg.list[i] = cfg.list[i + 1]; cfg.list[i + 1] = x; }
     lldTkSave(cfg); lldTkChanged();
@@ -1241,15 +1262,15 @@ function lldApplyTick(v) {
     lldBuildTicker(lldEffStyle());
 }
 $(document).on('click', '.lld-tick-btn', function () { lldApplyTick(this.dataset.v); });
-// Stadium theme rooms: Scores = the stadium, Team > Lineup = locker room, every other page = manager's office
+// Stadium theme rooms: Scores = the field, Team > Lineup = locker room, League = press box, every other page = manager's office
 function lldStadScene() {
     const b = document.body; if (!b) return;
     let sc = '';
     if (b.classList.contains('theme-stadium')) {
         const t = (($('.tab-content.active').first().attr('id')) || 'tab-team').toLowerCase(), sub = ($('#subtabs-team .sub-tab-btn.active').text() || '').trim().toLowerCase();
-        sc = /scoreboard/.test(t) ? '' : (/tab-team/.test(t) && (!sub || /lineup/.test(sub)) ? 'stad-locker' : 'stad-office');
+        sc = /scoreboard/.test(t) ? 'stad-field' : /tab-league/.test(t) ? 'stad-press' : (/tab-team/.test(t) && (!sub || /lineup/.test(sub)) ? 'stad-locker' : 'stad-office');
     }
-    ['stad-locker', 'stad-office'].forEach(c => { if (b.classList.contains(c) !== (c === sc)) b.classList.toggle(c, c === sc); });
+    ['stad-field', 'stad-locker', 'stad-press', 'stad-office'].forEach(c => { if (b.classList.contains(c) !== (c === sc)) b.classList.toggle(c, c === sc); });
 }
 setInterval(() => { try { lldStadScene(); } catch (e) { } }, 500);
 $(document).on('click', '.tab-btn, .sub-tab-btn', function () { setTimeout(lldStadScene, 30); setTimeout(lldStadScene, 400); });
@@ -3743,7 +3764,7 @@ $(document).on('click', '#contracts-filter-toggle', function() {
 });
 $(document).on('click', '#auth-guest-btn', function() {
     $('#auth-overlay').fadeOut(200);
-    $('body').css('overflow', '');
+    $('body').removeClass('lld-loggedout').css('overflow', '');
 });
 // Sort direction toggle
 $(document).on('click', '.player-sort-btn', function() {
@@ -15693,8 +15714,34 @@ function lldMusicUrl(fid) {
 }
 const LLD_ST = { i: 0, slides: [], pause: false, kind: '', wk: 0, speed: 1, popup: false };
 function stLogo(f, s) { return `<img class="st-logo st-a" src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" style="width:${s}px;height:${s}px">`; }
-function stName(f) { return lldChatEsc(leagueFranchises[f] || f); }
-function stSlide(c1, c2, html) { return { bg: `radial-gradient(120% 90% at 20% 0%, ${c1}, ${c2})`, html }; }
+function stName(f) { return `<span style="font-family:${lldTmSty(f).font}">${lldChatEsc(leagueFranchises[f] || f)}</span>`; }
+// ===== team look: every team gets its own color, font and pattern (override in LLD_CONFIG.teamThemes with '--team-color', '--team-font', '--team-pattern') =====
+const LLD_TM_COLORS = ['#1f8a5b', '#5b3fb5', '#e8590c', '#2a7fb8', '#7fd1d6', '#c92a2a', '#d9a21b', '#b83280', '#0f766e', '#4d7c0f', '#9a3412', '#1d4ed8', '#6d28d9', '#be123c', '#0e7490', '#a16207'];
+const LLD_TM_FONTS = ["'Alfa Slab One',serif", "'Cinzel',serif", "'Russo One',sans-serif", "'Permanent Marker',cursive", "'Saira Condensed',sans-serif", "'Black Ops One',sans-serif", "'Bebas Neue',sans-serif", "'Archivo Black',sans-serif"];
+const LLD_TM_PATS = ['repeating-linear-gradient(90deg,transparent 0 22px,rgba(255,255,255,.07) 22px 24px)', 'repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 2px,transparent 2px 26px),repeating-linear-gradient(-45deg,rgba(255,255,255,.06) 0 2px,transparent 2px 26px)', 'repeating-linear-gradient(115deg,rgba(0,0,0,.09) 0 18px,transparent 18px 36px)', 'radial-gradient(rgba(255,255,255,.12) 1.2px,transparent 1.4px) 0 0/16px 16px', 'linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px) 0 0/100% 28px,linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px) 0 0/28px 100%', 'repeating-conic-gradient(rgba(0,0,0,.12) 0 25%,transparent 0 50%) 0 0/36px 36px', 'repeating-linear-gradient(0deg,transparent 0 30px,rgba(255,255,255,.07) 30px 32px)', 'radial-gradient(circle at 100% 0,rgba(255,255,255,.1) 0 40%,transparent 41%)'];
+function lldTmSty(f) {
+    f = String(f || '').padStart(4, '0'); window._lldTmC = window._lldTmC || {};
+    if (window._lldTmC[f]) return window._lldTmC[f];
+    const th = (typeof TEAM_THEMES !== 'undefined' && TEAM_THEMES && TEAM_THEMES[f]) || {}, n = (parseInt(f, 10) || 0) - 1, k = ((n % 16) + 16) % 16;
+    let c = th['--team-color'] || th['--accent-blue'] || LLD_TM_COLORS[k]; if (!/^#[0-9a-f]{6}$/i.test(c)) c = LLD_TM_COLORS[k];
+    const v = parseInt(c.slice(1), 16), L = 0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255);
+    const o = { c, tx: L > 150 ? '#10141c' : '#ffffff', light: L > 150, font: th['--team-font'] || LLD_TM_FONTS[k % LLD_TM_FONTS.length], pat: th['--team-pattern'] || LLD_TM_PATS[(k >> 1) % LLD_TM_PATS.length] };
+    return (window._lldTmC[f] = o);
+}
+function lldTmFonts() {
+    if (document.getElementById('lld-tm-fonts')) return;
+    const l = document.createElement('link'); l.id = 'lld-tm-fonts'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Cinzel:wght@700;900&family=Russo+One&family=Permanent+Marker&family=Saira+Condensed:wght@600;800&family=Black+Ops+One&family=Bebas+Neue&family=Archivo+Black&display=swap';
+    document.head.appendChild(l);
+}
+// neutral (league-wide) slide: flat dark color with a thin accent rule in the topic color
+function stSlide(c1, c2, html) { return { bg: `linear-gradient(${c1},${c1}) 0 0/100% 5px no-repeat, ${c2}`, html }; }
+// slide about one team: the whole slide takes that team's color, font and pattern
+function stSlideTm(fid, html, dark) {
+    const t = lldTmSty(fid); lldTmFonts();
+    const base = dark && !t.light ? `color-mix(in srgb, ${t.c} 62%, #000)` : t.c;
+    return { bg: `${t.pat}, ${base}`, html, tm: t };
+}
 function stNum(v, dec, cls) { return `<div class="st-big st-a ${cls || ''}" data-count="${v}" data-dec="${dec}" style="--d:.35s">0</div>`; }
 // ===== extra story data: X-factor, alerts, rivalry, lineup spotlight =====
 async function lldXFactors(pw, ms, proj) {
@@ -15904,7 +15951,34 @@ function lldGbgRun(host, G) {
     };
     fresh(); setTimeout(tick, 400 / Math.max(.25, LLD_ST.speed || 1));
 }
+async function lldMonthSlides(key) {
+    const out = [];
+    const allScores = await fetchAllWeekScores();
+    const weeks = Object.keys(allScores).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
+    const months = recapMonths(weeks), cur = months.find(m => m.key === key) || months[months.length - 1];
+    if (!cur) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">No completed weeks yet</div>`)); return out; }
+    const byWk = {};
+    for (let i = 0; i < cur.weeks.length; i += 3) await Promise.all(cur.weeks.slice(i, i + 3).map(async w => { byWk[w] = await fetchRecapWeek(w, w < latest); }));
+    const M = computeMonthSummary(cur.weeks, byWk);
+    const mn = parseInt(String(cur.key).slice(5), 10), SEA = { 10: ['hal', 'Happy Halloween'], 11: ['thx', 'Happy Thanksgiving'], 12: ['xmas', 'Happy holidays'] }[mn]; // October, November and December always get their seasonal look
+    LLD_ST.monthStt = SEA ? SEA[0] : '';
+    const w0 = cur.weeks[0], w1 = cur.weeks[cur.weeks.length - 1], rng = w0 === w1 ? 'Week ' + w0 : 'Weeks ' + w0 + ' to ' + w1;
+    out.push(stSlide('#a16207', '#14100a', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">${lldChatEsc(cur.label.toUpperCase())}</div><div class="st-h st-a" style="--d:.4s">Monthly recap</div><div class="st-sub st-a" style="--d:.6s">${SEA ? SEA[1] + ' · ' : ''}${rng}</div>`));
+    if (!M.top.length) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">No completed games this month</div>`)); return out; }
+    const best = M.top[0];
+    out.push(stSlideTm(best.fid, `<div class="st-k st-a">PLAYER OF THE MONTH</div>${stPRow(best.p, best.fid, best.tot.toFixed(1), 0.25)}<div class="st-sub st-a" style="--d:.7s">${best.g} game${best.g === 1 ? '' : 's'} in a starting lineup · ${(best.tot / best.g).toFixed(1)} per game</div>`));
+    out.push(stSlide('#1d4ed8', '#0b1020', `<div class="st-k st-a">TOP FIVE PLAYERS</div>${M.top.map((q, i) => stPRow(q.p, q.fid, q.tot.toFixed(1), 0.2 + i * .15)).join('')}`));
+    for (let i = 0; i < M.pos.length; i += 4) out.push(stSlide('#0f766e', '#07110f', `<div class="st-k st-a">BEST AT EACH POSITION</div>${M.pos.slice(i, i + 4).map((z, j) => stPRow(z.x.p, z.x.fid, z.pos, 0.2 + j * .15)).join('')}`));
+    const tp = M.teams[0], hp = M.pfTop[0];
+    out.push(stSlideTm(tp.fid, `<div class="st-k st-a">TEAM OF THE MONTH</div>${stLogo(tp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(tp.fid)}</div><div class="st-big st-a" style="--d:.35s">${tp.w}-${tp.l}</div><div class="st-sub st-a" style="--d:.6s">${tp.pf.toFixed(1)} points · best week ${tp.best.toFixed(1)}</div>`, true));
+    if (hp && hp.fid !== tp.fid) out.push(stSlideTm(hp.fid, `<div class="st-k st-a">MOST POINTS SCORED</div>${stLogo(hp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hp.fid)}</div>${stNum(hp.pf, 1, 'gold')}<div class="st-sub st-a" style="--d:.6s">${(hp.pf / Math.max(1, hp.gp)).toFixed(1)} per game</div>`));
+    if (M.bestGame) out.push(stSlideTm(M.bestGame.fid, `<div class="st-k st-a">BEST SINGLE GAME</div>${stPRow(M.bestGame.p, M.bestGame.fid, M.bestGame.hi.toFixed(1), 0.25)}<div class="st-sub st-a" style="--d:.7s">Highest score by a starter this month</div>`, true));
+    out.push(stSlide('#334155', '#0b0f19', `<div class="st-k st-a">${lldChatEsc(cur.label.toUpperCase())} STANDINGS</div>${M.teams.slice(0, 8).map((t, i) => `<div class="st-row st-a" style="--d:${0.15 + i * .1}s;padding:7px 10px;gap:8px"><span style="width:18px;font-weight:900">${i + 1}</span><img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:50%;object-fit:cover"><b style="flex:1;text-align:left;font-size:calc(13px * var(--ts,1))">${stName(t.fid)}</b><i style="font-size:calc(17px * var(--ts,1))">${t.w}-${t.l}</i></div>`).join('')}`));
+    out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">${lldChatEsc(cur.label)} recap</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="month" data-wk="0" data-mo="${cur.key}">Open the full month</button>`));
+    return out;
+}
 async function lldStorySlides(kind, wk, idx) {
+    if (kind === 'month') return lldMonthSlides(idx);
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
     const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind === 'matchup' ? 'preview' : kind}" data-wk="${wk}">${LLD_ST.popup ? 'See full preview' : 'Open the full ' + label}</button>`));
@@ -15915,10 +15989,10 @@ async function lldStorySlides(kind, wk, idx) {
         let ms = []; try { ms = await fetchRecapWeek(wk, wk < latest); } catch (e) { }
         out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Recap</div>`));
         const mg = ms.find(m => m.t1.fid === me || m.t2.fid === me);
-        if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; out.push(stSlide(won ? '#15803d' : '#b91c1c', '#050505', `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
+        if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; out.push(stSlideTm(me, `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
         try {
             const mine = mg && (mg.t1.fid === me ? mg.t1 : mg.t2), sp = mine && lldSpotlight(mine);
-            if (sp) out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
+            if (sp) out.push(stSlideTm(me, `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
         } catch (e) { console.warn('spotlight', e); }
         try {
             if (lldGbgOn()) {
@@ -15928,15 +16002,15 @@ async function lldStorySlides(kind, wk, idx) {
             }
         } catch (e) { console.warn('gbg build', e); if (lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
         if (S.top) LLD_ST.topFid = S.top.fid;
-        if (S.top) out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
+        if (S.top) out.push(stSlideTm(S.top.fid, `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
         if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`));
-        if (S.sunday) out.push(stSlide('#b45309', '#1c0f02', `<div class="st-k st-a">☀️ ANY GIVEN SUNDAY</div>${stPRow(S.sunday.p, S.sunday.fid, '+' + S.sunday.diff.toFixed(1), 0.3)}<div class="st-sub st-a" style="--d:.8s">Scored ${S.sunday.p.score.toFixed(1)} against a ${S.sunday.proj.toFixed(1)} projection, the biggest beat of the week</div>`));
+        if (S.sunday) out.push(stSlideTm(S.sunday.fid, `<div class="st-k st-a">☀️ ANY GIVEN SUNDAY</div>${stPRow(S.sunday.p, S.sunday.fid, '+' + S.sunday.diff.toFixed(1), 0.3)}<div class="st-sub st-a" style="--d:.8s">Scored ${S.sunday.p.score.toFixed(1)} against a ${S.sunday.proj.toFixed(1)} projection, the biggest beat of the week</div>`));
         if (ms.length) out.push(stSlide('#0f172a', '#020617', `<div class="st-k st-a">FINAL SCORES</div>${stScoreboard(ms.map(m => ({ t1: m.t1.fid, t2: m.t2.fid, s1: m.t1.score, s2: m.t2.score })), 'FINAL', 1)}`));
         if (S.blowout) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">BIGGEST BLOWOUT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.blowout.w.fid, 72)}<span>def.</span>${stLogo(S.blowout.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.blowout.w.fid)}</div>${stNum(S.blowout.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
         if (S.close) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">CLOSEST GAME</div><div class="st-vs st-a" style="--d:.15s">${stLogo(S.close.w.fid, 72)}<span>def.</span>${stLogo(S.close.l.fid, 72)}</div><div class="st-h st-a" style="--d:.3s">${stName(S.close.w.fid)}</div>${stNum(S.close.d, 2)}<div class="st-sub st-a" style="--d:.6s">point margin</div>`));
         if (S.upsets && S.upsets.length) { const u = S.upsets[0]; out.push(stSlide('#be185d', '#14020a', `<div class="st-k st-a">🚨 UPSET ALERT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(u.w.fid, 72)}<span>stunned</span>${stLogo(u.l.fid, 72)}</div><div class="st-h st-a" style="--d:.35s">${stName(u.w.fid)}</div><div class="st-sub st-a" style="--d:.6s">${u.w.score.toFixed(1)} – ${u.l.score.toFixed(1)}</div>`)); }
-        if (S.calls && S.calls.length) { const c = S.calls[0]; out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">GUTSIEST CALL</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.g.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.g.name)}</b><span>started over ${lldChatEsc(c.d.name)}</span></div><i>${c.g.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">+${c.margin.toFixed(1)} pts${c.decisive ? ' · won the game' : ''} for ${stName(c.fid)}</div>`)); }
-        if (S.overs && S.overs.length) { const c = S.overs[0]; out.push(stSlide('#475569', '#05070b', `<div class="st-k st-a">THE OVERTHINKER 🤡</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.d.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.d.name)}</b><span>sat on ${stName(c.fid)}'s bench</span></div><i>${c.d.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">−${c.margin.toFixed(1)} pts${c.decisive ? ' · cost the game' : ''}</div>`)); }
+        if (S.calls && S.calls.length) { const c = S.calls[0]; out.push(stSlideTm(c.fid, `<div class="st-k st-a">GUTSIEST CALL</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.g.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.g.name)}</b><span>started over ${lldChatEsc(c.d.name)}</span></div><i>${c.g.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">+${c.margin.toFixed(1)} pts${c.decisive ? ' · won the game' : ''} for ${stName(c.fid)}</div>`)); }
+        if (S.overs && S.overs.length) { const c = S.overs[0]; out.push(stSlideTm(c.fid, `<div class="st-k st-a">THE OVERTHINKER 🤡</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.d.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.d.name)}</b><span>sat on ${stName(c.fid)}'s bench</span></div><i>${c.d.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">−${c.margin.toFixed(1)} pts${c.decisive ? ' · cost the game' : ''}</div>`)); }
         try {
             const now = await lldStandingsThrough(wk), prev = wk > 1 ? await lldStandingsThrough(wk - 1) : null;
             const poNow = await lldPoAt(wk), poPrev = wk > 1 ? await lldPoAt(wk - 1) : null;
@@ -15956,12 +16030,12 @@ async function lldStorySlides(kind, wk, idx) {
         out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PROJECTED SCORES</div><div class="st-two"><div class="st-col">${stLogo(g.t1.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t1.fid)}</div>${stNum(g.m1, 1, g.m1 >= g.m2 ? 'gold' : '')}</div><div class="st-col">${stLogo(g.t2.fid, 64)}<div class="st-sub st-a" style="--d:.3s">${stName(g.t2.fid)}</div>${stNum(g.m2, 1, g.m2 > g.m1 ? 'gold' : '')}</div></div>`));
         out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">WIN ODDS</div>${stLogo(fav.fid, 90)}<div class="st-h st-a" style="--d:.2s">${stName(fav.fid)}</div>${stNum(favP, 0, 'gold').replace('data-dec="0"', 'data-dec="0" data-suf="%"')}<div class="st-bar st-a" style="--d:.5s"><u class="st-grow" style="width:${a}%"></u></div><div class="st-sub st-a" style="--d:.7s">${a}% – ${100 - a}%</div>`));
         const top = t => t.roster.filter(p => p.isStarter && P.proj[p.pid] > 0).sort((x, y) => P.proj[y.pid] - P.proj[x.pid]).slice(0, 3);
-        [g.t1, g.t2].forEach(t => out.push(stSlide('#0f766e', '#011613', `<div class="st-k st-a">${stName(t.fid)} · TOP PROJECTED</div>${top(t).map((p, i) => stPRow(p, t.fid, P.proj[p.pid].toFixed(1), 0.25 + i * .2)).join('')}`)));
+        [g.t1, g.t2].forEach(t => out.push(stSlideTm(t.fid, `<div class="st-k st-a">${stName(t.fid)} · TOP PROJECTED</div>${top(t).map((p, i) => stPRow(p, t.fid, P.proj[p.pid].toFixed(1), 0.25 + i * .2)).join('')}`)));
         const POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], sum = (t, ps) => t.roster.filter(p => p.isStarter && recapNormPos(p) === ps).reduce((x, p) => x + (P.proj[p.pid] || 0), 0);
         const edge = POS.map((ps, i) => { const x = sum(g.t1, ps), y = sum(g.t2, ps), m = Math.max(x, y, 1); return `<div class="st-edge st-a" style="--d:${0.2 + i * .12}s"><span>${ps}</span><div><u class="${x >= y ? 'win' : ''}" style="width:${Math.round(x / m * 100)}%">${x.toFixed(1)}</u></div><div><u class="${y > x ? 'win' : ''}" style="width:${Math.round(y / m * 100)}%">${y.toFixed(1)}</u></div></div>`; }).join('');
         try {
             const XF = await lldXFactors(wk, (P.games || []).map(q => ({ t1: q.t1, t2: q.t2 })), P.proj);
-            [g.t1, g.t2].forEach(t => { const x = XF[t.fid]; if (x) out.push(stSlide('#c2410c', '#1a0802', `<div class="st-k st-a">${stName(t.fid)} · X-FACTOR</div>${lldXfRow(x, 0)}<div class="st-sub st-a" style="--d:.8s">${x.kind === 'tough' ? 'A big producer facing a tough projection this week' : 'High boom-or-bust player who can swing this game'}</div>`)); });
+            [g.t1, g.t2].forEach(t => { const x = XF[t.fid]; if (x) out.push(stSlideTm(t.fid, `<div class="st-k st-a">${stName(t.fid)} · X-FACTOR</div>${lldXfRow(x, 0)}<div class="st-sub st-a" style="--d:.8s">${x.kind === 'tough' ? 'A big producer facing a tough projection this week' : 'High boom-or-bust player who can swing this game'}</div>`)); });
         } catch (e) { console.warn('xf', e); }
         try { const R = await lldRivalry(g.t1.fid, g.t2.fid, wk); if (R) out.push(lldRivalSlide(g.t1.fid, g.t2.fid, R)); } catch (e) { console.warn('rival', e); }
         out.push(stSlide('#b45309', '#1a0b02', `<div class="st-k st-a">POSITION BY POSITION</div><div class="st-legend st-a" style="--d:.1s"><span>${stName(g.t1.fid)}</span><span>${stName(g.t2.fid)}</span></div>${edge}`));
@@ -15980,7 +16054,7 @@ async function lldStorySlides(kind, wk, idx) {
             const mm = byClose[byClose.length - 1]; if (mm !== byClose[0]) out.push(stSlide('#b91c1c', '#0a0000', `<div class="st-k st-a">🧨 BIGGEST MISMATCH</div>${pg(mm)}`));
             const hi = P.games.reduce((best, g) => { [[g.t1.fid, g.m1], [g.t2.fid, g.m2]].forEach(([f, m]) => { if (!best || m > best.m) best = { f, m }; }); return best; }, null);
             if (hi) LLD_ST.topFid = hi.f;
-            if (hi) out.push(stSlide('#15803d', '#011208', `<div class="st-k st-a">HIGHEST PROJECTED</div>${stLogo(hi.f, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hi.f)}</div>${stNum(hi.m, 1, 'gold')}`));
+            if (hi) out.push(stSlideTm(hi.f, `<div class="st-k st-a">HIGHEST PROJECTED</div>${stLogo(hi.f, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hi.f)}</div>${stNum(hi.m, 1, 'gold')}`));
         } else out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">Matchups are not posted yet</div><div class="st-sub st-a" style="--d:.3s">Check back once lineups and projections are in.</div>`));
         if (P.games.length) out.push(stSlide('#0f172a', '#020617', `<div class="st-k st-a">PROJECTED SCORES</div>${stScoreboard(P.games.map(g => ({ t1: g.t1.fid, t2: g.t2.fid, s1: g.m1, s2: g.m2 })), 'PROJ', 1)}`));
         if (P.players.length) out.push(stSlide('#7c3aed', '#0b0220', `<div class="st-k st-a">PLAYERS TO WATCH</div>${P.players.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.proj.toFixed(1), 0.25 + i * .2)).join('')}`));
@@ -16041,7 +16115,7 @@ function stShow(i) {
     box.css('--dur', sl.gbg ? '99999s' : (5.4 / S.speed).toFixed(2) + 's');
     box.find('.st-bars').html(S.slides.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'cur' : ''}"><u></u></span>`).join(''));
     const T = S.stt || '';
-    box.find('.st-stage').css('background', T ? LLD_STT_BG[T] : sl.bg).html(`${T ? '<div class="stt-deco">' + lldSttDeco(T, S.kind, S.wk) + '</div>' : ''}<div class="st-in">${T === 'leather' ? '<div class="stt-mast st-a">THE DYNASTY GAZETTE</div>' : ''}${sl.html}${T === 'leather' ? '<div class="stt-rule"></div>' : ''}</div>`);
+    box.find('.st-stage').css('background', T ? LLD_STT_BG[T] : sl.bg).toggleClass('tm', !!(sl.tm && !T)).css({ '--tf': sl.tm ? sl.tm.font : '', '--tx': sl.tm ? sl.tm.tx : '', '--tc': sl.tm ? sl.tm.c : '' }).html(`${T ? '<div class="stt-deco">' + lldSttDeco(T, S.kind, S.wk) + '</div>' : ''}<div class="st-in">${T === 'leather' ? '<div class="stt-mast st-a">THE DYNASTY GAZETTE</div>' : ''}${sl.html}${T === 'leather' ? '<div class="stt-rule"></div>' : ''}</div>`);
     if (sl.gbg) { try { lldGbgRun(box.find('.gbg')[0], sl.gbg); } catch (e) { console.warn('gbg', e); } }
     box.find('[data-count]').each(function () {
         const el = this, to = parseFloat(el.dataset.count) || 0, dec = parseInt(el.dataset.dec, 10) || 0, t0 = performance.now() + 350, dur = 1100;
@@ -16069,10 +16143,10 @@ function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop()
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup; LLD_ST.embed = false;
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
-    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if ($('#lld-story').length) stMusicStart(LLD_ST.topFid); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
+    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.monthStt = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if (kind === 'month') { LLD_ST.stt = LLD_ST.monthStt || ''; $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); } if ($('#lld-story').length) stMusicStart(LLD_ST.topFid); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
-$(document).on('click', '.lld-play', function () { lldOpenStory($(this).data('k'), parseInt($(this).data('wk'), 10), parseInt($(this).data('i'), 10)); });
+$(document).on('click', '.lld-play', function () { const k = $(this).data('k'); lldOpenStory(k, parseInt($(this).data('wk'), 10), k === 'month' ? String($(this).data('i')) : parseInt($(this).data('i'), 10)); });
 $(document).on('animationend', '#lld-story .st-bars .cur u', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-x', stClose);
 $(document).on('click', '#lld-story .st-sp', function () {
@@ -16089,7 +16163,7 @@ $(document).on('click', '#lld-story .st-zl, #lld-story .st-zr', function (e) { i
 $(document).on('click', '#lld-story .st-cta', function () {
     const k = $(this).data('kind'), w = parseInt($(this).data('wk'), 10), st = window._recapState;
     if (LLD_ST.popup) { stClose(); openMatchupPreview(); return; } // started from the Scores tab: finish on its preview popup
-    stClose(); if (k === 'recap') { st.view = 'week'; st.wk = w; } else { st.view = 'preview'; st.pwk = w; }
+    stClose(); if (k === 'month') { st.view = 'month'; st.month = String($(this).data('mo') || ''); } else if (k === 'recap') { st.view = 'week'; st.wk = w; } else { st.view = 'preview'; st.pwk = w; }
     $('.tab-btn').filter(function () { return $(this).attr('onclick')?.includes('tab-league'); }).trigger('click');
     setTimeout(() => { ensureRecapsSubTab(); $('#subtabs-league .sub-tab-btn').filter(function () { return $(this).text().trim() === 'Recaps'; }).trigger('click'); }, 300);
 });
@@ -16147,7 +16221,7 @@ async function loadRecapsTab() {
             const M = computeMonthSummary(cur.weeks, byWk);
             const partial = cur.weeks.indexOf(latest) >= 0 && latest < 18 && recapMonthOf(latest + 1).key === cur.key;
             const chips = months.map(m => `<div class="recap-mo-opt dashboard-pill stacked-pill" data-mo="${m.key}" style="cursor:pointer; min-width:64px; border-bottom-color:${m.key === cur.key ? 'var(--accent-blue)' : 'var(--card-border)'}; opacity:${m.key === cur.key ? 1 : 0.7};"><span class="pill-label">${m.weeks.length > 1 ? 'W' + m.weeks[0] + '–' + m.weeks[m.weeks.length - 1] : 'W' + m.weeks[0]}</span><span class="pill-value" style="font-size:calc(12px * var(--ts,1));">${m.label.slice(0, 3).toUpperCase()}</span></div>`).join('');
-            inner = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; justify-content:${months.length > 4 ? 'flex-start' : 'center'};">${chips}</div>` + recapMonthView(M, cur.label, partial);
+            inner = `<div class="hide-scroll" style="display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; justify-content:${months.length > 4 ? 'flex-start' : 'center'};">${chips}</div><div style="text-align:center; margin:0 0 10px;"><button type="button" class="lld-play sm" data-k="month" data-wk="0" data-i="${cur.key}">▶ ${cur.label} story</button></div>` + recapMonthView(M, cur.label, partial);
         } else {
             const summaries = [];
             for (let w = 1; w <= latest; w += 3) {
@@ -18702,6 +18776,45 @@ async function checkNotifBadge() {
     } catch(e) {}
 }
 
+// ===== Ringing phone (Stadium theme): rings while a trade offer or message is unread; tap opens the notifications =====
+const LLD_PHONE_SVG = '<svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>';
+function lldPhoneKey() { return 'lld_ph_seen_' + lid + '_' + myFid; }
+async function lldPhoneCheck() {
+    try {
+        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=pendingTrades&L=${lid}&JSON=1`, { credentials: 'include' });
+        const j = await r.json();
+        let trades = (j && j.pendingTrades && j.pendingTrades.pendingTrade) || [];
+        if (!Array.isArray(trades)) trades = [trades];
+        const mine = trades.filter(t => t && t.offeredTo === myFid);
+        window._lldPhoneSig = mine.map(t => t.trade_id || t.timestamp || '').sort().join(',');
+        window._lldPhoneN = mine.length;
+        lldPhoneDraw();
+    } catch (e) { }
+}
+function lldPhoneDraw() {
+    const b = document.getElementById('lld-phone'); if (!b) return;
+    const n = window._lldPhoneN || 0, un = n > 0 && lldGet(lldPhoneKey(), '') !== window._lldPhoneSig;
+    b.classList.toggle('ring', un);
+    b.innerHTML = LLD_PHONE_SVG + (n ? '<span class="bd">' + n + '</span>' : '');
+}
+function lldPhoneEnsure() {
+    const st = document.body.classList.contains('theme-stadium'), cur = document.getElementById('lld-phone');
+    if (!st) { if (cur) cur.remove(); return; }
+    if (cur) return;
+    const h = document.querySelector('.app-header'); if (!h) return;
+    if (getComputedStyle(h).position === 'static') h.style.position = 'relative';
+    const b = document.createElement('button'); b.id = 'lld-phone'; b.type = 'button'; b.setAttribute('aria-label', 'Notifications');
+    h.appendChild(b); lldPhoneDraw();
+}
+$(document).on('click', '#lld-phone', function () {
+    lldSet(lldPhoneKey(), window._lldPhoneSig || ''); lldPhoneDraw();
+    let b = document.getElementById('notif-bell-btn');
+    if (!b) { b = document.createElement('button'); b.id = 'notif-bell-btn'; b.style.display = 'none'; document.body.appendChild(b); }
+    $(b).trigger('click');
+});
+setInterval(() => { try { lldPhoneEnsure(); } catch (e) { } }, 1500);
+setTimeout(lldPhoneCheck, 2500); setInterval(lldPhoneCheck, 90000);
+
     // --- LIVE SCORES PAGER ---
     $(document).off('click touchend', '.live-score-prev').on('click touchend', '.live-score-prev', async function(e) {
         if (e.type === 'touchend' && touchMoved) return;
@@ -20923,9 +21036,30 @@ $(document).on('click', '.logo-style-btn', function() {
 });
     // --- AUTHENTICATION CHECK ---
 function lldLgnOn() { return lldGet('lld_b_lgn', lldGet('lld_dev_seen', '0')) === '1'; } // new login: only on a device where a beta franchise (0000 / 0001) has signed in; set lld_b_lgn to 0 to turn it off
+function lldCredGet() { try { const j = JSON.parse(decodeURIComponent(escape(atob(localStorage.getItem('lld_cred') || '')))); return j && j.u && j.p ? j : null; } catch (e) { return null; } }
+function lldCredSet(u, p) { try { localStorage.setItem('lld_cred', btoa(unescape(encodeURIComponent(JSON.stringify({ u: u, p: p }))))); } catch (e) {} }
+function lldCredClear() { try { localStorage.removeItem('lld_cred'); } catch (e) {} }
+$(document).on('submit', '#auth-overlay form', function () {
+    const f = this, keep = $(f).find('.a2-keep-cb');
+    const u = $(f).find('[name=USERNAME]').val(), pw = $(f).find('[name=PASSWORD]').val();
+    if (!keep.length || keep.prop('checked')) lldCredSet(u, pw); else lldCredClear();
+    try { sessionStorage.removeItem('lld_relog'); } catch (e) {}
+});
 function checkLoginStatus() {
     const isLoggedOut = $('a[href*="login?L="], a[href$="/login"]').length > 0;
     if (isLoggedOut) {
+        // stay signed in: quietly sign back in with the saved login (once a minute at most), then reload
+        const sv = lldCredGet();
+        let last = 0; try { last = +sessionStorage.getItem('lld_relog') || 0; } catch (e) { last = Date.now(); }
+        if (sv && Date.now() - last > 60000) {
+            try { sessionStorage.setItem('lld_relog', String(Date.now())); } catch (e) { return; }
+            $('body').addClass('lld-loggedout').append('<div id="lld-resign">Signing you in\u2026</div>');
+            const body = new URLSearchParams(); body.set('L', lid); body.set('USERNAME', sv.u); body.set('PASSWORD', sv.p);
+            fetch(`${MFL_ORIGIN}/${year}/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+                .then(function () { location.reload(); }, function () { $('#lld-resign').remove(); $('body').removeClass('lld-loggedout'); });
+            return;
+        }
+        if (sv) lldCredClear(); // the saved login didn't work: forget it and show the form
         const leagueLogoUrl = LLD.logoUrl || lldLeagueLogoPlaceholder();
         const nm = String(LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || 'Live and Let Dynasty').replace(/[<>&"]/g, '');
         const a2css = `<style id="auth2-css">
@@ -20940,7 +21074,7 @@ function checkLoginStatus() {
 .auth2 .auth-input{display:block;box-sizing:border-box;width:100%;margin:0 0 14px;padding:15px 16px;border-radius:14px;border:1px solid rgba(148,163,184,.28);background:#080c16;color:#fff;font-size:16px;outline:none;-webkit-appearance:none;appearance:none}
 .auth2 .auth-input:focus{border-color:#00ceb8;box-shadow:0 0 0 3px rgba(0,206,184,.2)}
 .auth2 .auth-btn{display:block;width:100%;padding:15px;border:0;border-radius:14px;background:#00ceb8;color:#04120f;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 8px 24px rgba(0,206,184,.28);-webkit-appearance:none;appearance:none}
-.auth2 .a2-guest{display:block;width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#94a3b8;font-size:13px;font-weight:800;cursor:pointer}
+.auth2 .a2-keep{display:flex;align-items:center;gap:8px;margin:-4px 0 14px 4px;color:#94a3b8;font-size:12px;font-weight:700}.auth2 .a2-keep input{width:18px;height:18px;margin:0;accent-color:#00ceb8}\n.auth2 .a2-guest{display:block;width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#94a3b8;font-size:13px;font-weight:800;cursor:pointer}
 </style>`;
         const loginHtml = lldLgnOn() ? a2css + `
 <div id="auth-overlay" class="auth2" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center;">
@@ -20955,6 +21089,7 @@ function checkLoginStatus() {
             <input type="text" name="USERNAME" class="auth-input" placeholder="you@example.com" autocomplete="username" required>
             <label class="a2-l">Password</label>
             <input type="password" name="PASSWORD" class="auth-input" placeholder="Password" autocomplete="current-password" required>
+            <label class="a2-keep"><input type="checkbox" class="a2-keep-cb" checked> Stay signed in on this device</label>
             <button type="submit" class="auth-btn">Sign in</button>
             <button type="button" id="auth-guest-btn" class="a2-guest">Browse as guest \u2192</button>
         </form>
@@ -20973,7 +21108,7 @@ function checkLoginStatus() {
 <button type="button" id="auth-guest-btn" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:var(--text-dim); border:1px solid rgba(255,255,255,0.1); border-radius:10px; font-size:calc(13px * var(--ts,1)); font-weight:800; cursor:pointer;">Browse as Guest \u2192</button>        </form>
     </div>
 </div>`;
-        $('body').append(loginHtml);
+        $('body').append(loginHtml).addClass('lld-loggedout');
         $('#auth-overlay').css('display', 'flex');
         $('body').css('overflow', 'hidden');
     }
