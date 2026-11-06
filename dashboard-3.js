@@ -14663,10 +14663,10 @@ function lldScnMenu() {
     m.innerHTML = h;
 }
 // Seasons that are set up (the current year is always on); earlier ones show as coming soon. Add a year here when it is ready.
-const LLD_SEASONS_READY = [2025, 2024];
 function lldSeasonChips() {
+    const READY = window.LLD_SEASONS_READY || [2025, 2024]; // seasons that are set up; add a year here when it is ready
     const cy = Math.max(new Date().getFullYear(), parseInt(year, 10)), ys = []; for (let y = cy; y >= 2017; y--) ys.push(y);
-    const ok = y => y === cy || LLD_SEASONS_READY.indexOf(y) >= 0;
+    const ok = y => y === cy || READY.indexOf(y) >= 0;
     let h = `<div class="yrs">${ys.map(y => ok(y) ? `<button type="button" data-yr="${y}" class="lld-yrb ${String(y) === String(year) ? 'on' : ''}">${y}</button>` : `<button type="button" class="lld-yrb soon" disabled>${y}<small>soon</small></button>`).join('')}</div>`;
     if (parseInt(year, 10) < cy) h += `<button type="button" data-yr="${cy}" class="lld-yrb scn-ms"><span>Back to ${cy}<small>You are viewing the ${year} season</small></span></button>`;
     if (ys.some(y => !ok(y))) h += `<div class="yr-note">Earlier seasons are coming soon.</div>`;
