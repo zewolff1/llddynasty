@@ -5045,6 +5045,7 @@ updateLineupNotifications(); updateSubmitButton();
             try { renderActiveTab(); } finally { window._projResync = false; }
         }
         setTimeout(applyTeamStyle, 50);
+        lldCharsRender();
     }
     // --- 3. LINEUP & ROSTER BUILDER ---
 // --- 3. LINEUP & ROSTER BUILDER ---
@@ -12732,6 +12733,44 @@ function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMM
 function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
+
+// ===== CHARACTERS CARD (beta): Coach = Leader, Def = Sidekicks, read straight from the roster =====
+// Only appears when the roster has a Coach, so ordinary leagues with real DEFs are untouched.
+const LLD_CH_ICON = { batman: '🦇', robin: '🐦', batgirl: '🦸‍♀️', nightwing: '🌙', gordon: '👮', joker: '🃏', harley: '♦️', hatter: '🎩', pyg: '🐷', waller: '🪖', deadshot: '🎯', croc: '🐊', kite: '🪁', moth: '🦋', penguin: '🐧', riddler: '❓', scarecrow: '🌾', bane: '💪', catwoman: '🐈‍⬛', clayface: '🧱' };
+// Link characters to MFL player ids. Put this in your config (window.LLD_CONFIG.characters) - anything left out falls back to the default image path / name icon:
+//   characters: { "16001": { name: "Batman", icon: "🦇", img: "https://.../batman.png", ability: "Dark Knight" }, ... }
+// Default image if none given: <logoFallback.generic's repo>/content/characters/<playerId>.png
+function lldChSlug(n) { return String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, ''); }
+function lldChCfg(pid, nm) { try { const m = (window.LLD_CONFIG || {}).characters || {}; if (m[String(pid)]) return m[String(pid)]; const k = lldChSlug(nm); const hit = Object.keys(m).find(x => lldChSlug(x) === k); return hit ? m[hit] : {}; } catch (e) { return {}; } }
+function lldChAv(pid, nm) {
+    const c = lldChCfg(pid, nm), ic = c.icon || lldChIcon(nm), src = c.img || ('https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/' + lldChSlug(nm) + '.png');
+    return `<div class="lc-av"><span class="lc-ic">${ic}</span><img src="${src}" alt="" onload="this.previousElementSibling.style.display='none'" onerror="this.remove()"></div>`;
+}
+function lldChIcon(n) { const k = Object.keys(LLD_CH_ICON).find(x => n.toLowerCase().indexOf(x) >= 0); return k ? LLD_CH_ICON[k] : (n.replace(/[^A-Za-z]/g, '').charAt(0) || '?').toUpperCase(); }
+function lldCharsRender() {
+    try {
+        const old = document.getElementById('lld-chars'); if (old) old.remove();
+        if (!lldBeta() || !currentDoc) return;
+        const sub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase(); if (sub !== 'lineup' && sub !== 'roster') return;
+        const host = document.getElementById('player-rows-container'); if (!host) return;
+        let leader = null; const sk = [];
+        currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+            const a = row.querySelector('td a[class*="position_"]'); if (!a) return;
+            const m = a.getAttribute('href').match(/\d+/g); const pid = m && m.pop();
+            if (irPids.has(pid) || taxiPids.has(pid)) return;
+            const p = parseMFLName(a.textContent), up = String(p.realPos || '').toUpperCase();
+            const on = !!(row.querySelector('input[type="checkbox"]') || {}).checked;
+            const nm = p.name || a.textContent.trim();
+            if (up === 'COACH' || up === 'CO' || up === 'HC') { if (!leader) leader = { nm: lldChCfg(pid, nm).name || nm, on, pid }; }
+            else if (up === 'DEF' || up === 'DST' || up === 'TMDEF') sk.push({ nm: lldChCfg(pid, nm).name || nm, on, pid });
+        });
+        if (!leader) return;
+        const started = sk.filter(s => s.on).length;
+        const html = `<div id="lld-chars"><div class="lc-hd"><span>Leader</span><span>Coach</span></div><div class="lc-ld">${lldChAv(leader.pid, leader.nm)}<div><b>${leader.nm}</b><small>${lldChCfg(leader.pid, leader.nm).ability || 'Leads this team'}</small></div></div>` +
+            `<div class="lc-hd"><span>Sidekicks</span><span>${started} of ${sk.length} started</span></div><div class="lc-sks">${sk.length ? sk.map(s => `<div class="lc-sk${s.on ? '' : ' bn'}">${lldChAv(s.pid, s.nm)}<div class="lc-n"><b>${s.nm}</b>${lldChCfg(s.pid, s.nm).ability ? `<small>${lldChCfg(s.pid, s.nm).ability}</small>` : ''}</div><span class="lc-st">${s.on ? 'STARTED' : 'BENCH'}</span></div>`).join('') : '<div class="lc-none">No sidekicks yet</div>'}</div></div>`;
+        host.insertAdjacentHTML('afterbegin', html);
+    } catch (e) { console.warn('chars', e); }
+}
 function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_)$/.test(k)) return '1'; /* graduated: Sleeper tab, new Scores layout, game replay slide */ if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
@@ -21060,7 +21099,7 @@ $(document).on('click', '.logo-style-btn', function() {
     }
 });
     // --- AUTHENTICATION CHECK ---
-function lldLgnOn() { return lldGet('lld_b_lgn', lldGet('lld_dev_seen', '0')) === '1'; } // new login: only on a device where a beta franchise (0000 / 0001) has signed in; set lld_b_lgn to 0 to turn it off
+function lldLgnOn() { return lldGet('lld_b_lgn', '1') === '1'; } // new login: only on a device where a beta franchise (0000 / 0001) has signed in; set lld_b_lgn to 0 to turn it off
 function lldCredGet() { try { const j = JSON.parse(decodeURIComponent(escape(atob(localStorage.getItem('lld_cred') || '')))); return j && j.u && j.p ? j : null; } catch (e) { return null; } }
 function lldCredSet(u, p) { try { localStorage.setItem('lld_cred', btoa(unescape(encodeURIComponent(JSON.stringify({ u: u, p: p }))))); } catch (e) {} }
 function lldCredClear() { try { localStorage.removeItem('lld_cred'); } catch (e) {} }
@@ -21304,18 +21343,24 @@ fetchFranchises()
 $(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._liveScoreActiveWeek ?? null); });
 
 // ===== LOGO FALLBACK: a league copied from another one has no uploaded franchise logos yet, so a missing
-// logo falls back to the same franchise's logo in the source league (config: logoFallback {league, origin}) =====
+// logo falls back to a generic logo stored in GitHub (content/team/generic/0001.png, 0002.png, ...). If that file is missing too, the initials placeholder shows.
+// Config (optional): logoFallback { generic: 'https://.../generic/' } to point somewhere else, or { league, origin } to borrow another league's logos instead. =====
 (function () {
-    const fb = Object.assign({ league: '63085', origin: 'https://www45.myfantasyleague.com' }, LLD.logoFallback || {});
-    if (!fb.league || String(fb.league) === String(lid)) return;
+    const fb = Object.assign({ generic: 'https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/team/generic/', league: '', origin: 'https://www45.myfantasyleague.com' }, LLD.logoFallback || {});
+    if (String(fb.league) === String(lid)) fb.league = '';
     window.addEventListener('error', function (e) {
         const img = e.target;
         if (!img || img.tagName !== 'IMG' || img.dataset.lldfb) return;
         const m = String(img.currentSrc || img.src).match(/\/fflnetdynamic(\d{4})\/\d+_franchise_logo(\d+)\.(\w+)/);
         if (!m) return;
+        const fid4 = String(parseInt(m[2], 10) || 0).padStart(4, '0');
+        let to = '';
+        if (fb.league) to = `${fb.origin}/fflnetdynamic${m[1]}/${fb.league}_franchise_logo${m[2]}.${m[3]}`;
+        else if (fb.generic) to = `${String(fb.generic).replace(/\/?$/, '/')}${fid4}.png`;
+        if (!to) return;
         img.dataset.lldfb = '1';
         e.stopImmediatePropagation(); // keep the placeholder handler for if this fallback fails too
-        img.src = `${fb.origin}/fflnetdynamic${m[1]}/${fb.league}_franchise_logo${m[2]}.${m[3]}`;
+        img.src = to;
     }, true);
     window.addEventListener('load', function (e) {
         const img = e.target;
