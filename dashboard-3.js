@@ -2260,6 +2260,13 @@ function buildTeamInfoPanel(targetFid) {
         const vw = parseInt(window._lldViewWeek, 10);
         if (vw && window._lldGames && String(targetFid) === String(myFid)) { const gm = window._lldGames.find(x => x.wk === vw && (x.a === targetFid || x.b === targetFid)); if (gm) nx = { week: vw, opps: [gm.a === targetFid ? gm.b : gm.a], recap: true }; }
     } catch (e) { }
+    try { // the box follows the week the page is on (the lineup week), not the first game the schedule happens to list
+        const pw = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10);
+        if (pw && window._lldGames && (!nx || parseInt(nx.week, 10) !== pw)) {
+            const g2 = window._lldGames.filter(x => x.wk === pw && (x.a === targetFid || x.b === targetFid));
+            if (g2.length) nx = { week: pw, opps: g2.map(x => x.a === targetFid ? x.b : x.a) };
+        }
+    } catch (e) { }
     let oppBox;
     if (nx && nx.opps.length) {
         const o = nx.opps[0];
@@ -9477,6 +9484,7 @@ $('body').append(`
 
             <!-- DISPLAY TAB -->
             <div id="tab-display" class="settings-tab-content">
+<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:0 0 8px;">Season</div><div class="lld-yrs-set" style="margin-bottom:18px;">${typeof lldSeasonChips === 'function' ? lldSeasonChips() : ''}</div>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:0 0 12px;">Theme</div>
                     <style>.lld-style-btn,.lld-hdr-btn{flex:1 1 40%;padding:10px 8px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#fff;font-size:calc(12px * var(--ts,1));font-weight:900;cursor:pointer}.lld-style-btn.on,.lld-hdr-btn.on{border-color:var(--accent-blue);background:rgba(59,130,246,.12)}</style>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Style</div>
@@ -14651,8 +14659,20 @@ function lldScnMenu() {
     if (lldSltOn() && lldSltUser() && !LLD_SLT.leagues) h += '<div class="mh">Loading Sleeper leagues…</div>';
     else if (lldSltOn() && !lldSltUser()) h += `<div class="mh">CONNECT SLEEPER</div><div class="scn-conn"><input id="scn-su" placeholder="Your Sleeper username" autocapitalize="off" autocorrect="off" autocomplete="off"><button type="button" data-lg="con">Connect</button></div><div class="scn-cm" id="scn-cm">${window._lldScnMsg ? lldChatEsc(window._lldScnMsg) : 'Type your Sleeper username to add your Sleeper leagues here.'}</div>`;
     if (lldSltOn() && lldSltUser()) h += '<button type="button" data-lg="set" class="scn-ms"><span>Manage Sleeper leagues<small>Choose leagues and your team in Settings</small></span></button>';
+    h += `<div class="mh">SEASON</div>` + lldSeasonChips();
     m.innerHTML = h;
 }
+// Seasons that are set up (the current year is always on); earlier ones show as coming soon. Add a year here when it is ready.
+const LLD_SEASONS_READY = [2025, 2024];
+function lldSeasonChips() {
+    const cy = Math.max(new Date().getFullYear(), parseInt(year, 10)), ys = []; for (let y = cy; y >= 2017; y--) ys.push(y);
+    const ok = y => y === cy || LLD_SEASONS_READY.indexOf(y) >= 0;
+    let h = `<div class="yrs">${ys.map(y => ok(y) ? `<button type="button" data-yr="${y}" class="lld-yrb ${String(y) === String(year) ? 'on' : ''}">${y}</button>` : `<button type="button" class="lld-yrb soon" disabled>${y}<small>soon</small></button>`).join('')}</div>`;
+    if (parseInt(year, 10) < cy) h += `<button type="button" data-yr="${cy}" class="lld-yrb scn-ms"><span>Back to ${cy}<small>You are viewing the ${year} season</small></span></button>`;
+    if (ys.some(y => !ok(y))) h += `<div class="yr-note">Earlier seasons are coming soon.</div>`;
+    return h;
+}
+$(document).on('click', '.lld-yrb[data-yr]', function (e) { e.stopPropagation(); const y = this.dataset.yr; if (String(y) === String(year)) return; window.location.href = window.location.href.replace(/\/(\d{4})\//, '/' + y + '/'); });
 $(document).on('click', '#scn-lgb', async function (e) {
     e.stopPropagation(); const m = document.getElementById('scn-menu'); if (!m) return; m.hidden = !m.hidden; if (m.hidden) return;
     lldScnMenu();
@@ -18798,20 +18818,25 @@ function lldPhoneDraw() {
     b.innerHTML = LLD_PHONE_SVG + (n ? '<span class="bd">' + n + '</span>' : '');
 }
 function lldPhoneEnsure() {
-    const st = document.body.classList.contains('theme-stadium'), cur = document.getElementById('lld-phone');
-    if (!st) { if (cur) cur.remove(); return; }
-    if (cur) return;
-    const h = document.querySelector('.app-header'); if (!h) return;
-    if (getComputedStyle(h).position === 'static') h.style.position = 'relative';
-    const b = document.createElement('button'); b.id = 'lld-phone'; b.type = 'button'; b.setAttribute('aria-label', 'Notifications');
-    h.appendChild(b); lldPhoneDraw();
+    // Stadium theme: the message-board button in the header turns into the phone (rings when something is new); other themes get the normal icon back
+    const st = document.body.classList.contains('theme-stadium'), old = document.getElementById('lld-phone');
+    if (old) old.remove();
+    if (!document.getElementById('lld-phone-css')) {
+        const css = document.createElement('style'); css.id = 'lld-phone-css';
+        css.textContent = '#lld-chat-btn.lld-isphone svg{width:22px;height:22px;fill:currentColor;display:block}#lld-chat-btn.lld-isphone{position:relative;color:#fff}#lld-chat-btn.lld-isphone.has-new svg{animation:lldphr2 1.6s infinite;transform-origin:50% 60%;color:var(--st-acc,#2fbf71)}@keyframes lldphr2{0%,55%,100%{transform:rotate(0)}6%{transform:rotate(-16deg)}12%{transform:rotate(14deg)}18%{transform:rotate(-14deg)}24%{transform:rotate(12deg)}30%{transform:rotate(-8deg)}36%{transform:rotate(6deg)}}@media (prefers-reduced-motion:reduce){#lld-chat-btn.lld-isphone.has-new svg{animation:none}}';
+        document.head.appendChild(css);
+    }
+    const b = document.getElementById('lld-chat-btn'); if (!b) return;
+    const isP = b.classList.contains('lld-isphone'), svg = b.querySelector('svg');
+    if (st && !isP) {
+        b.dataset.lldIcon = svg ? svg.outerHTML : '';
+        if (svg) svg.outerHTML = LLD_PHONE_SVG; else b.insertAdjacentHTML('afterbegin', LLD_PHONE_SVG);
+        b.classList.add('lld-isphone');
+    } else if (!st && isP) {
+        const ph = b.querySelector('svg'); if (ph) ph.outerHTML = b.dataset.lldIcon || LLD_CHAT_ICON;
+        b.classList.remove('lld-isphone');
+    }
 }
-$(document).on('click', '#lld-phone', function () {
-    lldSet(lldPhoneKey(), window._lldPhoneSig || ''); lldPhoneDraw();
-    let b = document.getElementById('notif-bell-btn');
-    if (!b) { b = document.createElement('button'); b.id = 'notif-bell-btn'; b.style.display = 'none'; document.body.appendChild(b); }
-    $(b).trigger('click');
-});
 setInterval(() => { try { lldPhoneEnsure(); } catch (e) { } }, 1500);
 setTimeout(lldPhoneCheck, 2500); setInterval(lldPhoneCheck, 90000);
 
