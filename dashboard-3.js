@@ -2295,6 +2295,56 @@ function lldPosBarHtml() {
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
     </div>`;
 }
+window._apv = window._apv || { view: 'contracts', sub: { contracts: 'salary', rankings: 'season', dynasty: 'dynasty' }, cmode: 'sal' };
+const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
+    rankings: [['season', '2026'], ['weekly', 'By week', 1], ['week', 'This week'], ['ros', 'Rest of season', 1]],
+    dynasty: [['dynasty', 'Dynasty Rankings'], ['byyear', 'By year'], ['y27', '2027'], ['y28', '2028'], ['n3', 'Next 3 Seasons'], ['career', 'Rest of Career']] };
+function lldApvSort() {
+    const A = window._apv, sub = A.sub[A.view];
+    playerSortBy = A.view === 'contracts' ? (['salary', 'caphit', 'guar', 'years'].includes(sub) ? sub : 'salary') : A.view === 'rankings' ? (sub === 'week' ? 'proj' : 'pts') : 'dyn';
+}
+function lldApvBar(isFA) {
+    const A = window._apv, views = isFA ? ['rankings', 'dynasty'] : ['contracts', 'rankings', 'dynasty'];
+    if (!views.includes(A.view)) A.view = views[0];
+    lldApvSort();
+    return `<div class="apv-views" style="grid-template-columns:repeat(${views.length},1fr)">${views.map(v => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${v}</button>`).join('')}</div>` +
+        `<div class="apv-chips">${LLD_APV_CHIPS[A.view].map(([k, l, soon]) => `<button type="button" class="apv-o${A.sub[A.view] === k ? ' on' : ''}${soon ? ' soon' : ''}" data-o="${k}"${soon ? ' disabled' : ''}>${l}${soon ? ' <small>soon</small>' : ''}</button>`).join('')}</div>`;
+}
+function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
+$(document).on('click', '.apv-v', function () { window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
+$(document).on('click', '.apv-o:not([disabled])', function () { const A = window._apv; A.sub[A.view] = this.dataset.o; lldApvSort(); lldApvReload(); });
+$(document).on('click', '.apv-m', function () { window._apv.cmode = this.dataset.m; lldApvReload(); });
+$(document).on('click', '.lld-b-btn[data-k="apv"]', function () { window._playerRowsCache = {}; setTimeout(() => { try { if ($('#player-search-input').length) lldApvReload(); } catch (e) { } }, 50); });
+function lldApvNum(v) { return v == null ? '\u2013' : v >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(1); }
+function lldApvCell(p) {
+    const A = window._apv; let v = null;
+    if (A.view === 'rankings') v = A.sub.rankings === 'week' ? (p.projVal || 0) : (((playerSeason[p.pid] || {}).pts) || 0);
+    else v = p._dyn ? p._dyn.pts : null;
+    return `<span class="srt sort-hl"><b class="apv-pts">${lldApvNum(v)}</b><small class="apv-u"> PTS</small></span>` + (v == null ? '' : `<span class="apv-rk${p._rk <= 3 ? ' t3' : ''}">#${p._rk}</span>`);
+}
+function lldApvTable(players) {
+    const A = window._apv, mode = A.cmode;
+    const wrap = (legend, head, body, tog) => `${tog || ''}<div class="apv-leg">${legend}</div><div class="apv-wk"><table><thead><tr><th class="sk">Player</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    if (A.view === 'contracts') {
+        const Y = []; for (let i = 0; i < 5; i++) Y.push(+year + i);
+        const tog = `<div class="apv-mini"><button class="apv-m${mode === 'sal' ? ' on' : ''}" data-m="sal">Salary</button><button class="apv-m${mode === 'hit' ? ' on' : ''}" data-m="hit">Cap hit if cut</button></div>`;
+        const rows = players.slice().sort((a, b) => b.salNum * b.yrsNum - a.salNum * a.yrsNum).map(p => {
+            const gy = Math.round(p.yrsNum * (p.guarNum / 100)); let tot = 0;
+            const cells = Y.map((y, i) => {
+                if (i >= p.yrsNum) return '<td class="by">\u2013</td>';
+                if (mode === 'hit') { const h = p.salNum * (p.guarNum / 100) * (p.yrsNum - i); return h > 0 ? `<td class="hitc">$${h.toFixed(1)}M</td>` : '<td class="by">\u2013</td>'; }
+                tot += p.salNum; return `<td class="${i < gy ? 'gu' : ''}">$${p.salNum}M</td>`;
+            }).join('');
+            return `<tr><td class="sk"><b>${p.shortName || p.name}</b><i>${p.pos}</i></td>${cells}${mode === 'sal' ? `<td class="tt">$${tot}M</td>` : ''}</tr>`;
+        }).join('');
+        return wrap(mode === 'sal' ? 'Gold = guaranteed years. A dash means the contract has ended.' : 'Cost if you cut him at the start of that year: salary \u00d7 guarantee % \u00d7 years left.', Y.map(y => `<th>${y}</th>`).join('') + (mode === 'sal' ? '<th class="tt">Total</th>' : ''), rows, tog);
+    }
+    const C = [['y27', '2027'], ['y28', '2028'], ['career', 'Rest of career']], D = window._apvYear || {};
+    const rk = {}; C.forEach(([k]) => { const d = D[k]; if (!d) return; players.filter(p => d.byPid[p.pid]).sort((a, b) => d.byPid[b.pid].pts - d.byPid[a.pid].pts).forEach((p, i) => { (rk[p.pid] = rk[p.pid] || {})[k] = i + 1; }); });
+    const best = C.map(([k]) => k).find(k => D[k]);
+    const rows = players.slice().sort((a, b) => (((D[best] || {byPid: {}}).byPid[b.pid] || {}).pts || 0) - (((D[best] || {byPid: {}}).byPid[a.pid] || {}).pts || 0)).map(p => `<tr><td class="sk"><b>${p.shortName || p.name}</b><i>${p.pos}</i></td>${C.map(([k]) => { const v = D[k] && D[k].byPid[p.pid]; return v ? `<td><span class="pv">${lldApvNum(v.pts)}</span><span class="apv-rk${rk[p.pid][k] <= 3 ? ' t3' : ''}">#${rk[p.pid][k]}</span></td>` : '<td class="by">\u2013</td>'; }).join('')}</tr>`).join('');
+    return wrap('Points and rank for each stretch, ranked among the players showing. A dash means that file isn\u2019t in GitHub yet.', C.map(([k, l]) => `<th>${l}</th>`).join(''), rows, '');
+}
 function getPlayerFilterBarHtml(isFAView) {
     const lyLabel = "'" + String(parseInt(year) - 1).slice(-2) + ' Avg';
     const statSorts = [{ id: 'pts', label: 'Pts' }];
@@ -2303,12 +2353,13 @@ function getPlayerFilterBarHtml(isFAView) {
     ].concat(statSorts);
     const rosterSorts = [
         { id: 'salary', label: 'Salary' }, { id: 'caphit', label: 'Cap Hit' },
-        { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }, { id: 'proj', label: 'Proj' }, { id: 'dyn', label: 'Dynasty' }
+        { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }, { id: 'proj', label: 'Proj' }
     ].concat(statSorts);
     const sorts = isFAView ? faSorts : rosterSorts;
 
-    if (isFAView && !['proj','pts'].includes(playerSortBy)) playerSortBy = 'proj';
-    if (!isFAView && !['salary','caphit','guar','years','proj','dyn','pts'].includes(playerSortBy)) playerSortBy = 'salary';
+    const apvOn = lldApv();
+    if (!apvOn && isFAView && !['proj','pts'].includes(playerSortBy)) playerSortBy = 'proj';
+    if (!apvOn && !isFAView && !['salary','caphit','guar','years','proj','pts'].includes(playerSortBy)) playerSortBy = 'salary';
 
     const activeFilterCount = playerFiltersActive ? (
         (playerFilters.years[0] > 1 || playerFilters.years[1] < 5 ? 1 : 0) +
@@ -2342,13 +2393,14 @@ function getPlayerFilterBarHtml(isFAView) {
     return `
         <div class="player-filter-wrapper" style="padding:12px 10px; background:var(--page-bg); border-bottom:1px solid var(--card-border); display:flex; flex-direction:column; gap:10px;">
             ${lldPosBarHtml()}
+           ${apvOn ? lldApvBar(isFAView) : ''}
            <div style="display:flex; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap;">
-                <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
+                ${apvOn ? '' : `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
                 <div style="display:flex; gap:6px 10px; flex-wrap:wrap; justify-content:center;">
                     ${sorts.map(buildSortBtn).join('')}
-                </div>
+                </div>`}
                 <button type="button" class="player-gloss-btn" data-fa="${isFAView ? 1 : 0}">ⓘ Guide</button>
-                ${!isFAView ? `
+                ${(!isFAView && (!apvOn || window._apv.view === 'contracts')) ? `
                 <button id="player-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">
                     ⊘ Filter${filterBadge}
                 </button>` : ''}
@@ -6316,38 +6368,60 @@ window._dynErr = window._dynErr || {};
 window._dynFull = window._dynFull || {}; // grp -> pid -> { pts, adp } from FantasySharks (your league's scoring)
 // Dynasty ranks: FantasySharks' own dynasty list first (matched to MFL players by name), MFL's rankings report if that can't be reached.
 function lldNormName(n) { return String(n || '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '').replace(/[^a-z]/g, ''); }
-function lldMflPlayersDb() {
-    if (!window._mflPlayersDb) window._mflPlayersDb = (async () => {
+function lldApv() { try { return lldDev() && lldBv('apv') === '1'; } catch (e) { return false; } }
+// MFL players by name, so FantasySharks' lists (Name = "Last, First", Pos, Team) can be matched to MFL player ids
+function lldMflNameDb() {
+    if (!window._mflNameDb) window._mflNameDb = (async () => {
         const m = {};
         try {
             const j = await (await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=players&L=${lid}&JSON=1`, { credentials: 'include' })).json();
-            [].concat((j.players && j.players.player) || []).forEach(p => { m[lldNormName(p.name) + '|' + dynGrp(p.position)] = String(p.id); });
+            [].concat((j.players && j.players.player) || []).forEach(p => { (m[lldNormName(p.name)] = m[lldNormName(p.name)] || []).push({ id: String(p.id), team: String(p.team || '').toUpperCase(), grp: dynGrp(p.position) }); });
         } catch (e) { console.warn('players list', e); }
         return m;
     })();
-    return window._mflPlayersDb;
+    return window._mflNameDb;
 }
+// FantasySharks doesn't let other sites read its JSON, so the dashboard reads copies you keep in GitHub:
+// content/dynasty/y27.json (2027), y28.json, n3.json (next 3 seasons), career.json, dynasty.json (overall). Paste the FantasySharks "pos=ALL" JSON as is.
+function lldDynBase() { try { return ((window.LLD_CONFIG || {}).dynastyBase) || 'https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/dynasty/'; } catch (e) { return ''; } }
+function lldDynAll(per) {
+    window._dynAllP = window._dynAllP || {};
+    if (!window._dynAllP[per]) window._dynAllP[per] = (async () => {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+        try {
+            const r = await fetch(`${lldDynBase()}${per}.json`, { signal: ctl.signal, cache: 'no-cache' });
+            if (!r.ok) { window._dynErr[per] = r.status === 404 ? `no file yet (content/dynasty/${per}.json)` : 'GitHub answered ' + r.status; return null; }
+            let arr; try { arr = await r.json(); } catch (e) { window._dynErr[per] = `content/dynasty/${per}.json isn't valid JSON`; return null; }
+            clearTimeout(to);
+            if (!Array.isArray(arr) || arr.length < 5) { window._dynErr[per] = 'the file is empty or in a different format'; return null; }
+            const db = await lldMflNameDb(), byPid = {}; let hit = 0;
+            arr.forEach(x => {
+                const c = db[lldNormName(x.Name)]; if (!c) return;
+                const g = dynGrp(x.Pos || ''), t = String(x.Team || '').toUpperCase();
+                const m = c.find(z => z.grp === g && z.team === t) || c.find(z => z.grp === g) || c.find(z => z.team === t) || c[0];
+                if (m && !byPid[m.id]) { byPid[m.id] = { pts: +x.FantasyPoints || 0, adp: x.ADP, rank: +x.Rank || 0, grp: m.grp }; hit++; }
+            });
+            if (hit < 5) { window._dynErr[per] = 'only ' + hit + ' of ' + arr.length + ' names matched MFL players' + (Object.keys(db).length ? '' : ' (MFL player list did not load)'); return null; }
+            return { byPid, n: arr.length, hit };
+        } catch (e) { clearTimeout(to); window._dynErr[per] = e && e.name === 'AbortError' ? 'timed out after 10 seconds' : 'could not load the file (' + String(e && e.message || e) + ')'; return null; }
+    })();
+    return window._dynAllP[per];
+}
+// first file that exists out of a list (Dynasty Rankings falls back to the 2027 file until dynasty.json is added)
+async function lldDynFirst(pers) { for (const per of pers) { const D = await lldDynAll(per); if (D) return Object.assign({ per }, D); } return null; }
+// positional ranks for the rank tags / re-sign floors (only when the new layout beta is on)
 async function lldSharksDynasty(grp) {
-    const ck = `lld_dynr_${year}_${grp}`;
-    try { const c = JSON.parse(localStorage.getItem(ck) || 'null'); if (c && Date.now() - c.t < 6 * 3600000 && Object.keys(c.m).length > 5 && c.f) { window._dynFull[grp] = c.f; return c.m; } } catch (e) { }
-    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
-    try {
-        const r = await fetch(`https://www.fantasysharks.com/apps/Projections/DynastyProjections.php?pos=${grp}&format=json`, { signal: ctl.signal });
-        if (!r.ok) { window._dynErr[grp] = 'site answered ' + r.status; return null; }
-        const arr = await r.json(); clearTimeout(to);
-        if (!Array.isArray(arr) || arr.length < 5) { window._dynErr[grp] = 'list came back empty or in a different format'; return null; }
-        const db = await lldMflPlayersDb(), map = {}, full = {};
-        arr.forEach(x => { const id = db[lldNormName(x.Name) + '|' + grp]; if (id && !map[id]) { map[id] = +x.Rank || 0; full[id] = { pts: +x.FantasyPoints || 0, adp: x.ADP }; } });
-        if (Object.keys(map).length < 5) { window._dynErr[grp] = 'only ' + Object.keys(map).length + ' of ' + arr.length + ' names matched MFL players' + (Object.keys(db).length ? '' : ' (MFL player list did not load)'); return null; }
-        try { localStorage.setItem(ck, JSON.stringify({ t: Date.now(), m: map, f: full })); } catch (e) { }
-        window._dynFull[grp] = full;
-        return map;
-    } catch (e) { clearTimeout(to); window._dynErr[grp] = e && e.name === 'AbortError' ? 'timed out after 8 seconds' : (String(e && e.message || e) + ' (the browser blocked the request, or no connection)'); return null; }
+    const D = await lldDynFirst(['dynasty', 'career', 'y27', 'y28', 'n3']);
+    if (!D) { window._dynErr[grp] = window._dynErr.y27 || 'no dynasty file'; return null; }
+    const list = Object.entries(D.byPid).filter(([id, v]) => v.grp === grp).sort((a, b) => a[1].rank - b[1].rank);
+    if (list.length < 5) { window._dynErr[grp] = 'the dynasty file has no ' + grp + ' players'; return null; }
+    const map = {}, full = {}; list.forEach(([id, v], i) => { map[id] = i + 1; full[id] = { pts: v.pts, adp: v.adp }; });
+    window._dynFull[grp] = full; return map;
 }
 function getDynRankMap(grp) {
     if (!window._dynRankCache[grp]) {
         window._dynRankCache[grp] = (async () => {
-            const live = await lldSharksDynasty(grp);
+            const live = lldApv() ? await lldSharksDynasty(grp) : null;
             if (live) { window._dynSrc[grp] = 'fantasysharks-dynasty'; return live; }
             window._dynSrc[grp] = 'mfl-report';
             const map = {};
@@ -9878,7 +9952,7 @@ async function loadPlayersData(subTabId, containerId) {
     try {
         const posParam = encodeURIComponent(playerPosFilter);
         let fetchUrl = isFAView 
-            ? `${MFL_ORIGIN}/${year}/reports?L=${lid}&R=FULLFA&PROJSRC=mfl&SORT=${playerSortBy}&POS=${posParam}&TEAM=*&COUNT=500` 
+            ? `${MFL_ORIGIN}/${year}/reports?L=${lid}&R=FULLFA&PROJSRC=mfl&SORT=${['proj', 'pts'].includes(playerSortBy) ? playerSortBy : 'proj'}&POS=${posParam}&TEAM=*&COUNT=500` 
             : `${MFL_ORIGIN}/${year}/reports?L=${lid}&R=SALARIES&POS=${posParam}&ROOKIES=0&INJURED=0&PAGE=ALL`;
         const res = await fetch(fetchUrl, { credentials: 'include', cache: 'no-store' });
         const html = await res.text();
@@ -9889,7 +9963,7 @@ async function loadPlayersData(subTabId, containerId) {
             try {
                 const have = new Set(rows.map(r => { const m = (r.querySelector('td.player a')?.getAttribute('href') || '').match(/\d+/g); return m && m.pop(); }));
                 const grab = async pos => {
-                    const r2 = await fetch(`${MFL_ORIGIN}/${year}/reports?L=${lid}&R=FULLFA&PROJSRC=mfl&SORT=${playerSortBy}&POS=${pos}&TEAM=*&COUNT=500`, { credentials: 'include', cache: 'no-store' });
+                    const r2 = await fetch(`${MFL_ORIGIN}/${year}/reports?L=${lid}&R=FULLFA&PROJSRC=mfl&SORT=${['proj', 'pts'].includes(playerSortBy) ? playerSortBy : 'proj'}&POS=${pos}&TEAM=*&COUNT=500`, { credentials: 'include', cache: 'no-store' });
                     const d2 = new DOMParser().parseFromString(await r2.text(), 'text/html');
                     return Array.from(d2.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
                 };
@@ -9969,12 +10043,17 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         let _pm = {}; try { _pm = await fetchWeekProjectedScoresMap(); } catch (e) { }
         players.forEach(p => { p.projVal = (_pm && _pm[p.pid]) || 0; });
     }
-    window._dynBad = [];
-    if (!isFAView && playerSortBy === 'dyn') { // dynasty projections: FantasySharks, scored with your league's rules
-        const grps = [...new Set(players.map(p => dynGrp(p.realPos || p.pos)))];
-        await Promise.all(grps.map(g => getDynRankMap(g)));
-        window._dynBad = grps.filter(g => window._dynSrc[g] !== 'fantasysharks-dynasty');
-        players.forEach(p => { p._dyn = (window._dynFull[dynGrp(p.realPos || p.pos)] || {})[p.pid] || null; });
+    window._dynBad = []; window._dynNote = ''; window._apvYear = {};
+    if (lldApv() && window._apv.view === 'dynasty') { // dynasty numbers: FantasySharks lists kept in GitHub
+        const sub = window._apv.sub.dynasty;
+        if (sub === 'byyear') {
+            for (const k of ['y27', 'y28', 'career']) { const D = await lldDynAll(k); if (D) window._apvYear[k] = D; }
+            if (!Object.keys(window._apvYear).length) window._dynBad = ['dynasty'];
+        } else {
+            const D = sub === 'dynasty' ? await lldDynFirst(['dynasty', 'career', 'y27']) : await lldDynAll(sub);
+            if (D) { if (sub === 'dynasty' && D.per !== 'dynasty') window._dynNote = `Showing the ${D.per === 'y27' ? '2027' : D.per} list until content/dynasty/dynasty.json is added.`; players.forEach(p => { p._dyn = D.byPid[p.pid] || null; }); }
+            else window._dynBad = [sub];
+        }
     }
     // Sort
     players.sort((a, b) => {
@@ -9991,6 +10070,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         else comparison = b.ownVal - a.ownVal;
         return playerSortDir === 'asc' ? -comparison : comparison;
     });
+    players.forEach((p, i) => { p._rk = i + 1; });
 
     // Filter
     if (playerFiltersActive && !isFAView) {
@@ -10265,6 +10345,7 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
         const isSpecificPos = specificPosList.includes(playerPosFilter);
 
         let outputHtml = '';
+        const apvRk = lldApv() && window._apv.view !== 'contracts';
 
 outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
         players.forEach(p => {
@@ -10275,6 +10356,7 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                     tplKind: isFAView ? 'fa' : 'all',
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: (() => {
+                        if (apvRk) { const c = lldApvCell(p); p._tp = { sal: '', proj: c, pt: '' }; return c; }
                         const hl = k => playerSortBy === k ? ' sort-hl' : '';
                         const sal = p.salary ? `<span class="srt${hl('salary')}"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small></span>` : '';
                         const proj = (p.salary && !(p.projVal > 0)) ? '' : `<span class="srt proj-popup-trigger${hl('proj')}" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(${p.salary ? 13 : 15}px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>`;
@@ -10295,11 +10377,17 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
             );
         });
         outputHtml += '</div>';
+        if (lldApv() && ((window._apv.view === 'contracts' && window._apv.sub.contracts === 'cyear') || (window._apv.view === 'dynasty' && window._apv.sub.dynasty === 'byyear')) && !(window._dynBad || []).length) outputHtml = lldApvTable(players);
 
 container.find('#players-loader').remove();
         container.prepend(auctionHtml);
         container.prepend(pendingWaiversHtml);
-        if (!isFAView && playerSortBy === 'dyn' && window._dynBad && window._dynBad.length) container.append(`<div style="margin:8px 5px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:calc(11px * var(--ts,1));font-weight:800;">Can't fetch dynasty projections${window._dynBad.length ? ' for ' + window._dynBad.join(', ') : ''}. ${window._dynBad.map(g => (window._dynErr || {})[g] ? ' [' + g + ': ' + window._dynErr[g] + ']' : '').join('')} Those players have no dynasty number.</div>`);
+        if (lldApv() && window._apv.view === 'dynasty') {
+            const bad = window._dynBad || [], box = t => `<div style="margin:8px 5px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:calc(11px * var(--ts,1));font-weight:800;">${t}</div>`;
+            if (bad.length) container.append(box(`Can't fetch dynasty projections (${bad.map(k => (window._dynErr || {})[k] || (window._dynErr || {}).y27 || 'no file').join('; ')}).`));
+            else if (window._dynNote) container.append(`<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">${window._dynNote}</div>`);
+            else if (/^(DL|LB|DB)$/.test(String(playerPosFilter))) container.append(`<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">Defensive players aren't in the dynasty lists yet.</div>`);
+        }
         container.append(outputHtml);
         if (isFAView) lldFaFitAnnotate(container);
 }
@@ -12779,7 +12867,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0', apv: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 
@@ -14299,7 +14387,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}` : ''}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}` : ''}
     </div>`;
 }
 function lldFtFill() {
