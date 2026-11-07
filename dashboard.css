@@ -5280,3 +5280,25 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 
 #lld-chars .lc-av{position:relative;overflow:hidden}
 #lld-chars .lc-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* New Players layout (beta): Contracts / Rankings / Dynasty */
+.apv-views{display:grid;gap:4px;background:rgba(255,255,255,.05);border-radius:12px;padding:4px}
+.apv-views button{font:inherit;font-weight:900;font-size:calc(11px * var(--ts,1));letter-spacing:.1em;text-transform:uppercase;padding:10px 4px;border:0;border-radius:9px;background:transparent;color:var(--text-dim)}
+.apv-views .on{background:var(--accent-teal,#00ceb8);color:#04211d}
+.apv-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.apv-chips .apv-o{flex:none;font:inherit;font-weight:800;font-size:calc(11px * var(--ts,1));padding:7px 12px;border-radius:999px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim)}
+.apv-chips .apv-o.on{border-color:#fff;color:#fff}
+.apv-chips .apv-o.soon{opacity:.45}.apv-chips .apv-o small{font-size:.7em;opacity:.8}
+.apv-pts{font-size:calc(14px * var(--ts,1));font-weight:900;color:#f5c542}.apv-u{font-size:calc(8px * var(--ts,1));font-weight:800;color:var(--text-dim)}
+.apv-rk{margin-left:10px;font-size:calc(18px * var(--ts,1));font-weight:900;font-style:italic;color:#60a5fa;min-width:34px;display:inline-block;text-align:right}.apv-rk.t3{color:#f5c542}
+.apv-leg{font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim);margin:2px 5px 8px}
+.apv-mini{display:inline-flex;background:rgba(255,255,255,.06);border-radius:999px;padding:3px;margin:0 5px 8px}
+.apv-mini button{font:inherit;font-size:calc(11px * var(--ts,1));font-weight:800;padding:6px 12px;border:0;border-radius:999px;background:transparent;color:var(--text-dim)}.apv-mini .on{background:#fff;color:#000}
+.apv-wk{overflow-x:auto;border-radius:12px;background:var(--card-bg,#131824);margin:0 5px;-webkit-overflow-scrolling:touch}
+.apv-wk table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;font-size:calc(12px * var(--ts,1));min-width:100%}
+.apv-wk th,.apv-wk td{padding:9px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--card-border)}
+.apv-wk th{font-size:calc(10px * var(--ts,1));letter-spacing:.08em;color:var(--text-dim);font-weight:900}
+.apv-wk .sk{position:sticky;left:0;text-align:left;background:var(--card-bg,#131824);z-index:1;min-width:104px;box-shadow:2px 0 0 var(--card-border)}
+.apv-wk .sk b{font-size:calc(12px * var(--ts,1))}.apv-wk .sk i{font-style:normal;color:#ff4d8d;font-size:calc(10px * var(--ts,1));margin-left:5px}
+.apv-wk .gu{color:#f5c542;font-weight:900}.apv-wk .hitc{color:#f87171;font-weight:900}.apv-wk .by{color:#475069}.apv-wk .tt{font-weight:900;color:#f5c542}
+.apv-wk .pv{display:block;font-weight:800}.apv-wk .apv-rk{display:inline-block;margin:2px 0 0;font-size:calc(9px * var(--ts,1));min-width:0;font-style:normal;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--text-dim)}.apv-wk .apv-rk.t3{background:rgba(245,197,66,.2);color:#f5c542}
