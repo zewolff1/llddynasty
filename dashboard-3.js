@@ -6312,6 +6312,7 @@ function rankLineHtml(pid, pos, salNum) {
 }
 window._dynRankCache = window._dynRankCache || {};
 window._dynSrc = window._dynSrc || {};
+window._dynErr = window._dynErr || {};
 window._dynFull = window._dynFull || {}; // grp -> pid -> { pts, adp } from FantasySharks (your league's scoring)
 // Dynasty ranks: FantasySharks' own dynasty list first (matched to MFL players by name), MFL's rankings report if that can't be reached.
 function lldNormName(n) { return String(n || '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '').replace(/[^a-z]/g, ''); }
@@ -6332,15 +6333,16 @@ async function lldSharksDynasty(grp) {
     const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
     try {
         const r = await fetch(`https://www.fantasysharks.com/apps/Projections/DynastyProjections.php?pos=${grp}&format=json`, { signal: ctl.signal });
+        if (!r.ok) { window._dynErr[grp] = 'site answered ' + r.status; return null; }
         const arr = await r.json(); clearTimeout(to);
-        if (!Array.isArray(arr) || arr.length < 5) return null;
+        if (!Array.isArray(arr) || arr.length < 5) { window._dynErr[grp] = 'list came back empty or in a different format'; return null; }
         const db = await lldMflPlayersDb(), map = {}, full = {};
         arr.forEach(x => { const id = db[lldNormName(x.Name) + '|' + grp]; if (id && !map[id]) { map[id] = +x.Rank || 0; full[id] = { pts: +x.FantasyPoints || 0, adp: x.ADP }; } });
-        if (Object.keys(map).length < 5) return null;
+        if (Object.keys(map).length < 5) { window._dynErr[grp] = 'only ' + Object.keys(map).length + ' of ' + arr.length + ' names matched MFL players' + (Object.keys(db).length ? '' : ' (MFL player list did not load)'); return null; }
         try { localStorage.setItem(ck, JSON.stringify({ t: Date.now(), m: map, f: full })); } catch (e) { }
         window._dynFull[grp] = full;
         return map;
-    } catch (e) { clearTimeout(to); return null; }
+    } catch (e) { clearTimeout(to); window._dynErr[grp] = e && e.name === 'AbortError' ? 'timed out after 8 seconds' : (String(e && e.message || e) + ' (the browser blocked the request, or no connection)'); return null; }
 }
 function getDynRankMap(grp) {
     if (!window._dynRankCache[grp]) {
@@ -10297,7 +10299,7 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
 container.find('#players-loader').remove();
         container.prepend(auctionHtml);
         container.prepend(pendingWaiversHtml);
-        if (!isFAView && playerSortBy === 'dyn' && window._dynBad && window._dynBad.length) container.append(`<div style="margin:8px 5px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:calc(11px * var(--ts,1));font-weight:800;">Can't fetch dynasty projections${window._dynBad.length ? ' for ' + window._dynBad.join(', ') : ''}. FantasySharks didn't answer, so those players have no dynasty number.</div>`);
+        if (!isFAView && playerSortBy === 'dyn' && window._dynBad && window._dynBad.length) container.append(`<div style="margin:8px 5px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:calc(11px * var(--ts,1));font-weight:800;">Can't fetch dynasty projections${window._dynBad.length ? ' for ' + window._dynBad.join(', ') : ''}. ${window._dynBad.map(g => (window._dynErr || {})[g] ? ' [' + g + ': ' + window._dynErr[g] + ']' : '').join('')} Those players have no dynasty number.</div>`);
         container.append(outputHtml);
         if (isFAView) lldFaFitAnnotate(container);
 }
