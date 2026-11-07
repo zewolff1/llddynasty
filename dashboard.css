@@ -5302,3 +5302,17 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 .apv-wk .sk b{font-size:calc(12px * var(--ts,1))}.apv-wk .sk i{font-style:normal;color:#ff4d8d;font-size:calc(10px * var(--ts,1));margin-left:5px}
 .apv-wk .gu{color:#f5c542;font-weight:900}.apv-wk .hitc{color:#f87171;font-weight:900}.apv-wk .by{color:#475069}.apv-wk .tt{font-weight:900;color:#f5c542}
 .apv-wk .pv{display:block;font-weight:800}.apv-wk .apv-rk{display:inline-block;margin:2px 0 0;font-size:calc(9px * var(--ts,1));min-width:0;font-style:normal;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--text-dim)}.apv-wk .apv-rk.t3{background:rgba(245,197,66,.2);color:#f5c542}
+
+/* ===== New Players layout: Current sub-tabs, week by week, boom/bust ===== */
+.apv-sub2{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
+.apv-sub2 .apv-c{flex:none;font:inherit;font-weight:800;font-size:calc(10px * var(--ts,1));padding:5px 10px;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim)}
+.apv-sub2 .apv-c.on{background:rgba(255,255,255,.12);color:#fff;border-color:#fff}
+.apv-bo{color:#22c55e}.apv-bu{color:#ef4444}
+.apv-lb.steady{color:#22c55e}.apv-lb.average{color:#f5c542}.apv-lb.volatile{color:#ef4444}.apv-lb.n\/a{color:var(--text-dim)}
+.apv-wk td .sc{display:block;font-weight:900;color:#fff}
+.apv-wk td .pj{display:block;font-style:italic;font-weight:700;color:var(--text-dim)}
+.apv-wk td .op{font-size:.8em;font-weight:800;color:var(--text-dim);margin-right:3px}
+.apv-wk td .pa{font-size:.75em;font-weight:900;padding:0 4px;border-radius:4px;color:#fff}
+.apv-wk td .pa.e{background:rgba(34,197,94,.35)}.apv-wk td .pa.t{background:rgba(239,68,68,.4)}.apv-wk td .pa.n{background:rgba(255,255,255,.12)}
+.apv-wk td.cw,.apv-wk th.cw{background:rgba(245,197,66,.12)}
+.apv-wk td .by{color:var(--text-dim);font-weight:800}
