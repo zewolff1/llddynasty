@@ -2393,6 +2393,16 @@ function lldApvCell(p) {
     else v = p._dyn ? p._dyn.pts : null;
     return `<span class="srt sort-hl"><b class="apv-pts">${lldApvNum(v)}</b><small class="apv-u"> ${A.view === 'rankings' && A.sub.rankings === 'dynasty' ? (window._dynUnit || 'PTS') : 'PTS'}</small></span>` + (v == null ? '' : `<span class="apv-rk${p._rk <= 3 ? ' t3' : ''}">#${p._rk}</span>`);
 }
+function lldApvYrStrip(p) {
+    if (!(p.yrsNum > 0)) return '';
+    const hit = window._apv.cmode === 'hit', gy = Math.round(p.yrsNum * (p.guarNum / 100)); let h = '';
+    for (let i = 0; i < 5; i++) {
+        let v = null, cls = '';
+        if (i < p.yrsNum) { if (hit) { const x = p.salNum * (p.guarNum / 100) * (p.yrsNum - i); v = x > 0 ? x : null; cls = 'hit'; } else { v = p.salNum; cls = i < gy ? 'gu' : ''; } }
+        h += `<div class="apv-y ${cls}${v == null ? ' off' : ''}"><small>${+year + i}</small><b>${v == null ? '\u2013' : '$' + (+v.toFixed(1)) + 'M'}</b></div>`;
+    }
+    return `<div class="apv-ys">${h}</div>`;
+}
 function lldApvTable(players) {
     const A = window._apv, mode = A.cmode;
     const wrap = (legend, head, body, tog) => `${tog || ''}<div class="apv-leg">${legend}</div><div class="apv-wk"><table><thead><tr><th class="sk">Player</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
@@ -10466,9 +10476,10 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
         let outputHtml = '';
         const apvRk = lldApv() && window._apv.view !== 'contracts';
 
-outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
+outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padding: 0 5px;">`;
+        const apvYr = lldApv() && window._apv.view === 'contracts' && window._apv.sub.contracts === 'cyear';
         players.forEach(p => {
-            outputHtml += buildUniversalRow(
+            outputHtml += (apvYr ? '<div class="apv-yc">' : '') + buildUniversalRow(
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
@@ -10493,10 +10504,10 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                     leftContent: p._actionBtn || '',
                     rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
                 }
-            );
+            ) + (apvYr ? lldApvYrStrip(p) + '</div>' : '');
         });
         outputHtml += '</div>';
-        if (lldApv() && ((window._apv.view === 'contracts' && window._apv.sub.contracts === 'cyear') || false) && !(window._dynBad || []).length) outputHtml = lldApvTable(players);
+        if (apvYr) { const A = window._apv; outputHtml = `<div class="apv-mini"><button class="apv-m${A.cmode === 'sal' ? ' on' : ''}" data-m="sal">Salary</button><button class="apv-m${A.cmode === 'hit' ? ' on' : ''}" data-m="hit">Cap hit if cut</button></div><div class="apv-leg">${A.cmode === 'sal' ? 'Gold = guaranteed years. A dash means the contract has ended.' : 'Cost if you cut him at the start of that year: salary \u00d7 guarantee % \u00d7 years left.'}</div>` + outputHtml; }
         if (lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings === 'season' && window._apv.cv === 'weekly' && window._apvD) outputHtml = lldApvWeekTable(players);
 
 container.find('#players-loader').remove();
