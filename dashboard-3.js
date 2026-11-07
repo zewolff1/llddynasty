@@ -2303,12 +2303,12 @@ function getPlayerFilterBarHtml(isFAView) {
     ].concat(statSorts);
     const rosterSorts = [
         { id: 'salary', label: 'Salary' }, { id: 'caphit', label: 'Cap Hit' },
-        { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }, { id: 'proj', label: 'Proj' }
+        { id: 'guar', label: 'Guar %' }, { id: 'years', label: 'Years' }, { id: 'proj', label: 'Proj' }, { id: 'dyn', label: 'Dynasty' }
     ].concat(statSorts);
     const sorts = isFAView ? faSorts : rosterSorts;
 
     if (isFAView && !['proj','pts'].includes(playerSortBy)) playerSortBy = 'proj';
-    if (!isFAView && !['salary','caphit','guar','years','proj','pts'].includes(playerSortBy)) playerSortBy = 'salary';
+    if (!isFAView && !['salary','caphit','guar','years','proj','dyn','pts'].includes(playerSortBy)) playerSortBy = 'salary';
 
     const activeFilterCount = playerFiltersActive ? (
         (playerFilters.years[0] > 1 || playerFilters.years[1] < 5 ? 1 : 0) +
@@ -6311,9 +6311,43 @@ function rankLineHtml(pid, pos, salNum) {
     return `<span style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;">${cr ? `<i style="${i('#f59e0b')}">${g}#${cr}</i> CTR · ` : ''}<span class="dyn-rank" data-pid="${pid}" data-grp="${g}"><i style="${i('var(--accent-blue)')}">${g}#–</i></span> DYN</span>`;
 }
 window._dynRankCache = window._dynRankCache || {};
+window._dynSrc = window._dynSrc || {};
+window._dynFull = window._dynFull || {}; // grp -> pid -> { pts, adp } from FantasySharks (your league's scoring)
+// Dynasty ranks: FantasySharks' own dynasty list first (matched to MFL players by name), MFL's rankings report if that can't be reached.
+function lldNormName(n) { return String(n || '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '').replace(/[^a-z]/g, ''); }
+function lldMflPlayersDb() {
+    if (!window._mflPlayersDb) window._mflPlayersDb = (async () => {
+        const m = {};
+        try {
+            const j = await (await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=players&L=${lid}&JSON=1`, { credentials: 'include' })).json();
+            [].concat((j.players && j.players.player) || []).forEach(p => { m[lldNormName(p.name) + '|' + dynGrp(p.position)] = String(p.id); });
+        } catch (e) { console.warn('players list', e); }
+        return m;
+    })();
+    return window._mflPlayersDb;
+}
+async function lldSharksDynasty(grp) {
+    const ck = `lld_dynr_${year}_${grp}`;
+    try { const c = JSON.parse(localStorage.getItem(ck) || 'null'); if (c && Date.now() - c.t < 6 * 3600000 && Object.keys(c.m).length > 5 && c.f) { window._dynFull[grp] = c.f; return c.m; } } catch (e) { }
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
+    try {
+        const r = await fetch(`https://www.fantasysharks.com/apps/Projections/DynastyProjections.php?pos=${grp}&format=json`, { signal: ctl.signal });
+        const arr = await r.json(); clearTimeout(to);
+        if (!Array.isArray(arr) || arr.length < 5) return null;
+        const db = await lldMflPlayersDb(), map = {}, full = {};
+        arr.forEach(x => { const id = db[lldNormName(x.Name) + '|' + grp]; if (id && !map[id]) { map[id] = +x.Rank || 0; full[id] = { pts: +x.FantasyPoints || 0, adp: x.ADP }; } });
+        if (Object.keys(map).length < 5) return null;
+        try { localStorage.setItem(ck, JSON.stringify({ t: Date.now(), m: map, f: full })); } catch (e) { }
+        window._dynFull[grp] = full;
+        return map;
+    } catch (e) { clearTimeout(to); return null; }
+}
 function getDynRankMap(grp) {
     if (!window._dynRankCache[grp]) {
         window._dynRankCache[grp] = (async () => {
+            const live = await lldSharksDynasty(grp);
+            if (live) { window._dynSrc[grp] = 'fantasysharks-dynasty'; return live; }
+            window._dynSrc[grp] = 'mfl-report';
             const map = {};
             try {
                 const res = await fetch(`${MFL_ORIGIN}/${year}/reports?R=RANKS&L=${lid}&STATUS=*&POS=${grp}&ROOKIES=0&INJURED=0&SOURCE=sharks`, { credentials: 'include' });
@@ -8626,18 +8660,7 @@ $('#tab-tx').addClass('active');
             const adpPos = adpPosMap[posGroup] || posGroup;
 
             try {
-                const adpRes = await fetch(`${MFL_ORIGIN}/${year}/reports?R=RANKS&L=${lid}&STATUS=*&POS=${adpPos}&ROOKIES=0&INJURED=0&SOURCE=sharks`, { credentials: 'include', cache: 'no-store' });
-                const adpHtml = await adpRes.text();
-                const adpDoc = new DOMParser().parseFromString(adpHtml, 'text/html');
-
-                let dynastyRank = null;
-                adpDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach((row, idx) => {
-                    if (dynastyRank) return;
-                    const pLink = row.querySelector('td.player a');
-                    if (!pLink) return;
-                    const pidMatch = pLink.getAttribute('href').match(/\d+/g);
-                    if (pidMatch && pidMatch.pop() === pid.toString()) dynastyRank = idx + 1;
-                });
+                let dynastyRank = ((await getDynRankMap(adpPos))[String(pid)]) || null;
                 if (!dynastyRank) dynastyRank = 99;
 
                 const targetRank = Math.max(1, dynastyRank - 5);
@@ -9859,6 +9882,20 @@ async function loadPlayersData(subTabId, containerId) {
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const rows = Array.from(doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
+        // custom characters (Coach / Def) have no projections, so a long free agent list sorted by points cuts them off: ask for them by position and add any that are missing
+        if (isFAView && playerPosFilter === '*') {
+            try {
+                const have = new Set(rows.map(r => { const m = (r.querySelector('td.player a')?.getAttribute('href') || '').match(/\d+/g); return m && m.pop(); }));
+                const grab = async pos => {
+                    const r2 = await fetch(`${MFL_ORIGIN}/${year}/reports?L=${lid}&R=FULLFA&PROJSRC=mfl&SORT=${playerSortBy}&POS=${pos}&TEAM=*&COUNT=500`, { credentials: 'include', cache: 'no-store' });
+                    const d2 = new DOMParser().parseFromString(await r2.text(), 'text/html');
+                    return Array.from(d2.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow'));
+                };
+                const co = await grab('Coach');
+                const extra = co.length ? co.concat(await grab('Def')) : [];
+                extra.forEach(r => { const m = (r.querySelector('td.player a')?.getAttribute('href') || '').match(/\d+/g), id = m && m.pop(); if (id && !have.has(id)) { have.add(id); rows.push(r); } });
+            } catch (e) { console.warn('character free agents', e); }
+        }
 
         // Populate rookiePids
         doc.querySelectorAll('td.player').forEach(td => {
@@ -9930,10 +9967,18 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         let _pm = {}; try { _pm = await fetchWeekProjectedScoresMap(); } catch (e) { }
         players.forEach(p => { p.projVal = (_pm && _pm[p.pid]) || 0; });
     }
+    window._dynBad = [];
+    if (!isFAView && playerSortBy === 'dyn') { // dynasty projections: FantasySharks, scored with your league's rules
+        const grps = [...new Set(players.map(p => dynGrp(p.realPos || p.pos)))];
+        await Promise.all(grps.map(g => getDynRankMap(g)));
+        window._dynBad = grps.filter(g => window._dynSrc[g] !== 'fantasysharks-dynasty');
+        players.forEach(p => { p._dyn = (window._dynFull[dynGrp(p.realPos || p.pos)] || {})[p.pid] || null; });
+    }
     // Sort
     players.sort((a, b) => {
         let comparison = 0;
-        if (playerSortBy === 'proj') comparison = b.projVal - a.projVal;
+        if (playerSortBy === 'dyn') comparison = ((b._dyn || {}).pts || 0) - ((a._dyn || {}).pts || 0);
+        else if (playerSortBy === 'proj') comparison = b.projVal - a.projVal;
         else if (playerSortBy === 'add') comparison = b.addVal - a.addVal;
         else if (playerSortBy === 'salary') comparison = b.salNum - a.salNum;
         else if (playerSortBy === 'caphit') comparison = b.capHitNum - a.capHitNum;
@@ -10232,8 +10277,9 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
                         const sal = p.salary ? `<span class="srt${hl('salary')}"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small></span>` : '';
                         const proj = (p.salary && !(p.projVal > 0)) ? '' : `<span class="srt proj-popup-trigger${hl('proj')}" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(${p.salary ? 13 : 15}px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>`;
                         const pt = (playerSortBy === 'pts') ? `<span class="srt sort-hl"><b style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:#fff;">${(((playerSeason[p.pid] || {}).pts) || 0).toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PTS</small></span>` : '';
-                        p._tp = { sal, proj, pt };
-                        return sal + proj + pt;
+                        const dy = (playerSortBy === 'dyn' && p._dyn) ? `<span class="srt sort-hl"><b style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#f5c542;">${Math.round(p._dyn.pts).toLocaleString()}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> DYN PTS</small></span>` : '';
+                        p._tp = { sal, proj, pt: pt + dy };
+                        return sal + proj + pt + dy;
                     })(),
                     tpl: { match: lldTplOppParts(p.team, p.realPos, nflSched), sal: p._tp.sal, proj: p._tp.proj + p._tp.pt, k: p.salary ? { hit: p.capHitNum, yrs: p.years, guar: p.guar } : null, rk: p.salary ? { salNum: parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0 } : null },
                     bottomRight: p.salary
@@ -10251,6 +10297,7 @@ outputHtml = '<div class="roster-grid" style="padding: 0 5px;">';
 container.find('#players-loader').remove();
         container.prepend(auctionHtml);
         container.prepend(pendingWaiversHtml);
+        if (!isFAView && playerSortBy === 'dyn' && window._dynBad && window._dynBad.length) container.append(`<div style="margin:8px 5px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:calc(11px * var(--ts,1));font-weight:800;">Can't fetch dynasty projections${window._dynBad.length ? ' for ' + window._dynBad.join(', ') : ''}. FantasySharks didn't answer, so those players have no dynasty number.</div>`);
         container.append(outputHtml);
         if (isFAView) lldFaFitAnnotate(container);
 }
@@ -19720,15 +19767,7 @@ async function loadModalContract(pid) {const realContainer = $('#modal-actions-c
         let baseFloor = null;
         let drawerRows = '';
         try {
-            const adpRes = await fetch(`${MFL_ORIGIN}/${year}/reports?R=RANKS&L=${lid}&STATUS=*&POS=${adpPos}&ROOKIES=0&INJURED=0&SOURCE=sharks`, { credentials: 'include', cache: 'no-store' });
-            const adpDoc = new DOMParser().parseFromString(await adpRes.text(), 'text/html');
-            adpDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach((row, idx) => {
-                if (dynastyRank) return;
-                const pLink = row.querySelector('td.player a');
-                if (!pLink) return;
-                const pidMatch = pLink.getAttribute('href').match(/\d+/g);
-                if (pidMatch && pidMatch.pop() === String(pid)) dynastyRank = idx + 1;
-            });
+            dynastyRank = ((await getDynRankMap(adpPos))[String(pid)]) || null;
             if (!dynastyRank) dynastyRank = 99;
             const targetRank = Math.max(1, dynastyRank - 5);
             const salaries = (window.leagueSalaryData && window.leagueSalaryData[posGroup]) || [];
@@ -20552,17 +20591,7 @@ try {
         if (['DE','DT'].includes(posGroup)) posGroup = 'DL';
         if (['CB','S'].includes(posGroup)) posGroup = 'DB';
 
-        const adpRes = await fetch(`${MFL_ORIGIN}/${year}/reports?R=RANKS&L=${lid}&STATUS=*&POS=${posGroup}&ROOKIES=0&INJURED=0&SOURCE=sharks`, { credentials: 'include' });
-        const adpDoc = new DOMParser().parseFromString(await adpRes.text(), 'text/html');
-
-        let dynastyRank = 99;
-        adpDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach((row, idx) => {
-            if (dynastyRank !== 99) return;
-            const pLink = row.querySelector('td.player a');
-            if (!pLink) return;
-            const pidMatch = pLink.getAttribute('href').match(/\d+/g);
-            if (pidMatch && pidMatch.pop() === pid.toString()) dynastyRank = idx + 1;
-        });
+        let dynastyRank = ((await getDynRankMap(posGroup))[String(pid)]) || 99;
 
         const targetRank = Math.max(1, dynastyRank - 5);
         const salaries = (window.leagueSalaryData && window.leagueSalaryData[posGroup]) || [];
