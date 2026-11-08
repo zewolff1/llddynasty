@@ -2306,30 +2306,39 @@ function lldApvBar(isFA) {
     const A = window._apv, views = isFA ? ['rankings'] : ['contracts', 'rankings'];
     if (!views.includes(A.view)) A.view = views[0];
     lldApvSort();
-    const cvBar = (A.view === 'rankings' && A.sub.rankings === 'season') ? `<div class="apv-sub2">${[['total', 'Points'], ['weekly', 'Week by week'], ['boom', 'Boom / Bust'], ['cons', 'Consistency']].map(([k, l]) => `<button type="button" class="apv-c${A.cv === k ? ' on' : ''}" data-c="${k}">${l}</button>`).join('')}</div>` : '';
+    const cvBar = (A.view === 'rankings' && A.sub.rankings === 'season') ? `<div class="apv-sub2">${[['total', 'Points'], ['weekly', 'Week by week'], ['cons', 'Consistency']].map(([k, l]) => `<button type="button" class="apv-c${A.cv === k ? ' on' : ''}" data-c="${k}">${l}</button>`).join('')}</div>` : '';
     return (views.length < 2 ? '' : `<div class="apv-views" style="grid-template-columns:repeat(${views.length},1fr)">${views.map(v => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${v}</button>`).join('')}</div>`) +
         (LLD_APV_CHIPS[A.view].length < 2 ? '' : `<div class="apv-chips">${LLD_APV_CHIPS[A.view].map(([k, l, soon]) => `<button type="button" class="apv-o${A.sub[A.view] === k ? ' on' : ''}${soon ? ' soon' : ''}" data-o="${k}"${soon ? ' disabled' : ''}>${l}${soon ? ' <small>soon</small>' : ''}</button>`).join('')}</div>`) + cvBar;
 }
 function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
 $(document).on('click', '.apv-v', function () { window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
 $(document).on('click', '.apv-o:not([disabled])', function () { const A = window._apv; A.sub[A.view] = this.dataset.o; lldApvSort(); lldApvReload(); });
-$(document).on('click', '.apv-c', function () { const A = window._apv; A.cv = this.dataset.c; lldApvSort(); lldApvReload(); });
+$(document).on('click', '.apv-c', function () { const A = window._apv; A.cv = this.dataset.c === 'boom' ? 'cons' : this.dataset.c; lldApvSort(); lldApvReload(); });
 $(document).on('click', '.apv-m', function () { window._apv.cmode = this.dataset.m; lldApvReload(); });
 $(document).on('click', '.lld-b-btn[data-k="apv"]', function () { window._playerRowsCache = {}; setTimeout(() => { try { if ($('#player-search-input').length) lldApvReload(); } catch (e) { } }, 50); });
 function lldApvNum(v) { return v == null ? '\u2013' : v >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(1); }
 async function lldApvWeekData() {
     const cw = Math.min(Math.max((await lldCurWeek()) || 1, 1), 18), key = year + '|' + lid + '|' + cw;
     if (window._apvWD && window._apvWD.key === key && Date.now() - window._apvWD.at < 600000) return window._apvWD.d;
-    const d = { cw, sc: {}, pj: {}, sched: {} }, jobs = [];
-    for (let w = 1; w <= 18; w++) {
-        if (w < cw) jobs.push((async () => {
+    const d = { cw, sc: {}, pj: {}, sched: {}, fail: [] }, jobs = [];
+    const getW = async w => {
+        const ck = `lld_c_ps_${year}_${lid}_${w}`, c = lldLsGet(ck, 365 * 86400000);
+        if (c && Object.keys(c).length) { d.sc[w] = c; return; }
+        for (let t = 0; t < 3; t++) {
             try {
                 const j = await (await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=playerScores&L=${lid}&W=${w}&YEAR=${year}&JSON=1`, { credentials: 'include', cache: 'no-store' })).json();
                 let l = (j && j.playerScores && j.playerScores.playerScore) || []; if (!Array.isArray(l)) l = l ? [l] : [];
-                const m = {}; l.forEach(x => { if (x && x.id && x.score !== '' && x.score != null) m[x.id] = parseFloat(x.score) || 0; }); d.sc[w] = m;
-            } catch (e) { d.sc[w] = {}; }
-        })());
-        else jobs.push((async () => { try { d.pj[w] = await fetchWeekProjectedScoresMap(w); } catch (e) { d.pj[w] = {}; } })());
+                const m = {}; l.forEach(x => { if (x && x.id && x.score !== '' && x.score != null) m[x.id] = parseFloat(x.score) || 0; });
+                if (Object.keys(m).length) { d.sc[w] = m; lldLsSet(ck, m); return; }
+            } catch (e) { }
+            await new Promise(r => setTimeout(r, 400 * (t + 1)));
+        }
+        d.sc[w] = {}; d.fail.push(w);
+    };
+    const wk = []; for (let w = 1; w < cw; w++) wk.push(w);
+    let qi = 0; await Promise.all([0, 1, 2].map(async () => { while (qi < wk.length) await getW(wk[qi++]); }));
+    for (let w = 1; w <= 18; w++) {
+        if (w >= cw) jobs.push((async () => { try { d.pj[w] = await fetchWeekProjectedScoresMap(w); } catch (e) { d.pj[w] = {}; } })());
         jobs.push((async () => { try { d.sched[w] = await fetchNflScheduleForWeek(w); } catch (e) { d.sched[w] = {}; } })());
     }
     await Promise.all(jobs);
@@ -2347,17 +2356,31 @@ async function lldApvCalc(players, d) {
     Object.keys(byPos).forEach(ps => {
         const rel = byPos[ps].sort((a, b) => playerSeason[b].pts - playerSeason[a].pts).slice(0, N[ps] || 20), all = [], cvs = [];
         rel.forEach(pid => { const a = sc(pid); a.forEach(x => all.push(x)); const t = stat(a); if (t.n >= 3 && t.cv != null) cvs.push(t.cv); });
-        th[ps] = { hi: q(all, .75), lo: q(all, .25), c1: q(cvs, .33), c2: q(cvs, .66) };
+        th[ps] = { hi: q(all, .75), lo: q(all, .25), cvs };
     });
     const A = window._apv;
     players.forEach(p => {
-        const ps = P[p.pid] || String(p.realPos || '').toUpperCase(), T = th[ps] || { hi: 1e9, lo: -1e9, c1: 0, c2: 9 }, a = sc(p.pid), t = stat(a);
+        const ps = P[p.pid] || String(p.realPos || '').toUpperCase(), T = th[ps] || { hi: 1e9, lo: -1e9, cvs: [] }, a = sc(p.pid), t = stat(a), g = []; for (let w = 1; w < d.cw; w++) g.push(d.sc[w] && d.sc[w][p.pid] != null ? d.sc[w][p.pid] : null);
         const boom = a.filter(x => x >= T.hi).length, bust = a.filter(x => x <= T.lo).length;
-        const lab = (t.n >= 3 && t.cv != null) ? (t.cv <= T.c1 ? 'Steady' : t.cv >= T.c2 ? 'Volatile' : 'Average') : 'N/A';
+        const ok = t.n >= 3 && t.cv != null, c = ok ? (T.cvs.length ? T.cvs.filter(x => x > t.cv).length / T.cvs.length : .5) : null, lab = ok ? (c >= .67 ? 'Steady' : c <= .33 ? 'Volatile' : 'Average') : 'N/A';
         let tot = 0, cnt = 0; for (let w = d.cw; w <= 18; w++) { const v = d.pj[w] && d.pj[w][p.pid]; if (v > 0) { tot += v; cnt++; } }
-        p._ap = { n: t.n, m: t.m, sd: t.sd, boom, bust, lab, ros: tot, rosN: cnt };
-        p._apk = A.sub.rankings === 'ros' ? tot : A.cv === 'boom' ? boom * 10 - bust + t.m / 1000 : A.cv === 'cons' ? ((t.n >= 3 && t.cv != null) ? -t.cv : -99) : 0;
+        p._ap = { n: t.n, m: t.m, sd: t.sd, boom, bust, lab, c, g, T, ros: tot, rosN: cnt };
+        p._apk = A.sub.rankings === 'ros' ? tot : A.cv === 'boom' ? boom * 10 - bust + t.m / 1000 : A.cv === 'cons' ? (ok ? c + 1 - t.cv / 100 : -99) : 0;
     });
+}
+function lldApvSpark(p) {
+    const x0 = p._ap; if (!x0 || !x0.g.some(v => v != null)) return '';
+    const g = x0.g, n = g.length, W2 = 300, H = 62, pad = 8, th = [x0.T.hi, x0.T.lo], vals = g.filter(v => v != null);
+    const mx = Math.max(th[0] + 3, Math.max.apply(0, vals)) + 1, y = v => H - 14 - (v / mx) * (H - 24), x = i => pad + i * (W2 - 2 * pad) / Math.max(1, n - 1);
+    let dd = '', pen = false; g.forEach((v, i) => { if (v == null) { pen = false; return; } dd += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; pen = true; });
+    return `<svg viewBox="0 0 ${W2} ${H}" width="100%" role="img"><line x1="0" x2="${W2}" y1="${y(th[0])}" y2="${y(th[0])}" stroke="#00ceb8" stroke-opacity=".45" stroke-dasharray="3 4"/><line x1="0" x2="${W2}" y1="${y(th[1])}" y2="${y(th[1])}" stroke="#ef4444" stroke-opacity=".45" stroke-dasharray="3 4"/><path d="${dd}" fill="none" stroke="#8aa4d6" stroke-width="2" stroke-linejoin="round"/>` + g.map((v, i) => v == null ? '' : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="${v >= th[0] ? '#00ceb8' : v <= th[1] ? '#ef4444' : '#8aa4d6'}"/>`).join('') + g.map((v, i) => (n <= 9 || i % 2 === 0) ? `<text x="${x(i).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="9" fill="#8b93a7">W${i + 1}</text>` : '').join('') + '</svg>';
+}
+function lldApvCsBlock(p) {
+    const x = p._ap; if (!x) return '';
+    const v = x.g.filter(z => z != null), rg = v.length ? `${Math.min.apply(0, v).toFixed(1)}–${Math.max.apply(0, v).toFixed(1)}` : '';
+    const bb = `<span><b class="apv-bo">${x.boom}</b> boom · <b class="apv-bu">${x.bust}</b> bust</span>`;
+    const head = x.c == null ? `<div class="apv-cs-h"><span>Needs 3+ games</span><b class="apv-lb n/a">N/A</b></div>` : `<div class="apv-cs-h"><span>avg ${x.m.toFixed(1)} · ±${x.sd.toFixed(1)} · range ${rg}</span><b class="apv-lb ${x.lab.toLowerCase()}">${x.lab}</b></div><div class="apv-cs-h">${bb}<span>more consistent than ${Math.round(x.c * 100)}% of ${p.pos}s</span></div>`;
+    return `<div class="apv-cs">${head}${lldApvSpark(p)}</div>`;
 }
 function lldApvWeekTable(players) {
     const d = window._apvD; if (!d) return '';
@@ -10477,9 +10500,9 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
         const apvRk = lldApv() && window._apv.view !== 'contracts';
 
 outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padding: 0 5px;">`;
-        const apvYr = lldApv() && window._apv.view === 'contracts' && window._apv.sub.contracts === 'cyear';
+        const apvYr = lldApv() && window._apv.view === 'contracts' && window._apv.sub.contracts === 'cyear', apvCs = lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings === 'season' && (window._apv.cv === 'cons' || window._apv.cv === 'boom') && !!window._apvD;
         players.forEach(p => {
-            outputHtml += (apvYr ? '<div class="apv-yc">' : '') + buildUniversalRow(
+            outputHtml += ((apvYr || apvCs) ? '<div class="apv-yc">' : '') + buildUniversalRow(
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
@@ -10504,7 +10527,7 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                     leftContent: p._actionBtn || '',
                     rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
                 }
-            ) + (apvYr ? lldApvYrStrip(p) + '</div>' : '');
+            ) + (apvYr ? lldApvYrStrip(p) + '</div>' : apvCs ? lldApvCsBlock(p) + '</div>' : '');
         });
         outputHtml += '</div>';
         if (apvYr) { const A = window._apv; outputHtml = `<div class="apv-mini"><button class="apv-m${A.cmode === 'sal' ? ' on' : ''}" data-m="sal">Salary</button><button class="apv-m${A.cmode === 'hit' ? ' on' : ''}" data-m="hit">Cap hit if cut</button></div><div class="apv-leg">${A.cmode === 'sal' ? 'Gold = guaranteed years. A dash means the contract has ended.' : 'Cost if you cut him at the start of that year: salary \u00d7 guarantee % \u00d7 years left.'}</div>` + outputHtml; }
@@ -10522,10 +10545,11 @@ container.find('#players-loader').remove();
         container.append(outputHtml);
         if (lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings !== 'dynasty') {
             const A = window._apv, note = t => `<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">${t}</div>`;
+            if (window._apvD && window._apvD.fail && window._apvD.fail.length) container.append(note(`Couldn't load scores for week${window._apvD.fail.length > 1 ? 's' : ''} ${window._apvD.fail.join(', ')} from MFL. Those weeks are left out.`));
             if (window._apvErr) container.append(note(`Couldn't load the week-by-week data (${window._apvErr}).`));
             else if (A.sub.rankings === 'ros') container.append(note('Rest of season = the sum of MFL\u2019s weekly projections from this week to Week 18 (bye weeks count as zero). Ranked among the players showing.'));
-            else if (A.cv === 'boom') container.append(note('Boom = a week in the top 25% for the position, Bust = a week in the bottom 25% (compared with the starter-level players at that position). Ranked by booms, then fewest busts.'));
-            else if (A.cv === 'cons') container.append(note('Steady / Average / Volatile compares how much a player\u2019s weekly scores swing (relative to his average) with other starter-level players at the position. Needs 3+ games. Most steady first.'));
+            else if (A.cv === 'boom') container.append(note('x'));
+            else if (A.cv === 'cons') container.append(note('Dots are weekly scores: teal = boom (top 25% for the position), red = bust (bottom 25%), dashed lines are those cutoffs. Steady / Average / Volatile compares how much his scores swing with other starter-level players at the position (needs 3+ games). Most steady first.'));
         }
         if (isFAView) lldFaFitAnnotate(container);
 }
@@ -14513,6 +14537,37 @@ setInterval(() => { try { if (lldGthOn()) lldGthCapRender(); } catch (e) { } }, 
 function lldGthApply() { document.body.classList.toggle('lld-gth', lldGthOn()); if (!lldGthOn()) return; Object.keys(LLD_GTH.features).forEach(k => { try { LLD_GTH.features[k].render && LLD_GTH.features[k].render(); } catch (e) { console.warn('gotham ' + k, e); } }); }
 function lldGbgDef() { return { spd: 1.2, big: 2, gap: 1.5, log: 5, order: ['score', 'wp', 'games', 'play', 'players', 'log'], show: { score: 1, wp: 1, games: 1, play: 1, players: 1, log: 1 } }; }
 function lldGbgLab() { return { score: 'Scoreboard', wp: 'Win probability', games: 'Game strip', play: 'Current play', players: 'Player points', log: 'Play log' }; }
+// ---- Add to home screen (beta) ----
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window._lldBip = e; });
+function lldA2hsPrep() {
+    try {
+        if (window._lldA2hsDone) return; window._lldA2hsDone = true;
+        const add = (n, c) => { if (!document.querySelector('meta[name="' + n + '"]')) { const m = document.createElement('meta'); m.name = n; m.content = c; document.head.appendChild(m); } };
+        const nm = String(LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || 'Fantasy').slice(0, 40);
+        add('apple-mobile-web-app-capable', 'yes'); add('mobile-web-app-capable', 'yes'); add('apple-mobile-web-app-title', nm); add('apple-mobile-web-app-status-bar-style', 'black-translucent'); add('theme-color', '#0b0e17');
+        const icon = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_league_logo.png`;
+        const man = { name: nm, short_name: nm.length > 12 ? 'LLD' : nm, start_url: location.href.split('#')[0], scope: location.origin + '/', display: 'standalone', background_color: '#0b0e17', theme_color: '#0b0e17', icons: [{ src: icon, sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: icon, sizes: '512x512', type: 'image/png', purpose: 'any' }] };
+        if (!document.querySelector('link[rel="manifest"]')) { const l = document.createElement('link'); l.rel = 'manifest'; l.href = URL.createObjectURL(new Blob([JSON.stringify(man)], { type: 'application/manifest+json' })); document.head.appendChild(l); }
+    } catch (e) { console.warn('a2hs prep', e); }
+}
+function lldA2hsEnv() {
+    const ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return { ios, android: /Android/i.test(ua), safari: ios && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua), standalone: !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) };
+}
+function lldA2hsHtml() {
+    const E = lldA2hsEnv(), lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
+    if (E.standalone) return lab('Add to home screen') + `<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:var(--accent-teal); margin-bottom:16px;">You're already using the home screen app.</div>`;
+    return lab('Add to home screen (iPhone and Android)') + `<div style="display:flex; gap:6px; margin-bottom:10px;"><button type="button" class="lld-hdr-btn lld-a2hs-btn">Add to home screen</button></div><div id="lld-a2hs-steps" style="margin-bottom:16px;"></div>`;
+}
+$(document).on('click', '.lld-a2hs-btn', async function () {
+    lldA2hsPrep(); const E = lldA2hsEnv(), box = $('#lld-a2hs-steps'), st = a => `<ol style="margin:0; padding-left:18px; font-size:calc(11px * var(--ts,1)); font-weight:800; color:var(--text-dim); line-height:1.6;">${a.map(x => `<li>${x}</li>`).join('')}</ol>`;
+    if (E.ios) box.html(E.safari ? st(['Tap the <b>Share</b> button (square with an arrow) in Safari\u2019s toolbar.', 'Scroll down and tap <b>Add to Home Screen</b>.', 'Tap <b>Add</b>. Open it from your home screen and sign in once there (it keeps its own login).']) : st(['This only works from <b>Safari</b>. Open this page in Safari first.', 'Then tap <b>Share</b> \u2192 <b>Add to Home Screen</b> \u2192 <b>Add</b>.']));
+    else if (E.android) {
+        if (window._lldBip) { try { window._lldBip.prompt(); const r = await window._lldBip.userChoice; box.html(`<div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:var(--accent-teal);">${r && r.outcome === 'accepted' ? 'Added. Look for it on your home screen.' : 'No problem. You can try again any time.'}</div>`); window._lldBip = null; } catch (e) { box.html(st(['Tap Chrome\u2019s <b>\u22ee</b> menu.', 'Tap <b>Add to Home screen</b> (or <b>Install app</b>).'])); } }
+        else box.html(st(['Tap Chrome\u2019s <b>\u22ee</b> menu.', 'Tap <b>Add to Home screen</b> (or <b>Install app</b>).', 'Tap <b>Add</b>.']));
+    } else box.html(st(['On your phone, open this page in Safari (iPhone) or Chrome (Android).', 'iPhone: <b>Share</b> \u2192 <b>Add to Home Screen</b>. Android: <b>\u22ee</b> \u2192 <b>Add to Home screen</b>.']));
+});
+setTimeout(() => { try { if (lldDev()) lldA2hsPrep(); } catch (e) { } }, 3000);
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
@@ -14525,7 +14580,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}` : ''}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}${lldA2hsHtml()}` : ''}
     </div>`;
 }
 function lldFtFill() {
@@ -14799,6 +14854,18 @@ function lldEspnMine() {
     [[me, 'me'], [op, 'op']].forEach(([t, w]) => (t.roster || []).forEach(p => { const k = lldEspnKey(p.name, p.team); if (k) { map[k] = { w, st: p.isStarter, name: p.name, team: lldEspnNt(p.team) }; list.push(map[k]); } }));
     return { map, list, meName: me.name, opName: op.name };
 }
+// Hide scores also covers the NFL games on the Scores tab: scores (and the winner highlight) stay behind a tap while that week is still hidden
+function lldEspnHide() { try { return lldBv('rv') === '1' && lldRvApplies(lldEspnWk()); } catch (e) { return false; } }
+function lldEspnSc(txt, id) {
+    if (!lldEspnHide()) return lldEsc(txt);
+    const k = 'n:' + id, on = lldRvS().has(k);
+    return `<span class="esp-rv${on ? ' on' : ''}" data-k="${k}" data-v="${lldEsc(txt)}">${on ? lldEsc(txt) : '<i>tap</i>'}</span>`;
+}
+$(document).on('click', '.esp-rv:not(.on)', function (e) {
+    e.stopPropagation(); e.preventDefault(); const k = this.dataset.k; lldRvS().add(k); lldRvSave();
+    $('.esp-rv[data-k="' + k + '"]').each(function () { $(this).addClass('on').text(this.dataset.v); });
+    $('.esp-g[data-id="' + k.slice(2) + '"] .esp-t, .esp-head .esp-hs').removeClass('hid');
+});
 const lldEspnChip = x => x ? `<span class="esp-ch ${x.w}">${x.w === 'me' ? 'YOU' : 'OPP'}${x.st ? '' : ' · BENCH'}</span>` : '';
 async function lldEspnRender() {
     const box = $('#scores-content-container'); if (!box.length) return;
@@ -14811,7 +14878,7 @@ async function lldEspnRender() {
         const MY = lldEspnMine();
         const cards = evs.map(ev => {
             const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = lldEspnTeam(cp.find(x => x.homeAway === 'away') || {}), hm = lldEspnTeam(cp.find(x => x.homeAway === 'home') || {}), s = lldEspnStatus(ev);
-            const row = t => `<div class="esp-t${t.win ? ' w' : ''}"><img src="${lldEsc(getNFLLogoUrl(lldEspnNt(t.ab)))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><span>${lldEsc(t.rec)}</span><em>${s.t === 'pre' ? '' : lldEsc(t.score)}</em></div>`;
+            const hdn = lldEspnHide() && !lldRvS().has('n:' + ev.id), row = t => `<div class="esp-t${t.win && !hdn ? ' w' : ''}"><img src="${lldEsc(getNFLLogoUrl(lldEspnNt(t.ab)))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><span>${lldEsc(t.rec)}</span><em>${s.t === 'pre' ? '' : lldEspnSc(t.score, ev.id)}</em></div>`;
             const mn = MY ? MY.list.filter(x => x.st && (x.team === lldEspnNt(aw.ab) || x.team === lldEspnNt(hm.ab))) : [], nm1 = mn.filter(x => x.w === 'me').length, no1 = mn.filter(x => x.w === 'op').length;
             const mine = (nm1 || no1) ? `<div class="esp-mine">${nm1 ? `<span class="esp-ch me">${nm1} YOURS</span>` : ''}${no1 ? `<span class="esp-ch op">${no1} OPP</span>` : ''}</div>` : '';
             return `<button type="button" class="esp-g ${s.t}" data-id="${lldEsc(ev.id)}" style="--ta:${(NFL_TEAM_COLORS[lldEspnNt(aw.ab)] || ['#334155'])[0]};--th:${(NFL_TEAM_COLORS[lldEspnNt(hm.ab)] || ['#334155'])[0]}">${row(aw)}${row(hm)}<div class="esp-s">${s.t === 'in' ? '<i class="esp-live"></i>' : ''}${lldEsc(s.txt)}</div>${mine}</button>`;
@@ -14895,14 +14962,14 @@ async function lldEspnGame(keep) {
         else body = '<div class="esp-msg">No team stats yet.</div>';
     } else if (LLDE.tab === 'score') {
         const sp = d.scoringPlays || [];
-        body = sp.length ? sp.map(p => { const ab = (p.team || {}).abbreviation || ''; return `<div class="esp-pl sc" style="--tc:${tc(ab)}"><img class="esp-pi" src="${lldEsc(lg(ab))}" onerror="this.style.visibility='hidden'"><div class="esp-pt"><b>${lldEsc(ab)} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text)}</span>${lldEspnPlayMine(MY, gTeams, p.text)}<i>${lldEsc(p.awayScore)}–${lldEsc(p.homeScore)}</i></div></div>`; }).join('') : '<div class="esp-msg">No scoring yet.</div>';
+        body = sp.length ? sp.map(p => { const ab = (p.team || {}).abbreviation || ''; return `<div class="esp-pl sc" style="--tc:${tc(ab)}"><img class="esp-pi" src="${lldEsc(lg(ab))}" onerror="this.style.visibility='hidden'"><div class="esp-pt"><b>${lldEsc(ab)} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text)}</span>${lldEspnPlayMine(MY, gTeams, p.text)}<i>${lldEspnSc(p.awayScore + '–' + p.homeScore, LLDE.id)}</i></div></div>`; }).join('') : '<div class="esp-msg">No scoring yet.</div>';
     } else {
         const drv = ((d.drives && d.drives.previous) || []).slice(); if (d.drives && d.drives.current) drv.push(d.drives.current);
         const plays = []; drv.forEach(dr => (dr.plays || []).forEach(p => plays.push({ p, dr })));
         plays.reverse();
         body = plays.length ? plays.slice(0, 250).map(({ p, dr }) => { const ab = (dr.team || {}).abbreviation || ''; return `<div class="esp-pl${p.scoringPlay ? ' sc' : ''}" style="--tc:${tc(ab)}"><img class="esp-pi" src="${lldEsc(lg(ab))}" onerror="this.style.visibility='hidden'"><div class="esp-pt"><b>${lldEsc(ab)} · Q${lldEsc((p.period || {}).number)} ${lldEsc((p.clock || {}).displayValue || '')}</b><span>${lldEsc(p.text || p.shortText || '')}</span>${lldEspnPlayMine(MY, gTeams, p.text || p.shortText)}${p.start && p.start.downDistanceText ? `<i>${lldEsc(p.start.downDistanceText)}</i>` : ''}</div></div>`; }).join('') : '<div class="esp-msg">No plays yet.</div>';
     }
-    const sc = t => `<div class="esp-hs${t.win ? ' w' : ''}" style="--tc:${tc(t.ab)}"><img src="${lldEsc(lg(t.ab))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><em>${lldEsc(t.score)}</em></div>`;
+    const hdn = lldEspnHide() && !lldRvS().has('n:' + LLDE.id), sc = t => `<div class="esp-hs${t.win && !hdn ? ' w' : ''}" style="--tc:${tc(t.ab)}"><img src="${lldEsc(lg(t.ab))}" onerror="this.style.visibility='hidden'"><b>${lldEsc(t.ab)}</b><em>${stt.state === 'pre' ? '' : lldEspnSc(t.score, LLDE.id)}</em></div>`;
     const prev = box.find('.esp-body').scrollTop() || 0;
     box.html(buildScoresViewToggleHtml() + `<div class="lld-esp"><button type="button" class="esp-back">‹ All games</button><div class="esp-head">${sc(aw)}<div class="esp-hm">${live ? '<i class="esp-live"></i>' : ''}${lldEsc(stt.shortDetail || stt.description || '')}</div>${sc(hm)}</div><div class="esp-tabs">${tabs.map(([k, l]) => `<button type="button" class="esp-tab${LLDE.tab === k ? ' on' : ''}" data-k="${k}">${l}</button>`).join('')}</div><div class="esp-body">${body}</div></div>`);
     if (keep) box.find('.esp-body').scrollTop(prev);
