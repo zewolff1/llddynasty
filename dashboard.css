@@ -5339,3 +5339,20 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 /* ===== NFL games: tap-to-reveal scores when Hide scores is on ===== */
 .esp-rv:not(.on){cursor:pointer;display:inline-block;min-width:2.6em;text-align:center;border:1px dashed rgba(255,255,255,.35);border-radius:6px;padding:0 6px;color:var(--text-dim)}
 .esp-rv:not(.on) i{font-style:normal;font-size:.7em;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+
+/* ===== Add to home screen: illustrated steps + pop-up ===== */
+.a2-tabs{display:flex;gap:6px;margin:6px 0 10px}.a2-tabs .a2-tab{flex:1}
+.a2-step{background:rgba(255,255,255,.05);border-radius:14px;padding:12px;margin:0 0 10px}
+.a2-n{display:flex;gap:10px;align-items:flex-start;font-weight:800;font-size:calc(13px * var(--ts,1));margin-bottom:8px;color:#fff}
+.a2-n b{flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent-teal,#00ceb8);color:#06231f;display:grid;place-items:center;font-size:12px}
+.a2-n span{color:var(--text-dim);font-weight:700;font-size:.9em}.a2-n em{font-style:normal}
+.a2-step svg{display:block;width:100%;height:auto;border-radius:10px}
+.a2-step .ring{animation:a2p 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes a2p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.12)}}
+.a2-tip{color:var(--text-dim);font-size:calc(11px * var(--ts,1));font-weight:700;margin:6px 0 4px}
+#lld-a2hs-modal{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;justify-content:center}
+#lld-a2hs-modal .a2-card{width:100%;max-width:520px;max-height:92vh;display:flex;flex-direction:column;background:var(--card-bg,#161b2e);border-radius:22px 22px 0 0;padding:18px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+#lld-a2hs-modal .a2-h{font-weight:900;font-size:calc(17px * var(--ts,1));color:#fff}
+#lld-a2hs-modal .a2-sub{color:var(--text-dim);font-size:calc(11px * var(--ts,1));font-weight:700;margin:2px 0 8px}
+#lld-a2hs-modal .a2-body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1}
+#lld-a2hs-modal .a2-btns{display:flex;gap:8px;padding-top:10px}#lld-a2hs-modal .a2-btns .lld-hdr-btn{flex:1}
