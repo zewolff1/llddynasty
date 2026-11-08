@@ -5327,3 +5327,15 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 .apv-y.gu{background:rgba(245,197,66,.16)}.apv-y.gu b{color:#f5c542}
 .apv-y.hit b{color:#fca5a5}
 .apv-y.off b,.apv-y.off small{opacity:.35}
+
+/* ===== Consistency / Boom-Bust detail under each player card ===== */
+.apv-cs{margin:-4px 6px 8px;padding:10px 12px 8px;border-radius:0 0 14px 14px;background:rgba(255,255,255,.05)}
+.apv-cs-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:calc(11px * var(--ts,1));font-weight:800;color:var(--text-dim)}
+.apv-cs-h .apv-lb{font-size:calc(15px * var(--ts,1));font-weight:900}
+.apv-cs-t{text-align:right;font-size:calc(10px * var(--ts,1));font-weight:800;color:var(--text-dim)}
+.apv-cs svg{display:block;margin-top:4px}
+.apv-cs-h + .apv-cs-h{margin-top:2px}
+
+/* ===== NFL games: tap-to-reveal scores when Hide scores is on ===== */
+.esp-rv:not(.on){cursor:pointer;display:inline-block;min-width:2.6em;text-align:center;border:1px dashed rgba(255,255,255,.35);border-radius:6px;padding:0 6px;color:var(--text-dim)}
+.esp-rv:not(.on) i{font-style:normal;font-size:.7em;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
