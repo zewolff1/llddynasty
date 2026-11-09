@@ -13048,7 +13048,7 @@ const LLD_GTH_ABD = {
     "Batgirl": [["Oracle", "You take a share of your biggest gap behind your opponent at one position."]],
     "Nightwing": [["Backup Plan", "Your best bench player adds a share of his points to your total."]],
     "Commissioner Gordon": [["Arkham Watch", "A bonus for each villain currently in Arkham."]],
-    "Joker": [["Wild Card", "Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half."]],
+    "Joker": [["Wild Card", "Each week one of your counting players is picked at random and gets a random bonus."]],
     "Harley Quinn": [["Mallet Mayhem", "You gain a bonus for every point your opponent's bench scores."]],
     "Penguin": [["Compound Interest", "A bonus for each week in a row a player has started, up to a cap."]],
     "Two-Face": [["Double or Half", "A starter you pick is doubled if he beats his projection and halved if he falls short."]],
@@ -14456,7 +14456,8 @@ function lldGthInfo(row) {
         pj = ({ QB: 18, RB: 12, WR: 11, TE: 8 }[pos] || 9) + (h % 7); played = h % 2 === 0; sc = played ? Math.round(pj * (0.55 + (h % 10) / 10) * 10) / 10 : NaN;
         r.attr('data-gtp', '1'); r.find('.proj-popup-trigger').attr('data-proj', pj.toFixed(1)).find('.lld-pj-n').text(pj.toFixed(1)); // show it in the row too
     }
-    return { pid, name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos, v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
+    const km = r.text().match(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i), night = !!km && km[4].toUpperCase() === 'PM' && +km[2] !== 12 && +km[2] >= 7; // kickoff text shown on the row
+    return { night, ko: km ? km[0] : '', pid, name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos, v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
 }
 function lldGthFit(caps, rs) {
     const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
@@ -14469,7 +14470,9 @@ function lldGthFit(caps, rs) {
 // the characters you can pick are the ones on your roster (Coach + Defense slots), not a fixed list
 function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
-const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
+const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
+const LLD_GTH_NIGHT = { pct: 10 }; // Man-Bat Night Flight: % bonus per counting player in a night game
+const LLD_GTH_WILD = { min: 0, max: 35 }; // Joker: the random bonus is a whole % between these
 function lldGthCharKey() { return 'lld_gth_char_' + String(fid).padStart(4, '0'); }
 function lldGthWildKey() { return 'lld_gth_wild_' + String(fid).padStart(4, '0'); }
 function lldGthChars() {
@@ -14483,26 +14486,48 @@ function lldGthChars() {
 $(document).on('click', '#gth-chars .gth-ch[data-ch]', function () { lldSet(lldGthCharKey(), lldGet(lldGthCharKey(), '') === this.dataset.ch ? '' : this.dataset.ch); lldGthCapRender(); });
 $(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this.value); lldGthCapRender(); });
 // Joker's Wild Card: works out the change to the total and fills the ability card
+// ability effect on one row: a round icon with the label in the details, and the change in points under the projection box
+function lldGthFx(row, ico, label, txt, neg) {
+    const r = $(row); r.find('.lld-det').first().append(`<div class="gth-fx"><span class="gth-ci">${ico}</span><span>${label}</span></div>`);
+    const pj = r.find('.proj-popup-trigger').first(); if (pj.length) pj.after(`<div class="gth-pj${neg ? ' dn' : ''}">${txt}</div>`);
+}
 function lldGthJoker(caps, rs, fit, dp, M) {
     const box = document.getElementById('gth-abil'); if (!box) return 0;
     const cc = lldGet(lldGthCharKey(), '');
-    if (cc !== 'joker') {
+    if (cc === 'manbat') { // Night Flight: starters whose game kicks off at 7 PM or later (read from the kickoff time on each row)
+        const ab = lldGthAbd('Man-Bat')[0], N = LLD_GTH_NIGHT, hit = caps.concat(rs.filter(i => fit.slot[i.pid])).filter(i => i.night);
+        let delta = 0; hit.forEach(i => { const c = caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), b = c * N.pct / 100; delta += b; lldGthFx(i.row, '\uD83C\uDF19', `Night game +${N.pct}%`, `+${b.toFixed(1)} ability`); });
+        box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83C\uDF19 ${ab[0]}</b></div><p>Each of your counting players whose game kicks off at 7 PM or later gets +${N.pct}%.</p><div class="st">${hit.length ? `${hit.length} night player${hit.length === 1 ? '' : 's'}: <b class="up">+${delta.toFixed(1)}</b> (${hit.map(i => i.name).join(', ')})` : 'No counting players in a night game yet.'}</div></div>`;
+        return delta;
+    }
+    if (cc !== 'joker' && cc !== 'twoface') {
         const ch = lldGthCharList().find(c => c.id === cc), ab = ch ? lldGthAbd(ch.name) : null;
         box.innerHTML = ab ? ab.map(x => `<div class="gth-ab"><div class="h"><b>${x[0]}</b></div><p>${x[1]}</p><div class="st">Scoring for this ability is coming soon.</div></div>`).join('') : '';
         return 0;
     }
-    const ab = LLD_GTH_ABIL.joker, J = LLD_GTH_JOKER, cnt = caps.concat(rs.filter(i => fit.slot[i.pid]));
+    const cnt = caps.concat(rs.filter(i => fit.slot[i.pid]));
+    if (cc === 'joker') { // random Wild Card: the same roll all week (seeded by league, team and week), so it never changes on refresh
+        const ab = LLD_GTH_ABIL.joker, wk = parseInt(window._lldServedWeek, 10) || 0; let h = 2166136261; const sd = [lid, fid, wk].join('-');
+        for (let q = 0; q < sd.length; q++) { h ^= sd.charCodeAt(q); h = Math.imul(h, 16777619) >>> 0; }
+        const SO = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'extra'], slotN = cnt.length ? h % cnt.length : 0, pct = LLD_GTH_WILD.min + ((h >>> 8) % (LLD_GTH_WILD.max - LLD_GTH_WILD.min + 1)), order = cnt.slice().sort((a, b) => SO.indexOf(fit.slot[a.pid]) - SO.indexOf(fit.slot[b.pid]) || a.pid.localeCompare(b.pid)), w = order[slotN];
+        let delta = 0, status = 'Set your lineup first. The roll happens once your players are in.';
+        if (w) { const c = caps.indexOf(w) >= 0 ? w.v * M : w.v * (1 + dp / 100); delta = c * pct / 100; status = `This week's roll: <b>${w.name}</b> gets <b class="up">+${pct}%</b> (<b class="up">+${delta.toFixed(1)}</b>)`; lldGthFx(w.row, '\uD83C\uDCCF', `Wild Card +${pct}%`, `+${delta.toFixed(1)} ability`); }
+        box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83C\uDCCF ${ab.name}</b></div><p>${ab.desc}</p><div class="st">${status}</div></div>`;
+        return delta;
+    }
+    const ab = LLD_GTH_ABIL.twoface, J = LLD_GTH_JOKER;
     let wid = lldGet(lldGthWildKey(), ''); if (!cnt.some(i => i.pid === wid)) wid = '';
-    const opts = `<option value="">Choose your Wild Card</option>` + cnt.map(i => `<option value="${i.pid}" ${i.pid === wid ? 'selected' : ''}>${i.name} (${i.pos})</option>`).join('');
+    const opts = `<option value="">Choose your player</option>` + cnt.map(i => `<option value="${i.pid}" ${i.pid === wid ? 'selected' : ''}>${i.name} (${i.pos})</option>`).join('');
     const w = cnt.find(i => i.pid === wid);
-    let delta = 0, status = cnt.length ? 'Pick a player below.' : 'Set your lineup first, then pick a Wild Card.';
+    let delta = 0, status = cnt.length ? 'Pick a player below.' : 'Set your lineup first, then pick a player.';
     if (w) {
         const c = caps.indexOf(w) >= 0 ? w.v * M : w.v * (1 + dp / 100), up = c * (J.win - 1), down = c * (J.lose - 1);
-        $(w.row).find('.lld-det').first().append(`<div class="gth-bn gth-wc">\uD83C\uDCCF WILD CARD \u00B7 beat ${w.pj ? w.pj.toFixed(1) : 'proj'} for \u00D7${J.win}</div>`);
+        if (w.played) { const hit2 = w.pj > 0 ? w.v >= w.pj : false; lldGthFx(w.row, '\uD83E\uDE99', hit2 ? 'Double: beat his projection' : 'Half: fell short', (hit2 ? '+' + up.toFixed(1) : down.toFixed(1)) + ' ability', !hit2); }
+        else lldGthFx(w.row, '\uD83E\uDE99', `Double or Half: beat ${w.pj ? w.pj.toFixed(1) : 'proj'}`, `+${up.toFixed(1)} / ${down.toFixed(1)}`);
         if (w.played) { const hit = w.pj > 0 ? w.v >= w.pj : false; delta = hit ? up : down; status = hit ? `Hit! ${w.name} beat his projection of ${w.pj.toFixed(1)}: <b class="up">+${up.toFixed(1)}</b>` : `Missed. ${w.name} fell short of ${w.pj.toFixed(1)}: <b class="dn">${down.toFixed(1)}</b>`; }
         else status = `Beat ${w.pj ? w.pj.toFixed(1) : 'his projection'}: <b class="up">+${up.toFixed(1)}</b> \u00B7 fall short: <b class="dn">${down.toFixed(1)}</b>`;
     }
-    box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83C\uDCCF ${ab.name}</b></div><p>${ab.desc}</p><select id="gth-wild">${opts}</select><div class="st">${status}</div></div>`;
+    box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83E\uDE99 ${ab.name}</b></div><p>${ab.desc}</p><select id="gth-wild">${opts}</select><div class="st">${status}</div></div>`;
     return delta;
 }
 function lldGthCapRender() {
@@ -14524,7 +14549,7 @@ function lldGthCapRender() {
     caps.sort((a, b) => b.v - a.v);
     const fit = lldGthFit(caps, rs);
     rs.sort((a, b) => ((fit.slot[b.pid] ? 1 : 0) - (fit.slot[a.pid] ? 1 : 0)) || b.v - a.v);
-    $('.gth-bn,.gx-in,.gx-div,.gx-ph,.gx-mvbar').remove();
+    $('.gth-bn,.gth-fx,.gth-pj,.gx-in,.gx-div,.gx-ph,.gx-mvbar').remove();
     const place = (cont, list) => { const el = document.getElementById(cont); list.forEach((i, k) => { if (el.children[k] !== i.row) el.insertBefore(i.row, el.children[k] || null); }); };
     place('slots-captain', caps); place('slots-reserves', rs);
     const nc = rs.filter(i => fit.slot[i.pid]).length;
