@@ -5375,3 +5375,9 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 
 /* Gotham: coaches and defenses only show in the Character section */
 body.lld-gth .player-row.gth-hide{display:none!important}
+
+/* Gotham: ability icon on the row and the change in points under the projection box */
+.gth-fx{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:calc(10px * var(--ts,1));font-weight:800;color:#c4b5fd}
+.gth-ci{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;line-height:1;background:rgba(167,139,250,.2);border:2px solid #a78bfa;flex:none}
+.gth-pj{font-size:calc(10px * var(--ts,1));font-weight:900;color:#4ade80;text-align:right;white-space:nowrap}
+.gth-pj.dn{color:#f87171}
