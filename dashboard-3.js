@@ -14457,7 +14457,8 @@ function lldGthInfo(row) {
         r.attr('data-gtp', '1'); r.find('.proj-popup-trigger').attr('data-proj', pj.toFixed(1)).find('.lld-pj-n').text(pj.toFixed(1)); // show it in the row too
     }
     const km = r.text().match(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i), night = !!km && km[4].toUpperCase() === 'PM' && +km[2] !== 12 && +km[2] >= 7; // kickoff text shown on the row
-    return { night, ko: km ? km[0] : '', pid, name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos, v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
+    let slot = -1; if (km) { const dy = km[1].toLowerCase(), hr = +km[2], pm = km[4].toUpperCase() === 'PM', h24 = pm ? (hr === 12 ? 12 : hr + 12) : (hr === 12 ? 0 : hr); if (dy === 'thu' && h24 >= 19) slot = 0; else if (dy === 'sun') slot = h24 < 15 ? 1 : h24 < 19 ? 2 : 3; else if (dy === 'mon' && h24 >= 19) slot = 4; } // kickoff slot: Thu night, Sun 1 PM, Sun 4 PM, Sun night, Mon night
+    return { slot, night, ko: km ? km[0] : '', pid, name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos, v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
 }
 function lldGthFit(caps, rs) {
     const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
@@ -14471,6 +14472,7 @@ function lldGthFit(caps, rs) {
 function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
 const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
+const LLD_GTH_CAL = { pct: 2, slots: ['Thu night', 'Sun 1 PM', 'Sun 4 PM', 'Sun night', 'Mon night'] }; // Calendar Man: % on every counting player for each different slot covered
 const LLD_GTH_NIGHT = { pct: 10 }; // Man-Bat Night Flight: % bonus per counting player in a night game
 const LLD_GTH_WILD = { min: 0, max: 35 }; // Joker: the random bonus is a whole % between these
 function lldGthCharKey() { return 'lld_gth_char_' + String(fid).padStart(4, '0'); }
@@ -14494,13 +14496,19 @@ function lldGthFx(row, ico, label, txt, neg) {
 function lldGthJoker(caps, rs, fit, dp, M) {
     const box = document.getElementById('gth-abil'); if (!box) return 0;
     const cc = lldGet(lldGthCharKey(), '');
+    if (cc === 'calendarman') { // Full Calendar: every different kickoff slot your counting players cover adds a % to every counting player
+        const ab = lldGthAbd('Calendar Man')[0], K = LLD_GTH_CAL, cnt2 = caps.concat(rs.filter(i => fit.slot[i.pid])), by = K.slots.map((n, k) => cnt2.filter(i => i.slot === k)), nSl = by.filter(a => a.length).length, pct = nSl * K.pct;
+        let delta = 0; cnt2.forEach(i => { const c = caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), b = c * pct / 100; delta += b; if (pct && i.slot >= 0) lldGthFx(i.row, '\uD83D\uDCC5', `${K.slots[i.slot]} \u00B7 ${nSl} of 5 slots`, `+${b.toFixed(1)} ability`); });
+        box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83D\uDCC5 ${ab[0]}</b></div><p>Each different kickoff slot your counting players cover adds +${K.pct}% to every counting player.</p>${K.slots.map((n, k) => `<div class="gth-sl${by[k].length ? ' hit' : ''}"><b>${n}</b><span>${by[k].length ? by[k].map(i => i.name).join(', ') : 'nobody counting'}</span>${by[k].length ? `<em>+${K.pct}%</em>` : ''}</div>`).join('')}<div class="st">${nSl} of 5 slots = <b>+${pct}%</b> on every counting player: adds <b class="up">+${delta.toFixed(1)}</b></div></div>`;
+        return delta;
+    }
     if (cc === 'manbat') { // Night Flight: starters whose game kicks off at 7 PM or later (read from the kickoff time on each row)
         const ab = lldGthAbd('Man-Bat')[0], N = LLD_GTH_NIGHT, hit = caps.concat(rs.filter(i => fit.slot[i.pid])).filter(i => i.night);
         let delta = 0; hit.forEach(i => { const c = caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), b = c * N.pct / 100; delta += b; lldGthFx(i.row, '\uD83C\uDF19', `Night game +${N.pct}%`, `+${b.toFixed(1)} ability`); });
         box.innerHTML = `<div class="gth-ab"><div class="h"><b>\uD83C\uDF19 ${ab[0]}</b></div><p>Each of your counting players whose game kicks off at 7 PM or later gets +${N.pct}%.</p><div class="st">${hit.length ? `${hit.length} night player${hit.length === 1 ? '' : 's'}: <b class="up">+${delta.toFixed(1)}</b> (${hit.map(i => i.name).join(', ')})` : 'No counting players in a night game yet.'}</div></div>`;
         return delta;
     }
-    if (cc !== 'joker' && cc !== 'twoface') {
+    if (cc !== 'joker' && cc !== 'twoface') { // (Calendar Man and Man-Bat are handled above)
         const ch = lldGthCharList().find(c => c.id === cc), ab = ch ? lldGthAbd(ch.name) : null;
         box.innerHTML = ab ? ab.map(x => `<div class="gth-ab"><div class="h"><b>${x[0]}</b></div><p>${x[1]}</p><div class="st">Scoring for this ability is coming soon.</div></div>`).join('') : '';
         return 0;
