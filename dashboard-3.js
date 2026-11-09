@@ -13040,7 +13040,59 @@ const LLD_CH_ICON = { batman: '🦇', robin: '🐦', batgirl: '🦸‍♀️', n
 //   characters: { "16001": { name: "Batman", icon: "🦇", img: "https://.../batman.png", ability: "Dark Knight" }, ... }
 // Default image if none given: <logoFallback.generic's repo>/content/characters/<playerId>.png
 function lldChSlug(n) { return String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, ''); }
-function lldChCfg(pid, nm) { try { const m = (window.LLD_CONFIG || {}).characters || {}; if (m[String(pid)]) return m[String(pid)]; const k = lldChSlug(nm); const hit = Object.keys(m).find(x => lldChSlug(x) === k); return hit ? m[hit] : {}; } catch (e) { return {}; } }
+function lldChCfg0(pid, nm) { try { const m = (window.LLD_CONFIG || {}).characters || {}; if (m[String(pid)]) return m[String(pid)]; const k = lldChSlug(nm); const hit = Object.keys(m).find(x => lldChSlug(x) === k); return hit ? m[hit] : {}; } catch (e) { return {}; } }
+// built-in abilities by character name (text only; your config can still override with "ability")
+const LLD_GTH_ABD = {
+    "Batman": [["Utility Belt", "After lock, your worst starter swaps for your best bench player if the bench player scored more."], ["Case Closed", "A bonus for each scoring player who is affected by an ability."]],
+    "Robin": [["Partners in Crime", "If your top two starters both beat their projections, you get a bonus on both."]],
+    "Batgirl": [["Oracle", "You take a share of your biggest gap behind your opponent at one position."]],
+    "Nightwing": [["Backup Plan", "Your best bench player adds a share of his points to your total."]],
+    "Commissioner Gordon": [["Arkham Watch", "A bonus for each villain currently in Arkham."]],
+    "Joker": [["Wild Card", "Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half."]],
+    "Harley Quinn": [["Mallet Mayhem", "You gain a bonus for every point your opponent's bench scores."]],
+    "Penguin": [["Compound Interest", "A bonus for each week in a row a player has started, up to a cap."]],
+    "Two-Face": [["Double or Half", "A starter you pick is doubled if he beats his projection and halved if he falls short."]],
+    "Poison Ivy": [["Poison Kiss", "You gain a bonus for each week in a row one of your opponent's players has scored."]],
+    "Riddler": [["Mind Control", "One opposing starter is automatically placed as a reserve."]],
+    "Mr. Freeze": [["Freeze", "One opposing starter scores what he scored last week."]],
+    "Bane": [["Venom", "A bonus for each week in a row a player scores."]],
+    "Scarecrow": [["Fear Gas", "One position requirement changes for this matchup."]],
+    "Clayface": [["Copycat", "Copies one ability from a teammate."]],
+    "Solomon Grundy": [["Slow Rise", "A benched player gains a bonus each week he sits, and gets all of it the week he starts."]],
+    "Ra's al Ghul": [["Lazarus Pit", "An injured or bye starter scores his average instead of zero."]],
+    "Talia al Ghul": [["Defector", "A bonus on your starters who used to be on your opponent's team."]],
+    "Catwoman": [["Cat Burglar", "You gain a bonus for each of your starters who was once on your opponent's team."]],
+    "Calendar Man": [["Full Calendar", "A bonus for each different kickoff time slot your starters cover."]],
+    "Man-Bat": [["Night Flight", "A bonus for each of your starters playing in a night game."]],
+    "Clock King": [["Time Trap", "You gain a bonus for each different kickoff time slot your opponent's starters cover."]],
+    "Professor Pyg": [["Lights Out", "You gain a bonus for each of your opponent's starters playing in a night game."]],
+    "Firefly": [["Afterburn", "Each of your starters gives a share of his points from last week as a bonus."]],
+    "Mad Hatter": [["Tea Party", "One of your starters counts the higher of this week and last week."]],
+    "Hugo Strange": [["Failed Evaluation", "You gain a bonus when your opponent's top two starters both miss their projections."]],
+    "Killer Croc": [["Cold-Blooded", "You gain a bonus for each opposing starter who scores less than he did last week."]],
+    "Deadshot": [["Empty Chamber", "A bonus for each empty ability slot."]],
+    "Amanda Waller": [["Black Files", "A bonus for each unique ability used this season."]],
+    "Victor Zsasz": [["Tally Marks", "A bonus for each player you started last week who was cut."]],
+    "Anarky": [["Redistribution", "You have less FAAB than your opponent: a bonus."]],
+    "Tony Zucco": [["Black Market", "You have more FAAB than your opponent: a bonus."]],
+    "Rupert Thorne": [["Backroom Deal", "You outscored the team you are playing this week, last week: a bonus for every point of the gap."]],
+    "Killer Moth": [["Moth to a Flame", "The team you are playing this week outscored you last week: a bonus for every point of the gap."]],
+    "Black Mask": [["Faceless Rule", "You are ranked above the team you are playing this week: a bonus for every spot of the gap."]],
+    "Condiment King": [["Catch Up", "You are ranked below the team you are playing this week: a bonus for every spot of the gap."]],
+    "Ventriloquist": [["Strings Pulled", "You gain a bonus for each of your opponent's starters who was on their bench last week."]],
+    "Maxie Zeus": [["Offerings to Olympus", "You get a share of every point your bench players score."]],
+    "Cluemaster": [["Hidden Fee", "You gain a bonus for each week in a row one of your opponent's starters has started."]],
+    "Polka-Dot Man": [["Spotlight", "A starter who was on your bench last week gets a bonus."]],
+    "Hush": [["Surgical Strike", "You gain a bonus for each player your opponent added this week who is starting."]],
+    "Deathstroke": [["Terminated", "You gain a bonus for each player your opponent started last week who was cut."]],
+    "Sal Maroni": [["Second Opinion", "After your lineup locks, swap one starter for a bench player and the better of the two counts."]],
+    "Phantasm": [["Reborn", "Save a bench player's score, then swap it in for any one starter in a later week (once per season)."]]
+};
+function lldGthAbd(nm) {
+    if (!lldGthAbd.m) { lldGthAbd.m = {}; Object.keys(LLD_GTH_ABD).forEach(k => { lldGthAbd.m[lldChSlug(k)] = LLD_GTH_ABD[k]; }); lldGthAbd.m.gordon = LLD_GTH_ABD["Commissioner Gordon"]; }
+    const k = lldChSlug(nm); return lldGthAbd.m[k] || lldGthAbd.m[k.replace(/^commissioner/, '')] || null;
+}
+function lldChCfg(pid, nm) { const b = lldChCfg0(pid, nm); if (b && b.ability) return b; const a = lldGthAbd(nm); return a ? Object.assign({}, b, { ability: a.map(x => x[0]).join(' + ') }) : b; }
 function lldChAv(pid, nm) {
     const c = lldChCfg(pid, nm), ic = c.icon || lldChIcon(nm), src = c.img || ('https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/' + lldChSlug(nm) + '.png');
     return `<div class="lc-av"><span class="lc-ic">${ic}</span><img src="${src}" alt="" onload="this.previousElementSibling.style.display='none'" onerror="this.remove()"></div>`;
@@ -14427,7 +14479,12 @@ $(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this
 // Joker's Wild Card: works out the change to the total and fills the ability card
 function lldGthJoker(caps, rs, fit, dp, M) {
     const box = document.getElementById('gth-abil'); if (!box) return 0;
-    if (lldGet(lldGthCharKey(), '') !== 'joker') { box.innerHTML = ''; return 0; }
+    const cc = lldGet(lldGthCharKey(), '');
+    if (cc !== 'joker') {
+        const ch = lldGthCharList().find(c => c.id === cc), ab = ch ? lldGthAbd(ch.name) : null;
+        box.innerHTML = ab ? ab.map(x => `<div class="gth-ab"><div class="h"><b>${x[0]}</b></div><p>${x[1]}</p><div class="st">Scoring for this ability is coming soon.</div></div>`).join('') : '';
+        return 0;
+    }
     const ab = LLD_GTH_ABIL.joker, J = LLD_GTH_JOKER, cnt = caps.concat(rs.filter(i => fit.slot[i.pid]));
     let wid = lldGet(lldGthWildKey(), ''); if (!cnt.some(i => i.pid === wid)) wid = '';
     const opts = `<option value="">Choose your Wild Card</option>` + cnt.map(i => `<option value="${i.pid}" ${i.pid === wid ? 'selected' : ''}>${i.name} (${i.pos})</option>`).join('');
