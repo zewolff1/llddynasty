@@ -13066,7 +13066,7 @@ function lldChRoster() {
 function lldCharsRender() {
     try {
         const old = document.getElementById('lld-chars'); if (old) old.remove();
-        if (!lldBeta() || !currentDoc) return;
+        if (!lldBeta() || !currentDoc || lldGthOn()) return; // Gotham: characters live only in the Character section
         const sub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase(); if (sub !== 'lineup' && sub !== 'roster') return;
         const host = document.getElementById('player-rows-container'); if (!host) return;
         const R = lldChRoster(), leader = R.leader, sk = R.sk;
@@ -14454,7 +14454,7 @@ function lldGthCapRender() {
     const rows = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]:not(.empty-slot), #slots-captain .player-row[data-pid], #slots-reserves .player-row[data-pid]').toArray();
     const caps = [], rs = [], bn = [];
     rows.forEach(r => {
-        const i = lldGthInfo(r); if (!r.dataset.gorig) r.dataset.gorig = $(r).closest('#slots-starters').length ? 'rs' : 'bn';
+        const i = lldGthInfo(r); if (/^(COACH|CO|HC|DEF|DST|TMDEF)$/.test(i.pos)) { r.classList.add('gth-hide'); return; } r.classList.remove('gth-hide'); if (!r.dataset.gorig) r.dataset.gorig = $(r).closest('#slots-starters').length ? 'rs' : 'bn';
         const w = lay[i.pid] || r.dataset.gorig; i.row = r; r.classList.remove('gth-cp');
         if (w === 'cap' && caps.length < LLD_GTH_CAP.max) { caps.push(i); r.classList.add('gth-cp'); } else if (w === 'bn') bn.push(i); else rs.push(i);
     });
@@ -16422,12 +16422,18 @@ async function lldMonthSlides(key) {
     if (!M.top.length) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">No completed games this month</div>`)); return out; }
     const best = M.top[0];
     out.push(stSlideTm(best.fid, `<div class="st-k st-a">PLAYER OF THE MONTH</div>${stPRow(best.p, best.fid, best.tot.toFixed(1), 0.25)}<div class="st-sub st-a" style="--d:.7s">${best.g} game${best.g === 1 ? '' : 's'} in a starting lineup · ${(best.tot / best.g).toFixed(1)} per game</div>`));
-    out.push(stSlide('#1d4ed8', '#0b1020', `<div class="st-k st-a">TOP FIVE PLAYERS</div>${M.top.map((q, i) => stPRow(q.p, q.fid, q.tot.toFixed(1), 0.2 + i * .15)).join('')}`));
+    if (!lldDev()) out.push(stSlide('#1d4ed8', '#0b1020', `<div class="st-k st-a">TOP FIVE PLAYERS</div>${M.top.map((q, i) => stPRow(q.p, q.fid, q.tot.toFixed(1), 0.2 + i * .15)).join('')}`));
     for (let i = 0; i < M.pos.length; i += 4) out.push(stSlide('#0f766e', '#07110f', `<div class="st-k st-a">BEST AT EACH POSITION</div>${M.pos.slice(i, i + 4).map((z, j) => stPRow(z.x.p, z.x.fid, z.pos, 0.2 + j * .15)).join('')}`));
-    const tp = M.teams[0], hp = M.pfTop[0];
-    out.push(stSlideTm(tp.fid, `<div class="st-k st-a">TEAM OF THE MONTH</div>${stLogo(tp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(tp.fid)}</div><div class="st-big st-a" style="--d:.35s">${tp.w}-${tp.l}</div><div class="st-sub st-a" style="--d:.6s">${tp.pf.toFixed(1)} points · best week ${tp.best.toFixed(1)}</div>`, true));
+    const tp = M.teams[0], hp = M.pfTop[0]; if (lldDev()) LLD_ST.winFid = tp.fid;
+    if (!lldDev()) out.push(stSlideTm(tp.fid, `<div class="st-k st-a">TEAM OF THE MONTH</div>${stLogo(tp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(tp.fid)}</div><div class="st-big st-a" style="--d:.35s">${tp.w}-${tp.l}</div><div class="st-sub st-a" style="--d:.6s">${tp.pf.toFixed(1)} points · best week ${tp.best.toFixed(1)}</div>`, true));
     if (hp && hp.fid !== tp.fid) out.push(stSlideTm(hp.fid, `<div class="st-k st-a">MOST POINTS SCORED</div>${stLogo(hp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hp.fid)}</div>${stNum(hp.pf, 1, 'gold')}<div class="st-sub st-a" style="--d:.6s">${(hp.pf / Math.max(1, hp.gp)).toFixed(1)} per game</div>`));
     if (M.bestGame) out.push(stSlideTm(M.bestGame.fid, `<div class="st-k st-a">BEST SINGLE GAME</div>${stPRow(M.bestGame.p, M.bestGame.fid, M.bestGame.hi.toFixed(1), 0.25)}<div class="st-sub st-a" style="--d:.7s">Highest score by a starter this month</div>`, true));
+    if (lldDev()) { // beta layout: cover, then grouped slides
+        const take = k => { const r = new RegExp('st-k st-a">[^<]*' + k), a = []; for (let i = out.length - 1; i > 0; i--) if (r.test(out[i].html)) a.unshift(out.splice(i, 1)[0]); return a; };
+        const g2 = take('MOST POINTS SCORED').concat(take('BEST SINGLE GAME')), g1 = take('PLAYER OF THE MONTH').concat(take('BEST AT EACH POSITION'));
+        const c1 = stCombine(g1), c2 = stCombine(g2), cover = out.shift();
+        out.splice(0, out.length, cover, ...[c1, c2].filter(Boolean));
+    }
     out.push(stSlide('#334155', '#0b0f19', `<div class="st-k st-a">${lldChatEsc(cur.label.toUpperCase())} STANDINGS</div>${M.teams.slice(0, 8).map((t, i) => `<div class="st-row st-a" style="--d:${0.15 + i * .1}s;padding:7px 10px;gap:8px"><span style="width:18px;font-weight:900">${i + 1}</span><img src="${getFranchiseLogoUrl(t.fid)}" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:50%;object-fit:cover"><b style="flex:1;text-align:left;font-size:calc(13px * var(--ts,1))">${stName(t.fid)}</b><i style="font-size:calc(17px * var(--ts,1))">${t.w}-${t.l}</i></div>`).join('')}`));
     out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">${lldChatEsc(cur.label)} recap</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="month" data-wk="0" data-mo="${cur.key}">Open the full month</button>`));
     return out;
