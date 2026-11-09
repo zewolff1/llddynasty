@@ -5372,3 +5372,6 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 /* beta: combined story slides (parts appear one at a time) */
 #lld-story .st-cb{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;opacity:0;animation:stIn .7s cubic-bezier(.2,.9,.2,1) calc(var(--cd,0s) / var(--spd,1)) forwards}
 #lld-story.st-cmbd .st-in{gap:18px}
+
+/* Gotham: coaches and defenses only show in the Character section */
+body.lld-gth .player-row.gth-hide{display:none!important}
