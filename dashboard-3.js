@@ -14451,9 +14451,10 @@ function lldGthInfo(row) {
     const r = $(row); let played = r.hasClass('lld-played');
     let sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
     const pid = String(r.attr('data-pid')), pos = (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase();
-    if (lldDev() && lldBv('gtp') === '1' && !(pj > 0)) { // test mode: made-up projections (and scores for about half the players) so points can be tested with no projections
+    if (lldDev() && lldBv('gtp') === '1' && (!(pj > 0) || r.attr('data-gtp'))) { // test mode: made-up projections (and scores for about half the players) so points can be tested with no projections
         let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) % 997;
         pj = ({ QB: 18, RB: 12, WR: 11, TE: 8 }[pos] || 9) + (h % 7); played = h % 2 === 0; sc = played ? Math.round(pj * (0.55 + (h % 10) / 10) * 10) / 10 : NaN;
+        r.attr('data-gtp', '1'); r.find('.proj-popup-trigger').attr('data-proj', pj.toFixed(1)).find('.lld-pj-n').text(pj.toFixed(1)); // show it in the row too
     }
     return { pid, name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos, v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
 }
