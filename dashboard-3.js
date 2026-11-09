@@ -14448,9 +14448,14 @@ function lldGthCapKey() { return 'lld_gth_lay_' + String(fid).padStart(4, '0'); 
 function lldGthLay() { try { return JSON.parse(lldGet(lldGthCapKey(), '{}')) || {}; } catch (e) { return {}; } }
 function lldGthLaySave(m) { lldSet(lldGthCapKey(), JSON.stringify(m)); }
 function lldGthInfo(row) {
-    const r = $(row), played = r.hasClass('lld-played');
-    const sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
-    return { pid: String(r.attr('data-pid')), name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos: (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase(), v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
+    const r = $(row); let played = r.hasClass('lld-played');
+    let sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
+    const pid = String(r.attr('data-pid')), pos = (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase();
+    if (lldDev() && lldBv('gtp') === '1' && !(pj > 0)) { // test mode: made-up projections (and scores for about half the players) so points can be tested with no projections
+        let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) % 997;
+        pj = ({ QB: 18, RB: 12, WR: 11, TE: 8 }[pos] || 9) + (h % 7); played = h % 2 === 0; sc = played ? Math.round(pj * (0.55 + (h % 10) / 10) * 10) / 10 : NaN;
+    }
+    return { pid, name: r.attr('data-pname') || r.find('.full-name').text().trim(), pos, v: (played && isFinite(sc)) ? sc : (isFinite(pj) ? pj : 0), played: played && isFinite(sc), pj: isFinite(pj) ? pj : 0 };
 }
 function lldGthFit(caps, rs) {
     const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
@@ -14684,7 +14689,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}${lldA2hsHtml()}` : ''}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)')}${onoff('gtp')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}${lldA2hsHtml()}` : ''}
     </div>`;
 }
 function lldFtFill() {
