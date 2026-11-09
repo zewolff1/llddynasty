@@ -5381,3 +5381,8 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .gth-ci{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;line-height:1;background:rgba(167,139,250,.2);border:2px solid #a78bfa;flex:none}
 .gth-pj{font-size:calc(10px * var(--ts,1));font-weight:900;color:#4ade80;text-align:right;white-space:nowrap}
 .gth-pj.dn{color:#f87171}
+
+/* Gotham: Calendar Man time-slot list */
+.gth-sl{display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 9px;border-radius:9px;border:1px dashed rgba(148,163,184,.35);color:#94a3b8;font-size:calc(11px * var(--ts,1))}
+.gth-sl.hit{border:1px solid #fb923c;background:rgba(251,146,60,.12);color:#f1f5f9}
+.gth-sl b{flex:none;width:76px}.gth-sl span{flex:1;min-width:0}.gth-sl em{font-style:normal;font-weight:800;color:#fb923c;flex:none}
