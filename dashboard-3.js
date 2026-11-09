@@ -14469,7 +14469,8 @@ function lldGthFit(caps, rs) {
 }
 // Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
 // the characters you can pick are the ones on your roster (Coach + Defense slots), not a fixed list
-function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
+function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); if (lldDev() && lldBv('gtp') === '1') Object.keys(LLD_GTH_ABD).forEach(n => { if (!a.some(c => lldChSlug(c.nm) === lldChSlug(n))) a.push({ nm: n, pid: '', on: false }); }); // test mode: every character can be picked, even if not on your roster
+        return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
 const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
 const LLD_GTH_CAL = { pct: 2, slots: ['Thu night', 'Sun 1 PM', 'Sun 4 PM', 'Sun night', 'Mon night'] }; // Calendar Man: % on every counting player for each different slot covered
@@ -14493,9 +14494,22 @@ function lldGthFx(row, ico, label, txt, neg) {
     const r = $(row); r.find('.lld-det').first().append(`<div class="gth-fx"><span class="gth-ci">${ico}</span><span>${label}</span></div>`);
     const pj = r.find('.proj-popup-trigger').first(); if (pj.length) pj.after(`<div class="gth-pj${neg ? ' dn' : ''}">${txt}</div>`);
 }
-function lldGthJoker(caps, rs, fit, dp, M) {
+function lldGthJoker(caps, rs, fit, dp, M, bn) {
     const box = document.getElementById('gth-abil'); if (!box) return 0;
     const cc = lldGet(lldGthCharKey(), '');
+    if (cc === 'robin' || cc === 'nightwing' || cc === 'maxiezeus' || cc === 'batman') { // lineup-only abilities (no opponent or history data needed)
+        const nm = { robin: 'Robin', nightwing: 'Nightwing', maxiezeus: 'Maxie Zeus', batman: 'Batman' }[cc], ab = lldGthAbd(nm)[0], ic = { robin: '\uD83D\uDC26', nightwing: '\uD83E\uDD85', maxiezeus: '\u26A1', batman: '\uD83E\uDD87' }[cc];
+        const cnt3 = caps.concat(rs.filter(i => fit.slot[i.pid])), pts = i => caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), benchBest = bn.slice().sort((a, b) => b.v - a.v)[0];
+        let delta = 0, status = '', desc = ab[1];
+        if (cc === 'robin') { const top = cnt3.slice().sort((a, b) => pts(b) - pts(a)).slice(0, 2); desc = 'If your top two scoring players both beat their projections, each gets +10%.'; const done = top.length === 2 && top.every(i => i.played), ok = done && top.every(i => i.pj > 0 && i.v >= i.pj);
+            top.forEach(i => lldGthFx(i.row, ic, 'Partners in Crime: top two', ok ? `+${(pts(i) * .1).toFixed(1)} ability` : 'if both beat proj')); if (ok) delta = top.reduce((a, i) => a + pts(i) * .1, 0);
+            status = top.length < 2 ? 'Needs two counting players.' : !done ? `Waiting on the games: ${top.map(i => i.name).join(' and ')} both need to beat their projections.` : ok ? `Both beat their projections: <b class="up">+${delta.toFixed(1)}</b>` : 'They did not both beat their projections: no bonus.'; }
+        if (cc === 'nightwing') { desc = 'Your best bench player adds 20% of his points to your total.'; if (benchBest) { delta = benchBest.v * .2; lldGthFx(benchBest.row, ic, 'Backup Plan: best bench player', `+${delta.toFixed(1)} ability`); } status = benchBest ? `${benchBest.name} adds <b class="up">+${delta.toFixed(1)}</b>` : 'No bench players.'; }
+        if (cc === 'maxiezeus') { desc = 'You get 10% of every point your bench players score.'; bn.forEach(i => { const b = i.v * .1; delta += b; if (b) lldGthFx(i.row, ic, 'Offerings to Olympus', `+${b.toFixed(1)} ability`); }); status = `${bn.length} bench players: <b class="up">+${delta.toFixed(1)}</b>`; }
+        if (cc === 'batman') { desc = 'After lock, your lowest-scoring counting player swaps for your best bench player if the bench player scored more.'; const worst = cnt3.slice().sort((a, b) => a.v - b.v)[0]; if (worst && benchBest) { const both = worst.played && benchBest.played; lldGthFx(worst.row, ic, 'Utility Belt: may swap out', both && benchBest.v > worst.v ? `-${worst.v.toFixed(1)} swapped` : 'if bench scores more', both && benchBest.v > worst.v); lldGthFx(benchBest.row, ic, 'Utility Belt: may swap in', both && benchBest.v > worst.v ? `+${benchBest.v.toFixed(1)} swapped` : 'if he scores more'); if (both && benchBest.v > worst.v) delta = benchBest.v - worst.v; status = !both ? `Waiting on the games: ${worst.name} could swap for ${benchBest.name}.` : delta > 0 ? `${benchBest.name} replaces ${worst.name}: <b class="up">+${delta.toFixed(1)}</b>` : 'No swap: the bench player did not score more.'; } else status = 'Needs a counting player and a bench player.'; }
+        box.innerHTML = `<div class="gth-ab"><div class="h"><b>${ic} ${ab[0]}</b></div><p>${desc}</p><div class="st">${status}</div></div>`;
+        return delta;
+    }
     if (cc === 'calendarman') { // Full Calendar: every different kickoff slot your counting players cover adds a % to every counting player
         const ab = lldGthAbd('Calendar Man')[0], K = LLD_GTH_CAL, cnt2 = caps.concat(rs.filter(i => fit.slot[i.pid])), by = K.slots.map((n, k) => cnt2.filter(i => i.slot === k)), nSl = by.filter(a => a.length).length, pct = nSl * K.pct;
         let delta = 0; cnt2.forEach(i => { const c = caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), b = c * pct / 100; delta += b; if (pct && i.slot >= 0) lldGthFx(i.row, '\uD83D\uDCC5', `${K.slots[i.slot]} \u00B7 ${nSl} of 5 slots`, `+${b.toFixed(1)} ability`); });
@@ -14575,9 +14589,9 @@ function lldGthCapRender() {
     openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t}</b><span>Empty${t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
     if (bn.length) $('#slots-reserves').append('<div class="gx-ph opt" data-slot="rs">Add a reserve (optional)</div>');
     if (caps.length < LLD_GTH_CAP.max && rs.length + bn.length > 0) $('#slots-captain').append(`<div class="gx-ph cap opt" data-slot="cap">${caps.length ? 'Add another captain (optional)' : 'No captain · tap to add one (optional)'}</div>`);
-    const jk = lldGthJoker(caps, rs, fit, dp, M);
+    const jk = lldGthJoker(caps, rs, fit, dp, M, bn);
     const tot = capPts + bonus + best * (1 + dp / 100) + jk, chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t} ${f}/${n}</b>`; }).join(' · ');
-    $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
+    $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span>Captains ${caps.length}/${LLD_GTH_CAP.max} max \u00B7 Reserves ${rs.length}/${Math.max(rs.length, rs.length + bn.length - (caps.length ? 0 : 0))} max \u00B7 Bench ${bn.length}/${Math.max(0, caps.length + rs.length + bn.length - LLD_GTH_CAP.slots.length)} max</span><span></span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
     $('#gth-cn').text(caps.length + '/' + LLD_GTH_CAP.max); $('#gth-cx').text(caps.length ? '+' + bonus.toFixed(1) + ' bonus' : '×' + M);
     $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(nc + ' counting · ' + best.toFixed(1));
     let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
