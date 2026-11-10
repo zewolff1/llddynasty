@@ -14711,8 +14711,7 @@ $(document).on('click', '.a2-tab', function () { const k = this.dataset.t, h = l
 // pop-up shown on phones when the site is opened in a browser (not from the home screen app)
 function lldA2hsPopup() {
     try {
-        if (!lldDev()) return; // beta: 0000 / 0001 only; remove this line to turn it on for everyone
-        const E = lldA2hsEnv(); if (E.standalone || !(E.ios || E.android) || document.getElementById('lld-a2hs-modal')) return;
+                const E = lldA2hsEnv(); if (E.standalone || !(E.ios || E.android) || document.getElementById('lld-a2hs-modal')) return;
         if (sessionStorage.getItem('lld_a2hs_s')) return;
         const x = lldGet('lld_a2hs_x', ''); if (x === 'never' || (x && Date.now() - parseInt(x, 10) < 7 * 864e5)) return;
         sessionStorage.setItem('lld_a2hs_s', '1'); lldA2hsPrep();
@@ -14724,7 +14723,7 @@ $(document).on('click', '#lld-a2hs-modal .a2-later', function () { lldSet('lld_a
 $(document).on('click', '#lld-a2hs-modal .a2-never', function () { lldSet('lld_a2hs_x', 'never'); $('#lld-a2hs-modal').remove(); });
 $(document).on('click', '#lld-a2hs-modal .a2-inst', async function () { try { window._lldBip.prompt(); await window._lldBip.userChoice; } catch (e) { } window._lldBip = null; lldSet('lld_a2hs_x', 'never'); $('#lld-a2hs-modal').remove(); });
 setTimeout(lldA2hsPopup, 5000);
-setTimeout(() => { try { if (lldDev()) lldA2hsPrep(); } catch (e) { } }, 3000);
+setTimeout(() => { try { lldA2hsPrep(); } catch (e) { } }, 3000);
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
@@ -14737,7 +14736,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)')}${onoff('gtp')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}${lldA2hsHtml()}` : ''}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)')}${onoff('gtp')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -16532,13 +16531,13 @@ async function lldMonthSlides(key) {
     if (!M.top.length) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">No completed games this month</div>`)); return out; }
     const best = M.top[0];
     out.push(stSlideTm(best.fid, `<div class="st-k st-a">PLAYER OF THE MONTH</div>${stPRow(best.p, best.fid, best.tot.toFixed(1), 0.25)}<div class="st-sub st-a" style="--d:.7s">${best.g} game${best.g === 1 ? '' : 's'} in a starting lineup · ${(best.tot / best.g).toFixed(1)} per game</div>`));
-    if (!lldDev()) out.push(stSlide('#1d4ed8', '#0b1020', `<div class="st-k st-a">TOP FIVE PLAYERS</div>${M.top.map((q, i) => stPRow(q.p, q.fid, q.tot.toFixed(1), 0.2 + i * .15)).join('')}`));
+    if (0) out.push(stSlide('#1d4ed8', '#0b1020', `<div class="st-k st-a">TOP FIVE PLAYERS</div>${M.top.map((q, i) => stPRow(q.p, q.fid, q.tot.toFixed(1), 0.2 + i * .15)).join('')}`));
     for (let i = 0; i < M.pos.length; i += 4) out.push(stSlide('#0f766e', '#07110f', `<div class="st-k st-a">BEST AT EACH POSITION</div>${M.pos.slice(i, i + 4).map((z, j) => stPRow(z.x.p, z.x.fid, z.pos, 0.2 + j * .15)).join('')}`));
-    const tp = M.teams[0], hp = M.pfTop[0]; if (lldDev()) LLD_ST.winFid = tp.fid;
-    if (!lldDev()) out.push(stSlideTm(tp.fid, `<div class="st-k st-a">TEAM OF THE MONTH</div>${stLogo(tp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(tp.fid)}</div><div class="st-big st-a" style="--d:.35s">${tp.w}-${tp.l}</div><div class="st-sub st-a" style="--d:.6s">${tp.pf.toFixed(1)} points · best week ${tp.best.toFixed(1)}</div>`, true));
+    const tp = M.teams[0], hp = M.pfTop[0]; LLD_ST.winFid = tp.fid;
+    if (0) out.push(stSlideTm(tp.fid, `<div class="st-k st-a">TEAM OF THE MONTH</div>${stLogo(tp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(tp.fid)}</div><div class="st-big st-a" style="--d:.35s">${tp.w}-${tp.l}</div><div class="st-sub st-a" style="--d:.6s">${tp.pf.toFixed(1)} points · best week ${tp.best.toFixed(1)}</div>`, true));
     if (hp && hp.fid !== tp.fid) out.push(stSlideTm(hp.fid, `<div class="st-k st-a">MOST POINTS SCORED</div>${stLogo(hp.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(hp.fid)}</div>${stNum(hp.pf, 1, 'gold')}<div class="st-sub st-a" style="--d:.6s">${(hp.pf / Math.max(1, hp.gp)).toFixed(1)} per game</div>`));
     if (M.bestGame) out.push(stSlideTm(M.bestGame.fid, `<div class="st-k st-a">BEST SINGLE GAME</div>${stPRow(M.bestGame.p, M.bestGame.fid, M.bestGame.hi.toFixed(1), 0.25)}<div class="st-sub st-a" style="--d:.7s">Highest score by a starter this month</div>`, true));
-    if (lldDev()) { // beta layout: cover, then grouped slides
+    if (1) { // new layout: cover, then grouped slides
         const take = k => { const r = new RegExp('st-k st-a">[^<]*' + k), a = []; for (let i = out.length - 1; i > 0; i--) if (r.test(out[i].html)) a.unshift(out.splice(i, 1)[0]); return a; };
         const g2 = take('MOST POINTS SCORED').concat(take('BEST SINGLE GAME')), g1 = take('PLAYER OF THE MONTH').concat(take('BEST AT EACH POSITION'));
         const c1 = stCombine(g1), c2 = stCombine(g2), cover = out.shift();
@@ -16566,12 +16565,12 @@ async function lldStorySlides(kind, wk, idx) {
             if (sp) out.push(stSlideTm(me, `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
         } catch (e) { console.warn('spotlight', e); }
         try {
-            if (!lldDev() && lldGbgOn()) {
+            if (0) {
                 const note = t => out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">No replay this week</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc(t)}</div>`));
                 if (!mg) note('No matchup found for your team this week.');
                 else { const G = await lldGbgBuild(mg, me, wk); if (G) { const sl = stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="gbg"></div><div class="gbg-sp"><button type="button" class="gbg-spb" data-d="1">◂ Slower</button><b class="gbg-spv"></b><button type="button" class="gbg-spb" data-d="-1">Faster ▸</button></div>`); sl.gbg = G; out.push(sl); } else note('No NFL play-by-play came back for your starters (ESPN had nothing for this week, or none of the plays matched).'); }
             }
-        } catch (e) { console.warn('gbg build', e); if (!lldDev() && lldGbgOn()) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
+        } catch (e) { console.warn('gbg build', e); if (0) out.push(stSlide('#4338ca', '#0a0720', `<div class="st-k st-a">GAME BY GAME</div><div class="st-h st-a" style="--d:.2s">Replay failed</div><div class="st-sub st-a" style="--d:.4s">${lldChatEsc((e && e.message) || String(e))}</div>`)); }
         if (S.top) LLD_ST.topFid = S.top.fid;
         if (S.top) out.push(stSlideTm(S.top.fid, `<div class="st-k st-a">HIGHEST SCORE</div>${stLogo(S.top.fid, 96)}<div class="st-h st-a" style="--d:.2s">${stName(S.top.fid)}</div>${stNum(S.top.score, 2, 'gold')}`));
         if (S.potw && S.potw.length) out.push(stSlide('#1d4ed8', '#020617', `<div class="st-k st-a">PLAYERS OF THE WEEK</div>${S.potw.slice(0, 5).map((x, i) => stPRow(x.p, x.fid, x.p.score.toFixed(1), 0.25 + i * .2)).join('')}`));
@@ -16582,7 +16581,7 @@ async function lldStorySlides(kind, wk, idx) {
         if (S.upsets && S.upsets.length) { const u = S.upsets[0]; out.push(stSlide('#be185d', '#14020a', `<div class="st-k st-a">🚨 UPSET ALERT</div><div class="st-vs st-a" style="--d:.15s">${stLogo(u.w.fid, 72)}<span>stunned</span>${stLogo(u.l.fid, 72)}</div><div class="st-h st-a" style="--d:.35s">${stName(u.w.fid)}</div><div class="st-sub st-a" style="--d:.6s">${u.w.score.toFixed(1)} – ${u.l.score.toFixed(1)}</div>`)); }
         if (S.calls && S.calls.length) { const c = S.calls[0]; out.push(stSlideTm(c.fid, `<div class="st-k st-a">GUTSIEST CALL</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.g.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.g.name)}</b><span>started over ${lldChatEsc(c.d.name)}</span></div><i>${c.g.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">+${c.margin.toFixed(1)} pts${c.decisive ? ' · won the game' : ''} for ${stName(c.fid)}</div>`)); }
         if (S.overs && S.overs.length) { const c = S.overs[0]; out.push(stSlideTm(c.fid, `<div class="st-k st-a">THE OVERTHINKER 🤡</div>${stLogo(c.fid, 64)}<div class="st-row st-a" style="--d:.3s">${recapHeadshot(c.d.pid, 56)}<div class="st-rm"><b>${lldChatEsc(c.d.name)}</b><span>sat on ${stName(c.fid)}'s bench</span></div><i>${c.d.score.toFixed(1)}</i></div><div class="st-sub st-a" style="--d:.7s">−${c.margin.toFixed(1)} pts${c.decisive ? ' · cost the game' : ''}</div>`)); }
-        if (lldDev()) { // beta layout: cover, then grouped slides
+        if (1) { // new layout: cover, then grouped slides
             const has = k => out.findIndex(x => new RegExp('st-k st-a">[^<]*' + k).test(x.html));
             const take = ks => ks.map(k => { const i = has(k); return i < 0 ? null : out.splice(i, 1)[0]; });
             const cover = out.shift(), grp = [['YOUR WEEK', 'YOUR LINEUP DECISIONS'], ['HIGHEST SCORE', 'FINAL SCORES'], ['PLAYERS OF THE WEEK', 'ANY GIVEN SUNDAY'], ['BIGGEST BLOWOUT', 'CLOSEST GAME', 'UPSET ALERT'], ['GUTSIEST CALL', 'THE OVERTHINKER']];
