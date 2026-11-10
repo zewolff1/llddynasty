@@ -5496,3 +5496,15 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .apv-pc button.on{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf);background:rgba(45,212,191,.1)}
 .apv-pc img{width:14px;height:14px;border-radius:50%;object-fit:cover;flex:none}
 .apv-hl{outline:1px solid rgba(250,204,21,.6);outline-offset:2px;border-radius:4px}
+
+/* ===== All Players: trade info, NFL chip, owner watermark (beta) ===== */
+.apv-sh.w{flex-wrap:wrap}
+.apv-sh.w .apv-g{flex:1 1 auto}
+.apv-sl{flex-wrap:wrap;gap:4px 12px}
+.apv-tq{color:var(--accent-teal,#2dd4bf)}
+.apv-nfl{width:16px;height:16px;object-fit:contain;margin-left:5px;vertical-align:-3px;flex:none}
+.apv-oh{display:none}
+.apv-stp{display:inline-flex;align-items:center;gap:4px;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.04em;color:var(--sc);margin-left:6px}
+.apv-stp:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--sc)}
+.apv-fit{font-weight:900}
+.apv-fit.y{color:#4ade80}.apv-fit.n{color:#f87171}
