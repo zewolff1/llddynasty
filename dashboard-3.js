@@ -2295,25 +2295,25 @@ function lldPosBarHtml() {
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
     </div>`;
 }
-window._apv = window._apv || { view: 'contracts', sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+window._apv = { view: 'all', sort: 'rank', sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
 function lldApvSort() {
-    const A = window._apv, sub = A.sub[A.view];
-    playerSortBy = A.view === 'contracts' ? (['salary', 'caphit', 'guar', 'years'].includes(sub) ? sub : 'salary') : A.view === 'rankings' ? (sub === 'dynasty' ? 'dyn' : (sub === 'ros' || (sub === 'season' && (A.cv === 'boom' || A.cv === 'cons'))) ? 'apx' : 'pts') : 'pts';
+    const A = window._apv;
+    playerSortBy = ({ rank: 'pts', ros: 'apx', dyn: 'dyn', salary: 'salary', caphit: 'caphit', guar: 'guar', years: 'years', boom: 'apx', bust: 'apx', cons: 'apx' })[A.sort] || 'pts';
 }
 function lldApvBar(isFA) {
-    const A = window._apv, views = isFA ? ['rankings'] : ['contracts', 'rankings'];
-    if (!views.includes(A.view)) A.view = views[0];
+    const A = window._apv;
+    if (A.view !== 'all' && A.view !== 'weekly') A.view = 'all';
+    if (isFA && ['salary', 'caphit', 'guar', 'years'].includes(A.sort)) A.sort = 'rank';
     lldApvSort();
-    const cvBar = (A.view === 'rankings' && A.sub.rankings === 'season') ? `<div class="apv-sub2">${[['total', 'Points'], ['weekly', 'Week by week'], ['cons', 'Consistency']].map(([k, l]) => `<button type="button" class="apv-c${A.cv === k ? ' on' : ''}" data-c="${k}">${l}</button>`).join('')}</div>` : '';
-    return (views.length < 2 ? '' : `<div class="apv-views" style="grid-template-columns:repeat(${views.length},1fr)">${views.map(v => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${v}</button>`).join('')}</div>`) +
-        (LLD_APV_CHIPS[A.view].length < 2 ? '' : `<div class="apv-chips">${LLD_APV_CHIPS[A.view].map(([k, l, soon]) => `<button type="button" class="apv-o${A.sub[A.view] === k ? ' on' : ''}${soon ? ' soon' : ''}" data-o="${k}"${soon ? ' disabled' : ''}>${l}${soon ? ' <small>soon</small>' : ''}</button>`).join('')}</div>`) + cvBar;
+    const ch = [['rank', 'Current'], ['ros', 'Rest of season'], ['dyn', 'Dynasty']].concat(isFA ? [] : [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years']]).concat([['boom', 'Boom %'], ['bust', 'Bust %'], ['cons', 'Consistency']]);
+    return `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>` +
+        (A.view === 'all' ? `<div class="apv-chips"><span class="apv-sb">Sort</span>${ch.map(([k, l]) => `<button type="button" class="apv-o${A.sort === k ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>` : '');
 }
 function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
 $(document).on('click', '.apv-v', function () { window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
-$(document).on('click', '.apv-o:not([disabled])', function () { const A = window._apv; A.sub[A.view] = this.dataset.o; lldApvSort(); lldApvReload(); });
-$(document).on('click', '.apv-c', function () { const A = window._apv; A.cv = this.dataset.c === 'boom' ? 'cons' : this.dataset.c; lldApvSort(); lldApvReload(); });
+$(document).on('click', '.apv-o:not([disabled])', function () { const A = window._apv; A.sort = this.dataset.o; lldApvSort(); lldApvReload(); });
 $(document).on('click', '.apv-m', function () { window._apv.cmode = this.dataset.m; lldApvReload(); });
 $(document).on('click', '.lld-b-btn[data-k="apv"]', function () { window._playerRowsCache = {}; setTimeout(() => { try { if ($('#player-search-input').length) lldApvReload(); } catch (e) { } }, 50); });
 function lldApvNum(v) { return v == null ? '\u2013' : v >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(1); }
@@ -2365,8 +2365,32 @@ async function lldApvCalc(players, d) {
         const ok = t.n >= 3 && t.cv != null, c = ok ? (T.cvs.length ? T.cvs.filter(x => x > t.cv).length / T.cvs.length : .5) : null, lab = ok ? (c >= .67 ? 'Steady' : c <= .33 ? 'Volatile' : 'Average') : 'N/A';
         let tot = 0, cnt = 0; for (let w = d.cw; w <= 18; w++) { const v = d.pj[w] && d.pj[w][p.pid]; if (v > 0) { tot += v; cnt++; } }
         p._ap = { n: t.n, m: t.m, sd: t.sd, boom, bust, lab, c, g, T, ros: tot, rosN: cnt };
-        p._apk = A.sub.rankings === 'ros' ? tot : A.cv === 'boom' ? boom * 10 - bust + t.m / 1000 : A.cv === 'cons' ? (ok ? c + 1 - t.cv / 100 : -99) : 0;
+        p._apk = A.sort === 'ros' ? tot : A.sort === 'boom' ? (t.n >= 3 ? boom / t.n * 100 + t.m / 1000 : -99) : A.sort === 'bust' ? (t.n >= 3 ? -bust / t.n * 100 + t.m / 1000 : -99) : A.sort === 'cons' ? (ok ? c + 1 - t.cv / 100 : -99) : 0;
     });
+}
+function lldApvRanks(players) {
+    const grp = {};
+    players.forEach(p => { (grp[p.pos] = grp[p.pos] || []).push(p); });
+    Object.keys(grp).forEach(k => {
+        const a = grp[k];
+        a.filter(p => p._ap && p._ap.rosN).sort((x, y) => y._ap.ros - x._ap.ros).forEach((p, i) => { p._rROS = i + 1; });
+        a.filter(p => p._dyn && p._dyn.pts > 0).sort((x, y) => y._dyn.pts - x._dyn.pts).forEach((p, i) => { p._rDYN = i + 1; });
+    });
+}
+function lldApvRight(p) {
+    const cur = playerRanks[p.pid] || null, avg = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0';
+    const lb = r => r ? p.pos + '#' + r : '\u2013';
+    const df = r => { if (!cur || !r) return '<s></s>'; const d = cur - r; return d === 0 ? '<s class="eq">\u2013</s>' : d > 0 ? `<s class="up">\u25B2${d}</s>` : `<s class="dn">\u25BC${-d}</s>`; };
+    return `<div class="apv-r3"><u>NOW</u><b class="now">${cur ? p.pos + '#' + cur : 'NR'}</b><span class="av">${avg} avg</span><u>ROS</u><b>${lb(p._rROS)}</b>${df(p._rROS)}<u>DYN</u><b>${lb(p._rDYN)}</b>${df(p._rDYN)}</div>`;
+}
+function lldApvContract(p) {
+    return [`<b class="apv-sal">${p.salary}</b> \u00B7 <b>${p.years}YR</b>`, `<b>${p.guar}</b> GUAR \u00B7 <span class="lld-tp-hit">$${(p.capHitNum || 0).toFixed(1)}m</span> HIT`];
+}
+function lldApvLine(p) {
+    const x = p._ap; if (!x) return '';
+    if (x.n < 3) return '<div class="apv-sl"><span>Needs 3+ games for boom, bust and consistency</span></div>';
+    const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), cl = x.c == null ? 0 : Math.round(x.c * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
+    return `<div class="apv-sl"><span><b class="apv-bo">${bo}%</b> boom</span><span><b class="apv-bu">${bu}%</b> bust</span><span class="apv-cb"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span></div>`;
 }
 function lldApvSpark(p) {
     const x0 = p._ap; if (!x0 || !x0.g.some(v => v != null)) return '';
@@ -2504,7 +2528,7 @@ function getPlayerFilterBarHtml(isFAView) {
                     ${sorts.map(buildSortBtn).join('')}
                 </div>`}
                 <button type="button" class="player-gloss-btn" data-fa="${isFAView ? 1 : 0}">ⓘ Guide</button>
-                ${(!isFAView && (!apvOn || window._apv.view === 'contracts')) ? `
+                ${(!isFAView && (!apvOn || window._apv.view === 'all')) ? `
                 <button id="player-filter-toggle" style="display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid ${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${activeFilterCount > 0 ? 'rgba(59,130,246,0.1)' : 'transparent'}; color:${activeFilterCount > 0 ? 'var(--accent-blue)' : 'var(--text-dim)'}; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase; flex-shrink:0;">
                     ⊘ Filter${filterBadge}
                 </button>` : ''}
@@ -10190,7 +10214,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         players.forEach(p => { p.projVal = (_pm && _pm[p.pid]) || 0; });
     }
     window._dynBad = []; window._dynNote = ''; window._apvYear = {};
-    if (lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings === 'dynasty') { // dynasty numbers: DynastyProcess (free, on GitHub)
+    if (lldApv() && window._apv.view === 'all') { // dynasty numbers: DynastyProcess (free, on GitHub)
         const sub = 'dynasty';
         if (sub === 'byyear') {
             for (const k of ['y27', 'y28', 'career']) { const D = await lldDynAll(k); if (D) window._apvYear[k] = D; }
@@ -10203,9 +10227,10 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         }
     }
     window._apvD = null; window._apvErr = '';
-    if (lldApv() && window._apv.view === 'rankings' && (window._apv.sub.rankings === 'ros' || (window._apv.sub.rankings === 'season' && window._apv.cv !== 'total'))) {
+    if (lldApv() && (window._apv.view === 'all' || window._apv.view === 'weekly')) {
         try { window._apvD = await lldApvWeekData(); await lldApvCalc(players, window._apvD); } catch (e) { console.warn('apv week data', e); window._apvErr = String(e && e.message || e); window._apvD = null; }
     }
+    if (lldApv() && window._apv.view === 'all') { try { lldApvRanks(players); } catch (e) { console.warn('apv ranks', e); } }
     // Sort
     players.sort((a, b) => {
         let comparison = 0;
@@ -10497,19 +10522,19 @@ if (isFAView && !offseasonMode && (window._pendingWaiversList || []).length > 0)
         const isSpecificPos = specificPosList.includes(playerPosFilter);
 
         let outputHtml = '';
-        const apvRk = lldApv() && window._apv.view !== 'contracts';
+        const apvRk = lldApv() && window._apv.view === 'all';
 
 outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padding: 0 5px;">`;
-        const apvYr = lldApv() && window._apv.view === 'contracts' && window._apv.sub.contracts === 'cyear', apvCs = lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings === 'season' && (window._apv.cv === 'cons' || window._apv.cv === 'boom') && !!window._apvD;
+        const apvYr = false, apvCs = false;
         players.forEach(p => {
-            outputHtml += ((apvYr || apvCs) ? '<div class="apv-yc">' : '') + buildUniversalRow(
+            outputHtml += (apvRk ? '<div class="apv-yc">' : '') + buildUniversalRow(
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
-                    tplKind: isFAView ? 'fa' : 'all', noTabs: apvRk,
+                    tplKind: isFAView ? 'fa' : 'all', noTabs: apvRk, noDet: apvRk,
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: (() => {
-                        if (apvRk) { const c = lldApvCell(p); p._tp = { sal: '', proj: c, pt: '' }; return c; }
+                        if (apvRk) { const c = lldApvRight(p); p._tp = { sal: '', proj: c, pt: '' }; return c; }
                         const hl = k => playerSortBy === k ? ' sort-hl' : '';
                         const sal = p.salary ? `<span class="srt${hl('salary')}"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small></span>` : '';
                         const proj = (p.salary && !(p.projVal > 0)) ? '' : `<span class="srt proj-popup-trigger${hl('proj')}" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(${p.salary ? 13 : 15}px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>`;
@@ -10518,7 +10543,7 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                         p._tp = { sal, proj, pt: pt + dy };
                         return sal + proj + pt + dy;
                     })(),
-                    tpl: { match: lldTplOppParts(p.team, p.realPos, nflSched), sal: p._tp.sal, proj: p._tp.proj + p._tp.pt, k: p.salary ? { hit: p.capHitNum, yrs: p.years, guar: p.guar } : null, rk: p.salary ? { salNum: parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0 } : null },
+                    tpl: { match: (apvRk && p.salary) ? lldApvContract(p) : lldTplOppParts(p.team, p.realPos, nflSched), sal: p._tp.sal, proj: p._tp.proj + p._tp.pt, k: p.salary ? { hit: p.capHitNum, yrs: p.years, guar: p.guar } : null, rk: p.salary ? { salNum: parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0 } : null },
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
                                                 : `<span style="font-size:calc(9px * var(--ts,1)); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
@@ -10527,29 +10552,26 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                     leftContent: p._actionBtn || '',
                     rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
                 }
-            ) + (apvYr ? lldApvYrStrip(p) + '</div>' : apvCs ? lldApvCsBlock(p) + '</div>' : '');
+            ) + (apvRk ? lldApvLine(p) + '</div>' : '');
         });
         outputHtml += '</div>';
         if (apvYr) { const A = window._apv; outputHtml = `<div class="apv-mini"><button class="apv-m${A.cmode === 'sal' ? ' on' : ''}" data-m="sal">Salary</button><button class="apv-m${A.cmode === 'hit' ? ' on' : ''}" data-m="hit">Cap hit if cut</button></div><div class="apv-leg">${A.cmode === 'sal' ? 'Gold = guaranteed years. A dash means the contract has ended.' : 'Cost if you cut him at the start of that year: salary \u00d7 guarantee % \u00d7 years left.'}</div>` + outputHtml; }
-        if (lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings === 'season' && window._apv.cv === 'weekly' && window._apvD) outputHtml = lldApvWeekTable(players);
+        if (lldApv() && window._apv.view === 'weekly' && window._apvD) outputHtml = lldApvWeekTable(players);
 
 container.find('#players-loader').remove();
         container.prepend(auctionHtml);
         container.prepend(pendingWaiversHtml);
-        if (lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings === 'dynasty') {
+        if (lldApv() && window._apv.view === 'all') {
             const bad = window._dynBad || [], box = t => `<div style="margin:8px 5px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:calc(11px * var(--ts,1));font-weight:800;">${t}</div>`;
             if (bad.length) container.append(box(`Can't fetch dynasty projections (${bad.map(k => (window._dynErr || {})[k] || (window._dynErr || {}).y27 || 'no file').join('; ')}).`));
-            else if (window._dynNote) container.append(`<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">${window._dynNote}</div>`);
-            else if (/^(DL|LB|DB)$/.test(String(playerPosFilter))) container.append(`<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">Defensive players aren't in the dynasty lists yet.</div>`);
+            else if (window._dynNote && window._apv.sort === 'dyn') container.append(`<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">${window._dynNote}</div>`);
         }
         container.append(outputHtml);
-        if (lldApv() && window._apv.view === 'rankings' && window._apv.sub.rankings !== 'dynasty') {
+        if (lldApv() && (window._apv.view === 'all' || window._apv.view === 'weekly')) {
             const A = window._apv, note = t => `<div style="margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;">${t}</div>`;
             if (window._apvD && window._apvD.fail && window._apvD.fail.length) container.append(note(`Couldn't load scores for week${window._apvD.fail.length > 1 ? 's' : ''} ${window._apvD.fail.join(', ')} from MFL. Those weeks are left out.`));
             if (window._apvErr) container.append(note(`Couldn't load the week-by-week data (${window._apvErr}).`));
-            else if (A.sub.rankings === 'ros') container.append(note('Rest of season = the sum of MFL\u2019s weekly projections from this week to Week 18 (bye weeks count as zero). Ranked among the players showing.'));
-            else if (A.cv === 'boom') container.append(note('x'));
-            else if (A.cv === 'cons') container.append(note('Dots are weekly scores: teal = boom (top 25% for the position), red = bust (bottom 25%), dashed lines are those cutoffs. Steady / Average / Volatile compares how much his scores swing with other starter-level players at the position (needs 3+ games). Most steady first.'));
+            else if (A.view === 'all') container.append(note('NOW / ROS / DYN are position ranks. The arrow is how far ROS or Dynasty sits from his current rank (green = better). ROS adds up MFL\u2019s weekly projections to Week 18. Boom = a top-25% game for his position, bust = a bottom-25% game, as a share of games played. Steady / Average / Volatile compares how much his scores swing with other starters at the position (needs 3+ games).'));
         }
         if (isFAView) lldFaFitAnnotate(container);
 }
@@ -13981,7 +14003,8 @@ function lldTplRow(data, opts) {
     } else {
         const pb = ({ proj: projH, projbox: `<div class="lld-pbx">${projH}</div>`, sal: salH, salproj: salH + projH, none: '' })[F.pbox] || '';
         let det = '';
-        if (F.det === 'rank') det = rankH;
+        if (opts.noDet) det = '';
+        else if (F.det === 'rank') det = rankH;
         else if (F.det === 'cinfo' && cl) det = cl.map(x => `<div>${x}</div>`).join('');
         else if (F.det === 'ctr' && ctr) det = ctr.join(' · ');
         right = `${pb ? `<div class="lld-pb">${pb}</div>` : ''}${det ? `<div class="lld-det">${det}</div>` : ''}${rightExtra}`;
