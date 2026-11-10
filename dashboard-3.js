@@ -2295,15 +2295,15 @@ function lldPosBarHtml() {
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
     </div>`;
 }
-const LLD_APV_GR = [['RANKING', [['now', 'NOW', 'Current'], ['ros', 'ROS', 'Rest of season'], ['dyn', 'DYN', 'Dynasty']]], ['CONTRACT', [['sal', 'SAL', 'Salary'], ['cap', 'CAP', 'Cap hit'], ['gu', 'GUAR', 'Guar %'], ['yr', 'YRS', 'Years']]], ['STATS', [['bb', 'BOOM', 'Boom %'], ['bu', 'BUST', 'Bust %'], ['co', 'CONS.', 'Consistency']]]];
+const LLD_APV_GR = [['RANKING', [['now', 'NOW', 'Current'], ['ros', 'ROS', 'Rest of season'], ['dyn', 'DYN', 'Dynasty']]], ['CONTRACT', [['sal', 'SAL', 'Salary'], ['cap', 'CAP', 'Cap hit'], ['gu', 'GUAR', 'Guar %'], ['yr', 'YRS', 'Years']]], ['TRADE', [['yu', 'YOU', 'Weeks he starts for you'], ['th', 'THEM', 'Weeks he starts for them'], ['fit', 'FIT', 'Cap fit'], ['bk', 'BLOCK', 'Trade block status']]], ['STATS', [['bb', 'BOOM', 'Boom %'], ['bu', 'BUST', 'Bust %'], ['co', 'CONS.', 'Consistency']]]];
 const LLD_APV_LOW = { now: 1, ros: 1, dyn: 1, bu: 1 };
 const LLD_APV_NFL = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GBP', 'HOU', 'IND', 'JAC', 'KCC', 'LAC', 'LAR', 'LVR', 'MIA', 'MIN', 'NEP', 'NOS', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SFO', 'TBB', 'TEN', 'WAS'];
-window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', fo: 0, no: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, yu: 1, th: 1, fit: 1, bk: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', fo: 0, no: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
 try { const u = JSON.parse(localStorage.getItem('lld_apv_ui') || 'null'); if (u) { if (u.on) Object.assign(window._apv.on, u.on); if (u.wl) Object.assign(window._apv.wl, u.wl); if (u.sort) window._apv.sort = u.sort; if (u.dir) window._apv.dir = u.dir; } } catch (e) { }
 function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: A.on, wl: A.wl, sort: A.sort, dir: A.dir })); } catch (e) { } }
 function lldApvIsFA() { const b = $('#subtabs-players .sub-tab-btn.active'); return !b.length || b.text().trim().toLowerCase().replace(' ', '-') === 'free-agents'; }
-function lldApvGroups(isFA) { return LLD_APV_GR.filter(g => !(isFA && g[0] === 'CONTRACT')); }
-function lldApvAvail(isFA) { const A = window._apv; return lldApvGroups(isFA).flatMap(g => g[1]).filter(x => A.on[x[0]]); }
+function lldApvGroups(isFA) { return LLD_APV_GR.filter(g => !(isFA && g[0] === 'CONTRACT')).map(g => (g[0] === 'TRADE' && isFA) ? [g[0], g[1].filter(x => x[0] === 'yu')] : g); }
+function lldApvAvail(isFA) { const A = window._apv; return lldApvGroups(isFA).flatMap(g => g[1]).filter(x => A.on[x[0]] && x[0] !== 'fit' && x[0] !== 'bk'); }
 function lldApvKey(isFA) { const A = window._apv, av = lldApvAvail(isFA); if (!av.length) return null; if (!av.some(x => x[0] === A.sort)) A.sort = av[0][0]; return A.sort; }
 function lldApvVal(p, k) {
     const x = p._ap, ok = x && x.n >= 3;
@@ -2312,6 +2312,8 @@ function lldApvVal(p, k) {
         case 'ros': return p._rROS || null;
         case 'dyn': return p._rDYN || null;
         case 'sal': return p.salNum; case 'cap': return p.capHitNum; case 'gu': return p.guarNum; case 'yr': return p.yrsNum;
+        case 'yu': return (p._tr && !p._tr.mine && p._tr.you != null) ? p._tr.you : null;
+        case 'th': return (p._tr && !p._tr.mine && p._tr.th != null) ? p._tr.th : null;
         case 'bb': return ok ? x.boom / x.n : null;
         case 'bu': return ok ? x.bust / x.n : null;
         case 'co': return ok && x.c != null ? x.c : null;
@@ -2345,7 +2347,7 @@ function lldApvBar(isFA) {
         top = `<div class="apv-sh"><div class="apv-g all"><button type="button" class="apv-wall${wAll ? ' on' : ''}">ALL</button></div>${WG.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-wgh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
     } else {
         const allOn = gs.every(g => g[1].every(x => O[x[0]]));
-        top = `<div class="apv-sh"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
+        top = `<div class="apv-sh w"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
     }
     const sw = `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL';
@@ -2425,6 +2427,33 @@ async function lldApvCalc(players, d) {
         p._apk = A.sort === 'ros' ? tot : A.sort === 'boom' ? (t.n >= 3 ? boom / t.n * 100 + t.m / 1000 : -99) : A.sort === 'bust' ? (t.n >= 3 ? -bust / t.n * 100 + t.m / 1000 : -99) : A.sort === 'cons' ? (ok ? c + 1 - t.cv / 100 : -99) : 0;
     });
 }
+function lldApvFitOf(S, pid, pos) {
+    try {
+        if (window._apvFitS !== S) { window._apvFitS = S; window._apvFit = {}; }
+        const D0 = S.D; if (!D0.pinfo[pid]) D0.pinfo[pid] = { name: '', pos: lldSxPos(pos), team: '' }; else if (!D0.pinfo[pid].pos) D0.pinfo[pid].pos = lldSxPos(pos);
+        if (!S.posOf(pid)) return null; const c = window._apvFit; if (!(pid in c)) c[pid] = S.fit(pid); return c[pid];
+    } catch (e) { return null; }
+}
+async function lldApvTradeLoad(players, isFA) {
+    const O = window._apv.on; if (!(O.yu || O.th || O.fit || O.bk)) return;
+    const S = await lldStatsLoad(); if (!S) return;
+    const me = String(myFid).padStart(4, '0'); let lab = {}, capRoom = null;
+    if (!isFA && (O.bk || O.fit)) {
+        try { const tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({})), d = { tb, baits, rosters: S.D.rosters || {} }; Object.keys(d.rosters).forEach(f => { lab[f] = lldTbLabels(d, f); }); } catch (e) { console.warn('apv labels', e); }
+        try { const sy = parseInt(year) || 2026, sh = await lldShLoad(), T = lldShTotals(sh, sy), cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0); capRoom = (cap && T[me] != null) ? cap - T[me] : null; } catch (e) { }
+    }
+    players.forEach(p => {
+        const pid = String(p.pid), own = p.ownerFid ? String(p.ownerFid) : '', t = {};
+        if (own && own === me) { p._tr = { mine: true }; return; }
+        const f = lldApvFitOf(S, pid, p.pos); if (f) { t.you = f.rn ? f.rosStart : f.inOpt; t.yn = f.rn || f.n; }
+        if (own && !isFA) {
+            try { const v = S.wkStart(pid, own); if (v != null) { t.th = v; t.thn = S.W; } } catch (e) { }
+            const l = (lab[own] || {})[pid]; t.st = l ? lldTbParseLabel(l).s : '';
+            t.fit = (capRoom == null || !p.salNum) ? null : (capRoom >= p.salNum ? 0 : p.salNum - capRoom);
+        }
+        p._tr = t;
+    });
+}
 function lldApvRanks(players) {
     const grp = {};
     players.forEach(p => { (grp[p.pos] = grp[p.pos] || []).push(p); });
@@ -2452,16 +2481,30 @@ function lldApvContract(p) {
     if (O.yr) a.push(`<b class="${hl('yr').trim()}">${p.years}YR</b>`);
     if (O.gu) c.push(`<span class="${hl('gu').trim()}"><b>${p.guar}</b> GUAR</span>`);
     if (O.cap) c.push(`<span class="lld-tp-hit${hl('cap')}">$${(p.capHitNum || 0).toFixed(1)}m</span> HIT`);
+    const T = p._tr; if (O.fit && T && !T.mine && T.fit != null) c.push(T.fit === 0 ? '<span class="apv-fit y">\u2713 FITS</span>' : `<span class="apv-fit n">\u2717 OVER $${T.fit.toFixed(1)}m</span>`);
     const r = []; if (a.length) r.push(a.join(' · ')); if (c.length) r.push(c.join(' · '));
     return r.length ? r : [''];
 }
 function lldApvLine(p) {
-    const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
-    if (!(O.bb || O.bu || O.co)) return '';
-    const x = p._ap; if (!x) return '';
-    if (x.n < 3) return '<div class="apv-sl"><span>Needs 3+ games for boom, bust and consistency</span></div>';
-    const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), cl = x.c == null ? 0 : Math.round(x.c * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
-    return `<div class="apv-sl">${O.bb ? `<span class="${hl('bb').trim()}"><b class="apv-bo">${bo}%</b> boom</span>` : ''}${O.bu ? `<span class="${hl('bu').trim()}"><b class="apv-bu">${bu}%</b> bust</span>` : ''}${O.co ? `<span class="apv-cb${hl('co')}"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span>` : ''}</div>`;
+    const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '', x = p._ap, t = (p._tr && !p._tr.mine) ? p._tr : null, fa = window._apvFA;
+    const stOn = O.bb || O.bu || O.co; if (!(stOn || (t && (O.yu || O.th)))) return '';
+    const a = []; let cons = '';
+    if (stOn && x) {
+        if (x.n < 3) a.push('<span>Needs 3+ games for boom, bust and consistency</span>');
+        else {
+            const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), cl = x.c == null ? 0 : Math.round(x.c * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
+            if (O.bb) a.push(`<span class="${hl('bb').trim()}"><b class="apv-bo">${bo}%</b> boom</span>`);
+            if (O.bu) a.push(`<span class="${hl('bu').trim()}"><b class="apv-bu">${bu}%</b> bust</span>`);
+            if (O.co) cons = `<span class="apv-cb${hl('co')}"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span>`;
+        }
+    }
+    if (t && O.yu && t.you != null) a.push(`<span class="${hl('yu').trim()}"><b class="apv-tq">${t.you}/${t.yn}</b> ${fa ? 'would start for you' : 'start for you'}</span>`);
+    if (t && !fa && O.th && t.th != null) a.push(`<span class="${hl('th').trim()}"><b class="apv-tq">${t.th}/${t.thn}</b> start for them</span>`);
+    return a.length || cons ? `<div class="apv-sl">${a.join('')}${cons}</div>` : '';
+}
+function lldApvChip(p) {
+    const t = (p._tr && !p._tr.mine) ? p._tr : null, O = window._apv.on, st = (t && O.bk && t.st && LLDTB_ST[t.st]) ? `<span class="apv-stp" style="--sc:${LLDTB_ST[t.st][1]}">${LLDTB_ST[t.st][2].toUpperCase()}</span>` : '';
+    return `<img class="apv-nfl" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'">${st}`;
 }
 function lldApvSpark(p) {
     const x0 = p._ap; if (!x0 || !x0.g.some(v => v != null)) return '';
@@ -10328,6 +10371,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
     if (lldApv() && (window._apv.view === 'all' || window._apv.view === 'weekly')) {
         try { window._apvD = await lldApvWeekData(); await lldApvCalc(players, window._apvD); } catch (e) { console.warn('apv week data', e); window._apvErr = String(e && e.message || e); window._apvD = null; }
     }
+    if (lldApv() && window._apv.view === 'all') { try { await lldApvTradeLoad(players, isFAView); } catch (e) { console.warn('apv trade', e); } }
     if (lldApv()) { try { lldApvRanks(players); } catch (e) { console.warn('apv ranks', e); } }
     // Sort
     players.sort((a, b) => {
@@ -10647,7 +10691,8 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
                                                 : `<span style="font-size:calc(9px * var(--ts,1)); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
-                    ownerHtml: p.ownerFid ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png" class="team-popup-trigger" data-fid="${p.ownerFid}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0; cursor:pointer;">` : '',
+                    nameChip: apvRk ? lldApvChip(p) : '', wmSrc: (apvRk && p.ownerFid) ? `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png` : '',
+                    ownerHtml: (apvRk && p.ownerFid) ? '<span class="apv-oh"></span>' : p.ownerFid ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${p.ownerFid}.png" class="team-popup-trigger" data-fid="${p.ownerFid}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0; cursor:pointer;">` : '',
                     rightContent: buildPlayerRightHtml(p, isFAView),
                     leftContent: p._actionBtn || '',
                     rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;',
@@ -14073,7 +14118,7 @@ function lldTplRow(data, opts) {
     else { left = opts.leftContent || (/<button/.test(rc) ? rc : ''); }
     if (rc && rc !== left && !/<button/.test(rc)) rightExtra = rc;
     // name line
-    const nameLine = `<div class="lld-nm"><span class="full-name">${data.name}</span><span class="short-name" style="display:none;">${data.shortName || data.name}</span><span class="pos-text-${posL}${opts.posOpen ? ' pos-open-menu' : ''} lld-pos">${data.pos || ''}</span>${opts.ownerHtml || ''}${statusBadge}${F.inj === 'on' ? getInjuryHtml(data.pid) : ''}${getRookieHtml(data.pid)}${opts.nameSuffix || ''}</div>`;
+    const nameLine = `<div class="lld-nm"><span class="full-name">${data.name}</span><span class="short-name" style="display:none;">${data.shortName || data.name}</span><span class="pos-text-${posL}${opts.posOpen ? ' pos-open-menu' : ''} lld-pos">${data.pos || ''}</span>${opts.ownerHtml || ''}${opts.nameChip || ''}${statusBadge}${F.inj === 'on' ? getInjuryHtml(data.pid) : ''}${getRookieHtml(data.pid)}${opts.nameSuffix || ''}</div>`;
     const bye = window._lldBye && window._lldBye[team];
     const under = F.under === 'team' ? `<div class="lld-undr" data-team="${team}">${team}${bye ? ' · Bye ' + bye : ''}</div>` : '';
     // pieces
@@ -14110,7 +14155,7 @@ function lldTplRow(data, opts) {
         right = `${pb ? `<div class="lld-pb">${pb}</div>` : ''}${det ? `<div class="lld-det">${det}</div>` : ''}${rightExtra}`;
     }
     return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row lld-tpl pos-border-${posL} ${opts.extraClasses || ''}" data-tpl="${kind}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
-        <div class="row-wm"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"></div>
+        <div class="row-wm"><img src="${opts.wmSrc || getNFLLogoUrl(team)}" onerror="this.style.display='none'"></div>
         ${left ? `<div class="lld-tl">${left}</div>` : ''}
         <div class="player-img-wrapper"${opts.noPhotoTap ? ' style="pointer-events:none;"' : ''}><div class="player-circle"><img class="row-tiny lld-tl-logo" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"><img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'"></div></div>
         <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div><div style="display:flex; align-items:center; justify-content:center; margin-top:3px;"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;"></div></div>
