@@ -2295,29 +2295,82 @@ function lldPosBarHtml() {
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
     </div>`;
 }
-window._apv = { view: 'all', sort: 'rank', wl: { bb: true, sb: true, fy: true, ft: true }, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+const LLD_APV_GR = [['RANKING', [['now', 'NOW', 'Current'], ['ros', 'ROS', 'Rest of season'], ['dyn', 'DYN', 'Dynasty']]], ['CONTRACT', [['sal', 'SAL', 'Salary'], ['cap', 'CAP', 'Cap hit'], ['gu', 'GUAR', 'Guar %'], ['yr', 'YRS', 'Years']]], ['STATS', [['bb', 'BOOM', 'Boom %'], ['bu', 'BUST', 'Bust %'], ['co', 'CONS.', 'Consistency']]]];
+const LLD_APV_LOW = { now: 1, ros: 1, dyn: 1, bu: 1 };
+const LLD_APV_NFL = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GBP', 'HOU', 'IND', 'JAC', 'KCC', 'LAC', 'LAR', 'LVR', 'MIA', 'MIN', 'NEP', 'NOS', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SFO', 'TBB', 'TEN', 'WAS'];
+window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', fo: 0, no: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+try { const u = JSON.parse(localStorage.getItem('lld_apv_ui') || 'null'); if (u) { if (u.on) Object.assign(window._apv.on, u.on); if (u.wl) Object.assign(window._apv.wl, u.wl); if (u.sort) window._apv.sort = u.sort; if (u.dir) window._apv.dir = u.dir; } } catch (e) { }
+function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: A.on, wl: A.wl, sort: A.sort, dir: A.dir })); } catch (e) { } }
+function lldApvIsFA() { const b = $('#subtabs-players .sub-tab-btn.active'); return !b.length || b.text().trim().toLowerCase().replace(' ', '-') === 'free-agents'; }
+function lldApvGroups(isFA) { return LLD_APV_GR.filter(g => !(isFA && g[0] === 'CONTRACT')); }
+function lldApvAvail(isFA) { const A = window._apv; return lldApvGroups(isFA).flatMap(g => g[1]).filter(x => A.on[x[0]]); }
+function lldApvKey(isFA) { const A = window._apv, av = lldApvAvail(isFA); if (!av.length) return null; if (!av.some(x => x[0] === A.sort)) A.sort = av[0][0]; return A.sort; }
+function lldApvVal(p, k) {
+    const x = p._ap, ok = x && x.n >= 3;
+    switch (k) {
+        case 'now': return playerRanks[p.pid] || null;
+        case 'ros': return p._rROS || null;
+        case 'dyn': return p._rDYN || null;
+        case 'sal': return p.salNum; case 'cap': return p.capHitNum; case 'gu': return p.guarNum; case 'yr': return p.yrsNum;
+        case 'bb': return ok ? x.boom / x.n : null;
+        case 'bu': return ok ? x.bust / x.n : null;
+        case 'co': return ok && x.c != null ? x.c : null;
+    }
+    return null;
+}
+function lldApvCmp(a, b, isFA) {
+    const A = window._apv, k = lldApvKey(isFA);
+    if (!k) return 0;
+    const x = lldApvVal(a, k), y = lldApvVal(b, k);
+    if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+    let c = LLD_APV_LOW[k] ? x - y : y - x;
+    if (A.dir !== -1) c = -c;
+    if (c === 0) c = ((playerSeason[b.pid] || {}).pts || 0) - ((playerSeason[a.pid] || {}).pts || 0);
+    return c;
+}
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
-function lldApvSort() {
-    const A = window._apv;
-    playerSortBy = ({ rank: 'pts', ros: 'apx', dyn: 'dyn', salary: 'salary', caphit: 'caphit', guar: 'guar', years: 'years', boom: 'apx', bust: 'apx', cons: 'apx' })[A.sort] || 'pts';
-}
+function lldApvSort(isFA) { playerSortBy = 'apv'; lldApvKey(isFA == null ? lldApvIsFA() : isFA); }
 function lldApvBar(isFA) {
-    const A = window._apv;
+    const A = window._apv, O = A.on, esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     if (A.view !== 'all' && A.view !== 'weekly') A.view = 'all';
-    if (isFA && ['salary', 'caphit', 'guar', 'years'].includes(A.sort)) A.sort = 'rank';
-    lldApvSort();
-    const ch = [['rank', 'Current'], ['ros', 'Rest of season'], ['dyn', 'Dynasty']].concat(isFA ? [] : [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years']]).concat([['boom', 'Boom %'], ['bust', 'Bust %'], ['cons', 'Consistency']]);
-    return `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>` +
-        (A.view === 'weekly' ? `<div class="apv-chips"><span class="apv-sb">Show</span>${[['bb', 'Boom / bust'], ['fy', 'Would start for me']].concat(isFA ? [] : [['sb', 'Started / benched'], ['ft', 'Starts for his team']]).map(([k, l]) => `<button type="button" class="apv-o apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div><div class="apv-wn"><button type="button" data-d="-1">\u25C0</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">\u25B6</button></div>` : '') +
-        (A.view === 'all' ? `<div class="apv-chips"><span class="apv-sb">Sort</span>${ch.map(([k, l]) => `<button type="button" class="apv-o${A.sort === k ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>` : '');
+    window._apvFA = !!isFA;
+    lldApvSort(isFA);
+    const wk = A.view === 'weekly', gs = lldApvGroups(isFA), avail = lldApvAvail(isFA), cur = avail.find(x => x[0] === A.sort);
+    let top = '';
+    if (wk && isFA) top = '';
+    else if (wk) {
+        const WG = [['PAST WEEKS', [['bb', 'BOOM/BUST'], ['sb', 'START/BENCH']]], ['FUTURE WEEKS', [['fy', 'FOR ME'], ['ft', 'HIS TEAM']]]];
+        const wAll = WG.every(g => g[1].every(x => A.wl[x[0]]));
+        top = `<div class="apv-sh"><div class="apv-g all"><button type="button" class="apv-wall${wAll ? ' on' : ''}">ALL</button></div>${WG.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-wgh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
+    } else {
+        const allOn = gs.every(g => g[1].every(x => O[x[0]]));
+        top = `<div class="apv-sh"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
+    }
+    const sw = `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL';
+    const menu = `<div class="apv-menu"${A.sm ? '' : ' hidden'}><div class="apv-mh">Sort by (only what is switched on)</div>${avail.map(([k, l, full]) => `<button type="button" class="apv-sk${A.sort === k ? ' on' : ''}" data-k="${k}">${full}${A.sort === k ? ' ✓' : ''}</button>`).join('') || '<div class="apv-mh">Turn something on above.</div>'}<div class="apv-mh" style="margin-top:6px">Order</div><div class="apv-two"><button type="button" class="apv-dir${A.dir === -1 ? ' on' : ''}" data-d="-1">${LLD_APV_LOW[A.sort] ? 'Best first' : 'High to low'}</button><button type="button" class="apv-dir${A.dir === 1 ? ' on' : ''}" data-d="1">${LLD_APV_LOW[A.sort] ? 'Worst first' : 'Low to high'}</button></div></div>`;
+    const row = `<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="${isFA ? 1 : 0}">ⓘ Guide</button>${isFA ? '' : `<button type="button" class="apv-b apv-pb${(A.ft || A.fo) ? ' act' : ''}" data-pn="fo"><span>${esc(fN)}</span> ▾</button>`}<button type="button" class="apv-b apv-pb${(A.nt || A.no) ? ' act' : ''}" data-pn="no"><span>${esc(nN)}</span> ▾</button>${wk ? '' : `<div class="apv-sw"><button type="button" class="apv-b act apv-sm"><span>⇅ ${cur ? cur[2] : 'Nothing on'}</span></button>${menu}</div>`}</div>`;
+    const pf = isFA ? '' : `<div class="apv-panel" data-pn="fo"${A.fo ? '' : ' hidden'}><h3>Fantasy team</h3><div class="apv-pc"><button type="button" class="apv-pk${A.ft ? '' : ' on'}" data-k="ft" data-v="">All teams</button>${Object.keys(leagueFranchises).map(f => `<button type="button" class="apv-pk${A.ft === f ? ' on' : ''}" data-k="ft" data-v="${f}"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" alt="">${esc(leagueFranchises[f])}</button>`).join('')}</div></div>`;
+    const pn = `<div class="apv-panel" data-pn="no"${A.no ? '' : ' hidden'}><h3>NFL team</h3><div class="apv-pc nfl"><button type="button" class="apv-pk${A.nt ? '' : ' on'}" data-k="nt" data-v="">All teams</button>${LLD_APV_NFL.map(a => `<button type="button" class="apv-pk${A.nt === a ? ' on' : ''}" data-k="nt" data-v="${a}">${a}</button>`).join('')}</div></div>`;
+    return `<div class="apv-bar">${top}${sw}${wk ? `<div class="apv-wn"><button type="button" data-d="-1">◀</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">▶</button></div>` : ''}${row}${pf}${pn}</div>`;
 }
 function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
 $(document).on('click', '.apv-v', function () { window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
-$(document).on('click', '.apv-l', function () { const A = window._apv; A.wl[this.dataset.l] = !A.wl[this.dataset.l]; lldApvReload(); });
+$(document).on('click', '.apv-ob', function () { const A = window._apv, k = this.dataset.o; A.on[k] = A.on[k] ? 0 : 1; lldApvSave(); lldApvReload(); });
+$(document).on('click', '.apv-oall', function () { const A = window._apv, g = lldApvGroups(lldApvIsFA()), on = !g.every(x => x[1].every(y => A.on[y[0]])); g.forEach(x => x[1].forEach(y => { A.on[y[0]] = on ? 1 : 0; })); lldApvSave(); lldApvReload(); });
+$(document).on('click', '.apv-ogh', function () { const A = window._apv, g = LLD_APV_GR.find(x => x[0] === this.dataset.g); if (!g) return; const on = !g[1].every(y => A.on[y[0]]); g[1].forEach(y => { A.on[y[0]] = on ? 1 : 0; }); lldApvSave(); lldApvReload(); });
+$(document).on('click', '.apv-wall', function () { const A = window._apv, ks = ['bb', 'sb', 'fy', 'ft'], on = !ks.every(k => A.wl[k]); ks.forEach(k => { A.wl[k] = on; }); lldApvSave(); lldApvReload(); });
+$(document).on('click', '.apv-wgh', function () { const A = window._apv, ks = this.dataset.g === 'PAST WEEKS' ? ['bb', 'sb'] : ['fy', 'ft'], on = !ks.every(k => A.wl[k]); ks.forEach(k => { A.wl[k] = on; }); lldApvSave(); lldApvReload(); });
+$(document).on('click', '.apv-sm', function (e) { e.stopPropagation(); const A = window._apv; A.sm = A.sm ? 0 : 1; $('.apv-menu').prop('hidden', !A.sm); });
+$(document).on('click', '.apv-sk', function () { const A = window._apv; A.sort = this.dataset.k; A.sm = 0; lldApvSave(); lldApvReload(); });
+$(document).on('click', '.apv-dir', function () { const A = window._apv; A.dir = +this.dataset.d; A.sm = 0; lldApvSave(); lldApvReload(); });
+$(document).on('click', function (e) { const A = window._apv; if (A.sm && !$(e.target).closest('.apv-menu').length) { A.sm = 0; $('.apv-menu').prop('hidden', true); } });
+$(document).on('click', '.apv-pb', function () { const A = window._apv, k = this.dataset.pn; A[k] = A[k] ? 0 : 1; $('.apv-panel[data-pn="' + k + '"]').prop('hidden', !A[k]); $(this).toggleClass('act', !!(A[k] || A[k === 'fo' ? 'ft' : 'nt'])); });
+$(document).on('click', '.apv-pk', function () { const A = window._apv, k = this.dataset.k; A[k] = this.dataset.v || ''; A[k === 'ft' ? 'fo' : 'no'] = 0; lldApvReload(); });
+$(document).on('click', '.apv-l', function () { const A = window._apv; A.wl[this.dataset.l] = !A.wl[this.dataset.l]; lldApvSave(); lldApvReload(); });
 $(document).on('click', '.apv-wn button', function () { const w = document.querySelector('.apv-wk'); if (!w) return; if (this.dataset.d === 'now') { const c = w.querySelector('th.cw'); if (c) w.scrollTo({ left: Math.max(0, c.offsetLeft - 190), behavior: 'smooth' }); } else w.scrollBy({ left: 320 * (+this.dataset.d), behavior: 'smooth' }); });
 (function () { let dn = false, x0 = 0, s0 = 0, el = null; document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; const w = e.target.closest && e.target.closest('.apv-wk'); if (!w || e.target.closest('button,a,.team-popup-trigger')) return; dn = true; el = w; x0 = e.clientX; s0 = w.scrollLeft; w.classList.add('drag'); }); document.addEventListener('pointermove', e => { if (dn && el) el.scrollLeft = s0 - (e.clientX - x0); }); document.addEventListener('pointerup', () => { if (el) el.classList.remove('drag'); dn = false; el = null; }); document.addEventListener('wheel', e => { const w = e.target.closest && e.target.closest('.apv-wk'); if (w && e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { w.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false }); })();
-$(document).on('click', '.apv-o:not([disabled]):not(.apv-l)', function () { const A = window._apv; A.sort = this.dataset.o; lldApvSort(); lldApvReload(); });
 $(document).on('click', '.apv-m', function () { window._apv.cmode = this.dataset.m; lldApvReload(); });
 $(document).on('click', '.lld-b-btn[data-k="apv"]', function () { window._playerRowsCache = {}; setTimeout(() => { try { if ($('#player-search-input').length) lldApvReload(); } catch (e) { } }, 50); });
 function lldApvNum(v) { return v == null ? '\u2013' : v >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(1); }
@@ -2382,19 +2435,33 @@ function lldApvRanks(players) {
     });
 }
 function lldApvRight(p) {
+    const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
     const cur = playerRanks[p.pid] || null, avg = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0';
-    const lb = r => r ? p.pos + '#' + r : '\u2013';
-    const df = r => { if (!cur || !r) return '<s></s>'; const d = cur - r; return d === 0 ? '<s class="eq">\u2013</s>' : d > 0 ? `<s class="up">\u25B2${d}</s>` : `<s class="dn">\u25BC${-d}</s>`; };
-    return `<div class="apv-r3"><u>NOW</u><b class="now">${cur ? p.pos + '#' + cur : 'NR'}</b><span class="av">${avg} avg</span><u>ROS</u><b>${lb(p._rROS)}</b>${df(p._rROS)}<u>DYN</u><b>${lb(p._rDYN)}</b>${df(p._rDYN)}</div>`;
+    const lb = r => r ? p.pos + '#' + r : '–';
+    const df = r => { if (!cur || !r) return '<s></s>'; const d = cur - r; return d === 0 ? '<s class="eq">–</s>' : d > 0 ? `<s class="up">▲${d}</s>` : `<s class="dn">▼${-d}</s>`; };
+    const r = [];
+    if (O.now) r.push(`<u>NOW</u><b class="now${hl('now')}">${cur ? p.pos + '#' + cur : 'NR'}</b><span class="av">${avg} avg</span>`);
+    if (O.ros) r.push(`<u>ROS</u><b class="${hl('ros').trim()}">${lb(p._rROS)}</b>${df(p._rROS)}`);
+    if (O.dyn) r.push(`<u>DYN</u><b class="${hl('dyn').trim()}">${lb(p._rDYN)}</b>${df(p._rDYN)}`);
+    return r.length ? `<div class="apv-r3">${r.join('')}</div>` : '';
 }
 function lldApvContract(p) {
-    return [`<b class="apv-sal">${p.salary}</b> \u00B7 <b>${p.years}YR</b>`, `<b>${p.guar}</b> GUAR \u00B7 <span class="lld-tp-hit">$${(p.capHitNum || 0).toFixed(1)}m</span> HIT`];
+    const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
+    const a = [], c = [];
+    if (O.sal) a.push(`<b class="apv-sal${hl('sal')}">${p.salary}</b>`);
+    if (O.yr) a.push(`<b class="${hl('yr').trim()}">${p.years}YR</b>`);
+    if (O.gu) c.push(`<span class="${hl('gu').trim()}"><b>${p.guar}</b> GUAR</span>`);
+    if (O.cap) c.push(`<span class="lld-tp-hit${hl('cap')}">$${(p.capHitNum || 0).toFixed(1)}m</span> HIT`);
+    const r = []; if (a.length) r.push(a.join(' · ')); if (c.length) r.push(c.join(' · '));
+    return r.length ? r : [''];
 }
 function lldApvLine(p) {
+    const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
+    if (!(O.bb || O.bu || O.co)) return '';
     const x = p._ap; if (!x) return '';
     if (x.n < 3) return '<div class="apv-sl"><span>Needs 3+ games for boom, bust and consistency</span></div>';
     const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), cl = x.c == null ? 0 : Math.round(x.c * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
-    return `<div class="apv-sl"><span><b class="apv-bo">${bo}%</b> boom</span><span><b class="apv-bu">${bu}%</b> bust</span><span class="apv-cb"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span></div>`;
+    return `<div class="apv-sl">${O.bb ? `<span class="${hl('bb').trim()}"><b class="apv-bo">${bo}%</b> boom</span>` : ''}${O.bu ? `<span class="${hl('bu').trim()}"><b class="apv-bu">${bu}%</b> bust</span>` : ''}${O.co ? `<span class="apv-cb${hl('co')}"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span>` : ''}</div>`;
 }
 function lldApvSpark(p) {
     const x0 = p._ap; if (!x0 || !x0.g.some(v => v != null)) return '';
@@ -2413,7 +2480,7 @@ function lldApvCsBlock(p) {
 function lldApvAbbr(f) { const n = String(leagueFranchises[f] || f).trim(), w = n.split(/\s+/).filter(Boolean); return (w.length > 1 ? w.map(x => x[0]).join('') : n.slice(0, 3)).toUpperCase().slice(0, 3); }
 function lldApvWeekTable(players) {
     const d = window._apvD; if (!d) return '';
-    const A = window._apv, L = A.wl, cw = d.cw, W = []; for (let w = 1; w <= 18; w++) W.push(w);
+    const A = window._apv, L = Object.assign({}, A.wl), cw = d.cw, W = []; if (window._apvFA) { L.bb = true; L.fy = true; L.sb = false; L.ft = false; } for (let w = 1; w <= 18; w++) W.push(w);
     const shown = players.slice(0, 150);
     const SX = window._lldSX && window._lldSX.S, wiOf = {}; if (SX) SX.D.weeks.forEach((x, i) => { wiOf[x.wk] = i; });
     if (SX && window._apvFitS !== SX) { window._apvFitS = SX; window._apvFit = {}; }
@@ -2536,7 +2603,7 @@ function getPlayerFilterBarHtml(isFAView) {
         ? `<span style="background:var(--accent-blue); color:#fff; border-radius:50%; width:14px; height:14px; font-size:calc(8px * var(--ts,1)); font-weight:900; display:inline-flex; align-items:center; justify-content:center; margin-left:4px;">${activeFilterCount}</span>`
         : '';
 
-    const filterPanel = playerFilterPanelOpen && !isFAView ? `
+    const filterPanel = playerFilterPanelOpen && !isFAView && !lldApv() ? `
         <div id="player-filter-panel" style="padding:10px 0; border-top:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; gap:12px;">
             ${buildRangeFilter('years', 'Years', playerFilters.years, 1, 5, 1, 'yr')}
             ${buildRangeFilter('salary', 'Salary', playerFilters.salary, 0, 200, 5, '$', 'm')}
@@ -2552,7 +2619,7 @@ function getPlayerFilterBarHtml(isFAView) {
         <div class="player-filter-wrapper" style="padding:12px 10px; background:var(--page-bg); border-bottom:1px solid var(--card-border); display:flex; flex-direction:column; gap:10px;">
             ${lldPosBarHtml()}
            ${apvOn ? lldApvBar(isFAView) : ''}
-           <div style="display:flex; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap;">
+           <div style="display:${apvOn ? 'none' : 'flex'}; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap;">
                 ${apvOn ? '' : `<span style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase;">Sort:</span>
                 <div style="display:flex; gap:6px 10px; flex-wrap:wrap; justify-content:center;">
                     ${sorts.map(buildSortBtn).join('')}
@@ -10261,9 +10328,10 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
     if (lldApv() && (window._apv.view === 'all' || window._apv.view === 'weekly')) {
         try { window._apvD = await lldApvWeekData(); await lldApvCalc(players, window._apvD); } catch (e) { console.warn('apv week data', e); window._apvErr = String(e && e.message || e); window._apvD = null; }
     }
-    if (lldApv() && window._apv.view === 'all') { try { lldApvRanks(players); } catch (e) { console.warn('apv ranks', e); } }
+    if (lldApv()) { try { lldApvRanks(players); } catch (e) { console.warn('apv ranks', e); } }
     // Sort
     players.sort((a, b) => {
+        if (lldApv()) return lldApvCmp(a, b, isFAView);
         let comparison = 0;
         if (playerSortBy === 'apx') comparison = (b._apk != null ? b._apk : -999) - (a._apk != null ? a._apk : -999);
         else if (playerSortBy === 'dyn') comparison = ((b._dyn || {}).pts || 0) - ((a._dyn || {}).pts || 0);
@@ -10279,6 +10347,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         return playerSortDir === 'asc' ? -comparison : comparison;
     });
     players.forEach((p, i) => { p._rk = i + 1; });
+    if (lldApv()) { const A = window._apv; if (A.ft && !isFAView) players = players.filter(p => String(p.ownerFid || '') === A.ft); if (A.nt) players = players.filter(p => { const t = String(p.team || '').toUpperCase(); return t === A.nt || NFL_ABBR_ALIAS[t] === A.nt; }); }
 
     // Filter
     if (playerFiltersActive && !isFAView) {
