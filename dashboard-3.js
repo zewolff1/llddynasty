@@ -2295,7 +2295,7 @@ function lldPosBarHtml() {
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
     </div>`;
 }
-window._apv = { view: 'all', sort: 'rank', wl: { bb: true, sb: true, rc: false, fy: true, ft: true, tx: false }, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+window._apv = { view: 'all', sort: 'rank', wl: { bb: true, sb: true, fy: true, ft: true }, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
 function lldApvSort() {
@@ -2309,7 +2309,7 @@ function lldApvBar(isFA) {
     lldApvSort();
     const ch = [['rank', 'Current'], ['ros', 'Rest of season'], ['dyn', 'Dynasty']].concat(isFA ? [] : [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years']]).concat([['boom', 'Boom %'], ['bust', 'Bust %'], ['cons', 'Consistency']]);
     return `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>` +
-        (A.view === 'weekly' ? `<div class="apv-chips"><span class="apv-sb">Show</span>${[['bb', 'Boom / bust'], ['fy', 'Would start for me']].concat(isFA ? [] : [['sb', 'Started / benched'], ['rc', 'Right call?'], ['ft', 'Starts for his team']]).concat([['tx', 'Text labels']]).map(([k, l]) => `<button type="button" class="apv-o apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div><div class="apv-wn"><button type="button" data-d="-1">\u25C0</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">\u25B6</button></div>` : '') +
+        (A.view === 'weekly' ? `<div class="apv-chips"><span class="apv-sb">Show</span>${[['bb', 'Boom / bust'], ['fy', 'Would start for me']].concat(isFA ? [] : [['sb', 'Started / benched'], ['ft', 'Starts for his team']]).map(([k, l]) => `<button type="button" class="apv-o apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div><div class="apv-wn"><button type="button" data-d="-1">\u25C0</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">\u25B6</button></div>` : '') +
         (A.view === 'all' ? `<div class="apv-chips"><span class="apv-sb">Sort</span>${ch.map(([k, l]) => `<button type="button" class="apv-o${A.sort === k ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>` : '');
 }
 function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
@@ -2423,40 +2423,40 @@ function lldApvWeekTable(players) {
         const tk = String(p.team || '').toUpperCase(), g = S[tk] || S[NFL_ABBR_ALIAS[tk]];
         if (!g || !g.opp) return 'BYE';
         const rk = pointsAllowedRankMap[p.realPos] ? pointsAllowedRankMap[p.realPos][g.opp] : 0, cls = rk >= 24 ? 'e' : (rk && rk <= 9) ? 't' : 'n';
-        return `<span class="op">${g.isHome === false ? '@' : ''}${g.opp}</span>` + (rk ? `<span class="pa ${cls}">${rk}</span>` : '');
+        return `<span class="opx ${cls}"><span>${g.isHome === false ? '@' : ''}${g.opp}</span>${rk ? `<b>${rk}</b>` : ''}</span>`;
     };
-    const bd = (c, t) => `<span class="wb ${c}">${t}</span>`;
+    const bd = (c, t, tip) => `<span class="wb ${c}"${tip ? ` title="${tip}"` : ''}>${t}</span>`;
     const rows = shown.map(p => {
         const ros = (p._ap && p._ap.rosN) ? p._ap.ros : 0, pid = String(p.pid), pl = SX && SX.pl[pid], mine = SX && (SX.cur[SX.me] || []).indexOf(pid) >= 0, own = p.ownerFid ? String(p.ownerFid) : '';
-        const fit = (L.fy && cw <= 18) ? fitOf(pid, p.pos) : null, fw = {}; if (fit && fit.weeks) fit.weeks.forEach(x => { fw[x.wk] = x; });
+        const fit = L.fy ? fitOf(pid, p.pos) : null, fw = {}; if (fit && fit.weeks) fit.weeks.forEach(x => { fw[x.wk] = x; });
         const tl = (own && L.ft && SX && !mine && SX.cur[own]) ? SX.cur[own] : null;
         const cells = W.map(w => {
             const o = opp(p, w), bye = o === 'BYE', past = w < cw, v = past ? (d.sc[w] || {})[p.pid] : (d.pj[w] || {})[p.pid];
             const body = bye ? '<span class="by">BYE</span>' : (v != null && (past || v > 0)) ? `<span class="${past ? 'sc' : 'pj'}">${(+v).toFixed(1)}</span>` : '<span class="by">\u2013</span>';
-            let ico = '', segs = '', tint = '', txt = '', sr = '';
+            let wd = '', sr = '';
             if (!bye) {
                 if (past && v != null) {
                     const T = p._ap && p._ap.T;
-                    if (L.bb && T && p._ap.n >= 3) { if (v >= T.hi) { ico += '<span class="wi bm" title="Boom">\uD83D\uDD25</span>'; txt += bd('bm', 'BOOM'); sr += 'Boom. '; } else if (v <= T.lo) { ico += '<span class="wi bs" title="Bust">\uD83E\uDDCA</span>'; txt += bd('bs', 'BUST'); sr += 'Bust. '; } }
+                    if (L.bb && T && p._ap.n >= 3) { if (v >= T.hi) { wd += bd('bb', 'BOOM'); sr += 'Boom. '; } else if (v <= T.lo) { wd += bd('bb', 'BUST'); sr += 'Bust. '; } }
                     const wi = wiOf[w];
-                    if (pl && wi != null && pl.tm[wi] != null && own) {
-                        if (L.sb) { const st = !!pl.st[wi]; segs += `<i class="${st ? 's-st' : 's-bn'}"></i>`; if (st) tint = 'tint-st'; txt += bd(st ? 'st' : 'bn', st ? 'STARTED' : 'BENCH'); sr += st ? 'Started. ' : 'Benched. '; }
-                        if (L.rc && pl.ok[wi] != null) { const ok = !!pl.ok[wi]; ico += `<span class="wi ${ok ? 'ok' : 'no'}" title="${ok ? 'Right call' : (pl.st[wi] ? 'Should have benched' : 'Should have started')}">${ok ? '\u2713' : '\u2717'}</span>`; txt += ok ? bd('ok', 'RIGHT CALL') : bd('no', pl.st[wi] ? 'SHOULD BENCH' : 'SHOULD START'); sr += ok ? 'Right call. ' : (pl.st[wi] ? 'Should have benched. ' : 'Should have started. '); }
+                    if (L.sb && pl && wi != null && pl.tm[wi] != null && own) {
+                        const st = !!pl.st[wi], okv = pl.ok[wi], tip = (st ? 'Started' : 'Benched') + (okv == null ? '' : okv ? ', right call' : (st ? ', should have been benched' : ', should have started'));
+                        wd += bd(okv == null ? 'st' : okv ? 'ok' : 'no', st ? 'STARTED' : 'BENCH', tip); sr += tip + '. ';
                     }
                 } else if (!past && v != null && v > 0) {
                     const f = fw[w];
-                    if (f) { segs += `<i class="${f.starts ? 's-me' : 's-me0'}"></i>`; if (f.starts) tint = 'tint-fy'; txt += mine ? bd(f.starts ? 'fy' : 'fyn', 'YOURS \u00B7 ' + (f.starts ? 'STARTS' : 'BENCH')) : bd(f.starts ? 'fy' : 'fyn', f.starts ? 'STARTS FOR YOU' : 'BENCH FOR YOU'); sr += (mine ? 'Yours, ' : '') + (f.starts ? 'Starts for you. ' : 'Bench for you. '); }
-                    if (tl && SX.slots) { try { const pool = tl.filter(x => x !== pid).concat([pid]).map(x => ({ pid: x, pos: SX.posOf(x), v: SX.rosP(x, w) })), st = llsOpt(pool, SX.slots).has(pid); segs += `<i class="${st ? 's-th' : 's-bn'}"></i>`; if (st && !tint) tint = 'tint-ft'; txt += bd(st ? 'ft' : 'bn', (st ? 'STARTS' : 'BENCH') + ' FOR ' + lldApvAbbr(own)); sr += (st ? 'Starts' : 'Bench') + ' for ' + lldApvAbbr(own) + '. '; } catch (e) { } }
+                    if (f) { wd += bd(f.starts ? 'st' : 'bn', (mine ? 'YOURS' : 'YOU') + ' \u00B7 ' + (f.starts ? 'START' : 'BENCH')); sr += (mine ? 'Yours, ' : '') + (f.starts ? 'starts for you. ' : 'bench for you. '); }
+                    if (tl && SX.slots) { try { const pool = tl.filter(x => x !== pid).concat([pid]).map(x => ({ pid: x, pos: SX.posOf(x), v: SX.rosP(x, w) })), st = llsOpt(pool, SX.slots).has(pid); wd += bd(st ? 'st' : 'bn', lldApvAbbr(own) + ' \u00B7 ' + (st ? 'START' : 'BENCH')); sr += (st ? 'Starts' : 'Bench') + ' for ' + lldApvAbbr(own) + '. '; } catch (e) { } }
                 }
             }
-            return `<td class="${w === cw ? 'cw' : ''} ${tint}" title="${sr.trim()}">${ico ? `<span class="wis">${ico}</span>` : ''}${body}${bye ? '' : o}${(L.tx && txt) ? `<div class="wly">${txt}</div>` : ''}${segs ? `<div class="wst">${segs}</div>` : ''}${sr ? `<span class="wsr">${sr}</span>` : ''}</td>`;
+            return `<td class="${w === cw ? 'cw' : ''}" title="${sr.trim()}">${body}${bye ? '' : o}${wd ? `<div class="wly">${wd}</div>` : ''}</td>`;
         }).join('');
         const posL = String(p.pos || '').toLowerCase(), ow = own ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${own}.png" class="team-popup-trigger" data-fid="${own}" onerror="this.style.display='none'"><span>${lldChatEsc(leagueFranchises[own] || own)}</span>` : '<span>Free agent</span>';
         return `<tr><td class="sk"><div class="wpc"><div class="whs pos-border-${posL}"><img class="whs-i" src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.opacity='0'"><img class="whs-n" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'"></div><div class="wpi"><div><b>${p.shortName || p.name}</b><i>${p.pos}</i></div><div class="wow">${ow}</div></div></div></td><td class="tt">${lldApvNum(((playerSeason[p.pid] || {}).pts) || 0)}</td><td class="tt">${ros ? lldApvNum(ros) : '\u2013'}</td>${cells}</tr>`;
     }).join('');
-    const lg = [L.bb ? '<span><span class="wi">\uD83D\uDD25</span> Boom</span><span><span class="wi">\uD83E\uDDCA</span> Bust</span>' : '', L.sb ? '<span><i class="lgc s-st"></i>Started</span><span><i class="lgc s-bn"></i>Benched / not starting</span>' : '', L.rc ? '<span><span class="wi ok">\u2713</span> Right call</span><span><span class="wi no">\u2717</span> Wrong call</span>' : '', L.fy ? '<span><i class="lgc s-me"></i>Starts for you</span>' : '', L.ft ? '<span><i class="lgc s-th"></i>Starts for his team</span>' : ''].join('');
-    const needS = (L.sb || L.rc || L.ft || L.fy) && !SX ? '<div class="apv-leg">Lineup history could not be loaded, so started / benched and start-for-you are hidden. Boom / bust still work.</div>' : '';
-    return needS + (lg ? `<div class="apv-lg">${lg}</div>` : '') + `<div class="apv-leg">Bold = points scored. Italic = projection. Under each: opponent and how many points they allow to that position (1 = toughest, 32 = easiest; green = easy, red = tough). Drag the table, use shift + mouse wheel, or the arrows.${players.length > shown.length ? ' Showing the top ' + shown.length + ' by points; filter by position to narrow.' : ''}</div><div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">Pts</th><th class="tt">ROS</th>${W.map(w => `<th class="${w === cw ? 'cw' : ''}">W${w}</th>`).join('')}</tr>${rows}</table></div>`;
+    const lg = [L.sb ? '<span><span class="wb ok">STARTED</span><span class="wb ok">BENCH</span> right call</span><span><span class="wb no">STARTED</span><span class="wb no">BENCH</span> wrong call</span>' : '', (L.fy || L.ft) ? '<span>Future weeks: <span class="wb st">YOU \u00B7 START</span> <span class="wb bn">TEAM \u00B7 BENCH</span></span>' : ''].join('');
+    const needS = (L.sb || L.ft || L.fy) && !SX ? '<div class="apv-leg">Lineup history could not be loaded, so started / benched and start-for-you are hidden. Boom / bust still work.</div>' : '';
+    return needS + (lg ? `<div class="apv-lg">${lg}</div>` : '') + `<div class="apv-leg">Bold = points scored. Italic = projection. The box under each score is the opponent and how many points they allow to his position (1 = toughest, 32 = easiest; green = easy, red = tough). Past weeks: green = the lineup call was right, red = wrong. Drag the table, use shift + mouse wheel, or the arrows.${players.length > shown.length ? ' Showing the top ' + shown.length + ' by points; filter by position to narrow.' : ''}</div><div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">Pts</th><th class="tt">ROS</th>${W.map(w => `<th class="${w === cw ? 'cw' : ''}">W${w}</th>`).join('')}</tr>${rows}</table></div>`;
 }
 function lldApvCell(p) {
     const A = window._apv; let v = null;
