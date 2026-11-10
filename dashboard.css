@@ -5456,3 +5456,43 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .wb.st{color:#e8ecf7;border-color:#5b6785;background:transparent}
 .wb.bn{color:var(--text-dim);border-color:var(--card-border);background:transparent}
 .apv-lg .wb{margin-right:3px}
+
+/* ===== All Players controls: grouped toggles, team buttons, sort menu (beta) ===== */
+.apv-bar{display:flex;flex-direction:column;gap:10px}
+.apv-sh{display:flex;flex-wrap:nowrap;gap:8px;align-items:stretch;justify-content:center}
+.apv-g{display:flex;flex:1 1 auto;min-width:0;border:1px solid var(--card-border);border-radius:12px;background:rgba(255,255,255,.03);overflow:hidden}
+.apv-g.all{flex:0 0 auto}
+.apv-gt{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+.apv-gh{cursor:pointer;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.1em;color:var(--text-dim);text-align:center;padding:5px 10px 4px;border-bottom:1px solid var(--card-border);white-space:nowrap}
+.apv-gh:hover{color:#fff}
+.apv-gb{display:flex;width:100%;justify-content:space-around}
+.apv-g button{flex:1;font:inherit;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.04em;color:var(--text-dim);background:none;border:0;padding:8px;cursor:pointer;white-space:nowrap;text-align:center;-webkit-appearance:none;appearance:none;outline:none;border-radius:0}
+.apv-g button.on{color:#fff;box-shadow:inset 0 -2px 0 #fff}
+.apv-g.all button{flex:none;padding:0 14px;font-size:calc(12px * var(--ts,1))}
+@media(max-width:640px){
+.apv-sh{gap:5px}
+.apv-g button{padding:7px 2px;font-size:calc(8px * var(--ts,1));letter-spacing:0}
+.apv-gh{padding:5px 3px 4px;font-size:calc(8px * var(--ts,1));letter-spacing:.06em}
+.apv-g.all button{padding:0 9px;font-size:calc(9px * var(--ts,1))}
+}
+.apv-r2{display:flex;flex-wrap:nowrap;gap:5px;align-items:center;justify-content:center}
+.apv-r2>button,.apv-sw>button{font:inherit;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:6px 8px;border-radius:6px;border:1px solid var(--card-border);background:transparent;color:#fff;cursor:pointer;min-width:0;white-space:nowrap;-webkit-appearance:none;appearance:none}
+.apv-r2>.player-gloss-btn{color:var(--accent-blue);flex:0 0 auto}
+.apv-b.act{border-color:var(--accent-blue)!important;background:rgba(59,130,246,.12)!important}
+.apv-b span{display:inline-block;max-width:96px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+.apv-sw{position:relative;flex:0 1 auto;min-width:0}
+.apv-menu{position:absolute;z-index:30;top:34px;right:0;min-width:230px;background:#171d2c;border:1px solid var(--card-border);border-radius:12px;padding:10px;box-shadow:0 10px 30px #000a;text-align:left}
+.apv-menu[hidden],.apv-panel[hidden]{display:none}
+.apv-mh{font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin:0 2px 6px}
+.apv-menu button{display:block;width:100%;text-align:left;font:inherit;font-size:calc(12px * var(--ts,1));font-weight:700;color:#fff;background:none;border:0;border-radius:8px;padding:7px 8px;cursor:pointer}
+.apv-menu button.on{background:rgba(255,255,255,.1)}
+.apv-two{display:flex;gap:6px}
+.apv-two button{text-align:center;border:1px solid var(--card-border)!important}
+.apv-panel{border:1px solid var(--card-border);border-radius:12px;background:rgba(255,255,255,.03);padding:10px 12px}
+.apv-panel h3{margin:0 0 6px;font-size:calc(10px * var(--ts,1));letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.apv-pc{display:flex;flex-wrap:wrap;gap:6px}
+.apv-pc button{font:inherit;font-size:calc(11px * var(--ts,1));font-weight:800;padding:5px 10px;border-radius:999px;border:1px solid var(--card-border);background:none;color:var(--text-dim);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.apv-pc.nfl button{padding:4px 8px;font-size:calc(10px * var(--ts,1))}
+.apv-pc button.on{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf);background:rgba(45,212,191,.1)}
+.apv-pc img{width:14px;height:14px;border-radius:50%;object-fit:cover;flex:none}
+.apv-hl{outline:1px solid rgba(250,204,21,.6);outline-offset:2px;border-radius:4px}
