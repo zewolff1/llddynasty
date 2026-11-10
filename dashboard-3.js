@@ -2295,7 +2295,7 @@ function lldPosBarHtml() {
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_DEF) ? ' active' : ''}" data-g="def">Defense</button><div class="lld-pf-ps">${LLD_PF_DEF.map(pb).join('')}</div></div>
     </div>`;
 }
-window._apv = { view: 'all', sort: 'rank', sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+window._apv = { view: 'all', sort: 'rank', wl: { bb: true, sb: true, rc: false, fy: true, ft: true }, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
 function lldApvSort() {
@@ -2309,11 +2309,15 @@ function lldApvBar(isFA) {
     lldApvSort();
     const ch = [['rank', 'Current'], ['ros', 'Rest of season'], ['dyn', 'Dynasty']].concat(isFA ? [] : [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years']]).concat([['boom', 'Boom %'], ['bust', 'Bust %'], ['cons', 'Consistency']]);
     return `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>` +
+        (A.view === 'weekly' ? `<div class="apv-chips"><span class="apv-sb">Show</span>${[['bb', 'Boom / bust'], ['fy', 'Would start for me']].concat(isFA ? [] : [['sb', 'Started / benched'], ['rc', 'Right call?'], ['ft', 'Starts for his team']]).map(([k, l]) => `<button type="button" class="apv-o apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div><div class="apv-wn"><button type="button" data-d="-1">\u25C0</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">\u25B6</button></div>` : '') +
         (A.view === 'all' ? `<div class="apv-chips"><span class="apv-sb">Sort</span>${ch.map(([k, l]) => `<button type="button" class="apv-o${A.sort === k ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>` : '');
 }
 function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
 $(document).on('click', '.apv-v', function () { window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
-$(document).on('click', '.apv-o:not([disabled])', function () { const A = window._apv; A.sort = this.dataset.o; lldApvSort(); lldApvReload(); });
+$(document).on('click', '.apv-l', function () { const A = window._apv; A.wl[this.dataset.l] = !A.wl[this.dataset.l]; lldApvReload(); });
+$(document).on('click', '.apv-wn button', function () { const w = document.querySelector('.apv-wk'); if (!w) return; if (this.dataset.d === 'now') { const c = w.querySelector('th.cw'); if (c) w.scrollTo({ left: Math.max(0, c.offsetLeft - 190), behavior: 'smooth' }); } else w.scrollBy({ left: 320 * (+this.dataset.d), behavior: 'smooth' }); });
+(function () { let dn = false, x0 = 0, s0 = 0, el = null; document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; const w = e.target.closest && e.target.closest('.apv-wk'); if (!w || e.target.closest('button,a,.team-popup-trigger')) return; dn = true; el = w; x0 = e.clientX; s0 = w.scrollLeft; w.classList.add('drag'); }); document.addEventListener('pointermove', e => { if (dn && el) el.scrollLeft = s0 - (e.clientX - x0); }); document.addEventListener('pointerup', () => { if (el) el.classList.remove('drag'); dn = false; el = null; }); document.addEventListener('wheel', e => { const w = e.target.closest && e.target.closest('.apv-wk'); if (w && e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { w.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false }); })();
+$(document).on('click', '.apv-o:not([disabled]):not(.apv-l)', function () { const A = window._apv; A.sort = this.dataset.o; lldApvSort(); lldApvReload(); });
 $(document).on('click', '.apv-m', function () { window._apv.cmode = this.dataset.m; lldApvReload(); });
 $(document).on('click', '.lld-b-btn[data-k="apv"]', function () { window._playerRowsCache = {}; setTimeout(() => { try { if ($('#player-search-input').length) lldApvReload(); } catch (e) { } }, 50); });
 function lldApvNum(v) { return v == null ? '\u2013' : v >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(1); }
@@ -2406,10 +2410,14 @@ function lldApvCsBlock(p) {
     const head = x.c == null ? `<div class="apv-cs-h"><span>Needs 3+ games</span><b class="apv-lb n/a">N/A</b></div>` : `<div class="apv-cs-h"><span>avg ${x.m.toFixed(1)} · ±${x.sd.toFixed(1)} · range ${rg}</span><b class="apv-lb ${x.lab.toLowerCase()}">${x.lab}</b></div><div class="apv-cs-h">${bb}<span>more consistent than ${Math.round(x.c * 100)}% of ${p.pos}s</span></div>`;
     return `<div class="apv-cs">${head}${lldApvSpark(p)}</div>`;
 }
+function lldApvAbbr(f) { const n = String(leagueFranchises[f] || f).trim(), w = n.split(/\s+/).filter(Boolean); return (w.length > 1 ? w.map(x => x[0]).join('') : n.slice(0, 3)).toUpperCase().slice(0, 3); }
 function lldApvWeekTable(players) {
     const d = window._apvD; if (!d) return '';
-    const cw = d.cw, W = []; for (let w = 1; w <= 18; w++) W.push(w);
+    const A = window._apv, L = A.wl, cw = d.cw, W = []; for (let w = 1; w <= 18; w++) W.push(w);
     const shown = players.slice(0, 150);
+    const SX = window._lldSX && window._lldSX.S, wiOf = {}; if (SX) SX.D.weeks.forEach((x, i) => { wiOf[x.wk] = i; });
+    if (SX && window._apvFitS !== SX) { window._apvFitS = SX; window._apvFit = {}; }
+    const fitOf = (pid, pos) => { try { if (!SX || !SX.fit) return null; const D0 = SX.D; if (!D0.pinfo[pid]) D0.pinfo[pid] = { name: '', pos: lldSxPos(pos), team: '' }; else if (!D0.pinfo[pid].pos) D0.pinfo[pid].pos = lldSxPos(pos); if (!SX.posOf(pid)) return null; const c = window._apvFit; if (!(pid in c)) c[pid] = SX.fit(pid); return c[pid]; } catch (e) { return null; } };
     const opp = (p, w) => {
         const S = d.sched[w]; if (!S || !Object.keys(S).length) return '';
         const tk = String(p.team || '').toUpperCase(), g = S[tk] || S[NFL_ABBR_ALIAS[tk]];
@@ -2417,16 +2425,37 @@ function lldApvWeekTable(players) {
         const rk = pointsAllowedRankMap[p.realPos] ? pointsAllowedRankMap[p.realPos][g.opp] : 0, cls = rk >= 24 ? 'e' : (rk && rk <= 9) ? 't' : 'n';
         return `<span class="op">${g.isHome === false ? '@' : ''}${g.opp}</span>` + (rk ? `<span class="pa ${cls}">${rk}</span>` : '');
     };
+    const bd = (c, t) => `<span class="wb ${c}">${t}</span>`;
     const rows = shown.map(p => {
-        const ros = (p._ap && p._ap.rosN) ? p._ap.ros : 0;
+        const ros = (p._ap && p._ap.rosN) ? p._ap.ros : 0, pid = String(p.pid), pl = SX && SX.pl[pid], mine = SX && (SX.cur[SX.me] || []).indexOf(pid) >= 0, own = p.ownerFid ? String(p.ownerFid) : '';
+        const fit = (L.fy && cw <= 18) ? fitOf(pid, p.pos) : null, fw = {}; if (fit && fit.weeks) fit.weeks.forEach(x => { fw[x.wk] = x; });
+        const tl = (own && L.ft && SX && !mine && SX.cur[own]) ? SX.cur[own] : null;
         const cells = W.map(w => {
             const o = opp(p, w), bye = o === 'BYE', past = w < cw, v = past ? (d.sc[w] || {})[p.pid] : (d.pj[w] || {})[p.pid];
-            const body = bye ? '<span class="by">BYE</span>' : (v != null && (past || v > 0)) ? `<span class="${past ? 'sc' : 'pj'}">${(+v).toFixed(1)}</span>` : '<span class="by">–</span>';
-            return `<td class="${w === cw ? 'cw' : ''}">${body}${bye ? '' : o}</td>`;
+            const body = bye ? '<span class="by">BYE</span>' : (v != null && (past || v > 0)) ? `<span class="${past ? 'sc' : 'pj'}">${(+v).toFixed(1)}</span>` : '<span class="by">\u2013</span>';
+            let ly = '';
+            if (!bye) {
+                if (past && v != null) {
+                    const T = p._ap && p._ap.T;
+                    if (L.bb && T && p._ap.n >= 3) { if (v >= T.hi) ly += bd('bm', 'BOOM'); else if (v <= T.lo) ly += bd('bs', 'BUST'); }
+                    const wi = wiOf[w];
+                    if (pl && wi != null && pl.tm[wi] != null && own) {
+                        if (L.sb) ly += bd(pl.st[wi] ? 'st' : 'bn', pl.st[wi] ? 'STARTED' : 'BENCH');
+                        if (L.rc && pl.ok[wi] != null) ly += pl.ok[wi] ? bd('ok', 'RIGHT CALL') : bd('no', pl.st[wi] ? 'SHOULD BENCH' : 'SHOULD START');
+                    }
+                } else if (!past && v != null && v > 0) {
+                    const f = fw[w];
+                    if (f) ly += mine ? bd(f.starts ? 'fy' : 'fyn', 'YOURS \u00B7 ' + (f.starts ? 'STARTS' : 'BENCH')) : bd(f.starts ? 'fy' : 'fyn', f.starts ? 'STARTS FOR YOU' : 'BENCH FOR YOU');
+                    if (tl && SX.slots) { try { const pool = tl.filter(x => x !== pid).concat([pid]).map(x => ({ pid: x, pos: SX.posOf(x), v: SX.rosP(x, w) })), st = llsOpt(pool, SX.slots).has(pid); ly += bd(st ? 'ft' : 'bn', (st ? 'STARTS' : 'BENCH') + ' FOR ' + lldApvAbbr(own)); } catch (e) { } }
+                }
+            }
+            return `<td class="${w === cw ? 'cw' : ''}">${body}${bye ? '' : o}${ly ? `<div class="wly">${ly}</div>` : ''}</td>`;
         }).join('');
-        return `<tr><td class="sk"><b>${p.shortName || p.name}</b><i>${p.pos}</i></td><td class="tt">${lldApvNum(((playerSeason[p.pid] || {}).pts) || 0)}</td><td class="tt">${ros ? lldApvNum(ros) : '–'}</td>${cells}</tr>`;
+        const posL = String(p.pos || '').toLowerCase(), ow = own ? `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${own}.png" class="team-popup-trigger" data-fid="${own}" onerror="this.style.display='none'"><span>${lldChatEsc(leagueFranchises[own] || own)}</span>` : '<span>Free agent</span>';
+        return `<tr><td class="sk"><div class="wpc"><div class="whs pos-border-${posL}"><img class="whs-i" src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.opacity='0'"><img class="whs-n" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'"></div><div class="wpi"><div><b>${p.shortName || p.name}</b><i>${p.pos}</i></div><div class="wow">${ow}</div></div></div></td><td class="tt">${lldApvNum(((playerSeason[p.pid] || {}).pts) || 0)}</td><td class="tt">${ros ? lldApvNum(ros) : '\u2013'}</td>${cells}</tr>`;
     }).join('');
-    return `<div class="apv-leg">Bold = points scored. Italic = projection. Under each: opponent and how many points they allow to that position (1 = toughest, 32 = easiest; green = easy, red = tough). Scroll sideways.${players.length > shown.length ? ` Showing the top ${shown.length} by points; filter by position to narrow.` : ''}</div><div class="apv-wk"><table><thead><tr><th class="sk">Player</th><th class="tt">Pts</th><th class="tt">ROS</th>${W.map(w => `<th class="${w === cw ? 'cw' : ''}">W${w}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    const needS = (L.sb || L.rc || L.ft || L.fy) && !SX ? '<div class="apv-leg">Lineup history could not be loaded, so started / benched and start-for-you are hidden. Boom / bust still work.</div>' : '';
+    return needS + `<div class="apv-leg">Bold = points scored. Italic = projection. Under each: opponent and how many points they allow to that position (1 = toughest, 32 = easiest; green = easy, red = tough). Drag the table, use shift + mouse wheel, or the arrows.${players.length > shown.length ? ' Showing the top ' + shown.length + ' by points; filter by position to narrow.' : ''}</div><div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">Pts</th><th class="tt">ROS</th>${W.map(w => `<th class="${w === cw ? 'cw' : ''}">W${w}</th>`).join('')}</tr>${rows}</table></div>`;
 }
 function lldApvCell(p) {
     const A = window._apv; let v = null;
@@ -10227,6 +10256,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         }
     }
     window._apvD = null; window._apvErr = '';
+    if (lldApv() && window._apv.view === 'weekly') { try { await lldStatsLoad(); } catch (e) { console.warn('apv lineups', e); } }
     if (lldApv() && (window._apv.view === 'all' || window._apv.view === 'weekly')) {
         try { window._apvD = await lldApvWeekData(); await lldApvCalc(players, window._apvD); } catch (e) { console.warn('apv week data', e); window._apvErr = String(e && e.message || e); window._apvD = null; }
     }
