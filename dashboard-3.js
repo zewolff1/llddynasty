@@ -10506,7 +10506,7 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
-                    tplKind: isFAView ? 'fa' : 'all',
+                    tplKind: isFAView ? 'fa' : 'all', noTabs: apvRk,
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: (() => {
                         if (apvRk) { const c = lldApvCell(p); p._tp = { sal: '', proj: c, pt: '' }; return c; }
@@ -13965,7 +13965,7 @@ function lldTplRow(data, opts) {
     const rankH = T.rank || lldTplRankAvg(pid, data.pos, F.ravg === '2');
     // middle box
     let mid = '';
-    if (F.tabs === 'on') {
+    if ((F.tabs === 'on' && !opts.noTabs)) {
         const sBox = k ? [salH || '', cl.join(' · ')] : (matchL || ['']);
         const rBox = [ctr ? ctr[0] + ' · ' + ctr[1] : '', lldTplRankAvg(pid, data.pos, false)];
         const pBox = [(T.proj ? T.proj + ' · ' : '') + (matchL ? matchL[0] : ''), matchL ? (matchL[1] || '') : ''];
@@ -13975,7 +13975,7 @@ function lldTplRow(data, opts) {
     else if (F.opp === 'contract') mid = cl ? box(cl) : box(matchL);
     // right side
     let right = '';
-    if (F.tabs === 'on') {
+    if ((F.tabs === 'on' && !opts.noTabs)) {
         const am = document.body.getAttribute('data-lld-am') || 'sal';
         right = `<div class="lld-ams">${[['sal', 'Salary'], ['rank', 'Rank'], ['proj', 'Proj']].map(([v, l]) => `<button type="button" class="lld-amb ${am === v ? 'on' : ''}" data-am="${v}">${l}</button>`).join('')}</div>`;
     } else {
