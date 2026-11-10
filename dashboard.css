@@ -5386,3 +5386,20 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .gth-sl{display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 9px;border-radius:9px;border:1px dashed rgba(148,163,184,.35);color:#94a3b8;font-size:calc(11px * var(--ts,1))}
 .gth-sl.hit{border:1px solid #fb923c;background:rgba(251,146,60,.12);color:#f1f5f9}
 .gth-sl b{flex:none;width:76px}.gth-sl span{flex:1;min-width:0}.gth-sl em{font-style:normal;font-weight:800;color:#fb923c;flex:none}
+
+/* ===== All Players: one list with contract, ranks, boom/bust line (beta) ===== */
+.apv-chips .apv-sb{flex:none;align-self:center;font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
+.apv-r3{display:grid;grid-template-columns:auto auto auto;gap:1px 7px;justify-content:end;align-items:baseline;font-size:calc(12px * var(--ts,1));font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.apv-r3 u{text-decoration:none;font-size:calc(9px * var(--ts,1));letter-spacing:.08em;color:var(--text-dim);text-align:left}
+.apv-r3 b{color:#60a5fa;text-align:right}
+.apv-r3 b.now{color:#f5c542}
+.apv-r3 .av{color:var(--text-dim);font-weight:700;text-align:right}
+.apv-r3 s{text-decoration:none;font-size:calc(10px * var(--ts,1));text-align:right;min-width:26px}
+.apv-r3 s.up{color:#4ade80}.apv-r3 s.dn{color:#f87171}.apv-r3 s.eq{color:var(--text-dim)}
+.apv-sal{color:#4ade80}
+.apv-sl{display:flex;align-items:center;gap:12px;margin:-4px 6px 8px;padding:7px 12px;border-radius:0 0 14px 14px;background:rgba(255,255,255,.05);font-size:calc(11px * var(--ts,1));font-weight:700;color:var(--text-dim)}
+.apv-sl b{font-weight:900;font-variant-numeric:tabular-nums}
+.apv-cb{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.apv-cb .tr{width:46px;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.apv-cb .tr i{display:block;height:100%;border-radius:3px}
+.apv-cb em{font-style:normal;font-weight:800}
