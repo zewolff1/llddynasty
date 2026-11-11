@@ -5508,3 +5508,11 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .apv-stp:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--sc)}
 .apv-fit{font-weight:900}
 .apv-fit.y{color:#4ade80}.apv-fit.n{color:#f87171}
+
+/* ===== All Players: status filter, compact button row, guide ===== */
+.apv-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex:none}
+.apv-r2{flex-wrap:wrap}
+@media(max-width:640px){
+.apv-gtx{display:none}
+.apv-b span{max-width:62px}
+}
