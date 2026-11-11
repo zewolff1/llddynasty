@@ -2493,26 +2493,33 @@ async function lldApvTradeLoad(players, isFA) {
 }
 async function lldApvUni() {
     const d = await lldApvWeekData(); await lldMflNameDb();
+    if (!Object.keys(window._mflPos || {}).length) { window._mflNameDb = null; try { await lldMflNameDb(); } catch (e) { } }
     if (window._apvUR && window._apvUR.d === d) return window._apvUR;
+    let S = null; try { S = await lldStatsLoad(); } catch (e) { }
     const P = window._mflPos || {}, tot = {}, ros = {}, dyn = {}, g1 = {};
-    for (let w = d.cw; w <= 18; w++) { const m = d.pj[w] || {}; Object.keys(m).forEach(id => { const v = m[id]; if (v > 0) tot[id] = (tot[id] || 0) + v; }); }
-    Object.keys(tot).forEach(id => { const g = dynGrp(P[id] || ''); if (g) (g1[g] = g1[g] || []).push(id); });
+    const pof = id => { let p = P[id]; if (!p && S) { try { p = S.posOf(id); } catch (e) { } } return dynGrp(p || ''); };
+    for (let w = d.cw; w <= 18; w++) { const m = d.pj[w] || {}; Object.keys(m).forEach(id => { const v = +m[id]; if (v > 0) tot[id] = (tot[id] || 0) + v; }); } // add up every remaining week's projection
+    Object.keys(tot).forEach(id => { const g = pof(id); if (g) (g1[g] = g1[g] || []).push(id); });
     Object.keys(g1).forEach(g => g1[g].sort((a, b) => tot[b] - tot[a]).forEach((id, i) => { ros[id] = i + 1; }));
     try {
         const Dy = await lldDynFirst(['dp', 'dynasty', 'career', 'y27']), g2 = {};
-        if (Dy) { Object.keys(Dy.byPid).forEach(id => { const v = Dy.byPid[id]; if (v && v.pts > 0) { const g = v.grp || dynGrp(P[id] || ''); if (g) (g2[g] = g2[g] || []).push(id); } }); Object.keys(g2).forEach(g => g2[g].sort((a, b) => Dy.byPid[b].pts - Dy.byPid[a].pts).forEach((id, i) => { dyn[id] = i + 1; })); }
+        if (Dy) { Object.keys(Dy.byPid).forEach(id => { const v = Dy.byPid[id]; if (v && v.pts > 0) { const g = v.grp || pof(id); if (g) (g2[g] = g2[g] || []).push(id); } }); Object.keys(g2).forEach(g => g2[g].sort((a, b) => Dy.byPid[b].pts - Dy.byPid[a].pts).forEach((id, i) => { dyn[id] = i + 1; })); }
     } catch (e) { }
-    window._apvUR = { d, ros, dyn }; return window._apvUR;
+    const U = { d, ros, dyn, tot };
+    if (Object.keys(ros).length) window._apvUR = U;
+    return U;
 }
 function lldApvNow(pid) { return (playerRanks[pid] && playerAverages[pid] > 0) ? playerRanks[pid] : null; }
 function lldApvRanks(players) {
-    const UR = window._apvUR; if (UR) { players.forEach(p => { p._rROS = UR.ros[p.pid] || null; p._rDYN = UR.dyn[p.pid] || null; }); return; }
+    const UR = window._apvUR || {}, hr = UR.ros && Object.keys(UR.ros).length, hd = UR.dyn && Object.keys(UR.dyn).length;
+    if (hr || hd) players.forEach(p => { if (hr) p._rROS = UR.ros[p.pid] || null; if (hd) p._rDYN = UR.dyn[p.pid] || null; });
+    if (hr && hd) return;
     const grp = {};
     players.forEach(p => { (grp[p.pos] = grp[p.pos] || []).push(p); });
     Object.keys(grp).forEach(k => {
         const a = grp[k];
-        a.filter(p => p._ap && p._ap.rosN).sort((x, y) => y._ap.ros - x._ap.ros).forEach((p, i) => { p._rROS = i + 1; });
-        a.filter(p => p._dyn && p._dyn.pts > 0).sort((x, y) => y._dyn.pts - x._dyn.pts).forEach((p, i) => { p._rDYN = i + 1; });
+        if (!hr) a.filter(p => p._ap && p._ap.rosN).sort((x, y) => y._ap.ros - x._ap.ros).forEach((p, i) => { p._rROS = i + 1; });
+        if (!hd) a.filter(p => p._dyn && p._dyn.pts > 0).sort((x, y) => y._dyn.pts - x._dyn.pts).forEach((p, i) => { p._rDYN = i + 1; });
     });
 }
 function lldApvRight(p) {
@@ -2563,7 +2570,7 @@ function lldApvChip(p) {
 }
 function lldApvSetBtn(p) {
     const T = p._tr || {}, L = T.st && LLDTB_ST[T.st], sh = { S: 'SEEK', W: 'WILL', U: 'UNLK', N: 'NO' };
-    if (!T.own) return `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn">${p.pos}</button></div>`;
+    if (!T.own) { let me0 = ''; try { me0 = String(myFid).padStart(4, '0'); } catch (e) { } return me0 === '0000' ? `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn apv-sb" disabled style="opacity:.45" title="Trade status is saved by the team\u2019s own login">SET</button></div>` : `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn">${p.pos}</button></div>`; }
     return `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn apv-set apv-sb${L ? ' has' : ''}" data-apvset="${p.pid}" ${L ? `style="--sc:${L[1]}"` : ''} title="Set trade status">${L ? sh[T.st] : 'SET'}</button></div>`;
 }
 function lldApvRankLine(p) {
