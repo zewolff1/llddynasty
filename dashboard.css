@@ -5560,3 +5560,26 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .apv-r3 u{font-size:calc(8px * var(--ts,1)) !important}
 .apv-r3 s{font-size:calc(9px * var(--ts,1)) !important;min-width:22px}
 .apv-r3 b{border:0 !important;background:none !important;padding:0 !important;box-shadow:none !important;line-height:1.25}
+
+/* rank numbers: same small style as the Lineup tab, on every row */
+body .apv-yc .apv-r3,body .apv-yc .apv-r3 b,body .apv-yc .apv-r3 .av,body .lld-pb .apv-r3,body .lld-pb .apv-r3 b,body .lld-pb .apv-r3 .av{font-size:calc(10.5px * var(--ts,1)) !important;line-height:1.25 !important}
+body .apv-yc .apv-r3 u,body .lld-pb .apv-r3 u{font-size:calc(8px * var(--ts,1)) !important}
+body .apv-yc .apv-r3 s,body .lld-pb .apv-r3 s{font-size:calc(9px * var(--ts,1)) !important}
+body .apv-yc .apv-r3 b,body .lld-pb .apv-r3 b{border:0 !important;background:none !important;padding:0 !important;box-shadow:none !important;border-radius:0 !important}
+
+/* compact toggles + one-line position bar (beta) */
+.lld-pf.cmp{display:flex;gap:4px;align-items:center;flex-wrap:nowrap;padding:0}
+.lld-pf.cmp i{width:1px;height:18px;background:var(--card-border);flex:none;margin:0 2px}
+.lld-pf.cmp .lld-pf-b{flex:1 1 0;min-width:0;padding:7px 0;border-radius:8px;font-size:calc(11px * var(--ts,1));letter-spacing:.04em;text-align:center}
+.apv-tg{display:flex;gap:5px;margin-bottom:6px}
+.apv-tg>button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:var(--text-dim);font:inherit;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.06em;cursor:pointer}
+.apv-tg>button b{font-size:calc(11px * var(--ts,1));color:#fff;letter-spacing:0;white-space:nowrap}
+.apv-tg>button.off b{color:var(--text-dim)}
+.apv-tg>button.open{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf)}
+.apv-tg>button.apv-oall{flex:0 0 46px;justify-content:center}
+.apv-gp{display:flex;flex-wrap:wrap;gap:6px;padding:10px;margin-bottom:6px;border:1px solid var(--card-border);border-radius:12px;background:rgba(255,255,255,.03)}
+.apv-gp[hidden]{display:none}
+.apv-gpt{flex:1 0 100%;display:flex;justify-content:space-between;align-items:center;font-size:calc(10px * var(--ts,1));letter-spacing:.12em;color:var(--text-dim);font-weight:900}
+.apv-gpt button{font:inherit;font-size:calc(10px * var(--ts,1));border:0;background:none;color:var(--accent-teal,#2dd4bf);cursor:pointer;padding:0 4px}
+.apv-gp .apv-ob{font:inherit;font-size:calc(11px * var(--ts,1));font-weight:900;letter-spacing:.05em;padding:7px 12px;border-radius:999px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer}
+.apv-gp .apv-ob.on{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf);background:rgba(45,212,191,.12)}
