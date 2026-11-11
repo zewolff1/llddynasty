@@ -5532,3 +5532,12 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .apv-pick button.clr{--sc:var(--text-dim)}
 .apv-cr>div{white-space:nowrap}
 .apv-b.apv-ct2.act{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf);background:rgba(45,212,191,.1)}
+
+/* My Team: scroll fix, Set status, Lineup */
+.apv-ct-box{min-width:0;max-width:100%}
+.apv-ct-box>*{min-width:0;max-width:100%}
+.apv-ct-box .apv-wk{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;touch-action:pan-x pan-y}
+.apv-pick button.on{background:rgba(255,255,255,.12);box-shadow:0 0 0 1px var(--sc,var(--card-border)) inset}
+.lld-pi .apv-sl{margin-top:4px}
+.lld-det .apv-r3{align-items:flex-end}
+#apv-lu-bar{margin:6px 0}
