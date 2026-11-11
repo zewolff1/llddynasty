@@ -5541,3 +5541,16 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .lld-pi .apv-sl{margin-top:4px}
 .lld-det .apv-r3{align-items:flex-end}
 #apv-lu-bar{margin:6px 0}
+
+/* My Team polish: smaller numbers, bigger headshots, same layout in Lineup and Contracts */
+.apv-r3{font-size:calc(10.5px * var(--ts,1))}
+.apv-r3 u{font-size:calc(8px * var(--ts,1))}
+.apv-r3 s{font-size:calc(9px * var(--ts,1));min-width:22px}
+.apv-yc .player-row,.apv-rows .player-row,.player-row.apv-lu-done{--tp-hs:50px}
+.apv-ct-box .lld-undr,.player-row.apv-lu-done .lld-undr{display:none}
+.player-row.apv-lu-done .lld-pj-n{font-size:calc(16px * var(--ts,1)) !important}
+.player-row.apv-lu-s{margin-bottom:0 !important}
+.apv-sl.lu{margin:0 6px 8px;border-radius:0 0 14px 14px}
+.apv-sb{font-size:calc(9px * var(--ts,1)) !important;letter-spacing:.04em}
+.apv-sb.has{color:var(--sc);border-color:var(--sc)}
+.apv-sb:not(.has){color:var(--text-dim)}
