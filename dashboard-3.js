@@ -2419,6 +2419,11 @@ async function lldApvWeekData() {
         jobs.push((async () => { try { d.sched[w] = await fetchNflScheduleForWeek(w); } catch (e) { d.sched[w] = {}; } })());
     }
     await Promise.all(jobs);
+    try { // the lineup engine's league results are the reliable source (the Stats tab uses them); they overwrite the plain export
+        const S1 = await lldStatsLoad();
+        S1.D.weeks.forEach(x => { if (x.wk >= cw) return; const m = d.sc[x.wk] = d.sc[x.wk] || {}; Object.keys(x.teams || {}).forEach(f => ((x.teams[f] || {}).roster || []).forEach(r => { if (r && r.pid != null && r.score != null && r.score !== '') m[String(r.pid)] = parseFloat(r.score) || 0; })); });
+        d.fail = d.fail.filter(w => !Object.keys(d.sc[w] || {}).length);
+    } catch (e) { console.warn('apv engine scores', e); }
     d.got = Object.keys(d.sc).filter(w => Object.keys(d.sc[w] || {}).length).length;
     window._apvWD = { key, at: Date.now(), d };
     return d;
