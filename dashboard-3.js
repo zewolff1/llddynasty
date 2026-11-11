@@ -2341,6 +2341,27 @@ function lldApvCmp(a, b, isFA) {
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
 function lldApvSort(isFA) { playerSortBy = 'apv'; lldApvKey(isFA == null ? lldApvIsFA() : isFA); }
+;(function () { try { if (!document.getElementById('apv-more-css')) { const st = document.createElement('style'); st.id = 'apv-more-css'; st.textContent = `
+/* More toggles popup (beta) */
+.lld-pf.cmp .apv-morebtn,.apv-r2>.apv-morebtn{flex:0 0 auto;font:inherit;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.05em;text-transform:uppercase;padding:8px 9px;border-radius:8px;border:1px solid var(--card-border);background:rgba(255,255,255,.04);color:var(--accent-teal,#2dd4bf);cursor:pointer;white-space:nowrap}
+#apv-more-pop{position:fixed;inset:0;z-index:2147482600;background:rgba(0,0,0,.66);display:none;align-items:flex-end;justify-content:center}
+#apv-more-pop.on{display:flex}
+#apv-more-pop .apvm-sh{background:var(--page-bg,#0f172a);border:1px solid var(--card-border);border-bottom:0;border-radius:22px 22px 0 0;width:100%;max-width:560px;max-height:86%;display:flex;flex-direction:column;color:#f1f5f9}
+#apv-more-pop .apvm-hd{display:flex;align-items:center;gap:8px;padding:14px 16px 10px}
+#apv-more-pop .apvm-hd b{flex:1;font-size:calc(16px * var(--ts,1))}
+#apv-more-pop .apvm-hd button,#apv-more-pop .apvm-gh{font:inherit;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--card-border);background:transparent;color:var(--accent-teal,#2dd4bf);border-radius:999px;padding:7px 12px;cursor:pointer}
+#apv-more-pop .apvm-hd .apvm-x{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
+#apv-more-pop .apvm-bd{overflow-y:auto;padding:0 16px 22px;display:flex;flex-direction:column;gap:12px}
+#apv-more-pop .apvm-g{border:1px solid var(--card-border);border-radius:14px;padding:10px;background:rgba(255,255,255,.03)}
+#apv-more-pop .apvm-gt{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.12em;color:var(--text-dim)}
+#apv-more-pop .apvm-gh{padding:4px 10px;border:0}
+#apv-more-pop .apvm-gb{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
+#apv-more-pop .apvm-ob{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:8px 10px;border-radius:10px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font:inherit;min-width:0}
+#apv-more-pop .apvm-ob b{font-size:calc(12px * var(--ts,1));letter-spacing:.05em}
+#apv-more-pop .apvm-ob small{font-size:calc(9px * var(--ts,1));opacity:.8;line-height:1.2}
+#apv-more-pop .apvm-ob.on{border-color:var(--accent-teal,#2dd4bf);color:#fff;background:rgba(45,212,191,.14)}
+#apv-more-pop .apvm-ob.on b{color:var(--accent-teal,#2dd4bf)}
+`; document.head.appendChild(st); } } catch (e) { } })();
 function lldApvMoreOn() { try { const A = window._apv; if (lldApvLuOn()) return true; const v = lldApvCtx() ? A.ctv : A.view; return v !== 'weekly' && v !== 'year'; } catch (e) { return true; } }
 function lldApvMoreBtn() { return lldApvMoreOn() ? '<button type="button" class="apv-morebtn">⚙<span> More toggles</span></button>' : ''; }
 function lldApvMoreDraw() {
@@ -2372,11 +2393,12 @@ $(document).on('click', '.apv-gc', function () {
 });
 function lldApvBar(isFA) {
     const A = window._apv, O = A.on, esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    if (A.view !== 'all' && A.view !== 'weekly') A.view = 'all';
+    if (A.view !== 'all' && A.view !== 'weekly' && A.view !== 'year') A.view = 'all';
+    if (isFA && A.view === 'year') A.view = 'all';
     window._apvFA = !!isFA;
     const cx = lldApvCtx(), ownT = cx && window._apvCt && window._apvCt.own;
     lldApvSort(isFA);
-    const wk = cx ? A.ctv === 'weekly' : A.view === 'weekly', yv = cx && A.ctv === 'year', vw = cx ? (A.ctv || 'all') : A.view, gs = lldApvGroups(isFA), avail = lldApvAvail(isFA), cur = avail.find(x => x[0] === A.sort);
+    const wk = cx ? A.ctv === 'weekly' : A.view === 'weekly', yv = cx ? A.ctv === 'year' : A.view === 'year', vw = cx ? (A.ctv || 'all') : A.view, gs = lldApvGroups(isFA), avail = lldApvAvail(isFA), cur = avail.find(x => x[0] === A.sort);
     let top = '';
     if (wk && isFA) top = '';
     else if (yv) top = '';
@@ -2387,7 +2409,7 @@ function lldApvBar(isFA) {
     } else {
         top = '';
     }
-    const sw = `<div class="apv-views" style="grid-template-columns:repeat(${cx ? 3 : 2},1fr)">${(cx ? [['all', 'List'], ['weekly', 'Week by week'], ['year', 'Year by year']] : [['all', 'List'], ['weekly', 'Week by week']]).map(([v, l]) => `<button type="button" class="apv-v${vw === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const sw = `<div class="apv-views" style="grid-template-columns:repeat(${(cx || !isFA) ? 3 : 2},1fr)">${((cx || !isFA) ? [['all', 'List'], ['weekly', 'Week by week'], ['year', 'Year by year']] : [['all', 'List'], ['weekly', 'Week by week']]).map(([v, l]) => `<button type="button" class="apv-v${vw === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL', sN = A.st ? (A.st === 'X' ? 'NO LABEL' : LLDTB_ST[A.st][2].toUpperCase()) : 'ALL STATUS';
     const menu = `<div class="apv-menu"${A.sm ? '' : ' hidden'}><div class="apv-mh">Sort by (only what is switched on)</div>${avail.map(([k, l, full]) => `<button type="button" class="apv-sk${A.sort === k ? ' on' : ''}" data-k="${k}">${full}${A.sort === k ? ' ✓' : ''}</button>`).join('') || '<div class="apv-mh">Turn something on above.</div>'}<div class="apv-mh" style="margin-top:6px">Order</div><div class="apv-two"><button type="button" class="apv-dir${A.dir === -1 ? ' on' : ''}" data-d="-1">${LLD_APV_LOW[A.sort] ? 'Best first' : 'High to low'}</button><button type="button" class="apv-dir${A.dir === 1 ? ' on' : ''}" data-d="1">${LLD_APV_LOW[A.sort] ? 'Worst first' : 'Low to high'}</button></div></div>`;
     const row = `<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="${isFA ? 1 : 0}">\u24D8<span class="apv-gtx"> Guide</span></button>${(isFA || cx) ? '' : `<button type="button" class="apv-b apv-pb${(A.ft || A.fo) ? ' act' : ''}" data-pn="fo"><span>${esc(fN)}</span> ▾</button>`}${cx ? '' : `<button type="button" class="apv-b apv-pb${(A.nt || A.no) ? ' act' : ''}" data-pn="no"><span>${esc(nN)}</span> \u25BE</button>`}${isFA ? '' : `<button type="button" class="apv-b apv-pb${(A.st || A.so) ? ' act' : ''}" data-pn="so"><span>${sN}</span> \u25BE</button>`}${ownT ? `<button type="button" class="apv-b apv-pb${(A.oo || (window._apvCt && window._apvCt.mode)) ? ' act' : ''}" data-pn="oo"><span>${window._apvCt.mode && LLDTB_MODES[window._apvCt.mode] ? LLDTB_MODES[window._apvCt.mode][0].toUpperCase() : 'OUTLOOK'}</span> \u25BE</button>` : ''}${(wk || yv) ? '' : `<div class="apv-sw"><button type="button" class="apv-b act apv-sm"><span>⇅ ${cur ? cur[2] : 'Nothing on'}</span></button>${menu}</div>`}</div>`;
@@ -2762,7 +2784,7 @@ async function lldApvLuEnhance() {
 function lldApvYearTable(players, fid) {
     const A = window._apv, mode = A.cmode === 'hit' ? 'hit' : 'sal', Y = []; for (let i = 0; i < 5; i++) Y.push(+year + i);
     const tog = `<div class="apv-mini"><button class="apv-m${mode === 'sal' ? ' on' : ''}" data-m="sal">Salary</button><button class="apv-m${mode === 'hit' ? ' on' : ''}" data-m="hit">Cap hit if cut</button></div>`;
-    const ow = `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${fid}.png" class="team-popup-trigger" data-fid="${fid}" onerror="this.style.display='none'"><span>${lldChatEsc(leagueFranchises[fid] || fid)}</span>`;
+    const owf = f => { f = f || fid; return `<img src="${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${f}.png" class="team-popup-trigger" data-fid="${f}" onerror="this.style.display='none'"><span>${lldChatEsc(leagueFranchises[f] || f)}</span>`; };
     const rows = players.slice().sort((a, b) => b.salNum * b.yrsNum - a.salNum * a.yrsNum).map(p => {
         const gy = Math.round(p.yrsNum * (p.guarNum / 100)); let tot = 0;
         const cells = Y.map((y, i) => {
@@ -2771,7 +2793,7 @@ function lldApvYearTable(players, fid) {
             tot += p.salNum; return `<td class="${i < gy ? 'gu' : ''}"><span class="sc">$${+p.salNum.toFixed(1)}M</span></td>`;
         }).join('');
         const posL = String(p.pos || '').toLowerCase();
-        return `<tr><td class="sk"><div class="wpc"><div class="whs pos-border-${posL}"><img class="whs-i" src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.opacity='0'"><img class="whs-n" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'"></div><div class="wpi"><div><b>${p.shortName || p.name}</b><i>${p.pos}</i></div><div class="wow">${ow}</div></div></div></td><td class="tt">${tot > 0 ? '$' + (+tot.toFixed(1)) + 'M' : '–'}</td>${cells}</tr>`;
+        return `<tr><td class="sk"><div class="wpc"><div class="whs pos-border-${posL}"><img class="whs-i" src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.opacity='0'"><img class="whs-n" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'"></div><div class="wpi"><div><b>${p.shortName || p.name}</b><i>${p.pos}</i></div><div class="wow">${owf(p.ownerFid)}</div></div></div></td><td class="tt">${tot > 0 ? '$' + (+tot.toFixed(1)) + 'M' : '–'}</td>${cells}</tr>`;
     }).join('');
     const lg = `<div class="apv-lg"><span>${mode === 'sal' ? '<span class="wb ok">GOLD</span> = a guaranteed year. A dash means the contract has ended.' : 'What it costs to cut him at the start of that year: salary × guarantee % × years left.'}</span></div>`;
     return tog + lg + `<div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">${mode === 'sal' ? 'Total' : 'Sum'}</th>${Y.map(y => `<th>${y}</th>`).join('')}</tr>${rows}</table></div>`;
@@ -11032,6 +11054,7 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
         outputHtml += '</div>';
         if (apvYr) { const A = window._apv; outputHtml = `<div class="apv-mini"><button class="apv-m${A.cmode === 'sal' ? ' on' : ''}" data-m="sal">Salary</button><button class="apv-m${A.cmode === 'hit' ? ' on' : ''}" data-m="hit">Cap hit if cut</button></div><div class="apv-leg">${A.cmode === 'sal' ? 'Gold = guaranteed years. A dash means the contract has ended.' : 'Cost if you cut him at the start of that year: salary \u00d7 guarantee % \u00d7 years left.'}</div>` + outputHtml; }
         if (lldApv() && window._apv.view === 'weekly' && window._apvD) outputHtml = lldApvWeekTable(players);
+        else if (lldApv() && window._apv.view === 'year' && !lldApvIsFA()) outputHtml = lldApvYearTable(players.filter(p => p.ownerFid && p.salNum > 0), null);
 
 container.find('#players-loader').remove();
         container.prepend(auctionHtml);
