@@ -2364,7 +2364,7 @@ function lldApvBar(isFA) {
     const pf = (isFA || cx) ? '' : `<div class="apv-panel" data-pn="fo"${A.fo ? '' : ' hidden'}><h3>Fantasy team</h3><div class="apv-pc"><button type="button" class="apv-pk${A.ft ? '' : ' on'}" data-k="ft" data-v="">All teams</button>${Object.keys(leagueFranchises).map(f => `<button type="button" class="apv-pk${A.ft === f ? ' on' : ''}" data-k="ft" data-v="${f}"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" alt="">${esc(leagueFranchises[f])}</button>`).join('')}</div></div>`;
     const ps = isFA ? '' : `<div class="apv-panel" data-pn="so"${A.so ? '' : ' hidden'}><h3>Trade block status</h3><div class="apv-pc"><button type="button" class="apv-pk${A.st ? '' : ' on'}" data-k="st" data-v="">All</button>${['S', 'W', 'U', 'N'].map(k => `<button type="button" class="apv-pk${A.st === k ? ' on' : ''}" data-k="st" data-v="${k}"><i class="apv-dot" style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</button>`).join('')}<button type="button" class="apv-pk${A.st === 'X' ? ' on' : ''}" data-k="st" data-v="X">No label</button></div></div>`;
     const po = ownT ? `<div class="apv-panel" data-pn="oo"${A.oo ? '' : ' hidden'}><h3>Your team outlook</h3><div class="apv-pc">${Object.keys(LLDTB_MODES).map(k => `<button type="button" class="apv-oo${window._apvCt.mode === k ? ' on' : ''}" data-m="${k}"><i class="apv-dot" style="background:${LLDTB_MODES[k][2]}"></i>${LLDTB_MODES[k][0]}</button>`).join('')}</div></div>` : '';
-    const r2b = (cx && !wk) ? `<div class="apv-r2"><button type="button" class="apv-b apv-ct2${A.sw ? ' act' : ''}" data-k="sw">\u21C4 Swap sides</button><button type="button" class="apv-b apv-ct2${A.cg ? ' act' : ''}" data-k="cg">\u2630 Group by position</button>${ownT ? `<button type="button" class="apv-b apv-ct2${A.se ? ' act' : ''}" data-k="se">\u270E Set status</button>` : ''}</div>` : '';
+    const r2b = (cx && !wk) ? `<div class="apv-r2"><button type="button" class="apv-b apv-ct2${A.cg ? ' act' : ''}" data-k="cg">\u2630 Group by position</button></div>` : '';
     const pn = cx ? '' : `<div class="apv-panel" data-pn="no"${A.no ? '' : ' hidden'}><h3>NFL team</h3><div class="apv-pc nfl"><button type="button" class="apv-pk${A.nt ? '' : ' on'}" data-k="nt" data-v="">All teams</button>${LLD_APV_NFL.map(a => `<button type="button" class="apv-pk${A.nt === a ? ' on' : ''}" data-k="nt" data-v="${a}">${a}</button>`).join('')}</div></div>`;
     return `<div class="apv-bar">${top}${sw}${wk ? `<div class="apv-wn"><button type="button" data-d="-1">◀</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">▶</button></div>` : ''}${row}${r2b}${pf}${ps}${po}${pn}</div>`;
 }
@@ -2516,9 +2516,14 @@ function lldApvLine(p) {
 }
 function lldApvChip(p) {
     const T = p._tr, O = window._apv.on, nfl = `<img class="apv-nfl" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'">`;
-    if (T && T.own && lldApvCtx()) { const L = T.st && LLDTB_ST[T.st]; if (!O.bk) return nfl; return nfl + (L ? `<span class="apv-stp apv-set" data-apvset="${p.pid}" style="--sc:${L[1]}">${L[2].toUpperCase()}</span>` : `<span class="apv-stp ghost apv-set" data-apvset="${p.pid}">+ TRADE STATUS</span>`); }
     const t = (T && !T.mine) ? T : null, st = (t && O.bk && t.st && LLDTB_ST[t.st]) ? `<span class="apv-stp" style="--sc:${LLDTB_ST[t.st][1]}">${LLDTB_ST[t.st][2].toUpperCase()}</span>` : '';
+    if (lldApvCtx()) return T && T.own ? '' : st;
     return nfl + st;
+}
+function lldApvSetBtn(p) {
+    const T = p._tr || {}, L = T.st && LLDTB_ST[T.st], sh = { S: 'SEEK', W: 'WILL', U: 'UNLK', N: 'NO' };
+    if (!T.own) return `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn">${p.pos}</button></div>`;
+    return `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn apv-set apv-sb${L ? ' has' : ''}" data-apvset="${p.pid}" ${L ? `style="--sc:${L[1]}"` : ''} title="Set trade status">${L ? sh[T.st] : 'SET'}</button></div>`;
 }
 function lldApvRankLine(p) {
     const O = window._apv.on, cur = playerRanks[p.pid] || null, lb = r => r ? p.pos + '#' + r : '\u2013', a = [];
@@ -2586,18 +2591,18 @@ async function lldApvCtRender() {
         const logo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${fid}.png`;
         const row = p => {
             const rk = lldApvRight(p), cl = lldApvContract(p), cHtml = `<div class="apv-r3 apv-cr">${cl.map(x => `<div>${x}</div>`).join('')}</div>`;
-            p._tp = { sal: '', proj: A.sw ? cHtml : rk, pt: '' };
+            p._tp = { sal: '', proj: rk, pt: '' };
             return '<div class="apv-yc' + (p.under ? '' : ' apv-exp') + '">' + buildUniversalRow({ pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team }, {
                 compact: true, tplKind: 'all', noTabs: true, noDet: true,
                 pill: contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy),
-                topRight: A.sw ? cHtml : rk,
-                tpl: { match: A.sw ? [lldApvRankLine(p)] : cl, sal: '', proj: A.sw ? cHtml : rk, k: { hit: p.capHitNum, yrs: p.years, guar: p.guar }, rk: { salNum: p.salNum } },
-                bottomRight: '',
+                topRight: rk,
+                tpl: { match: cl, sal: '', proj: rk, k: { hit: p.capHitNum, yrs: p.years, guar: p.guar }, rk: { salNum: p.salNum } },
+                bottomRight: '', leftContent: lldApvSetBtn(p),
                 nameChip: lldApvChip(p) + (p.rStat ? p.sBadge : ''),
                 nameSuffix: !p.under ? '<span style="font-size:calc(9px * var(--ts,1)); color:#ef4444; margin-left:6px;">(Expired)</span>' : '',
-                wmSrc: '', ownerHtml: '<span class="apv-oh"></span>', rightContent: '', leftContent: '',
+                wmSrc: '', ownerHtml: '<span class="apv-oh"></span>', rightContent: '',
                 rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;'
-            }) + lldApvLine(p) + ((A.se && p._tr.own) ? lldApvPickHtml(p.pid, p._tr.st) : '') + '</div>';
+            }) + lldApvLine(p) + '</div>';
         };
         if (!list.length) body = '<div class="apv-ctl">No players match.</div>';
         else if (A.cg) {
@@ -2614,6 +2619,7 @@ function lldApvLuGloss() {
     const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
     return `<h4>Matchup</h4>` + t('OPP', 'The team he plays this week.') + t('DEF', 'How many points that defense allows to his position. 1 is the toughest, 32 is the easiest. Green is easy, red is tough.') + t('TIME', 'Kickoff day and time.');
 }
+function lldApvLuStale() { const rs = Array.from(document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]')); return rs.some(r => !r.classList.contains('apv-lu-done') || (r.classList.contains('apv-lu-s') && !(r.nextElementSibling && r.nextElementSibling.classList.contains('lu')))) || document.querySelectorAll('.apv-sl.lu').length > document.querySelectorAll('.player-row.apv-lu-s').length; }
 function lldApvLuBar() {
     const A = window._apv, O = A.on, gs = lldApvGroups(false, 'lu'), allOn = gs.every(g => g[1].every(x => O[x[0]]));
     return `<div id="apv-lu-bar" class="apv-bar"><div class="apv-sh w"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div><div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="0">ⓘ<span class="apv-gtx"> Guide</span></button></div></div>`;
@@ -2621,8 +2627,7 @@ function lldApvLuBar() {
 function lldApvLuRow(el, p) {
     const O = window._apv.on, $r = $(el), pi = $r.find('.lld-pi, .player-info').first(), sv = playerSortBy; playerSortBy = '';
     try {
-        $r.find('.lld-nm .apv-nfl').remove(); $r.find('.lld-nm').first().append(lldApvChip(p));
-        const l1 = el.querySelector('.lld-l1');
+                const l1 = el.querySelector('.lld-l1');
         if (l1) {
             if (l1.dataset.o == null) l1.dataset.o = l1.innerHTML;
             const tmp = document.createElement('div'); tmp.innerHTML = l1.dataset.o; const sp = tmp.querySelectorAll(':scope > span'), parts = [];
@@ -2631,13 +2636,13 @@ function lldApvLuRow(el, p) {
         }
         const l2 = el.querySelector('.lld-l2'); if (l2) l2.style.display = O.df ? '' : 'none';
         const det = el.querySelector('.lld-det'); if (det) { if (det.dataset.o == null) det.dataset.o = det.innerHTML; det.innerHTML = lldApvRight(p); }
-        $r.find('.apv-sl').remove(); const sl = lldApvLine(p); if (sl && pi.length) pi.append(sl);
+        const sl = lldApvLine(p); if (sl) { el.insertAdjacentHTML('afterend', sl.replace('class="apv-sl"', 'class="apv-sl lu"')); el.classList.add('apv-lu-s'); } else el.classList.remove('apv-lu-s');
     } finally { playerSortBy = sv; }
     el.classList.add('apv-lu-done');
 }
 async function lldApvLuEnhance() {
     if (!lldApvLuOn()) return;
-    $('#apv-lu-bar').replaceWith(lldApvLuBar());
+    $('#apv-lu-bar').replaceWith(lldApvLuBar()); document.querySelectorAll('.apv-sl.lu').forEach(x => x.remove());
     const sel = '#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid], .lineup-section[data-section="ir"] .player-row[data-pid], .lineup-section[data-section="taxi"] .player-row[data-pid]';
     const rows = Array.from(document.querySelectorAll(sel)); if (!rows.length) return;
     const seq = window._apvLuSeq = (window._apvLuSeq || 0) + 1, me = String(myFid).padStart(4, '0'), map = {}, players = [];
@@ -2659,7 +2664,7 @@ async function lldApvLuEnhance() {
     if (seq !== window._apvLuSeq) return;
     rows.forEach(r => { const p = U.map[String(r.dataset.pid)]; if (p) lldApvLuRow(r, p); });
 }
-;(function () { let t = null; try { new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (lldApv() && lldApvLuOn() && document.querySelector('#slots-starters .player-row[data-pid]:not(.empty-slot):not(.apv-lu-done), #slots-bench .player-row[data-pid]:not(.apv-lu-done)')) lldApvLuEnhance(); } catch (e) { } }, 500); }).observe(document.body, { childList: true, subtree: true }); } catch (e) { } })();
+;(function () { let t = null; try { new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (lldApv() && lldApvLuOn() && lldApvLuStale()) lldApvLuEnhance(); } catch (e) { } }, 500); }).observe(document.body, { childList: true, subtree: true }); } catch (e) { } })();
 function lldApvSpark(p) {
     const x0 = p._ap; if (!x0 || !x0.g.some(v => v != null)) return '';
     const g = x0.g, n = g.length, W2 = 300, H = 62, pad = 8, th = [x0.T.hi, x0.T.lo], vals = g.filter(v => v != null);
