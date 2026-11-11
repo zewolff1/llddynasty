@@ -2289,6 +2289,7 @@ function lldPosString(sel) { return sel.length >= LLD_PF_ALL.length ? '*' : LLD_
 function lldPosBarHtml() {
     const sel = playerPosSel, full = sel.length >= LLD_PF_ALL.length, same = a => sel.length === a.length && a.every(x => sel.indexOf(x) >= 0);
     const pb = x => `<button type="button" class="lld-pf-b p${!full && sel.indexOf(x) >= 0 ? ' active' : ''}" data-p="${x}">${x}</button>`;
+    try { if (lldApv()) return `<div class="lld-pf cmp"><button type="button" class="lld-pf-b g lld-pf-all${full ? ' active' : ''}" data-g="all">ALL</button><i></i>${LLD_PF_OFF.map(pb).join('')}<i></i>${LLD_PF_DEF.map(pb).join('')}</div>`; } catch (e) { }
     return `<div class="lld-pf">
         <button type="button" class="lld-pf-b g lld-pf-all${full ? ' active' : ''}" data-g="all">All</button>
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_OFF) ? ' active' : ''}" data-g="off">Offense</button><div class="lld-pf-ps">${LLD_PF_OFF.map(pb).join('')}</div></div>
@@ -2298,7 +2299,7 @@ function lldPosBarHtml() {
 const LLD_APV_GR = [['RANKING', [['now', 'NOW', 'Current'], ['ros', 'ROS', 'Rest of season'], ['dyn', 'DYN', 'Dynasty']]], ['MATCHUP', [['op', 'OPP', 'Opponent'], ['df', 'DEF', 'Defense rank against his position'], ['tm', 'TIME', 'Kickoff time']]], ['CONTRACT', [['sal', 'SAL', 'Salary'], ['cap', 'CAP', 'Cap hit'], ['gu', 'GUAR', 'Guar %'], ['yr', 'YRS', 'Years']]], ['TRADE', [['yu', 'YOU', 'Weeks he starts for you'], ['th', 'THEM', 'Weeks he starts for them'], ['tp', 'TEAMS', 'Share of teams that would start him'], ['fit', 'FIT', 'Cap fit'], ['bk', 'BLOCK', 'Trade block status']]], ['STATS', [['bb', 'BOOM', 'Boom %'], ['bu', 'BUST', 'Bust %'], ['co', 'CONS.', 'Consistency']]]];
 const LLD_APV_LOW = { now: 1, ros: 1, dyn: 1, bu: 1 };
 const LLD_APV_NFL = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GBP', 'HOU', 'IND', 'JAC', 'KCC', 'LAC', 'LAR', 'LVR', 'MIA', 'MIN', 'NEP', 'NOS', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SFO', 'TBB', 'TEN', 'WAS'];
-window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, yu: 1, th: 1, tp: 1, fit: 1, bk: 1, op: 1, df: 1, tm: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', st: '', fo: 0, no: 0, so: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', sw: 0, cg: 1, oo: 0, se: 0, ctv: 'all', cv: 'total' };
+window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, yu: 1, th: 1, tp: 1, fit: 1, bk: 1, op: 1, df: 1, tm: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', st: '', fo: 0, no: 0, so: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', sw: 0, cg: 1, oo: 0, se: 0, ctv: 'all', go: '', cv: 'total' };
 try { const u = JSON.parse(localStorage.getItem('lld_apv_ui') || 'null'); if (u) { if (u.on) Object.assign(window._apv.on, u.on); if (u.wl) Object.assign(window._apv.wl, u.wl); if (u.sort) window._apv.sort = u.sort; if (u.dir) window._apv.dir = u.dir; if (u.sw != null) window._apv.sw = u.sw; if (u.cg != null) window._apv.cg = u.cg; } } catch (e) { }
 function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: A.on, wl: A.wl, sort: A.sort, dir: A.dir, sw: A.sw, cg: A.cg })); } catch (e) { } }
 function lldApvCtx() { try { const e = document.getElementById('apv-ct-box'); return !!(e && e.offsetParent !== null); } catch (e) { return false; } }
@@ -2314,7 +2315,7 @@ function lldApvKey(isFA) { const A = window._apv, av = lldApvAvail(isFA); if (!a
 function lldApvVal(p, k) {
     const x = p._ap, ok = x && x.n >= 3;
     switch (k) {
-        case 'now': return playerRanks[p.pid] || null;
+        case 'now': return lldApvNow(p.pid);
         case 'ros': return p._rROS || null;
         case 'dyn': return p._rDYN || null;
         case 'sal': return p.salNum; case 'cap': return p.capHitNum; case 'gu': return p.guarNum; case 'yr': return p.yrsNum;
@@ -2340,6 +2341,15 @@ function lldApvCmp(a, b, isFA) {
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
 function lldApvSort(isFA) { playerSortBy = 'apv'; lldApvKey(isFA == null ? lldApvIsFA() : isFA); }
+function lldApvTogHtml(gs) {
+    const A = window._apv, O = A.on, allOn = gs.every(g => g[1].every(x => O[x[0]]));
+    return `<div class="apv-tg"><button type="button" class="apv-oall${allOn ? '' : ' off'}"><b>ALL</b></button>${gs.map(([t, it]) => { const n = it.filter(x => O[x[0]]).length; return `<button type="button" class="apv-gc${A.go === t ? ' open' : ''}${n ? '' : ' off'}" data-g="${t}">${t}<b>${n}/${it.length} ${A.go === t ? '▴' : '▾'}</b></button>`; }).join('')}</div>` + gs.map(([t, it]) => `<div class="apv-gp" data-g="${t}"${A.go === t ? '' : ' hidden'}><div class="apv-gpt">${t}<button type="button" class="apv-ogh" data-g="${t}">${it.every(x => O[x[0]]) ? 'Hide all' : 'Show all'}</button></div>${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>`).join('');
+}
+$(document).on('click', '.apv-gc', function () {
+    const A = window._apv, g = this.dataset.g; A.go = A.go === g ? '' : g; const bar = $(this).closest('.apv-bar');
+    bar.find('.apv-gc').each(function () { const on = this.dataset.g === A.go; $(this).toggleClass('open', on); const b = $(this).find('b'); b.text(b.text().replace(/[▴▾]/, on ? '▴' : '▾')); });
+    bar.find('.apv-gp').each(function () { $(this).prop('hidden', this.dataset.g !== A.go); });
+});
 function lldApvBar(isFA) {
     const A = window._apv, O = A.on, esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     if (A.view !== 'all' && A.view !== 'weekly') A.view = 'all';
@@ -2355,8 +2365,7 @@ function lldApvBar(isFA) {
         const wAll = WG.every(g => g[1].every(x => A.wl[x[0]]));
         top = `<div class="apv-sh"><div class="apv-g all"><button type="button" class="apv-wall${wAll ? ' on' : ''}">ALL</button></div>${WG.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-wgh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
     } else {
-        const allOn = gs.every(g => g[1].every(x => O[x[0]]));
-        top = `<div class="apv-sh w"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
+        top = lldApvTogHtml(gs);
     }
     const sw = `<div class="apv-views" style="grid-template-columns:repeat(${cx ? 3 : 2},1fr)">${(cx ? [['all', 'List'], ['weekly', 'Week by week'], ['year', 'Year by year']] : [['all', 'List'], ['weekly', 'Week by week']]).map(([v, l]) => `<button type="button" class="apv-v${vw === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL', sN = A.st ? (A.st === 'X' ? 'NO LABEL' : LLDTB_ST[A.st][2].toUpperCase()) : 'ALL STATUS';
@@ -2482,7 +2491,22 @@ async function lldApvTradeLoad(players, isFA) {
         p._tr = t;
     });
 }
+async function lldApvUni() {
+    const d = await lldApvWeekData(); await lldMflNameDb();
+    if (window._apvUR && window._apvUR.d === d) return window._apvUR;
+    const P = window._mflPos || {}, tot = {}, ros = {}, dyn = {}, g1 = {};
+    for (let w = d.cw; w <= 18; w++) { const m = d.pj[w] || {}; Object.keys(m).forEach(id => { const v = m[id]; if (v > 0) tot[id] = (tot[id] || 0) + v; }); }
+    Object.keys(tot).forEach(id => { const g = dynGrp(P[id] || ''); if (g) (g1[g] = g1[g] || []).push(id); });
+    Object.keys(g1).forEach(g => g1[g].sort((a, b) => tot[b] - tot[a]).forEach((id, i) => { ros[id] = i + 1; }));
+    try {
+        const Dy = await lldDynFirst(['dp', 'dynasty', 'career', 'y27']), g2 = {};
+        if (Dy) { Object.keys(Dy.byPid).forEach(id => { const v = Dy.byPid[id]; if (v && v.pts > 0) { const g = v.grp || dynGrp(P[id] || ''); if (g) (g2[g] = g2[g] || []).push(id); } }); Object.keys(g2).forEach(g => g2[g].sort((a, b) => Dy.byPid[b].pts - Dy.byPid[a].pts).forEach((id, i) => { dyn[id] = i + 1; })); }
+    } catch (e) { }
+    window._apvUR = { d, ros, dyn }; return window._apvUR;
+}
+function lldApvNow(pid) { return (playerRanks[pid] && playerAverages[pid] > 0) ? playerRanks[pid] : null; }
 function lldApvRanks(players) {
+    const UR = window._apvUR; if (UR) { players.forEach(p => { p._rROS = UR.ros[p.pid] || null; p._rDYN = UR.dyn[p.pid] || null; }); return; }
     const grp = {};
     players.forEach(p => { (grp[p.pos] = grp[p.pos] || []).push(p); });
     Object.keys(grp).forEach(k => {
@@ -2493,7 +2517,7 @@ function lldApvRanks(players) {
 }
 function lldApvRight(p) {
     const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
-    const cur = playerRanks[p.pid] || null, avg = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0';
+    const cur = lldApvNow(p.pid), avg = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0';
     const lb = r => r ? p.pos + '#' + r : '–';
     const df = r => { if (!cur || !r) return '<s></s>'; const d = cur - r; return d === 0 ? '<s class="eq">–</s>' : d > 0 ? `<s class="up">▲${d}</s>` : `<s class="dn">▼${-d}</s>`; };
     const r = [];
@@ -2543,7 +2567,7 @@ function lldApvSetBtn(p) {
     return `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn apv-set apv-sb${L ? ' has' : ''}" data-apvset="${p.pid}" ${L ? `style="--sc:${L[1]}"` : ''} title="Set trade status">${L ? sh[T.st] : 'SET'}</button></div>`;
 }
 function lldApvRankLine(p) {
-    const O = window._apv.on, cur = playerRanks[p.pid] || null, lb = r => r ? p.pos + '#' + r : '\u2013', a = [];
+    const O = window._apv.on, cur = lldApvNow(p.pid), lb = r => r ? p.pos + '#' + r : '\u2013', a = [];
     if (O.now) a.push(`<b>NOW</b> ${cur ? p.pos + '#' + cur : 'NR'}`); if (O.ros) a.push(`<b>ROS</b> ${lb(p._rROS)}`); if (O.dyn) a.push(`<b>DYN</b> ${lb(p._rDYN)}`);
     return a.join(' \u00B7 ');
 }
@@ -2587,7 +2611,7 @@ async function lldApvCtRender() {
             all = players.concat(Object.keys(playerSeason).filter(id => !mine[id] && P[id]).map(id => ({ pid: id, pos: dynGrp(P[id]), realPos: P[id] })));
             window._apvD = await lldApvWeekData(); await lldApvCalc(all, window._apvD);
             const Dy = await lldDynFirst(['dp', 'dynasty', 'career', 'y27']); if (Dy) all.forEach(p => { p._dyn = Dy.byPid[p.pid] || null; });
-            lldApvRanks(all);
+            await lldApvUni(); lldApvRanks(all);
         } catch (e) { console.warn('apv ct data', e); window._apvErr = String(e && e.message || e); }
         let S = null; try { S = await lldStatsLoad(); } catch (e) { }
         let lab = {}; try { const tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({})); lab = lldTbLabels({ tb, baits, rosters: (S && S.D.rosters) || {} }, fid); if (C.mode == null) C.mode = (tb.by[me] || {}).m || ''; } catch (e) { console.warn('apv ct labels', e); }
@@ -2650,8 +2674,7 @@ function lldApvLuGloss() {
 }
 function lldApvLuStale() { const rs = Array.from(document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]')); return rs.some(r => !r.classList.contains('apv-lu-done') || (r.classList.contains('apv-lu-s') && !(r.nextElementSibling && r.nextElementSibling.classList.contains('lu')))) || document.querySelectorAll('.apv-sl.lu').length > document.querySelectorAll('.player-row.apv-lu-s').length; }
 function lldApvLuBar() {
-    const A = window._apv, O = A.on, gs = lldApvGroups(false, 'lu'), allOn = gs.every(g => g[1].every(x => O[x[0]]));
-    return `<div id="apv-lu-bar" class="apv-bar"><div class="apv-sh w"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div><div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="0">ⓘ<span class="apv-gtx"> Guide</span></button></div></div>`;
+    return `<div id="apv-lu-bar" class="apv-bar">${lldApvTogHtml(lldApvGroups(false, 'lu'))}<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="0">\u24D8<span class="apv-gtx"> Guide</span></button></div></div>`;
 }
 function lldApvLuRow(el, p) {
     const O = window._apv.on, $r = $(el), pi = $r.find('.lld-pi, .player-info').first(), sv = playerSortBy; playerSortBy = '';
@@ -2686,7 +2709,7 @@ async function lldApvLuEnhance() {
             all = players.concat(Object.keys(playerSeason).filter(id => !map[id] && P[id]).map(id => ({ pid: id, pos: dynGrp(P[id]), realPos: P[id] })));
             window._apvD = await lldApvWeekData(); await lldApvCalc(all, window._apvD);
             const Dy = await lldDynFirst(['dp', 'dynasty', 'career', 'y27']); if (Dy) all.forEach(p => { p._dyn = Dy.byPid[p.pid] || null; });
-            lldApvRanks(all);
+            await lldApvUni(); lldApvRanks(all);
         } catch (e) { console.warn('apv lu data', e); }
         U.map = map;
     }
@@ -2713,7 +2736,7 @@ function lldApvYearTable(players, fid) {
     return tog + lg + `<div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">${mode === 'sal' ? 'Total' : 'Sum'}</th>${Y.map(y => `<th>${y}</th>`).join('')}</tr>${rows}</table></div>`;
 }
 function lldApvExSteps(kind) {
-    const bar = ['Toggles', 'Tap any item to show or hide it on every row. Tap a group title (Ranking, Contract, Trade, Stats) to switch the whole group, or ALL for everything.', '.apv-sh'];
+    const bar = ['Toggles', 'Tap a group (Ranking, Contract, Trade, Stats) to open its items, then tap an item to show or hide it on every row. Show all / Hide all switches the whole group, and ALL switches everything.', '.apv-tg'];
     const nm = ['Who he is', 'His name and position. Tap the name for his full player card.', '.lld-nm'];
     const rk = ['His ranks', 'NOW is his rank this season, with his average. ROS is his rank for the rest of the season, then DYN is his dynasty rank. The arrow shows if that rank is better (▲) or worse (▼) than his current one.', '.apv-r3'];
     const sl = ['Stats line', 'Boom is the share of his games that were big weeks and bust the share that were bad ones. The bar shows how steady he is (consistency).' + (kind === 'lu' ? '' : ' “start for you” is how many weeks he would be in your lineup.' + (kind === 'ct' ? ' The % is how many teams in the league would start him.' : ' “start for them” is how many weeks he starts for his own team.')), '.apv-sl'];
@@ -2741,9 +2764,9 @@ function lldApvExOpen(btn) {
 }
 function lldApvExDraw() {
     const E = window._lldEx, X = E.apv, o = $('#lld-tm-pop .sh'); if (!X || !o.length) return;
-    const e = lldChatEsc, st = X.steps, i = Math.max(0, Math.min(E.i, st.length - 1)), S = st[i], onBar = /^\.apv-(sh|views|r2)/.test(S[2]);
+    const e = lldChatEsc, st = X.steps, i = Math.max(0, Math.min(E.i, st.length - 1)), S = st[i], onBar = /^\.apv-(tg|views|r2)/.test(S[2]);
     o.html(`<div class="hd"><div><b>Explain this page</b><span>Step ${i + 1} of ${st.length}</span></div><button type="button" class="x" data-tmx="1">✕</button></div><div class="bd2 ex"><div class="smp" style="pointer-events:none">${onBar ? X.sample.bar : X.sample.row}</div><div class="exc"><b>${e(S[0])}</b><span>${e(S[1])}</span></div><div class="exd">${st.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><div class="exl"><button type="button" data-exp="1">‹ Back</button><button type="button" data-exn="1">Next ›</button><button type="button" data-exr="1">↻ Replay</button></div></div>`);
-    S[2].split(',').forEach(sel => { const h = o.find('.smp').find(sel.trim()); if (/^\.apv-(sh|views|r2)/.test(sel.trim())) o.find('.smp ' + sel.trim()).addClass('hl'); else h.addClass('hl'); });
+    S[2].split(',').forEach(sel => { const h = o.find('.smp').find(sel.trim()); if (/^\.apv-(tg|views|r2)/.test(sel.trim())) o.find('.smp ' + sel.trim()).addClass('hl'); else h.addClass('hl'); });
 }
 function lldApvSpark(p) {
     const x0 = p._ap; if (!x0 || !x0.g.some(v => v != null)) return '';
@@ -10638,7 +10661,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         try { window._apvD = await lldApvWeekData(); await lldApvCalc(players, window._apvD); } catch (e) { console.warn('apv week data', e); window._apvErr = String(e && e.message || e); window._apvD = null; }
     }
     if (lldApv() && window._apv.view === 'all') { try { await lldApvTradeLoad(players, isFAView); } catch (e) { console.warn('apv trade', e); } }
-    if (lldApv()) { try { lldApvRanks(players); } catch (e) { console.warn('apv ranks', e); } }
+    if (lldApv()) { try { await lldApvUni(); } catch (e) { console.warn('apv uni', e); } try { lldApvRanks(players); } catch (e) { console.warn('apv ranks', e); } }
     // Sort
     players.sort((a, b) => {
         if (lldApv()) return lldApvCmp(a, b, isFAView);
@@ -10984,7 +11007,7 @@ container.find('#players-loader').remove();
             if (window._apvErr) container.append(note(`Couldn't load the week-by-week data (${window._apvErr}).`));
             else if (A.view === 'all') container.append(note('NOW / ROS / DYN are position ranks. The arrow is how far ROS or Dynasty sits from his current rank (green = better). ROS adds up MFL\u2019s weekly projections to Week 18. Boom = a top-25% game for his position, bust = a bottom-25% game, as a share of games played. Steady / Average / Volatile compares how much his scores swing with other starters at the position (needs 3+ games).'));
         }
-        if (isFAView) lldFaFitAnnotate(container);
+        if (isFAView && !lldApv()) lldFaFitAnnotate(container);
 }
 function lldFaFitChip(S, pid, pos) {
     const D = S.D; if (!D.pinfo[pid]) D.pinfo[pid] = { name: '', pos: lldSxPos(pos), team: '' }; else if (!D.pinfo[pid].pos) D.pinfo[pid].pos = lldSxPos(pos);
