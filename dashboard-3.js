@@ -2416,7 +2416,7 @@ function lldApvBar(isFA) {
     const pf = (isFA || cx) ? '' : `<div class="apv-panel" data-pn="fo"${A.fo ? '' : ' hidden'}><h3>Fantasy team</h3><div class="apv-pc"><button type="button" class="apv-pk${A.ft ? '' : ' on'}" data-k="ft" data-v="">All teams</button>${Object.keys(leagueFranchises).map(f => `<button type="button" class="apv-pk${A.ft === f ? ' on' : ''}" data-k="ft" data-v="${f}"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" alt="">${esc(leagueFranchises[f])}</button>`).join('')}</div></div>`;
     const ps = isFA ? '' : `<div class="apv-panel" data-pn="so"${A.so ? '' : ' hidden'}><h3>Trade block status</h3><div class="apv-pc"><button type="button" class="apv-pk${A.st ? '' : ' on'}" data-k="st" data-v="">All</button>${['S', 'W', 'U', 'N'].map(k => `<button type="button" class="apv-pk${A.st === k ? ' on' : ''}" data-k="st" data-v="${k}"><i class="apv-dot" style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</button>`).join('')}<button type="button" class="apv-pk${A.st === 'X' ? ' on' : ''}" data-k="st" data-v="X">No label</button></div></div>`;
     const po = ownT ? `<div class="apv-panel" data-pn="oo"${A.oo ? '' : ' hidden'}><h3>Your team outlook</h3><div class="apv-pc">${Object.keys(LLDTB_MODES).map(k => `<button type="button" class="apv-oo${window._apvCt.mode === k ? ' on' : ''}" data-m="${k}"><i class="apv-dot" style="background:${LLDTB_MODES[k][2]}"></i>${LLDTB_MODES[k][0]}</button>`).join('')}</div></div>` : '';
-    const r2b = (cx && !yv && !wk) ? `<div class="apv-r2"><button type="button" class="apv-b apv-ct2${A.cg ? ' act' : ''}" data-k="cg">\u2630 Group by position</button></div>` : '';
+    const r2b = (cx && !yv && !wk) ? `<div class="apv-r2"><button type="button" class="apv-b apv-ct2${A.cg ? ' act' : ''}" data-k="cg">\u2630 Group by position</button><button type="button" class="apv-b apv-rf" title="Reload stats and projections now">\u21BB Refresh</button></div>` : '';
     const pn = cx ? '' : `<div class="apv-panel" data-pn="no"${A.no ? '' : ' hidden'}><h3>NFL team</h3><div class="apv-pc nfl"><button type="button" class="apv-pk${A.nt ? '' : ' on'}" data-k="nt" data-v="">All teams</button>${LLD_APV_NFL.map(a => `<button type="button" class="apv-pk${A.nt === a ? ' on' : ''}" data-k="nt" data-v="${a}">${a}</button>`).join('')}</div></div>`;
     return `<div class="apv-bar">${top}${sw}${wk ? `<div class="apv-wn"><button type="button" data-d="-1">◀</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">▶</button></div>` : ''}${row}${r2b}${pf}${ps}${po}${pn}</div>`;
 }
@@ -2444,6 +2444,8 @@ async function lldApvWeekData() {
     if (!cw0) { try { const S0 = await lldStatsLoad(); const done = S0.D.weeks.filter(x => x.teams && Object.keys(x.teams).some(f => (x.teams[f].score || 0) > 0)).map(x => x.wk); cw0 = done.length ? Math.max.apply(0, done) + 1 : 0; } catch (e) { } }
     const cw = Math.min(Math.max(cw0 || 1, 1), 18), key = year + '|' + lid + '|' + cw;
     if (window._apvWD && window._apvWD.key === key && Date.now() - window._apvWD.at < 600000) return window._apvWD.d;
+    const idk = 'wd_' + key + '_' + myFid;
+    try { const c = await lldIdbGet(idk); if (c && c.d && Date.now() - c.t < lldGameTtl() && c.d.got > 0) { window._apvWD = { key, at: Date.now(), d: c.d }; return c.d; } } catch (e) { }
     const d = { cw, sc: {}, pj: {}, sched: {}, fail: [] }, jobs = [];
     const getW = async w => {
         const ck = `lld_c_ps_${year}_${lid}_${w}`, c = lldLsGet(ck, 365 * 86400000);
@@ -2478,6 +2480,7 @@ async function lldApvWeekData() {
     } catch (e) { console.warn('apv engine scores', e); }
     d.got = Object.keys(d.sc).filter(w => Object.keys(d.sc[w] || {}).length).length;
     window._apvWD = { key, at: Date.now(), d };
+    if (d.got > 0 && !d.fail.length) { try { await lldIdbSet(idk, { t: Date.now(), d }); } catch (e) { } }
     return d;
 }
 async function lldApvCalc(players, d) {
@@ -2728,6 +2731,11 @@ async function lldApvCtRender() {
     box.innerHTML = head() + nt + rs + body + pkh;
     try { lldTbDeadlineFill(); } catch (e) { }
 }
+$(document).on('click', '.apv-rf', async function () {
+    const C = window._apvCt; if (!C) return; $(this).text('Refreshing\u2026');
+    try { await lldIdbClear(); window._lldSX = null; window._apvWD = null; window._apvUR = null; window._apvNowMap = null; Object.keys(localStorage).filter(k => /^lld_c_(proj|schedule|leagueStandings|rosters|freeAgents)/.test(k)).forEach(k => localStorage.removeItem(k)); window._weekProjScoreCache = {}; } catch (e) { }
+    C.ready = false; lldApvCtRender();
+});
 $(document).on('click', '.apv-restore', async function () {
     const C = window._apvCt; if (!C || !C.restore) return;
     try { const me = String(myFid).padStart(4, '0'), d = await lldTbLoad(true), by = d.by[me] || { m: '', p: {} }; if (d.stale || !d.tid) throw new Error('board unavailable'); await lldTbSave(by.m, Object.assign({}, C.restore, by.p)); C.restore = null; C.ready = false; } catch (e) { window._apvCtNote = 'Could not restore right now. Try again in a moment.'; }
@@ -23813,6 +23821,14 @@ let _lldSxLast = 0;
 function lldLsGet(key, ttl) { try { const o = JSON.parse(localStorage.getItem(key) || 'null'); if (o && Date.now() - o.t < ttl) return o.v; } catch (e) { } return null; }
 function lldLsSet(key, v) { try { const s = JSON.stringify({ t: Date.now(), v }); if (s.length < 900000) localStorage.setItem(key, s); } catch (e) { try { Object.keys(localStorage).filter(k => /^lld_c_/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e2) { } } }
 const LLD_SX_TTL = { players: 86400000, playerScores: 86400000, league: 86400000, rosters: 900000, freeAgents: 900000, leagueStandings: 300000, schedule: 300000 };
+function lldIdb() { return window._lldIdbP || (window._lldIdbP = new Promise(res => { try { const r = indexedDB.open('lld_cache', 1); r.onupgradeneeded = () => { r.result.createObjectStore('kv'); }; r.onsuccess = () => res(r.result); r.onerror = () => res(null); r.onblocked = () => res(null); } catch (e) { res(null); } })); }
+async function lldIdbGet(k) { const db = await lldIdb(); if (!db) return null; return new Promise(res => { try { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); } catch (e) { res(null); } }); }
+async function lldIdbSet(k, v) { const db = await lldIdb(); if (!db) return; return new Promise(res => { try { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(1); tx.onerror = () => res(0); tx.onabort = () => res(0); } catch (e) { res(0); } }); }
+async function lldIdbClear() { const db = await lldIdb(); if (!db) return; return new Promise(res => { try { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').clear(); tx.oncomplete = () => res(1); tx.onerror = () => res(0); } catch (e) { res(0); } }); }
+// stats only change after games: on NFL game days (Thu, Sun, Mon, early Tue/Fri) a saved copy lasts 20 minutes, every other day 12 hours
+function lldGameTtl() {
+    try { const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })), w = d.getDay(), h = d.getHours(); const live = w === 4 || w === 0 || w === 1 || ((w === 2 || w === 5) && h < 6); return live ? 20 * 60000 : 12 * 3600000; } catch (e) { return 20 * 60000; }
+}
 async function lldSxJson(type, extra) {
     const ck = LLD_SX_TTL[type] ? `lld_c_${type}_${year}_${lid}_${extra || ''}`.slice(0, 180) : null;
     if (ck) { const c = lldLsGet(ck, LLD_SX_TTL[type]); if (c) return c; }
@@ -23861,6 +23877,8 @@ async function lldStatsLoad(force) {
     const prog = m => { $('.lld-sx-loading').text(m); };
     window._lldSXp = (async () => {
         window._lldSXdiag = '';
+        const idk = 'sx_' + year + '_' + lid + '_' + myFid;
+        if (!force) { try { const c = await lldIdbGet(idk); if (c && c.D && Date.now() - c.t < lldGameTtl()) { prog('Loading saved stats\u2026'); const S0 = lldStatsBuild(c.D); window._lldSX = { S: S0, t: Date.now() }; return S0; } } catch (e) { console.warn('stats cache', e); } }
         const cfg = Object.assign({ reg: 14, playoffTeams: 6, byes: 2, boomPct: 0.25 }, LLD.stats || {});
         await lldEnsureFranchiseNames();
         const fids = Object.keys(leagueFranchises).sort();
@@ -23935,6 +23953,7 @@ async function lldStatsLoad(force) {
         } catch (e) { console.warn('stats free agents', e); }
         prog('Crunching numbers…');
         await new Promise(r => setTimeout(r, 30));
+        try { await lldIdbSet(idk, { t: Date.now(), D }); } catch (e) { }
         const S = lldStatsBuild(D);
         window._lldSX = { S, t: Date.now() };
         return S;
