@@ -2531,14 +2531,15 @@ async function lldApvUni() {
     return U;
 }
 function lldApvNowBuild() {
-    const ps = playerSeason || {}, ids = Object.keys(ps); if (!ids.length) return;
-    const P = window._mflPos || {}, px = window._apvPosX || {}; let mx = 0; ids.forEach(id => { mx = Math.max(mx, (ps[id] && ps[id].gp) || 0); });
-    const mg = mx >= 4 ? 3 : 1, g = {}, m = {};
-    ids.forEach(id => { const x = ps[id]; if (!x || !(x.avg > 0) || (x.gp || 0) < mg) return; const k = dynGrp(P[id] || px[id] || ''); if (k) (g[k] = g[k] || []).push(id); });
-    Object.keys(g).forEach(k => g[k].sort((a, b) => ps[b].avg - ps[a].avg).forEach((id, i) => { m[id] = i + 1; }));
-    window._apvNowMap = m;
+    const ps = playerSeason || {}, ids = Object.keys(ps); if (!ids.length) { window._apvNowMap = null; return; }
+    const P = window._mflPos || {}, px = window._apvPosX || {}; let mx = 0, hasAvg = false;
+    ids.forEach(id => { const x = ps[id] || {}; mx = Math.max(mx, x.gp || 0); if (x.avg > 0) hasAvg = true; });
+    const mg = hasAvg && mx >= 4 ? 3 : 1, g = {}, m = {}, key = id => hasAvg ? ps[id].avg : ps[id].pts;
+    ids.forEach(id => { const x = ps[id]; if (!x || !(key(id) > 0) || (hasAvg && (x.gp || 0) < mg)) return; const k = dynGrp(P[id] || px[id] || ''); if (k) (g[k] = g[k] || []).push(id); });
+    Object.keys(g).forEach(k => g[k].sort((a, b) => key(b) - key(a)).forEach((id, i) => { m[id] = i + 1; }));
+    window._apvNowMap = Object.keys(m).length ? m : null;
 }
-function lldApvNow(pid) { if (!window._apvNowMap) lldApvNowBuild(); return (window._apvNowMap || {})[pid] || null; }
+function lldApvNow(pid) { if (!window._apvNowMap) lldApvNowBuild(); const m = window._apvNowMap; if (m) return m[pid] || null; return (playerRanks[pid] && playerAverages[pid] > 0) ? playerRanks[pid] : null; }
 function lldApvRanks(players) {
     const px = window._apvPosX = window._apvPosX || {};
     players.forEach(p => { const g = dynGrp(p.pos || p.realPos || ''); if (g) px[p.pid] = g; });
@@ -23474,6 +23475,7 @@ $(document).on('click', '#lld-tm-pop [data-tmf]', function () { window._lldTm.fl
 $(document).on('click', '#lld-tm-pop [data-tme]', function () { const k = this.dataset.tme; window._lldTm.exp[k] = !window._lldTm.exp[k]; lldTmDraw(); });
 $(document).on('click', '#lld-tm-pop', function (ev) { if (ev.target.id === 'lld-tm-pop' || $(ev.target).closest('[data-tmx]').length) $('#lld-tm-pop').removeClass('on'); });
 function lldTrBar(mode) {
+    if (lldApv()) { $('#lld-tr-bar').remove(); return; }
     $('#lld-tr-bar').remove(); const c = $('#league-content-container'); if (!c.length) return;
     c.before(`<div id="lld-tr-bar" style="display:flex;gap:6px;justify-content:center;padding:8px 10px 0;">${[['block', 'Trade Block'], ['hub', 'Trades']].map(([v, l]) => `<button type="button" class="lld-tr-btn" data-v="${v}" style="padding:7px 16px;border-radius:999px;font-size:calc(11px * var(--ts,1));font-weight:900;text-transform:uppercase;cursor:pointer;border:1px solid ${mode === v ? 'var(--accent-blue)' : 'var(--card-border)'};background:${mode === v ? 'var(--accent-blue)' : 'rgba(255,255,255,.05)'};color:${mode === v ? '#fff' : 'var(--text-dim)'}">${l}</button>`).join('')}</div>`);
 }
@@ -24019,7 +24021,7 @@ function lldMyBlockTab() {
         $('#subtabs-team .sub-tab-btn').each(function () {
             const t = $(this).text().trim().toLowerCase();
             if (this.dataset.mtb) { delete this.dataset.mtb; this.textContent = 'Trade'; this.setAttribute('onclick', "openSubTab(event,'trade')"); }
-            if (t === 'contracts') this.textContent = 'Manage';
+            if (/contracts/.test(t)) { const w = document.createTreeWalker(this, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (/contracts/i.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(/contracts/i, 'Manage'); } }
             $(this).show();
         });
         return;
