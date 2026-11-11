@@ -2641,7 +2641,7 @@ function lldApvCtGloss() {
 $(document).on('click', '.apv-ct2', function () { const A = window._apv, k = this.dataset.k; A[k] = A[k] ? 0 : 1; lldApvSave(); lldApvReload(); });
 $(document).on('click', '.apv-set', function (e) {
     e.stopPropagation(); const row = $(this).closest('.apv-yc'), had = row.children('.apv-pick').length; $('.apv-pick').remove(); if (had) return;
-    const pl = ((window._apvCt || {}).players || []).find(x => x.pid === String(this.dataset.apvset)); row.append(lldApvPickHtml(this.dataset.apvset, pl && pl._tr ? pl._tr.st : ''));
+    const pl = ((window._apvCt || {}).players || []).find(x => x.pid === String(this.dataset.apvset)); const C0 = window._apvCt || {}, pk0 = String(this.dataset.apvset); row.append(lldApvPickHtml(pk0, pl && pl._tr ? pl._tr.st : (C0.pl && C0.pl[pk0] ? lldTbParseLabel(C0.pl[pk0]).s : '')));
 });
 $(document).on('click', '.apv-pick button', async function (e) {
     e.stopPropagation(); const C = window._apvCt, pid = String($(this).closest('.apv-pick').data('pid')), k = this.dataset.k; if (!C || !C.own) return;
@@ -2650,7 +2650,7 @@ $(document).on('click', '.apv-pick button', async function (e) {
         if (d.stale || !d.tid) { window._apvCtNote = 'Could not read the trade board just now, so nothing was changed. Try again in a moment.'; lldApvCtRender(); return; }
         if (k) p[pid] = lldTbMakeLabel(k, k === 'S' ? lldTbParseLabel(p[pid]).a : []); else delete p[pid];
         await lldTbSave(by.m, p);
-        const pl = (C.players || []).find(x => x.pid === pid); if (pl && pl._tr) pl._tr.st = k;
+        const pl = (C.players || []).find(x => x.pid === pid); if (pl && pl._tr) pl._tr.st = k; C.pl = C.pl || {}; if (k) C.pl[pid] = p[pid]; else delete C.pl[pid];
     } catch (err) { console.warn('apv status save', err); }
     lldApvCtRender();
 });
@@ -2685,6 +2685,8 @@ async function lldApvCtRender() {
         });
         C.restore = null;
         try { const tb2 = await lldTbLoad(), mine = (tb2.by[me] || {}).p || {}; if (C.own && !tb2.stale && !Object.keys(mine).length) { const h = (tb2.hist || []).slice().reverse().find(x => x.p && Object.keys(x.p).length); if (h) C.restore = h.p; } } catch (e) { }
+        try { const tb3 = await lldTbLoad(); C.pl = (tb3.by[fid] || {}).p || {}; } catch (e) { C.pl = C.pl || {}; }
+        try { C.proj = await lldApvProj(); } catch (e) { C.proj = null; }
         C.players = players; C.ready = true;
     }
     if (document.getElementById('apv-ct-box') !== box) return;
@@ -2722,7 +2724,8 @@ async function lldApvCtRender() {
     }
     const nt = window._apvCtNote ? `<div class="apv-ctl" style="color:#fca5a5">${window._apvCtNote}</div>` : ''; window._apvCtNote = '';
     const rs = (C.restore && C.own) ? `<div class="apv-ctl">Your trade labels look cleared. <button type="button" class="apv-b apv-restore">Restore ${Object.keys(C.restore).length} saved labels</button></div>` : '';
-    box.innerHTML = head() + nt + rs + body;
+    let pkh = ''; try { pkh = lldApvPicksHtml(C); } catch (e) { console.warn('apv picks', e); }
+    box.innerHTML = head() + nt + rs + body + pkh;
     try { lldTbDeadlineFill(); } catch (e) { }
 }
 $(document).on('click', '.apv-restore', async function () {
@@ -2730,6 +2733,57 @@ $(document).on('click', '.apv-restore', async function () {
     try { const me = String(myFid).padStart(4, '0'), d = await lldTbLoad(true), by = d.by[me] || { m: '', p: {} }; if (d.stale || !d.tid) throw new Error('board unavailable'); await lldTbSave(by.m, Object.assign({}, C.restore, by.p)); C.restore = null; C.ready = false; } catch (e) { window._apvCtNote = 'Could not restore right now. Try again in a moment.'; }
     lldApvCtRender();
 });
+async function lldApvProj() {
+    if (window._apvProj && Date.now() - window._apvProj.t < 6e5) return window._apvProj;
+    const r = await fetch(`${MFL_ORIGIN}/${year}/standings?L=${lid}`, { credentials: 'include', cache: 'no-store' });
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+    let maxIdx = -1;
+    doc.querySelectorAll('table.report tr').forEach(tr => { if (maxIdx !== -1) return; const idx = [...tr.querySelectorAll('th')].map(th => th.textContent.replace(/\s+/g, ' ').trim()).findIndex(t => /max\s*pf|max\s*pts|potential/i.test(t)); if (idx !== -1) maxIdx = idx; });
+    const num = x => parseFloat(String(x || '0').replace(/,/g, '')) || 0, teams = [];
+    doc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
+        const m = row.querySelector('td.fname a') && row.querySelector('td.fname a').getAttribute('href').match(/F=(\d+)/i); if (!m) return;
+        const nums = (row.querySelector('td.h2hwlt') ? row.querySelector('td.h2hwlt').textContent : '').match(/\d+/g) || [], w = parseInt(nums[0] || 0), l = parseInt(nums[1] || 0), t = parseInt(nums[2] || 0), gp = w + l + t, cells = row.querySelectorAll('td');
+        const direct = row.querySelector('td.maxpf, td.pp, td.mpf, td.maxpoints'), pf = row.querySelector('td.pf');
+        teams.push({ fid: m[1].padStart(4, '0'), pct: gp ? (w + t / 2) / gp : 0, pf: num(pf && pf.textContent), maxpf: num(direct ? direct.textContent : (maxIdx >= 0 && cells[maxIdx] ? cells[maxIdx].textContent : 0)) });
+    });
+    if (!teams.length || !teams.some(t => t.maxpf > 0)) return null;
+    let known = null; try { known = Object.keys(CHAMPIONSHIPS).find(f => (CHAMPIONSHIPS[f] || []).map(String).includes(String(year))); } catch (e) { }
+    const top = teams.slice().sort((a, b) => b.pct - a.pct || b.pf - a.pf)[0], champ = (known && String(known).padStart(4, '0')) || top.fid;
+    const order = teams.filter(t => t.fid !== champ).sort((a, b) => a.maxpf - b.maxpf || a.pf - b.pf).concat(teams.filter(t => t.fid === champ)).map(t => t.fid);
+    return (window._apvProj = { t: Date.now(), order, champ });
+}
+function lldApvPicksHtml(C) {
+    const A = window._apv, all = window.currentTeamPicks || []; if (!all.length || A.ctv !== 'all' || playerPosSel.length < LLD_PF_ALL.length) return '';
+    const fid = C.fid, ny = parseInt(year, 10) + 1, PL = C.pl || {}, pj = C.proj, pad = n => String(n).padStart(2, '0');
+    const orig = pk => { const vm = String(pk.desc || '').match(/via ([^.)]+)/); if (vm) { const n = vm[1].trim().toLowerCase(), f = Object.keys(leagueFranchises).find(id => String(leagueFranchises[id]).toLowerCase().trim() === n); if (f) return { f, via: leagueFranchises[f] }; if (vm[1].trim()) return { f: '', via: vm[1].trim() }; } return { f: fid, via: '' }; };
+    let list = all.map(pk => { const o = orig(pk), key = 'PK_' + pk.year + '_' + pk.round + '_' + (o.f || o.via.replace(/\W+/g, '')); const l = PL[key]; return { pk, o, key, st: l ? lldTbParseLabel(l).s : '' }; });
+    list.sort((a, b) => (+a.pk.year - +b.pk.year) || (+a.pk.round - +b.pk.round) || ((a.o.via ? 1 : 0) - (b.o.via ? 1 : 0)));
+    if (A.pr && A.pr !== 'ALL') list = list.filter(x => 'R' + x.pk.round === A.pr);
+    if (A.st) list = list.filter(x => A.st === 'X' ? !x.st : x.st === A.st);
+    const rs = ['ALL', 'R1', 'R2', 'R3', 'R4', 'R5'], bar = `<div class="lld-pf cmp apv-prb">${rs.map(r => `<button type="button" class="lld-pf-b p apv-pr${(A.pr || 'ALL') === r ? ' active' : ''}" data-r="${r}">${r}</button>`).join('')}</div>`;
+    const rows = list.map(x => {
+        const pk = x.pk, T = { own: C.own, st: x.st }, p = { pid: x.key, pos: 'PICK', _tr: T };
+        let right = '';
+        if (pk.pickStr) right = `<div class="apv-r3"><u>PICK</u><b class="now">${pk.pickStr}</b></div>`;
+        else if (+pk.year === ny && pj && x.o.f) { const i = pj.order.indexOf(x.o.f); if (i >= 0) right = `<div class="apv-r3"><u>PROJ</u><b class="now">${pk.round}.${pad(i + 1)}</b></div>`; }
+        const lg = x.o.f ? `<img src="${getFranchiseLogoUrl(x.o.f)}" onerror="this.style.display='none'" style="width:14px;height:14px;border-radius:50%;object-fit:cover;vertical-align:-2px;margin-right:4px">` : '';
+        const nm = `${pk.year} Round ${pk.round}`;
+        const slim = x.st ? `<div class="apv-sl"><span><b>${LLDTB_ST[x.st][0]}</b></span></div>` : '';
+        return '<div class="apv-yc">' + buildUniversalRow({ pid: x.key, name: nm, shortName: nm, pos: 'PICK', team: '' }, {
+            compact: true, tplKind: 'all', noTabs: true, noDet: true, topRight: right,
+            tpl: { match: [x.o.via ? lg + 'via ' + x.o.via : 'Your own pick', ''], sal: '', proj: right, k: null, rk: null },
+            bottomRight: '', leftContent: lldApvSetBtn(p), nameChip: '', wmSrc: '', ownerHtml: '<span class="apv-oh"></span>', rightContent: '',
+            circleHtml: `<div class="pk-bd r${pk.round}">R${pk.round}</div>`, wmHtml: `<span class="pk-wm">R${pk.round}</span>`,
+            rightSlotStyle: 'margin-left: auto; display: flex; align-items: center;'
+        }) + slim + '</div>';
+    }).join('');
+    return `<div class="apv-ct-gh"><b>DRAFT PICKS</b><span>${list.length}</span></div>${bar}<div class="roster-grid apv-rows" style="padding:0 5px;">${rows || '<div class="apv-ctl">No picks match.</div>'}</div>`;
+}
+$(document).on('click', '.apv-pr', function () { window._apv.pr = this.dataset.r; lldApvCtRender(); });
+;(function () { try { if (!document.getElementById('apv-pk-css')) { const st = document.createElement('style'); st.id = 'apv-pk-css'; st.textContent = `.pk-bd{width:100%;height:100%;display:grid;place-items:center;border-radius:50%;border:2px solid #f59e0b;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:900;font-size:calc(16px * var(--ts,1));box-sizing:border-box}
+.pk-bd.r1{background:#f59e0b;color:#1a1300}
+.row-wm .pk-wm{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:84px;font-weight:900;line-height:1;color:#f59e0b;opacity:.1}
+.apv-prb{margin:6px 5px 8px}`; document.head.appendChild(st); } } catch (e) { } })();
 function lldApvPickHtml(pid, cur) { return `<div class="apv-pick" data-pid="${pid}">${['S', 'W', 'U', 'N'].map(k => `<button type="button" class="${cur === k ? 'on' : ''}" data-k="${k}" style="--sc:${LLDTB_ST[k][1]}">${LLDTB_ST[k][2]}</button>`).join('')}<button type="button" data-k="" class="clr">Clear</button></div>`; }
 function lldApvLuGloss() {
     const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
@@ -3682,8 +3736,9 @@ localStorage.setItem(`fa_mode_${lid}`, window.offseasonMode);
 function applyResignState(isOpen) {
     window._resignOpen = isOpen === true || isOpen === 'true';
 }
-function buildDraftPicksHtml(picks) {
+function buildDraftPicksHtml(picks, mode) {
     if (!picks || picks.length === 0) return '';
+    if (mode === 'ct' && lldApv()) return '';
     
     const picksByYear = {};
     picks.forEach(pick => {
@@ -6204,7 +6259,7 @@ const sal = p.salary || 0;
         // Apply sort direction
         if (playerSortDir === 'asc') contractPlayers.reverse();
         let contractsBuffer = buildGroupedHTML(contractPlayers, 'contracts');
-        let picksBuffer = buildDraftPicksHtml(draftPicks); // NEW: Build the picks UI
+        let picksBuffer = buildDraftPicksHtml(draftPicks, 'ct'); // NEW: Build the picks UI
         
         container.append(`<div class="roster-dashboard" style="background:transparent; border:none; padding:8px 0;">
             <div class="lld-cap-old">${capHeaderHtml}</div>
@@ -14508,9 +14563,9 @@ function lldTplRow(data, opts) {
         right = `${pb ? `<div class="lld-pb">${pb}</div>` : ''}${det ? `<div class="lld-det">${det}</div>` : ''}${rightExtra}`;
     }
     return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row lld-tpl pos-border-${posL} ${opts.extraClasses || ''}" data-tpl="${kind}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
-        <div class="row-wm"><img src="${opts.wmSrc || getNFLLogoUrl(team)}" onerror="this.style.display='none'"></div>
+        <div class="row-wm">${opts.wmHtml != null ? opts.wmHtml : `<img src="${opts.wmSrc || getNFLLogoUrl(team)}" onerror="this.style.display='none'">`}</div>
         ${left ? `<div class="lld-tl">${left}</div>` : ''}
-        <div class="player-img-wrapper"${opts.noPhotoTap ? ' style="pointer-events:none;"' : ''}><div class="player-circle"><img class="row-tiny lld-tl-logo" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"><img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'"></div></div>
+        <div class="player-img-wrapper"${opts.noPhotoTap ? ' style="pointer-events:none;"' : ''}><div class="player-circle">${opts.circleHtml != null ? opts.circleHtml : `<img class="row-tiny lld-tl-logo" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"><img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'">`}</div></div>
         <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div><div style="display:flex; align-items:center; justify-content:center; margin-top:3px;"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;"></div></div>
         <div class="player-info lld-pi">${nameLine}${under}${mid}</div>
         <div class="lld-rt">${right}</div>
@@ -23134,7 +23189,7 @@ async function lldTbData() {
 function lldTbLabels(d, f) {
     // saved labels, plus anyone already on that team's MFL block who has no label yet counts as Willing
     const out = {}; const sv = (d.tb.by[f] || {}).p || {};
-    Object.keys(sv).forEach(id => { out[id] = sv[id]; });
+    Object.keys(sv).forEach(id => { if (!/^PK_/.test(id)) out[id] = sv[id]; });
     ((d.baits[f] || {}).give || []).forEach(id => { if (/^\d+$/.test(id) && !out[id] && (d.rosters[f] || []).indexOf(id) >= 0) out[id] = 'S'; });
     return out;
 }
