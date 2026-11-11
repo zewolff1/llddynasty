@@ -2298,7 +2298,7 @@ function lldPosBarHtml() {
 const LLD_APV_GR = [['RANKING', [['now', 'NOW', 'Current'], ['ros', 'ROS', 'Rest of season'], ['dyn', 'DYN', 'Dynasty']]], ['CONTRACT', [['sal', 'SAL', 'Salary'], ['cap', 'CAP', 'Cap hit'], ['gu', 'GUAR', 'Guar %'], ['yr', 'YRS', 'Years']]], ['TRADE', [['yu', 'YOU', 'Weeks he starts for you'], ['th', 'THEM', 'Weeks he starts for them'], ['fit', 'FIT', 'Cap fit'], ['bk', 'BLOCK', 'Trade block status']]], ['STATS', [['bb', 'BOOM', 'Boom %'], ['bu', 'BUST', 'Bust %'], ['co', 'CONS.', 'Consistency']]]];
 const LLD_APV_LOW = { now: 1, ros: 1, dyn: 1, bu: 1 };
 const LLD_APV_NFL = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GBP', 'HOU', 'IND', 'JAC', 'KCC', 'LAC', 'LAR', 'LVR', 'MIA', 'MIN', 'NEP', 'NOS', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SFO', 'TBB', 'TEN', 'WAS'];
-window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, yu: 1, th: 1, fit: 1, bk: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', fo: 0, no: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
+window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, yu: 1, th: 1, fit: 1, bk: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', st: '', fo: 0, no: 0, so: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', cv: 'total' };
 try { const u = JSON.parse(localStorage.getItem('lld_apv_ui') || 'null'); if (u) { if (u.on) Object.assign(window._apv.on, u.on); if (u.wl) Object.assign(window._apv.wl, u.wl); if (u.sort) window._apv.sort = u.sort; if (u.dir) window._apv.dir = u.dir; } } catch (e) { }
 function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: A.on, wl: A.wl, sort: A.sort, dir: A.dir })); } catch (e) { } }
 function lldApvIsFA() { const b = $('#subtabs-players .sub-tab-btn.active'); return !b.length || b.text().trim().toLowerCase().replace(' ', '-') === 'free-agents'; }
@@ -2350,12 +2350,13 @@ function lldApvBar(isFA) {
         top = `<div class="apv-sh w"><div class="apv-g all"><button type="button" class="apv-oall${allOn ? ' on' : ''}">ALL</button></div>${gs.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-ogh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
     }
     const sw = `<div class="apv-views" style="grid-template-columns:repeat(2,1fr)">${[['all', 'List'], ['weekly', 'Week by week']].map(([v, l]) => `<button type="button" class="apv-v${A.view === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
-    const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL';
+    const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL', sN = A.st ? (A.st === 'X' ? 'NO LABEL' : LLDTB_ST[A.st][2].toUpperCase()) : 'ALL STATUS';
     const menu = `<div class="apv-menu"${A.sm ? '' : ' hidden'}><div class="apv-mh">Sort by (only what is switched on)</div>${avail.map(([k, l, full]) => `<button type="button" class="apv-sk${A.sort === k ? ' on' : ''}" data-k="${k}">${full}${A.sort === k ? ' ✓' : ''}</button>`).join('') || '<div class="apv-mh">Turn something on above.</div>'}<div class="apv-mh" style="margin-top:6px">Order</div><div class="apv-two"><button type="button" class="apv-dir${A.dir === -1 ? ' on' : ''}" data-d="-1">${LLD_APV_LOW[A.sort] ? 'Best first' : 'High to low'}</button><button type="button" class="apv-dir${A.dir === 1 ? ' on' : ''}" data-d="1">${LLD_APV_LOW[A.sort] ? 'Worst first' : 'Low to high'}</button></div></div>`;
-    const row = `<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="${isFA ? 1 : 0}">ⓘ Guide</button>${isFA ? '' : `<button type="button" class="apv-b apv-pb${(A.ft || A.fo) ? ' act' : ''}" data-pn="fo"><span>${esc(fN)}</span> ▾</button>`}<button type="button" class="apv-b apv-pb${(A.nt || A.no) ? ' act' : ''}" data-pn="no"><span>${esc(nN)}</span> ▾</button>${wk ? '' : `<div class="apv-sw"><button type="button" class="apv-b act apv-sm"><span>⇅ ${cur ? cur[2] : 'Nothing on'}</span></button>${menu}</div>`}</div>`;
+    const row = `<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="${isFA ? 1 : 0}">\u24D8<span class="apv-gtx"> Guide</span></button>${isFA ? '' : `<button type="button" class="apv-b apv-pb${(A.ft || A.fo) ? ' act' : ''}" data-pn="fo"><span>${esc(fN)}</span> ▾</button>`}<button type="button" class="apv-b apv-pb${(A.nt || A.no) ? ' act' : ''}" data-pn="no"><span>${esc(nN)}</span> \u25BE</button>${isFA ? '' : `<button type="button" class="apv-b apv-pb${(A.st || A.so) ? ' act' : ''}" data-pn="so"><span>${sN}</span> \u25BE</button>`}${wk ? '' : `<div class="apv-sw"><button type="button" class="apv-b act apv-sm"><span>⇅ ${cur ? cur[2] : 'Nothing on'}</span></button>${menu}</div>`}</div>`;
     const pf = isFA ? '' : `<div class="apv-panel" data-pn="fo"${A.fo ? '' : ' hidden'}><h3>Fantasy team</h3><div class="apv-pc"><button type="button" class="apv-pk${A.ft ? '' : ' on'}" data-k="ft" data-v="">All teams</button>${Object.keys(leagueFranchises).map(f => `<button type="button" class="apv-pk${A.ft === f ? ' on' : ''}" data-k="ft" data-v="${f}"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'" alt="">${esc(leagueFranchises[f])}</button>`).join('')}</div></div>`;
+    const ps = isFA ? '' : `<div class="apv-panel" data-pn="so"${A.so ? '' : ' hidden'}><h3>Trade block status</h3><div class="apv-pc"><button type="button" class="apv-pk${A.st ? '' : ' on'}" data-k="st" data-v="">All</button>${['S', 'W', 'U', 'N'].map(k => `<button type="button" class="apv-pk${A.st === k ? ' on' : ''}" data-k="st" data-v="${k}"><i class="apv-dot" style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</button>`).join('')}<button type="button" class="apv-pk${A.st === 'X' ? ' on' : ''}" data-k="st" data-v="X">No label</button></div></div>`;
     const pn = `<div class="apv-panel" data-pn="no"${A.no ? '' : ' hidden'}><h3>NFL team</h3><div class="apv-pc nfl"><button type="button" class="apv-pk${A.nt ? '' : ' on'}" data-k="nt" data-v="">All teams</button>${LLD_APV_NFL.map(a => `<button type="button" class="apv-pk${A.nt === a ? ' on' : ''}" data-k="nt" data-v="${a}">${a}</button>`).join('')}</div></div>`;
-    return `<div class="apv-bar">${top}${sw}${wk ? `<div class="apv-wn"><button type="button" data-d="-1">◀</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">▶</button></div>` : ''}${row}${pf}${pn}</div>`;
+    return `<div class="apv-bar">${top}${sw}${wk ? `<div class="apv-wn"><button type="button" data-d="-1">◀</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">▶</button></div>` : ''}${row}${pf}${ps}${pn}</div>`;
 }
 function lldApvReload() { const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
 $(document).on('click', '.apv-v', function () { window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
@@ -2368,8 +2369,8 @@ $(document).on('click', '.apv-sm', function (e) { e.stopPropagation(); const A =
 $(document).on('click', '.apv-sk', function () { const A = window._apv; A.sort = this.dataset.k; A.sm = 0; lldApvSave(); lldApvReload(); });
 $(document).on('click', '.apv-dir', function () { const A = window._apv; A.dir = +this.dataset.d; A.sm = 0; lldApvSave(); lldApvReload(); });
 $(document).on('click', function (e) { const A = window._apv; if (A.sm && !$(e.target).closest('.apv-menu').length) { A.sm = 0; $('.apv-menu').prop('hidden', true); } });
-$(document).on('click', '.apv-pb', function () { const A = window._apv, k = this.dataset.pn; A[k] = A[k] ? 0 : 1; $('.apv-panel[data-pn="' + k + '"]').prop('hidden', !A[k]); $(this).toggleClass('act', !!(A[k] || A[k === 'fo' ? 'ft' : 'nt'])); });
-$(document).on('click', '.apv-pk', function () { const A = window._apv, k = this.dataset.k; A[k] = this.dataset.v || ''; A[k === 'ft' ? 'fo' : 'no'] = 0; lldApvReload(); });
+$(document).on('click', '.apv-pb', function () { const A = window._apv, k = this.dataset.pn; A[k] = A[k] ? 0 : 1; $('.apv-panel[data-pn="' + k + '"]').prop('hidden', !A[k]); $(this).toggleClass('act', !!(A[k] || A[({ fo: 'ft', no: 'nt', so: 'st' })[k]])); });
+$(document).on('click', '.apv-pk', function () { const A = window._apv, k = this.dataset.k; A[k] = this.dataset.v || ''; A[({ ft: 'fo', nt: 'no', st: 'so' })[k]] = 0; lldApvReload(); });
 $(document).on('click', '.apv-l', function () { const A = window._apv; A.wl[this.dataset.l] = !A.wl[this.dataset.l]; lldApvSave(); lldApvReload(); });
 $(document).on('click', '.apv-wn button', function () { const w = document.querySelector('.apv-wk'); if (!w) return; if (this.dataset.d === 'now') { const c = w.querySelector('th.cw'); if (c) w.scrollTo({ left: Math.max(0, c.offsetLeft - 190), behavior: 'smooth' }); } else w.scrollBy({ left: 320 * (+this.dataset.d), behavior: 'smooth' }); });
 (function () { let dn = false, x0 = 0, s0 = 0, el = null; document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; const w = e.target.closest && e.target.closest('.apv-wk'); if (!w || e.target.closest('button,a,.team-popup-trigger')) return; dn = true; el = w; x0 = e.clientX; s0 = w.scrollLeft; w.classList.add('drag'); }); document.addEventListener('pointermove', e => { if (dn && el) el.scrollLeft = s0 - (e.clientX - x0); }); document.addEventListener('pointerup', () => { if (el) el.classList.remove('drag'); dn = false; el = null; }); document.addEventListener('wheel', e => { const w = e.target.closest && e.target.closest('.apv-wk'); if (w && e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { w.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false }); })();
@@ -2435,10 +2436,10 @@ function lldApvFitOf(S, pid, pos) {
     } catch (e) { return null; }
 }
 async function lldApvTradeLoad(players, isFA) {
-    const O = window._apv.on; if (!(O.yu || O.th || O.fit || O.bk)) return;
+    const O = window._apv.on, AA = window._apv; if (!(O.yu || O.th || O.fit || O.bk || AA.st)) return;
     const S = await lldStatsLoad(); if (!S) return;
     const me = String(myFid).padStart(4, '0'); let lab = {}, capRoom = null;
-    if (!isFA && (O.bk || O.fit)) {
+    if (!isFA && (O.bk || O.fit || AA.st)) {
         try { const tb = await lldTbLoad(), baits = await lldTbBaits().catch(() => ({})), d = { tb, baits, rosters: S.D.rosters || {} }; Object.keys(d.rosters).forEach(f => { lab[f] = lldTbLabels(d, f); }); } catch (e) { console.warn('apv labels', e); }
         try { const sy = parseInt(year) || 2026, sh = await lldShLoad(), T = lldShTotals(sh, sy), cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0); capRoom = (cap && T[me] != null) ? cap - T[me] : null; } catch (e) { }
     }
@@ -2566,7 +2567,7 @@ function lldApvWeekTable(players) {
     }).join('');
     const lg = [L.sb ? '<span><span class="wb ok">STARTED</span><span class="wb ok">BENCH</span> right call</span><span><span class="wb no">STARTED</span><span class="wb no">BENCH</span> wrong call</span>' : '', (L.fy || L.ft) ? '<span>Future weeks: <span class="wb st">YOU \u00B7 START</span> <span class="wb bn">TEAM \u00B7 BENCH</span></span>' : ''].join('');
     const needS = (L.sb || L.ft || L.fy) && !SX ? '<div class="apv-leg">Lineup history could not be loaded, so started / benched and start-for-you are hidden. Boom / bust still work.</div>' : '';
-    return needS + (lg ? `<div class="apv-lg">${lg}</div>` : '') + `<div class="apv-leg">Bold = points scored. Italic = projection. The box under each score is the opponent and how many points they allow to his position (1 = toughest, 32 = easiest; green = easy, red = tough). Past weeks: green = the lineup call was right, red = wrong. Drag the table, use shift + mouse wheel, or the arrows.${players.length > shown.length ? ' Showing the top ' + shown.length + ' by points; filter by position to narrow.' : ''}</div><div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">Pts</th><th class="tt">ROS</th>${W.map(w => `<th class="${w === cw ? 'cw' : ''}">W${w}</th>`).join('')}</tr>${rows}</table></div>`;
+    return needS + (lg ? `<div class="apv-lg">${lg}</div>` : '') + `<div class="apv-wk"><table><tr><th class="sk">Player</th><th class="tt">Pts</th><th class="tt">ROS</th>${W.map(w => `<th class="${w === cw ? 'cw' : ''}">W${w}</th>`).join('')}</tr>${rows}</table></div>`;
 }
 function lldApvCell(p) {
     const A = window._apv; let v = null;
@@ -6600,7 +6601,28 @@ function projTopHtml(v) {
 
 
 // ===== PLAYER LIST GUIDE: explains every number on a player row =====
+function lldApvGloss(fa, view) {
+    const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
+    if (view === 'weekly') {
+        return `<h4>Scores</h4>` + t('Bold number', 'Points he scored that week.') + t('Italic number', 'Projected points for a week that has not been played.') + t('BYE', 'His team does not play that week.')
+            + `<h4>Opponent box</h4>` + t('Team + number', 'The opponent, and how many points that defense allows to his position. 1 is the toughest, 32 is the easiest.') + t('Green / red', 'Green is an easy matchup (soft defense). Red is a tough one.')
+            + `<h4>Past weeks</h4>` + t('BOOM / BUST', 'A big week or a bad week for him, compared with his own usual scoring.')
+            + (fa ? '' : t('STARTED / BENCH', 'What his fantasy team did that week. Green means the call was right, red means it was wrong.'))
+            + `<h4>Future weeks</h4>` + t('YOU \u00B7 START / BENCH', 'Whether he would be in your starting lineup that week.')
+            + (fa ? '' : t('HIS TEAM \u00B7 START / BENCH', 'Whether he would be in his current team\u2019s starting lineup.'))
+            + `<h4>Moving around</h4>` + t('Scroll', 'Drag the table, use shift + mouse wheel, or tap the arrows. The table shows the top 150 players, so filter by position to narrow it.');
+    }
+    return `<div class="gl-note"><span class="apv-hl">Gold outline</span> marks the number the list is currently sorted by. The big faded logo behind a row is the fantasy team that owns him (grey NFL logo for free agents), and the small logo next to his name is his NFL team.</div>`
+        + `<h4>Ranking</h4>` + t('NOW', 'His position rank by points scored this season, with his points per game next to it.') + t('ROS', 'Rest of season: his position rank by projected points over the remaining weeks.') + t('DYN', 'His long-term dynasty value rank at his position.') + t('\u25B2 \u25BC', 'How far ROS or DYN is better (\u25B2) or worse (\u25BC) than his NOW rank.')
+        + (fa ? '' : `<h4>Contract</h4>` + t('SAL', 'Yearly salary in millions.') + t('YRS', 'Years left on the contract.') + t('GUAR', 'Percent of the salary that is guaranteed.') + t('HIT', 'Cap hit: salary \u00D7 guarantee % \u00D7 years left, what it costs if he is cut.') + t('\u2713 FITS / \u2717 OVER', 'Whether his salary fits under your cap. If not, it shows how far over you would be. Only shown for players on other teams.'))
+        + `<h4>Trade</h4>` + t('YOU', fa ? 'Weeks (out of the weeks left) he would start in your lineup.' : 'Weeks (out of the weeks left) he would start in your lineup. Only shown for players on other teams.')
+        + (fa ? '' : t('THEM', 'Weeks he would start for the team that owns him.') + t('BLOCK', 'The trade status his owner set: Seeking, Willing, Unlikely or Unavailable. No label means they have not set one.'))
+        + `<h4>Stats</h4>` + t('BOOM', 'Share of his games that were big weeks for his position.') + t('BUST', 'Share of his games that were bad weeks. Lower is better.') + t('CONS.', 'Consistency. Steady means his weekly scores stay close together, Volatile means they swing a lot, Average is in between.') + t('3+ games', 'Boom, bust and consistency need at least 3 games played.')
+        + `<h4>Buttons</h4>` + t('ALL', 'Switches every item on or off. Tap a group title (Ranking, Contract, Trade, Stats) to switch the whole group.') + t('Sort', 'Sorts by any item that is switched on. Rankings and bust go best first; the other items go high to low. Missing values always go last.')
+        + (fa ? '' : t('Status / Teams', 'Filter by trade status, fantasy team or NFL team.')) + t('Week by week', 'Switches the list to a table of every week.');
+}
 function lldGlossHtml(fa) {
+    if (lldApv()) { try { return lldApvGloss(fa, window._apv.view); } catch (e) { } }
     const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
     const ly = parseInt(year) - 1;
     return `<div class="gl-note"><span class="sort-hl">Gold highlight</span> marks the number the list is currently sorted by.</div>`
@@ -10391,7 +10413,7 @@ async function renderPlayersFromRows(rows, isFAView, container, subTabId) {
         return playerSortDir === 'asc' ? -comparison : comparison;
     });
     players.forEach((p, i) => { p._rk = i + 1; });
-    if (lldApv()) { const A = window._apv; if (A.ft && !isFAView) players = players.filter(p => String(p.ownerFid || '') === A.ft); if (A.nt) players = players.filter(p => { const t = String(p.team || '').toUpperCase(); return t === A.nt || NFL_ABBR_ALIAS[t] === A.nt; }); }
+    if (lldApv()) { const A = window._apv; if (A.ft && !isFAView) players = players.filter(p => String(p.ownerFid || '') === A.ft); if (A.nt) players = players.filter(p => { const t = String(p.team || '').toUpperCase(); return t === A.nt || NFL_ABBR_ALIAS[t] === A.nt; }); if (A.st && !isFAView) players = players.filter(p => { if (!p._tr || p._tr.mine) return false; const q = p._tr.st || ''; return A.st === 'X' ? !q : q === A.st; }); }
 
     // Filter
     if (playerFiltersActive && !isFAView) {
