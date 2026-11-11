@@ -2289,7 +2289,7 @@ function lldPosString(sel) { return sel.length >= LLD_PF_ALL.length ? '*' : LLD_
 function lldPosBarHtml() {
     const sel = playerPosSel, full = sel.length >= LLD_PF_ALL.length, same = a => sel.length === a.length && a.every(x => sel.indexOf(x) >= 0);
     const pb = x => `<button type="button" class="lld-pf-b p${!full && sel.indexOf(x) >= 0 ? ' active' : ''}" data-p="${x}">${x}</button>`;
-    try { if (lldApv()) return `<div class="lld-pf cmp"><button type="button" class="lld-pf-b g lld-pf-all${full ? ' active' : ''}" data-g="all">ALL</button><i></i>${LLD_PF_OFF.map(pb).join('')}<i></i>${LLD_PF_DEF.map(pb).join('')}</div>`; } catch (e) { }
+    try { if (lldApv()) return `<div class="lld-pf cmp"><button type="button" class="lld-pf-b g lld-pf-all${full ? ' active' : ''}" data-g="all">ALL</button><i></i>${LLD_PF_OFF.map(pb).join('')}<i></i>${LLD_PF_DEF.map(pb).join('')}${lldApvMoreBtn() ? '<i></i>' + lldApvMoreBtn() : ''}</div>`; } catch (e) { }
     return `<div class="lld-pf">
         <button type="button" class="lld-pf-b g lld-pf-all${full ? ' active' : ''}" data-g="all">All</button>
         <div class="lld-pf-grp"><button type="button" class="lld-pf-b g gh${same(LLD_PF_OFF) ? ' active' : ''}" data-g="off">Offense</button><div class="lld-pf-ps">${LLD_PF_OFF.map(pb).join('')}</div></div>
@@ -2341,6 +2341,26 @@ function lldApvCmp(a, b, isFA) {
 const LLD_APV_CHIPS = { contracts: [['salary', 'Salary'], ['caphit', 'Cap Hit'], ['guar', 'Guar %'], ['years', 'Years'], ['cyear', 'By year']],
     rankings: [['season', 'Current'], ['ros', 'Rest of season'], ['dynasty', 'Dynasty']] };
 function lldApvSort(isFA) { playerSortBy = 'apv'; lldApvKey(isFA == null ? lldApvIsFA() : isFA); }
+function lldApvMoreOn() { try { const A = window._apv; if (lldApvLuOn()) return true; const v = lldApvCtx() ? A.ctv : A.view; return v !== 'weekly' && v !== 'year'; } catch (e) { return true; } }
+function lldApvMoreBtn() { return lldApvMoreOn() ? '<button type="button" class="apv-morebtn">⚙<span> More toggles</span></button>' : ''; }
+function lldApvMoreDraw() {
+    const A = window._apv, O = A.on, gs = window._apvMoreG || [];
+    let p = $('#apv-more-pop'); if (!p.length) p = $('<div id="apv-more-pop"></div>').appendTo('body');
+    const all = gs.every(g => g[1].every(x => O[x[0]]));
+    p.html(`<div class="apvm-sh"><div class="apvm-hd"><b>More toggles</b><button type="button" class="apvm-all">${all ? 'Hide all' : 'Show all'}</button><button type="button" class="apvm-x">Done</button></div><div class="apvm-bd">${gs.map(([t, it]) => `<div class="apvm-g"><div class="apvm-gt"><span>${t}</span><button type="button" class="apvm-gh" data-g="${t}">${it.every(x => O[x[0]]) ? 'Hide all' : 'Show all'}</button></div><div class="apvm-gb">${it.map(([k, l, full]) => `<button type="button" class="apvm-ob${O[k] ? ' on' : ''}" data-o="${k}"><b>${l}</b><small>${full || ''}</small></button>`).join('')}</div></div>`).join('')}</div></div>`).addClass('on');
+}
+function lldApvMoreClose() { const p = $('#apv-more-pop'); if (!p.hasClass('on')) return; p.removeClass('on'); if (window._apvMoreD) { window._apvMoreD = 0; lldApvSave(); lldApvReload(); } }
+$(document).on('click', '.apv-morebtn', function (e) { e.preventDefault(); e.stopPropagation(); window._apvMoreG = lldApvGroups(lldApvIsFA()); window._apvMoreD = 0; lldApvMoreDraw(); });
+$(document).on('click', '#apv-more-pop', function (e) {
+    const A = window._apv, t = $(e.target), gs = window._apvMoreG || [];
+    if (e.target.id === 'apv-more-pop' || t.closest('.apvm-x').length) { lldApvMoreClose(); return; }
+    const ob = t.closest('.apvm-ob'), gh = t.closest('.apvm-gh'), al = t.closest('.apvm-all');
+    if (ob.length) { const k = ob[0].dataset.o; A.on[k] = A.on[k] ? 0 : 1; }
+    else if (gh.length) { const g = gs.find(x => x[0] === gh[0].dataset.g); if (g) { const on = !g[1].every(y => A.on[y[0]]); g[1].forEach(y => { A.on[y[0]] = on ? 1 : 0; }); } }
+    else if (al.length) { const on = !gs.every(g => g[1].every(y => A.on[y[0]])); gs.forEach(g => g[1].forEach(y => { A.on[y[0]] = on ? 1 : 0; })); }
+    else return;
+    window._apvMoreD = 1; lldApvMoreDraw();
+});
 function lldApvTogHtml(gs) {
     const A = window._apv, O = A.on, allOn = gs.every(g => g[1].every(x => O[x[0]]));
     return `<div class="apv-tg"><button type="button" class="apv-oall${allOn ? '' : ' off'}"><b>ALL</b></button>${gs.map(([t, it]) => { const n = it.filter(x => O[x[0]]).length; return `<button type="button" class="apv-gc${A.go === t ? ' open' : ''}${n ? '' : ' off'}" data-g="${t}">${t}<b>${n}/${it.length} ${A.go === t ? '▴' : '▾'}</b></button>`; }).join('')}</div>` + gs.map(([t, it]) => `<div class="apv-gp" data-g="${t}"${A.go === t ? '' : ' hidden'}><div class="apv-gpt">${t}<button type="button" class="apv-ogh" data-g="${t}">${it.every(x => O[x[0]]) ? 'Hide all' : 'Show all'}</button></div>${it.map(([k, l]) => `<button type="button" class="apv-ob${O[k] ? ' on' : ''}" data-o="${k}">${l}</button>`).join('')}</div>`).join('');
@@ -2365,7 +2385,7 @@ function lldApvBar(isFA) {
         const wAll = WG.every(g => g[1].every(x => A.wl[x[0]]));
         top = `<div class="apv-sh"><div class="apv-g all"><button type="button" class="apv-wall${wAll ? ' on' : ''}">ALL</button></div>${WG.map(([t, it]) => `<div class="apv-g"><div class="apv-gt"><div class="apv-gh apv-wgh" data-g="${t}">${t}</div><div class="apv-gb">${it.map(([k, l]) => `<button type="button" class="apv-l${A.wl[k] ? ' on' : ''}" data-l="${k}">${l}</button>`).join('')}</div></div></div>`).join('')}</div>`;
     } else {
-        top = lldApvTogHtml(gs);
+        top = '';
     }
     const sw = `<div class="apv-views" style="grid-template-columns:repeat(${cx ? 3 : 2},1fr)">${(cx ? [['all', 'List'], ['weekly', 'Week by week'], ['year', 'Year by year']] : [['all', 'List'], ['weekly', 'Week by week']]).map(([v, l]) => `<button type="button" class="apv-v${vw === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL', sN = A.st ? (A.st === 'X' ? 'NO LABEL' : LLDTB_ST[A.st][2].toUpperCase()) : 'ALL STATUS';
@@ -2497,7 +2517,7 @@ async function lldApvUni() {
     if (window._apvUR && window._apvUR.d === d) return window._apvUR;
     let S = null; try { S = await lldStatsLoad(); } catch (e) { }
     const P = window._mflPos || {}, tot = {}, ros = {}, dyn = {}, g1 = {};
-    const pof = id => { let p = P[id]; if (!p && S) { try { p = S.posOf(id); } catch (e) { } } return dynGrp(p || ''); };
+    const pof = id => { let p = P[id]; if (!p && S) { try { p = S.posOf(id); } catch (e) { } } if (!p) p = (window._apvPosX || {})[id]; return dynGrp(p || ''); };
     for (let w = d.cw; w <= 18; w++) { const m = d.pj[w] || {}; Object.keys(m).forEach(id => { const v = +m[id]; if (v > 0) tot[id] = (tot[id] || 0) + v; }); } // add up every remaining week's projection
     Object.keys(tot).forEach(id => { const g = pof(id); if (g) (g1[g] = g1[g] || []).push(id); });
     Object.keys(g1).forEach(g => g1[g].sort((a, b) => tot[b] - tot[a]).forEach((id, i) => { ros[id] = i + 1; }));
@@ -2506,11 +2526,24 @@ async function lldApvUni() {
         if (Dy) { Object.keys(Dy.byPid).forEach(id => { const v = Dy.byPid[id]; if (v && v.pts > 0) { const g = v.grp || pof(id); if (g) (g2[g] = g2[g] || []).push(id); } }); Object.keys(g2).forEach(g => g2[g].sort((a, b) => Dy.byPid[b].pts - Dy.byPid[a].pts).forEach((id, i) => { dyn[id] = i + 1; })); }
     } catch (e) { }
     const U = { d, ros, dyn, tot };
+    U.re = function () { const g = {}; Object.keys(tot).forEach(id => { const k = pof(id); if (k) (g[k] = g[k] || []).push(id); }); Object.keys(g).forEach(k => g[k].sort((a, b) => tot[b] - tot[a]).forEach((id, i) => { ros[id] = i + 1; })); };
     if (Object.keys(ros).length) window._apvUR = U;
     return U;
 }
-function lldApvNow(pid) { return (playerRanks[pid] && playerAverages[pid] > 0) ? playerRanks[pid] : null; }
+function lldApvNowBuild() {
+    const ps = playerSeason || {}, ids = Object.keys(ps); if (!ids.length) return;
+    const P = window._mflPos || {}, px = window._apvPosX || {}; let mx = 0; ids.forEach(id => { mx = Math.max(mx, (ps[id] && ps[id].gp) || 0); });
+    const mg = mx >= 4 ? 3 : 1, g = {}, m = {};
+    ids.forEach(id => { const x = ps[id]; if (!x || !(x.avg > 0) || (x.gp || 0) < mg) return; const k = dynGrp(P[id] || px[id] || ''); if (k) (g[k] = g[k] || []).push(id); });
+    Object.keys(g).forEach(k => g[k].sort((a, b) => ps[b].avg - ps[a].avg).forEach((id, i) => { m[id] = i + 1; }));
+    window._apvNowMap = m;
+}
+function lldApvNow(pid) { if (!window._apvNowMap) lldApvNowBuild(); return (window._apvNowMap || {})[pid] || null; }
 function lldApvRanks(players) {
+    const px = window._apvPosX = window._apvPosX || {};
+    players.forEach(p => { const g = dynGrp(p.pos || p.realPos || ''); if (g) px[p.pid] = g; });
+    try { const U0 = window._apvUR; if (U0 && U0.re && players.some(p => U0.tot[p.pid] > 0 && !U0.ros[p.pid])) U0.re(); } catch (e) { }
+    try { lldApvNowBuild(); } catch (e) { }
     const UR = window._apvUR || {}, hr = UR.ros && Object.keys(UR.ros).length, hd = UR.dyn && Object.keys(UR.dyn).length;
     if (hr || hd) players.forEach(p => { if (hr) p._rROS = UR.ros[p.pid] || null; if (hd) p._rDYN = UR.dyn[p.pid] || null; });
     if (hr && hd) return;
@@ -2524,7 +2557,7 @@ function lldApvRanks(players) {
 }
 function lldApvRight(p) {
     const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
-    const cur = lldApvNow(p.pid), avg = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0';
+    const cur = lldApvNow(p.pid), avg = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1);
     const lb = r => r ? p.pos + '#' + r : '–';
     const df = r => { if (!cur || !r) return '<s></s>'; const d = cur - r; return d === 0 ? '<s class="eq">–</s>' : d > 0 ? `<s class="up">▲${d}</s>` : `<s class="dn">▼${-d}</s>`; };
     const r = [];
@@ -2681,7 +2714,7 @@ function lldApvLuGloss() {
 }
 function lldApvLuStale() { const rs = Array.from(document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]')); return rs.some(r => !r.classList.contains('apv-lu-done') || (r.classList.contains('apv-lu-s') && !(r.nextElementSibling && r.nextElementSibling.classList.contains('lu')))) || document.querySelectorAll('.apv-sl.lu').length > document.querySelectorAll('.player-row.apv-lu-s').length; }
 function lldApvLuBar() {
-    return `<div id="apv-lu-bar" class="apv-bar">${lldApvTogHtml(lldApvGroups(false, 'lu'))}<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="0">\u24D8<span class="apv-gtx"> Guide</span></button></div></div>`;
+    return `<div id="apv-lu-bar" class="apv-bar"><div class="apv-r2"><button type="button" class="apv-b apv-morebtn">\u2699<span> More toggles</span></button><button type="button" class="player-gloss-btn apv-b" data-fa="0">\u24D8<span class="apv-gtx"> Guide</span></button></div></div>`;
 }
 function lldApvLuRow(el, p) {
     const O = window._apv.on, $r = $(el), pi = $r.find('.lld-pi, .player-info').first(), sv = playerSortBy; playerSortBy = '';
@@ -4420,17 +4453,17 @@ $(document).on('input', '.filter-range-min, .filter-range-max', function() {
 
 $(document).on('click', '#filter-apply-btn', function() {
     playerFiltersActive = true;
-    const onContracts = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'contracts';
+    const onContracts = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') === 'contracts';
     if (onContracts) { window._teamDataDirty = true; loadTeamData(); }
-    else { const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace(' ', '-') || 'all-players'; loadPlayersData(subId); }
+    else { const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts').replace(' ', '-') || 'all-players'; loadPlayersData(subId); }
 });
 
 $(document).on('click', '#filter-reset-btn', function() {
     playerFilters = { years: [1, 5], salary: [0, 200], guar: [0, 100], capHit: [0, 500] };
     playerFiltersActive = false;
-    const onContracts = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'contracts';
+    const onContracts = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') === 'contracts';
     if (onContracts) { window._teamDataDirty = true; loadTeamData(); }
-    else { const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace(' ', '-') || 'all-players'; loadPlayersData(subId); }
+    else { const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts').replace(' ', '-') || 'all-players'; loadPlayersData(subId); }
 });
 $(document).on('click', '.font-cat-btn', function(e) {
     e.stopPropagation();
@@ -5346,7 +5379,7 @@ async function fetchMasterStatus() {
 async function loadTeamData() {
     try {
         applyTeamTheme(fid, true);
-const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup';
+const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') || 'lineup';
 
         // Use cache if available and same fid/sub
         const cacheKey = `${fid}_${activeSub}`;
@@ -5599,7 +5632,7 @@ renderActiveTab();
     // --- 2. UI ROUTING ---
 function renderActiveTab() {
         // FIX: Target #subtabs-team in the header
-const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup';
+const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') || 'lineup';
         if (activeSub === 'my trade block') return; // draws itself (beta)
         if (activeSub === 'stats' || activeSub === 'schedule') { /* these draw themselves; a late roster refresh must not paint over them */ if (activeSub === 'stats' && !$('#player-rows-container .lld-stats').length && $('#tab-team').hasClass('active')) lldStatsOpen('team'); return; }
         const container = $('#player-rows-container').empty();
@@ -8402,7 +8435,7 @@ $('#team-popup-owner').text(owner || '');
         $('#subtabs-team').addClass('active');
         $('.sub-tabs-container').show();
         $('#subtabs-team .sub-tab-btn').removeClass('active');
-        $('#subtabs-team .sub-tab-btn').filter(function() { return $(this).text().trim().toLowerCase().includes('contract'); }).addClass('active');
+        $('#subtabs-team .sub-tab-btn').filter(function() { return /contract|manage/.test($(this).text().trim().toLowerCase()); }).addClass('active');
         window._teamDataDirty = true;
         loadTeamData();
     });
@@ -8739,7 +8772,7 @@ window.lldGoToTeam = function (targetFid) {
     $('#subtabs-team').addClass('active');
     $('.sub-tabs-container').show();
     $('#subtabs-team .sub-tab-btn').removeClass('active');
-    $('#subtabs-team .sub-tab-btn').filter(function () { return $(this).text().trim().toLowerCase().includes('contract'); }).addClass('active');
+    $('#subtabs-team .sub-tab-btn').filter(function () { return /contract|manage/.test($(this).text().trim().toLowerCase()); }).addClass('active');
     window._teamDataDirty = true;
     try { applyTeamTheme(fid, true); } catch (e) { }
     $('#tab-header-area').show(); $('#active-team-switcher-btn').show();
@@ -8880,7 +8913,7 @@ const isMyTeamCheck = leagueFranchises[myFid] !== undefined;
         // 5. Construct the final High-Res Team Image
         const teamImg = getNFLLogoUrl(teamName);
 
-              const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase();
+              const activeSub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts');
         const isLineupMode = activeSub.includes('lineup');
         const isMyTeam = (fid === myFid);
         const isStarter = row.closest('#slots-starters').length > 0;
@@ -13582,7 +13615,7 @@ function lldCharsRender() {
     try {
         const old = document.getElementById('lld-chars'); if (old) old.remove();
         if (!lldBeta() || !currentDoc || lldGthOn()) return; // Gotham: characters live only in the Character section
-        const sub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase(); if (sub !== 'lineup' && sub !== 'roster') return;
+        const sub = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts'); if (sub !== 'lineup' && sub !== 'roster') return;
         const host = document.getElementById('player-rows-container'); if (!host) return;
         const R = lldChRoster(), leader = R.leader, sk = R.sk;
         if (!leader) return;
@@ -13757,7 +13790,7 @@ function lldHd2Def() { return { logo: 56, nm: 22, rec: 'full', bar: 'on', pct: '
 function lldHd2Cfg(contracts) { const d = lldHd2Def(), base = lldCfgFor('hdr', d); return contracts ? Object.assign({}, base, { sps: 13 }, lldAllCfg().chdr || {}) : base; }
 function lldAutoPhase() { const d = new Date(), w = d.getDay(), h = d.getHours(); if (w === 0 || (w === 1 && h < 23)) return 'live'; if (w === 1) return 'recap'; if (w === 2 && h < 14) return 'recap'; return 'preview'; }
 function lldHd2Html() {
-    const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup'), onC = sub === 'contracts';
+    const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') || 'lineup'), onC = sub === 'contracts';
     const c = lldHd2Cfg(onC), d = lldHd2Def(), n = k => { const v = parseFloat(c[k]); return isFinite(v) ? v : d[k]; }, col = k => /^#[0-9a-fA-F]{3,8}$/.test(c[k]) ? c[k] : d[k];
     const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x]));
     const ord = k => { const s = ['th', 'st', 'nd', 'rd'], v = k % 100; return k + (s[(v - 20) % 10] || s[v] || s[0]); };
@@ -13817,7 +13850,7 @@ function lldHd2Html() {
         h += `<button type="button" class="hd2-pv th-op" data-ph="${ph}"><span class="hd2-pk${ph === 'live' ? ' live' : ''}">${ph === 'live' ? '● LIVE' : 'WEEK ' + wk + ' VS'}</span><img src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><b>${on}</b><span class="hd2-pb">${ph === 'live' ? 'Matchup' : ph === 'recap' ? '▶ Recap' : '▶ Preview'}</span></button>`;
     }
     if (c.act !== 'off') {
-        const CAT = { lineup: 'Lineup', contracts: 'Contracts', stats: 'Stats', tradetab: 'Trade' };
+        const CAT = { lineup: 'Lineup', contracts: (lldApv() ? 'Manage' : 'Contracts'), stats: 'Stats', tradetab: 'Trade' };
         const items = [c.a1, c.a2, c.a3, c.a4].slice(0, Math.max(1, Math.min(4, parseInt(c.nact, 10) || 4))).filter(k => CAT[k]);
         h += `<div class="hd2-act" style="grid-template-columns:repeat(${items.length},1fr)">` + items.map(k => { const on = (k === 'tradetab' ? sub.indexOf('trade') >= 0 : sub === k); return `<button type="button" class="hd2-a${on ? ' on' : ''}" data-k="${k}">${CAT[k]}</button>`; }).join('') + '</div>';
     }
@@ -13836,7 +13869,7 @@ $(document).on('click', '#lld-hd2 .hd2-sw, #lld-hd2 .hd2-nm', function () { $('#
 $(document).on('click', '#lld-hd2 .hd2-pv', function (e) { if ($(this).data('ph') === 'preview' || this.dataset.ph === 'preview') return; e.stopImmediatePropagation(); lldGoLeagueSub('Recaps'); });
 $(document).on('click', '#lld-hd2 .hd2-a', function () {
     const k = this.dataset.k, want = k === 'tradetab' ? 'trade' : k;
-    const b = $('#subtabs-team .sub-tab-btn').filter(function () { return $(this).text().trim().toLowerCase().indexOf(want) >= 0; }).first();
+    const b = $('#subtabs-team .sub-tab-btn').filter(function () { const tx = $(this).text().trim().toLowerCase(); return tx.indexOf(want) >= 0 || (want === 'contracts' && tx === 'manage'); }).first();
     if (b.length) b[0].click(); setTimeout(lldHd2Render, 80); setTimeout(lldHd2Render, 600);
 });
 $(document).on('click', '#subtabs-team .sub-tab-btn', function () { setTimeout(lldHd2Render, 80); });
@@ -14320,7 +14353,7 @@ function lldSlpByeHydrate() {
 }
 async function lldSlpScorePass(targetFid) {
     if (!lldSlpOn()) return;
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const wk = lldSlpWeek() || '';
     if (!wk) return;
     let sched = {}, sc = {};
@@ -14627,7 +14660,7 @@ function lldShBlocks(vf, sub) {
     return A.length ? `<div class="blks" style="grid-template-columns:${W.map(x => `minmax(0,${x}fr)`).join(' ')}">${A.join('')}</div>` : '';
 }
 function lldShHtml() {
-    const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
+    const vf = String(fid).padStart(4, '0'), sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') || 'lineup');
     const nm = lldShEsc(leagueFranchises[vf] || 'My Franchise'), logo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_logo${vf}.png`;
     const sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026;
     const blk = lldShBlocks(vf, sub), bar = (lldSh2On() && window._lldShBar != null) ? `<div class="s2bar"><i style="width:${Math.max(0, Math.min(100, window._lldShBar))}%"></i></div>` : '';
@@ -14637,7 +14670,7 @@ function lldShRender() {
     if (!lldShOn()) { $('#lld-sh').remove(); document.body.classList.remove('lld-shb'); try { window._lldSyncOff && window._lldSyncOff(); } catch (e) { } return; }
     const anchor = $('#tab-header-area'); if (!anchor.length) return;
     let el = $('#lld-sh'); if (!el.length) { el = $('<div id="lld-sh"></div>'); anchor.before(el); }
-    const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() || 'lineup');
+    const sub = ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') || 'lineup');
     try { el.html(lldShHtml()); } catch (e) { console.warn('sh', e); el.empty(); }
     document.body.classList.add('lld-shb'); document.body.classList.toggle('lld-sh2', lldSh2On()); document.body.classList.remove('lld-sh-pend');
     try { if (typeof reapplyAllTeamStyles === 'function') reapplyAllTeamStyles(); } catch (e) { }
@@ -15017,7 +15050,7 @@ function lldGthJoker(caps, rs, fit, dp, M, bn) {
     return delta;
 }
 function lldGthCapRender() {
-    const onLineup = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'lineup';
+    const onLineup = $('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') === 'lineup';
     if (!lldGthOn() || !onLineup) { if (!lldGthOn()) { $('#gth-lay').remove(); document.body.classList.remove('lld-gth-lay'); } return; }
     const benchBlock = document.querySelector('.sticky-block[data-block="bench"]'); if (!benchBlock) return;
     document.body.classList.add('lld-gth-lay');
@@ -15279,11 +15312,11 @@ async function lldLineupPlayedPass(targetFid) {
         if (window._lldPlayedPids && window._lldPlayedPids.size) { window._lldPlayedPids = new Set(); $('.player-row.lld-played').removeClass('lld-played lld-live').find('.lld-pscore, .lld-ppill').remove(); }
         return;
     }
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const wk = window._lldLineupWeek || window._lldServedWeek || window._liveScoreCurrentWeek || '';
     let sched = {}, sc = {};
     try { [sched, sc] = await Promise.all([fetchNflScheduleForWeek(wk), lldFranchiseScores(targetFid, wk)]); } catch (e) { return; }
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const played = new Set();
     $('#slots-starters .player-row[data-pid], #slots-bench .player-row[data-pid]').each(function () {
         const row = $(this); if (row.hasClass('empty-slot')) return;
@@ -15305,7 +15338,7 @@ async function lldLineupPlayedPass(targetFid) {
 }
 // ---- week bar on the lineup page: ‹ Week 8 › ; tap "Week 8" to jump to any week. Past weeks open the recap. ----
 function lldWeekBar() {
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const host = document.querySelector('.sticky-block[data-block="starters"]') || document.getElementById('lld-pastlu'); if (!host) return;
     const w = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
     const html = `<button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="lld-wk-t">Week ${w} ▾${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</button><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button>`;
@@ -15379,10 +15412,10 @@ function lldRvLuBar() {
 (function () { let t = null; new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (document.querySelector('#slots-starters .player-row[data-pid]:not(.lld-pchk), #slots-bench .player-row[data-pid]:not(.lld-pchk)')) lldLineupPlayedPass(window.fid || (typeof fid !== 'undefined' ? fid : '')); } catch (e) { } }, 450); }).observe(document.body, { childList: true, subtree: true }); })();
 setInterval(() => { try { if (document.querySelector('#slots-starters .player-row')) lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } catch (e) { } }, 45000);
 async function injectLiveStatusIntoLineupRows(targetFid) {
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return;
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const liveDetails = await fetchLiveScoringDetails(targetFid);
     if (!liveDetails || !liveDetails.gameInfo) return;
-    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() !== 'lineup') return; // tab may have changed while this was loading
+    if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return; // tab may have changed while this was loading
 
     $('#slots-starters .player-row[data-pid], #slots-bench .player-row[data-pid]').each(function() {
         const pid = $(this).data('pid');
@@ -21198,7 +21231,7 @@ $('#team-info-panel-wrapper').html(buildTeamInfoPanel(newFid));
 window._teamDataDirty = true;
                 await loadTeamData();
                 // if you were on Stats, show this team's stats rather than the roster
-                if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'stats') lldStatsOpen('team');
+                if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') === 'stats') lldStatsOpen('team');
             });
         }
     applyTeamStyle();
@@ -22099,7 +22132,7 @@ $(document).on('click', '.logo-style-btn', function() {
     const activeTab = $('.tab-btn.active').attr('onclick') || '';
     if (activeTab.includes('tab-team')) renderActiveTab();
     else if (activeTab.includes('tab-players')) {
-        const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace(' ', '-');
+        const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts').replace(' ', '-');
         loadPlayersData(subId);
     }
 });
@@ -22342,7 +22375,7 @@ fetchFranchises()
         refreshTeamInfoPanel();
         return loadTeamData();
     })
-    .then(() => { lldBootDone(); try { if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase() === 'contracts') renderActiveTab(); } catch (e) { } try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
+    .then(() => { lldBootDone(); try { if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') === 'contracts') renderActiveTab(); } catch (e) { } try { lldChatInit(); } catch (e) { console.warn('chat', e); } })
     .then(() => { try { lldStatsEnsureTabs(); setTimeout(lldStatsEnsureTabs, 1500); setTimeout(lldStatsEnsureTabs, 4000); } catch (e) { console.warn('stats tabs', e); } });
 
 $(document).on('click', '#lld-live-retry', function () { loadLiveScores(window._liveScoreActiveWeek ?? null); });
@@ -23447,6 +23480,7 @@ function lldTrBar(mode) {
 $(document).on('click', '.lld-tr-btn', function () { if (this.dataset.v === 'hub') loadTradeHub(); else loadTradeBlockTab(); });
 async function loadTradeBlockTab(where) {
     where = typeof where === 'string' ? where : '';
+    if (lldApv()) { $('#lld-tr-bar').remove(); try { return await loadTradeHub(); } catch (e) { console.warn('trade hub', e); } }
     window._tbX = Object.assign({}, window._tbX || {}, { where });
     if (where === 'team') $('#lld-tr-bar').remove(); else lldTrBar('block');
     const box = lldTbMain().html('<div style="text-align:center; padding:40px; color:var(--accent-blue); font-weight:800; font-size:calc(12px * var(--ts,1)); text-transform:uppercase;">Loading trade block…<div class="tb-loadmsg" style="margin-top:8px;font-size:calc(11px * var(--ts,1));opacity:.7;text-transform:none;letter-spacing:0;font-weight:700"></div></div>');
@@ -23981,7 +24015,15 @@ function lldStatsEnsureTabs() {
 function lldMyBlockTab() {
     const fid = String(typeof myFid !== 'undefined' ? myFid : '').padStart(4, '0');
     if (fid !== '0000' && fid !== '0001') return;
-    if (lldApv()) { $('#subtabs-team .sub-tab-btn').each(function () { const t = $(this).text().trim().toLowerCase(); if (t === 'trade' || t === 'my trade block') $(this).hide(); }); return; }
+    if (lldApv()) {
+        $('#subtabs-team .sub-tab-btn').each(function () {
+            const t = $(this).text().trim().toLowerCase();
+            if (this.dataset.mtb) { delete this.dataset.mtb; this.textContent = 'Trade'; this.setAttribute('onclick', "openSubTab(event,'trade')"); }
+            if (t === 'contracts') this.textContent = 'Manage';
+            $(this).show();
+        });
+        return;
+    }
     $('#subtabs-team .sub-tab-btn').each(function () {
         if (this.dataset.mtb && $(this).text().trim().toLowerCase() !== 'my trade block') delete this.dataset.mtb; // a cloned Stats button must not keep the marker
         if (this.dataset.mtb || $(this).text().trim().toLowerCase() !== 'trade') return;
