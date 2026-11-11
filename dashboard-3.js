@@ -2388,7 +2388,9 @@ $(document).on('click', '.apv-m', function () { window._apv.cmode = this.dataset
 $(document).on('click', '.lld-b-btn[data-k="apv"]', function () { window._playerRowsCache = {}; setTimeout(() => { try { if ($('#player-search-input').length) lldApvReload(); } catch (e) { } }, 50); });
 function lldApvNum(v) { return v == null ? '\u2013' : v >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(1); }
 async function lldApvWeekData() {
-    const cw = Math.min(Math.max((await lldCurWeek()) || 1, 1), 18), key = year + '|' + lid + '|' + cw;
+    let cw0 = 0; try { cw0 = await lldCurWeek(); } catch (e) { }
+    if (!cw0) { try { const S0 = await lldStatsLoad(); const done = S0.D.weeks.filter(x => x.teams && Object.keys(x.teams).some(f => (x.teams[f].score || 0) > 0)).map(x => x.wk); cw0 = done.length ? Math.max.apply(0, done) + 1 : 0; } catch (e) { } }
+    const cw = Math.min(Math.max(cw0 || 1, 1), 18), key = year + '|' + lid + '|' + cw;
     if (window._apvWD && window._apvWD.key === key && Date.now() - window._apvWD.at < 600000) return window._apvWD.d;
     const d = { cw, sc: {}, pj: {}, sched: {}, fail: [] }, jobs = [];
     const getW = async w => {
@@ -2403,6 +2405,11 @@ async function lldApvWeekData() {
             } catch (e) { }
             await new Promise(r => setTimeout(r, 400 * (t + 1)));
         }
+        try { // MFL would not give the league scores: use the lineup engine's copy (rostered players only)
+            const S1 = await lldStatsLoad(), wk1 = S1.D.weeks.find(x => x.wk === w), m = {};
+            if (wk1) Object.keys(wk1.teams || {}).forEach(f => ((wk1.teams[f] || {}).roster || []).forEach(r => { if (r && r.pid != null && r.score != null) m[String(r.pid)] = parseFloat(r.score) || 0; }));
+            if (Object.keys(m).length) { d.sc[w] = m; return; }
+        } catch (e) { }
         d.sc[w] = {}; d.fail.push(w);
     };
     const wk = []; for (let w = 1; w < cw; w++) wk.push(w);
@@ -2412,6 +2419,7 @@ async function lldApvWeekData() {
         jobs.push((async () => { try { d.sched[w] = await fetchNflScheduleForWeek(w); } catch (e) { d.sched[w] = {}; } })());
     }
     await Promise.all(jobs);
+    d.got = Object.keys(d.sc).filter(w => Object.keys(d.sc[w] || {}).length).length;
     window._apvWD = { key, at: Date.now(), d };
     return d;
 }
@@ -2543,6 +2551,7 @@ $(document).on('click', '.apv-pick button', async function (e) {
     e.stopPropagation(); const C = window._apvCt, pid = String($(this).closest('.apv-pick').data('pid')), k = this.dataset.k; if (!C || !C.own) return;
     try {
         const me = String(myFid).padStart(4, '0'), d = await lldTbLoad(true), by = d.by[me] || { m: '', p: {} }, p = Object.assign({}, by.p);
+        if (d.stale || !d.tid) { window._apvCtNote = 'Could not read the trade board just now, so nothing was changed. Try again in a moment.'; lldApvCtRender(); return; }
         if (k) p[pid] = lldTbMakeLabel(k, k === 'S' ? lldTbParseLabel(p[pid]).a : []); else delete p[pid];
         await lldTbSave(by.m, p);
         const pl = (C.players || []).find(x => x.pid === pid); if (pl && pl._tr) pl._tr.st = k;
@@ -2551,7 +2560,7 @@ $(document).on('click', '.apv-pick button', async function (e) {
 });
 $(document).on('click', '.apv-oo', async function () {
     const C = window._apvCt; if (!C || !C.own) return; const m = this.dataset.m === C.mode ? '' : this.dataset.m;
-    try { const me = String(myFid).padStart(4, '0'), d = await lldTbLoad(true), by = d.by[me] || { m: '', p: {} }; await lldTbSave(m, by.p); C.mode = m; } catch (err) { console.warn('apv outlook save', err); }
+    try { const me = String(myFid).padStart(4, '0'), d = await lldTbLoad(true), by = d.by[me] || { m: '', p: {} }; if (d.stale || !d.tid) { window._apvCtNote = 'Could not read the trade board just now, so nothing was changed. Try again in a moment.'; lldApvCtRender(); return; } await lldTbSave(m, by.p); C.mode = m; } catch (err) { console.warn('apv outlook save', err); }
     window._apv.oo = 0; lldApvCtRender();
 });
 async function lldApvCtRender() {
@@ -2578,6 +2587,8 @@ async function lldApvCtRender() {
             if (S) { try { if (C.own) { const v = S.wkStart(p.pid, me); if (v != null) { t.you = v; t.yn = S.W; } } else { const f = lldApvFitOf(S, p.pid, p.pos); if (f) { t.you = f.rn ? f.rosStart : f.inOpt; t.yn = f.rn || f.n; } } const o = S.startsForOthers(p.pid); if (o && o.of) t.tp = Math.round(o.teams / o.of * 100); } catch (e) { } }
             const l = lab[p.pid]; t.st = l ? lldTbParseLabel(l).s : ''; p._tr = t;
         });
+        C.restore = null;
+        try { const tb2 = await lldTbLoad(), mine = (tb2.by[me] || {}).p || {}; if (C.own && !tb2.stale && !Object.keys(mine).length) { const h = (tb2.hist || []).slice().reverse().find(x => x.p && Object.keys(x.p).length); if (h) C.restore = h.p; } } catch (e) { }
         C.players = players; C.ready = true;
     }
     if (document.getElementById('apv-ct-box') !== box) return;
@@ -2612,8 +2623,15 @@ async function lldApvCtRender() {
         } else body = `<div class="roster-grid apv-rows" style="padding:0 5px;">${list.map(row).join('')}</div>`;
         if (window._apvD && window._apvD.fail && window._apvD.fail.length) body += `<div class="apv-ctl">Couldn't load scores for week${window._apvD.fail.length > 1 ? 's' : ''} ${window._apvD.fail.join(', ')} from MFL. Those weeks are left out.</div>`;
     }
-    box.innerHTML = head() + body;
+    const nt = window._apvCtNote ? `<div class="apv-ctl" style="color:#fca5a5">${window._apvCtNote}</div>` : ''; window._apvCtNote = '';
+    const rs = (C.restore && C.own) ? `<div class="apv-ctl">Your trade labels look cleared. <button type="button" class="apv-b apv-restore">Restore ${Object.keys(C.restore).length} saved labels</button></div>` : '';
+    box.innerHTML = head() + nt + rs + body;
 }
+$(document).on('click', '.apv-restore', async function () {
+    const C = window._apvCt; if (!C || !C.restore) return;
+    try { const me = String(myFid).padStart(4, '0'), d = await lldTbLoad(true), by = d.by[me] || { m: '', p: {} }; if (d.stale || !d.tid) throw new Error('board unavailable'); await lldTbSave(by.m, Object.assign({}, C.restore, by.p)); C.restore = null; C.ready = false; } catch (e) { window._apvCtNote = 'Could not restore right now. Try again in a moment.'; }
+    lldApvCtRender();
+});
 function lldApvPickHtml(pid, cur) { return `<div class="apv-pick" data-pid="${pid}">${['S', 'W', 'U', 'N'].map(k => `<button type="button" class="${cur === k ? 'on' : ''}" data-k="${k}" style="--sc:${LLDTB_ST[k][1]}">${LLDTB_ST[k][2]}</button>`).join('')}<button type="button" data-k="" class="clr">Clear</button></div>`; }
 function lldApvLuGloss() {
     const t = (k, d) => `<div class="gl-i"><b>${k}</b><span>${d}</span></div>`;
@@ -2663,6 +2681,7 @@ async function lldApvLuEnhance() {
     }
     if (seq !== window._apvLuSeq) return;
     rows.forEach(r => { const p = U.map[String(r.dataset.pid)]; if (p) lldApvLuRow(r, p); });
+    try { const D = window._apvD, bar = document.getElementById('apv-lu-bar'); let n = document.getElementById('apv-lu-note'); if (n) n.remove(); if (bar && D && D.cw > 3 && !D.got) bar.insertAdjacentHTML('beforeend', `<div id="apv-lu-note" class="apv-ctl" style="color:#fca5a5">Could not read this season's weekly scores (week ${D.cw}), so boom, bust and consistency are blank.</div>`); } catch (e) { }
 }
 ;(function () { let t = null; try { new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (lldApv() && lldApvLuOn() && lldApvLuStale()) lldApvLuEnhance(); } catch (e) { } }, 500); }).observe(document.body, { childList: true, subtree: true }); } catch (e) { } })();
 function lldApvSpark(p) {
@@ -5824,12 +5843,13 @@ for (let i = 0; i < 3; i++) {
 container.append(`<div id="lineup-notifications"></div>
                                <div class="sticky-block" data-block="starters">
                     <div id="lineup-dashboard-inject"></div>
+                    ${lldApv() ? lldApvLuBar() : ''}
                     <div class="lineup-section" data-section="starters">
                         <div class="roster-grid" id="slots-starters">${starterHtml}</div>
                     </div>
                 </div>
                 <div class="sticky-block" data-block="bench">
-                    ${lldApv() ? lldApvLuBar() : getToggleBarHtml('lineup')}
+                    ${lldApv() ? '' : getToggleBarHtml('lineup')}
                     <div class="lineup-section" data-section="bench">
                         <div class="roster-grid" id="slots-bench">${benchBuffer}</div>
                     </div>
@@ -22807,6 +22827,11 @@ async function lldTbLoad(force) {
         if (L && L.ms && (!by[me] || L.ms + 600000 > by[me].ms)) by[me] = { ms: L.ms, m: L.m === '-' ? '' : (L.m || (by[me] ? by[me].m : '')), p: L.p || {} };
     } catch (e) { }
     const d = { by, tid: th.length ? th[th.length - 1].id : null };
+    try { const me0 = String(myFid).padStart(4, '0'); d.hist = (all[me0] || []).slice(-15); } catch (e) { d.hist = []; }
+    if (!th.length) { // the board came back empty: that is almost always a failed load, so use the last good copy and never save over it
+        try { const c = JSON.parse(localStorage.getItem('lld_tbcache_' + lid) || 'null'); if (c && c.d && Object.keys(c.d.by || {}).length) { c.d.stale = true; window._lldTb = { t: Date.now() - 50000, d: c.d }; return c.d; } } catch (e) { }
+        d.stale = true;
+    } else { try { localStorage.setItem('lld_tbcache_' + lid, JSON.stringify({ t: Date.now(), d })); } catch (e) { } }
     window._lldTb = { t: Date.now(), d }; return d;
 }
 async function lldTbBaits() {
