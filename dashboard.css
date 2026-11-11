@@ -5583,3 +5583,12 @@ body .apv-yc .apv-r3 b,body .lld-pb .apv-r3 b{border:0 !important;background:non
 .apv-gpt button{font:inherit;font-size:calc(10px * var(--ts,1));border:0;background:none;color:var(--accent-teal,#2dd4bf);cursor:pointer;padding:0 4px}
 .apv-gp .apv-ob{font:inherit;font-size:calc(11px * var(--ts,1));font-weight:900;letter-spacing:.05em;padding:7px 12px;border-radius:999px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer}
 .apv-gp .apv-ob.on{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf);background:rgba(45,212,191,.12)}
+
+/* rank numbers: beat the template's .lld-pb b rule so they match the Lineup tab */
+body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3,
+body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 b,
+body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 .av{font-size:calc(10.5px * var(--ts,1)) !important;line-height:1.25 !important;font-weight:800 !important}
+body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 u{font-size:calc(8px * var(--ts,1)) !important}
+body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 s{font-size:calc(9px * var(--ts,1)) !important}
+body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 b{border:0 !important;background:none !important;padding:0 !important;box-shadow:none !important;border-radius:0 !important}
+body.lld-tpl .player-row.lld-tpl .lld-pb{align-items:center}
