@@ -5516,3 +5516,19 @@ body.lld-gth .player-row.gth-hide{display:none!important}
 .apv-gtx{display:none}
 .apv-b span{max-width:62px}
 }
+
+/* My Team > Contracts (beta) */
+.apv-ct-box{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.apv-ctl{margin:8px 5px;color:var(--text-dim);font-size:calc(10px * var(--ts,1));font-weight:800;text-align:center}
+.apv-ct-gh{display:flex;align-items:center;justify-content:space-between;margin:10px 8px 2px;padding-bottom:4px;border-bottom:1px solid var(--card-border);font-size:calc(11px * var(--ts,1));letter-spacing:.12em;color:var(--text-dim)}
+.apv-ct-gh b{color:#fff;font-weight:900}
+.apv-ct-gh span{font-weight:800}
+.apv-yc.apv-exp{opacity:.4;filter:grayscale(1)}
+.apv-stp.ghost{color:var(--text-dim);border:1px dashed var(--card-border);border-radius:999px;padding:1px 7px;letter-spacing:.06em}
+.apv-stp.ghost:before{display:none}
+.apv-set{cursor:pointer}
+.apv-pick{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;margin:2px 0 4px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.04)}
+.apv-pick button{font:inherit;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:999px;border:1px solid var(--sc,var(--card-border));background:none;color:var(--sc,var(--text-dim));cursor:pointer}
+.apv-pick button.clr{--sc:var(--text-dim)}
+.apv-cr>div{white-space:nowrap}
+.apv-b.apv-ct2.act{border-color:var(--accent-teal,#2dd4bf);color:var(--accent-teal,#2dd4bf);background:rgba(45,212,191,.1)}
