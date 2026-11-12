@@ -2666,7 +2666,7 @@ async function lldApvCtRender() {
     const box = document.getElementById('apv-ct-box'), C = window._apvCt; if (!box || !C) return;
     const A = window._apv, me = String(myFid).padStart(4, '0'), fid = C.fid; C.own = fid === me;
     const head = () => '<div class="tb-dl" style="display:none"></div>' + lldPosBarHtml() + lldApvBar(false);
-    box.innerHTML = head() + (C.ready ? '' : '<div class="apv-ctl">Loading rankings and lineups\u2026</div>');
+    if (!C.ready) box.innerHTML = head() + '<div class="apv-ctl">Loading rankings and lineups\u2026</div>'; // when the data is ready, redraw in one step so the page keeps its scroll position
     try { lldTbDeadlineFill(); } catch (e) { }
     if (!C.ready) {
         const players = C.src.map(x => ({ pid: x.pid, name: x.name, shortName: x.shortName, pos: dynGrp(x.pos), realPos: x.pos, team: x.team, ownerFid: fid, salary: x.salStr, years: x.years, guar: x.guarStr, salNum: x.salNum, yrsNum: x.yrsNum, guarNum: x.guarNum, capHitNum: x.capHitNum, under: x.under, rStat: x.rStat, sBadge: x.sBadge }));
@@ -7050,7 +7050,7 @@ window._dynErr = window._dynErr || {};
 window._dynFull = window._dynFull || {}; // grp -> pid -> { pts, adp } from FantasySharks (your league's scoring)
 // Dynasty ranks: FantasySharks' own dynasty list first (matched to MFL players by name), MFL's rankings report if that can't be reached.
 function lldNormName(n) { return String(n || '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '').replace(/[^a-z]/g, ''); }
-function lldApv() { try { return lldDev() && lldBv('apv') === '1'; } catch (e) { return false; } }
+function lldApv() { return true; } // out of beta: everyone gets the new Lineup / Manage / Players views
 // MFL players by name, so FantasySharks' lists (Name = "Last, First", Pos, Team) can be matched to MFL player ids
 function lldMflNameDb() {
     if (!window._mflNameDb) window._mflNameDb = (async () => {
@@ -11090,10 +11090,10 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                 { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
                 {
                                         compact: true,
-                    tplKind: isFAView ? 'fa' : 'all', noTabs: apvRk, noDet: apvRk,
+                    tplKind: isFAView ? 'fa' : 'all', noTabs: apvRk, noDet: apvRk && !isFAView,
                     pill: p.salary ? contractPillHtml(p.capHitNum, p.years, p.guar, playerSortBy) : oppPillHtml(p.team, p.realPos, nflSched),
                     topRight: (() => {
-                        if (apvRk) { const c = lldApvRight(p); p._tp = { sal: '', proj: c, pt: '' }; return c; }
+                        if (apvRk) { const c = lldApvRight(p); if (isFAView) { const pv = projTopHtml(((p.projVal > 0) ? p.projVal : 0).toFixed(1)); p._tp = { sal: '', proj: pv, pt: '', rank: c }; return pv; } p._tp = { sal: '', proj: c, pt: '' }; return c; }
                         const hl = k => playerSortBy === k ? ' sort-hl' : '';
                         const sal = p.salary ? `<span class="srt${hl('salary')}"><b style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#22c55e;">${p.salary}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);">SAL</small></span>` : '';
                         const proj = (p.salary && !(p.projVal > 0)) ? '' : `<span class="srt proj-popup-trigger${hl('proj')}" data-proj="${p.projVal.toFixed(1)}" style="cursor:pointer;"><b style="font-size:calc(${p.salary ? 13 : 15}px * var(--ts,1)); font-weight:900; color:var(--accent-teal);">${p.projVal.toFixed(1)}</b><small style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:var(--text-dim);"> PROJ</small></span>`;
@@ -11102,7 +11102,7 @@ outputHtml = `<div class="roster-grid${lldApv() ? ' apv-rows' : ''}" style="padd
                         p._tp = { sal, proj, pt: pt + dy };
                         return sal + proj + pt + dy;
                     })(),
-                    tpl: { match: (apvRk && p.salary) ? lldApvContract(p) : lldTplOppParts(p.team, p.realPos, nflSched), sal: p._tp.sal, proj: p._tp.proj + p._tp.pt, k: p.salary ? { hit: p.capHitNum, yrs: p.years, guar: p.guar } : null, rk: p.salary ? { salNum: parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0 } : null },
+                    tpl: { match: (apvRk && p.salary) ? lldApvContract(p) : lldTplOppParts(p.team, p.realPos, nflSched), sal: p._tp.sal, proj: p._tp.proj + p._tp.pt, rank: p._tp.rank, k: p.salary ? { hit: p.capHitNum, yrs: p.years, guar: p.guar } : null, rk: p.salary ? { salNum: parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0 } : null },
                     bottomRight: p.salary
                         ? rankLineHtml(p.pid, p.pos, parseFloat(String(p.salary).replace(/[^0-9.]/g, '')) || 0)
                                                 : `<span style="font-size:calc(9px * var(--ts,1)); white-space:nowrap;"><span style="font-weight:900; color:var(--accent-blue);">${p.pos}${playerRanks[p.pid] ? '#' + playerRanks[p.pid] : 'NR'}</span><span style="font-weight:800; color:var(--text-dim);"> · ${playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : '0.0'} AVG</span>${playerSeason[p.pid] ? `<span style="font-weight:800; color:var(--text-dim);"> · </span><span style="font-weight:900; color:#fff;">${playerSeason[p.pid].pts.toFixed(1)}</span><span style="font-weight:800; color:var(--text-dim);"> PTS · ${playerSeason[p.pid].gp} GP</span>` : ''}</span>`,
@@ -15023,7 +15023,7 @@ function lldPtrOn() { return true; }
 // Everything specific to the Batman league lives behind lldGthOn(). It is on in a league whose MFL ID is listed in LLD_GTH_LEAGUES,
 // and in LLD only when you flip the "Gotham mode" beta switch (commissioner franchises), so layouts can be tried here first.
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
-function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || (lldDev() && lldBv('gth') === '1'); } catch (e) { return false; } }
+function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || !!(LLD.features && LLD.features.gotham); } catch (e) { return false; } } // turn it on in your league config: window.LLD_CONFIG = { features: { gotham: true } }
 const LLD_GTH = { features: {} }; // feature name -> { on: fn, render: fn }. New Gotham features register here.
 // ---- Gotham: Captains / Reserves / Bench layout on the Lineup (view only until Gotham exists on MFL; choices saved on this device) ----
 const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'FLEX'], base: 8, dep: 2 };
@@ -15320,7 +15320,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham league mode (Batman league features, for testing layouts here)')}${onoff('gth')}${lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)')}${onoff('gtp')}${lab('New Players layout: Contracts / Rankings / Dynasty tabs (Players > All Players and Free Agents)')}${onoff('apv')}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -22366,7 +22366,10 @@ const result = await applyAuctionContract(pid, commentText);
     const header = document.querySelector('.app-header');
     if (!header) return;
 
-    const syncOffset = () => document.documentElement.style.setProperty('--sticky-top', header.offsetHeight + 'px');
+    // only the logo row and the main tab buttons stay pinned: lift the sub tabs out of the sticky header so they scroll away with the page
+    try { const subs = header.querySelector('.sub-tabs-container'); if (subs && header.nextElementSibling !== subs) header.insertAdjacentElement('afterend', subs); } catch (e) { }
+    const hh = () => header.offsetHeight;
+    const syncOffset = () => document.documentElement.style.setProperty('--sticky-top', hh() + 'px');
     syncOffset();
     if (window.ResizeObserver) new ResizeObserver(syncOffset).observe(header);
 
@@ -22374,11 +22377,11 @@ const result = await applyAuctionContract(pid, commentText);
 
     function setStage(next) {
         if (document.body.classList.contains('hdr-mid')) next = 0;
-        const before = header.offsetHeight;
+        const before = hh();
         document.body.classList.toggle('hdr-s1', next >= 1);
         document.body.classList.toggle('hdr-s2', next >= 2);
         stage = next;
-        const delta = before - header.offsetHeight; // reading offsetHeight forces the new layout
+        const delta = before - hh(); // reading offsetHeight forces the new layout
         if (delta) window.scrollBy(0, -delta);      // shrinking the header would otherwise make the rows jump
         syncOffset();
     }
@@ -22389,8 +22392,8 @@ const result = await applyAuctionContract(pid, commentText);
         if (document.body.classList.contains('hdr-mid')) { if (stage !== 0) setStage(0); return; }
         let next = stage;
         if (stage === 0) {
-            const full = header.offsetHeight;
-            document.body.classList.add('hdr-s1'); const D = full - header.offsetHeight; document.body.classList.remove('hdr-s1'); // height the header gives back when condensed
+            const full = hh();
+            document.body.classList.add('hdr-s1'); const D = full - hh(); document.body.classList.remove('hdr-s1'); // height the header gives back when condensed
             // condense only once the page has scrolled past that height, so growing it again never re-triggers
             if (y > D + 40 && room > D + 300) next = 1;
         } else if (y < 20) next = 0;
@@ -24112,8 +24115,6 @@ function lldStatsEnsureTabs() {
 
 /* ===== beta: Team sub-tab "Trade" becomes "My Trade Block" (franchises 0000 / 0001 only) ===== */
 function lldMyBlockTab() {
-    const fid = String(typeof myFid !== 'undefined' ? myFid : '').padStart(4, '0');
-    if (fid !== '0000' && fid !== '0001') return;
     if (lldApv()) {
         $('#subtabs-team .sub-tab-btn').each(function () {
             const t = $(this).text().trim().toLowerCase();
