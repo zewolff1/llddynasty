@@ -5592,3 +5592,9 @@ body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 u{font-size:calc(8px * var(--ts
 body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 s{font-size:calc(9px * var(--ts,1)) !important}
 body.lld-tpl .player-row.lld-tpl .lld-pb .apv-r3 b{border:0 !important;background:none !important;padding:0 !important;box-shadow:none !important;border-radius:0 !important}
 body.lld-tpl .player-row.lld-tpl .lld-pb{align-items:center}
+
+/* Only the logo row + main tab buttons stay pinned. Sub tabs, toggles and the team header scroll away. */
+body:not(.lld-nav) .sub-tabs-container{background:var(--page-bg);border-bottom:1px solid rgba(255,255,255,.06)}
+body:not(.lld-nav) #lineup-dashboard-inject,
+body:not(.lld-nav) .sticky-controls{position:static !important;box-shadow:none}
+body:not(.lld-nav) .sticky-controls{max-height:none;overflow-y:visible}
