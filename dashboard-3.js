@@ -209,14 +209,16 @@ function lldSetTicker(items, secs) {
     const yr0 = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg0 = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
     // [[L:id|NAME]] shows just the team logo, [[T:id|NAME]] shows the logo and the name
     const tok = s => esc(s).replace(/\[\[([LT]):(\d+)\|([^\]]*)\]\]/g, (m, k, id, nmx) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">` + (k === 'T' ? `<b class="tk-nm">${nmx}</b>` : ''));
-    const flat = (secs && secs.length ? secs.reduce((a, s) => a.concat(s.items), []) : items);
-    const plain = flat.join(sep) + sep;
-    const slides = [];
-    if (secs && secs.length) secs.forEach(sc => sc.items.forEach(t => slides.push({ s: sc.name, h: tok(t) })));
-    else items.forEach(t => slides.push({ s: '', h: tok(t) }));
-    window._lldTkSlides = slides; window._lldTkI = -1;
-    sp.innerHTML = '';
-    lldTkNext();
+    // scrolling ticker: every section runs past the left edge in turn, then it loops (the label on the left names the section passing by)
+    clearTimeout(window._lldTkTm);
+    const spd = lldTkCfg().spd, sepH = `<i class="tk-sep">${esc(sep)}</i>`;
+    const secList = (secs && secs.length) ? secs : [{ name: '', items }];
+    const one = secList.map(sc => `<span class="tk-sec" data-n="${esc(sc.name || '')}">` + sc.items.map(t => tok(t)).join(sepH) + sepH + '</span>').join('');
+    const chars = secList.reduce((n, sc) => n + sc.items.reduce((m, t) => m + String(t).replace(/\[\[[LT]:\d+\|([^\]]*)\]\]/g, '$1').length + 6, 0), 0);
+    sp.style.setProperty('--tkdur', Math.max(18, Math.round(chars * 0.2 / spd)) + 's');
+    sp.innerHTML = one + one;
+    const lb = document.querySelector('#lld-ticker .tk-l'); if (lb && secList[0].name) lb.textContent = secList[0].name;
+    lldTkWatch();
 }
 // slideshow ticker: one item at a time, the old one slides up and out while the next slides in
 function lldTkSpan() { const v = lldTkCfg().spd; return v <= 0.6 ? 2500 : v >= 1.5 ? 6000 : 4000; }
@@ -2305,10 +2307,12 @@ function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_a
 function lldApvCtx() { try { const e = document.getElementById('apv-ct-box'); return !!(e && e.offsetParent !== null); } catch (e) { return false; } }
 function lldApvIsFA() { if (lldApvCtx()) return false; const b = $('#subtabs-players .sub-tab-btn.active'); return !b.length || b.text().trim().toLowerCase().replace(' ', '-') === 'free-agents'; }
 function lldApvLuOn() { try { return !!document.getElementById('apv-lu-bar'); } catch (e) { return false; } }
+function lldGthNorm() { try { if (!lldGthOn()) return false; const O = window._apv.on; O.dyn = O.bb = O.bu = O.co = 0; if (!localStorage.getItem('lld_apv_gth')) { O.ros = 0; localStorage.setItem('lld_apv_gth', '1'); lldApvSave(); } return true; } catch (e) { return false; } }
 function lldApvGroups(isFA, mode) {
+    const gth = lldGthNorm();
     mode = mode || (lldApvLuOn() ? 'lu' : lldApvCtx() ? 'ct' : 'pl');
     const keep = mode === 'lu' ? ['RANKING', 'MATCHUP', 'STATS'] : ['RANKING', 'CONTRACT', 'TRADE', 'STATS'];
-    return LLD_APV_GR.filter(g => keep.indexOf(g[0]) >= 0 && !(isFA && g[0] === 'CONTRACT')).map(g => g[0] !== 'TRADE' ? g : isFA ? [g[0], g[1].filter(x => x[0] === 'yu')] : mode === 'ct' ? [g[0], g[1].filter(x => ['yu', 'tp', 'bk'].indexOf(x[0]) >= 0)] : [g[0], g[1].filter(x => x[0] !== 'tp')]);
+    return LLD_APV_GR.filter(g => keep.indexOf(g[0]) >= 0 && !(isFA && g[0] === 'CONTRACT')).filter(g => !(gth && g[0] === 'STATS')).map(g => g[0] === 'RANKING' && gth ? [g[0], g[1].filter(x => x[0] !== 'dyn')] : g).map(g => g[0] !== 'TRADE' ? g : isFA ? [g[0], g[1].filter(x => x[0] === 'yu')] : mode === 'ct' ? [g[0], g[1].filter(x => ['yu', 'tp', 'bk'].indexOf(x[0]) >= 0)] : [g[0], g[1].filter(x => x[0] !== 'tp')]);
 }
 function lldApvAvail(isFA) { const A = window._apv; return lldApvGroups(isFA).flatMap(g => g[1]).filter(x => A.on[x[0]] && ['fit', 'bk', 'op', 'tm', 'df'].indexOf(x[0]) < 0); }
 function lldApvKey(isFA) { const A = window._apv, av = lldApvAvail(isFA); if (!av.length) return null; if (!av.some(x => x[0] === A.sort)) A.sort = av[0][0]; return A.sort; }
@@ -2566,6 +2570,7 @@ function lldApvNowBuild() {
 }
 function lldApvNow(pid) { if (!window._apvNowMap) lldApvNowBuild(); const m = window._apvNowMap; if (m) return m[pid] || null; return (playerRanks[pid] && playerAverages[pid] > 0) ? playerRanks[pid] : null; }
 function lldApvRanks(players) {
+    lldGthNorm();
     const px = window._apvPosX = window._apvPosX || {};
     players.forEach(p => { const g = dynGrp(p.pos || p.realPos || ''); if (g) px[p.pid] = g; });
     try { const U0 = window._apvUR; if (U0 && U0.re && players.some(p => U0.tot[p.pid] > 0 && !U0.ros[p.pid])) U0.re(); } catch (e) { }
@@ -2582,6 +2587,7 @@ function lldApvRanks(players) {
     });
 }
 function lldApvRight(p) {
+    lldGthNorm();
     const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
     const cur = lldApvNow(p.pid), avg = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1);
     const lb = r => r ? p.pos + '#' + r : '–';
@@ -2663,6 +2669,7 @@ $(document).on('click', '.apv-oo', async function () {
     window._apv.oo = 0; lldApvCtRender();
 });
 async function lldApvCtRender() {
+    lldGthNorm();
     const box = document.getElementById('apv-ct-box'), C = window._apvCt; if (!box || !C) return;
     const A = window._apv, me = String(myFid).padStart(4, '0'), fid = C.fid; C.own = fid === me;
     const head = () => '<div class="tb-dl" style="display:none"></div>' + lldPosBarHtml() + lldApvBar(false);
@@ -2818,6 +2825,7 @@ function lldApvLuRow(el, p) {
     el.classList.add('apv-lu-done');
 }
 async function lldApvLuEnhance() {
+    lldGthNorm();
     if (!lldApvLuOn()) return;
     $('#apv-lu-bar').replaceWith(lldApvLuBar()); document.querySelectorAll('.apv-sl.lu').forEach(x => x.remove());
     const sel = '#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid], .lineup-section[data-section="ir"] .player-row[data-pid], .lineup-section[data-section="taxi"] .player-row[data-pid]';
@@ -7132,7 +7140,7 @@ function lldDynAll(per) {
     return window._dynAllP[per];
 }
 // first file that exists out of a list (Dynasty Rankings falls back to the 2027 file until dynasty.json is added)
-async function lldDynFirst(pers) { for (const per of pers) { const D = await lldDynAll(per); if (D) return Object.assign({ per }, D); } return null; }
+async function lldDynFirst(pers) { if (lldGthOn()) return null; for (const per of pers) { const D = await lldDynAll(per); if (D) return Object.assign({ per }, D); } return null; }
 // positional ranks for the rank tags / re-sign floors (only when the new layout beta is on)
 async function lldSharksDynasty(grp) {
     const D = await lldDynFirst(['dp', 'dynasty', 'career', 'y27', 'y28', 'n3']);
@@ -14480,7 +14488,7 @@ async function lldByeLoad() {
 function lldByeHydrate() {
     const m = window._lldBye; if (!m) return;
     try { lldSlpByeHydrate(); } catch (e) { }
-    document.querySelectorAll('.lld-undr[data-team]').forEach(el => { const t = el.dataset.team, b = m[t] || m[NFL_ABBR_ALIAS && NFL_ABBR_ALIAS[t]]; if (b && !el.dataset.done) { el.dataset.done = '1'; el.textContent = `${t} · Bye ${b}`; } });
+    document.querySelectorAll('.lld-undr[data-team]').forEach(el => { const t = el.dataset.team, b = m[t] || m[NFL_ABBR_ALIAS && NFL_ABBR_ALIAS[t]]; if (b && !el.dataset.done) { el.dataset.done = '1'; el.textContent = `${t} · Bye ${b}${el.dataset.ch ? ' · ' + el.dataset.ch : ''}`; } });
 }
 setTimeout(lldByeLoad, 2500);
 new MutationObserver(() => { try { if (window._lldBye) lldByeHydrate(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true });
@@ -14536,7 +14544,8 @@ function lldTplRow(data, opts) {
     // name line
     const nameLine = `<div class="lld-nm"><span class="full-name">${data.name}</span><span class="short-name" style="display:none;">${data.shortName || data.name}</span><span class="pos-text-${posL}${opts.posOpen ? ' pos-open-menu' : ''} lld-pos">${data.pos || ''}</span>${opts.ownerHtml || ''}${opts.nameChip || ''}${statusBadge}${F.inj === 'on' ? getInjuryHtml(data.pid) : ''}${getRookieHtml(data.pid)}${opts.nameSuffix || ''}</div>`;
     const bye = window._lldBye && window._lldBye[team];
-    const under = F.under === 'team' ? `<div class="lld-undr" data-team="${team}">${team}${bye ? ' · Bye ' + bye : ''}</div>` : '';
+    let gch = ''; try { if (lldGthOn() && /^(coach|def|dst)/i.test(data.pos || '')) { const cn = lldChClean(lldChCfg(pid, lldChClean(data.name)).name || ''); if (cn && lldChSlug(cn) !== lldChSlug(lldChClean(data.name))) gch = cn; } } catch (e) { }
+    const under = F.under === 'team' ? `<div class="lld-undr" data-team="${team}" data-ch="${gch}">${team}${bye ? ' · Bye ' + bye : ''}${gch ? ' · ' + gch : ''}</div>` : '';
     // pieces
     const k = T.k || null, rk = T.rk || null;
     const cparts = k ? lldTplContractParts(k, F) : [];
@@ -23378,12 +23387,12 @@ async function lldHcRender() {
     if (el.data('f') === vf && el.data('done')) return;
     el.data('f', vf).data('done', 0);
     const box = (k, l, m, s, c) => `<div class="hb ${c || ''}" data-hc="${k}"><i>${l}</i><b>${m}</b><span>${s}</span></div>`;
-    el.html(box('rec', 'Record', '…', '', '') + box('cap', 'Cap room', '…', '', '') + box('dyn', 'Dynasty', '…', '', ''));
+    el.html(box('rec', 'Record', '…', '', '') + box('cap', 'Cap room', '…', '', '') + (lldGthOn() ? '' : box('dyn', 'Dynasty', '…', '', '')));
     let rec = ['–', ''], cap = ['–', ''], dy = ['–', ''];
     try { const S = await lldStatsLoad(), i = S.F.indexOf(vf); if (i >= 0) rec = [S.wins[i] + '-' + (S.gp[i] - S.wins[i]), S.base[i].po + '% playoffs']; const P = await lldDynPower(S), k = P.findIndex(z => z.f === vf); if (k >= 0) dy = ['#' + (k + 1), 'of ' + P.length + ' teams']; } catch (err) { console.warn('hc stats', err); }
     try { const sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026, sh = await lldShLoad(), T = lldShTotals(sh, sy), c = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0); if (c && T[vf] != null) cap = [lldShM(c - T[vf]), (T[vf] / c * 100).toFixed(1) + '% used']; } catch (err) { console.warn('hc cap', err); }
     if (el.data('f') !== vf) return;
-    el.html(box('rec', 'Record', rec[0], rec[1], 'g') + box('cap', 'Cap room', cap[0], cap[1], '') + box('dyn', 'Dynasty', dy[0], dy[1], '')).data('done', 1);
+    el.html(box('rec', 'Record', rec[0], rec[1], 'g') + box('cap', 'Cap room', cap[0], cap[1], '') + (lldGthOn() ? '' : box('dyn', 'Dynasty', dy[0], dy[1], ''))).data('done', 1);
 }
 async function lldDpOpen() {
     let o = $('#lld-tm-pop'); if (!o.length) { o = $('<div id="lld-tm-pop"><div class="sh"></div></div>'); $('body').append(o); }
