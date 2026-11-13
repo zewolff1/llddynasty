@@ -13438,6 +13438,7 @@ const theirCapColor = theirCapUsed > salaryCap ? '#ef4444' : theirCapPct > 90 ? 
     // Update header DOM directly without full re-render
     $('#their-cap-bar-label').data('base', theirCapUsed);
     $('#their-team-logo').attr('src', theirLogoUrl);
+    $('#their-team-logo-wrapper').html(buildLogoWithTrophy(activeFid, 24));
     $('#their-team-name').text(theirTeamName);
     $('#their-cap-bar').css('width', theirCapPct + '%').css('background', theirCapColor);
     $('#their-cap-label').text(`$${theirCapUsed.toFixed(1)}m / $${salaryCap}m`).css('color', theirCapColor);
