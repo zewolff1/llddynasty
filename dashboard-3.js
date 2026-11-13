@@ -12732,6 +12732,7 @@ try {
 } catch(e) {}
 
         try { await lldApvTrEnrich(myPlayers, myFid); await lldApvTrEnrich(theirPlayers, activeFid); } catch (e) { }
+        try { window._tpMyCap = (await fetchTeamContractMap(myFid)).__totalSalary || 0; } catch (e) { window._tpMyCap = 0; }
         // Track selected assets
         let mySelected = new Set([...(targetPid ? [String(targetPid)] : []), ...presetGive.map(String)]);
         let theirSelected = new Set(presetReceive.map(String));
@@ -12994,7 +12995,7 @@ function buildProposeSection(theirCapUsed = 0) {
     const myTeamName = leagueFranchises[myFid] || 'My Team';
     const theirTeamName = leagueFranchises[activeFid] || 'Their Team';
 
-    const myCapUsed = (() => {
+    const myCapUsed = window._tpMyCap || (() => {
         if (!currentDoc) return 0;
         let total = 0;
         currentDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
