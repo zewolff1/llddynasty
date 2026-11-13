@@ -17332,10 +17332,11 @@ function lldYtId(u) { try { const x = new URL(String(u).trim()); if (!/youtu/.te
 function lldYtLoad() { return window._lldYtP || (window._lldYtP = new Promise(res => { if (window.YT && window.YT.Player) return res(); const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { try { prev && prev(); } catch (e) { } res(); }; sc.onerror = () => res(); document.head.appendChild(sc); })); }
 async function lldYtPlay(v, muted) {
     await lldYtLoad(); if (!(window.YT && window.YT.Player) || !$('#lld-story').length) return false;
-    $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><div id="lld-yt-p"></div></div>');
-    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } }, onStateChange: e => { if (e.data === 0) try { e.target.playVideo(); } catch (x) { } } } });
+    $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><button type="button" class="yt-pp" aria-label="Play or pause the music">▶</button><div id="lld-yt-p"></div></div>');
+    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } } } });
     $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
 }
+$(document).on('click', '#lld-yt .yt-pp', function (e) { e.stopPropagation(); const y = window._stYt; if (!y || !y.getPlayerState) return; try { if (y.getPlayerState() === 1) y.pauseVideo(); else { if (!(localStorage.getItem('lld_st_mute') === '1')) y.unMute(); y.playVideo(); } } catch (x) { } });
 $(document).on('click', '#lld-yt .yt-x, #lld-yt .yt-o', function () { $('#lld-yt').toggleClass('col'); });
 function stMusicStop() {
     try { if (window._stYt) window._stYt.destroy(); } catch (e) { } window._stYt = null; $('#lld-yt').remove();
@@ -17371,7 +17372,7 @@ $(document).on('click', '#lld-story .st-sp', function () {
     const L = [1, 1.5, 2, 3]; LLD_ST.speed = L[(L.indexOf(LLD_ST.speed) + 1) % L.length];
     $(this).text(LLD_ST.speed + '×'); $('#lld-story').css('--dur', (5.4 / LLD_ST.speed).toFixed(2) + 's'); stShow(LLD_ST.i); // restart this slide at the new speed
 });
-$(document).on('click', '#lld-story .st-mu', function () { const y = window._stYt; if (y && y.isMuted) { try { const m = !y.isMuted(); m ? y.mute() : y.unMute(); $(this).text(m ? '🔇' : '🔊'); localStorage.setItem('lld_st_mute', m ? '1' : '0'); } catch (e) { } return; } const a = window._stAudio; if (!a) return; a.muted = !a.muted; $(this).text(a.muted ? '🔇' : '🔊'); try { localStorage.setItem('lld_st_mute', a.muted ? '1' : '0'); } catch (e) { } });
+$(document).on('click', '#lld-story .st-mu', function () { const y = window._stYt; if (y && y.isMuted) { try { if (y.getPlayerState && y.getPlayerState() !== 1) { y.playVideo(); if (localStorage.getItem('lld_st_mute') !== '1') y.unMute(); return; } const m = !y.isMuted(); m ? y.mute() : y.unMute(); $(this).text(m ? '🔇' : '🔊'); localStorage.setItem('lld_st_mute', m ? '1' : '0'); } catch (e) { } return; } const a = window._stAudio; if (!a) return; a.muted = !a.muted; $(this).text(a.muted ? '🔇' : '🔊'); try { localStorage.setItem('lld_st_mute', a.muted ? '1' : '0'); } catch (e) { } });
 $(document).on('click', '#lld-story .st-end', () => stShow(Math.max(0, LLD_ST.slides.length - 1)));
 $(document).on('click', '#lld-story .st-zr', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-zl', () => stShow(LLD_ST.i - 1));
