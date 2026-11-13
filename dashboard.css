@@ -5603,3 +5603,27 @@ body:not(.lld-nav) .sub-tabs-container{background:var(--page-bg);border-bottom:1
 body:not(.lld-nav) #lineup-dashboard-inject,
 body:not(.lld-nav) .sticky-controls{position:static !important;box-shadow:none}
 body:not(.lld-nav) .sticky-controls{max-height:none;overflow-y:visible}
+
+/* Trade tab: pending proposals and the trade builder (teams side by side, cap before and after under each team) */
+.tp-cl{display:flex;gap:8px;align-items:flex-start}
+.tp-cl>div{flex:1 1 0;min-width:0}
+.tp-side{display:flex;flex-direction:column;gap:4px}
+.tp-sh{display:flex;align-items:center;gap:6px;font-weight:900;font-size:calc(11px * var(--ts,1));color:#fff;min-width:0;margin-bottom:2px}
+.tp-sh img{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;cursor:pointer}
+.tp-sh span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-cl .lld-det,.tp-cl .lld-pb{display:none !important}
+.tp-cl .player-row{--tp-hs:38px;gap:6px;margin-bottom:0 !important}
+.tp-cl .lld-mid{max-width:100%}
+.tp-cl .lld-nm{flex-wrap:wrap}
+.tp-cl .pk-bd{font-size:calc(12px * var(--ts,1))}
+.tp-cl .apv-yc{min-width:0}
+.tp-pk .lld-undr{color:#f59e0b}
+.tp-cap{display:flex;flex-direction:column;gap:3px;font-size:calc(10px * var(--ts,1));font-weight:800;margin-top:4px}
+.tp-t{display:flex;flex-direction:column;gap:1px;color:var(--text-dim);min-width:0}
+.tp-t span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-t b{color:var(--text-main,#fff);font-weight:900}
+.tp-t b u{text-decoration:none}
+.tp-sm{flex-direction:row;justify-content:space-between;font-size:calc(9px * var(--ts,1))}
+.tp-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;position:relative}
+.tp-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:rgba(148,163,184,.5)}
+.tp-bar i.n{top:1.5px;bottom:1.5px;opacity:.9}
