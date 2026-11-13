@@ -15495,7 +15495,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Recap music: plays a song during recaps and previews. Add recapSong: "YouTube link" to your league config') + onoff('mus')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -16807,10 +16807,11 @@ function recapMonthOf(wk) {
     d.setDate(d.getDate() + 3 + 7 * (wk - 1) + 3);
     return { key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), label: d.toLocaleString('en-US', { month: 'long' }) };
 }
+// A month only counts once it is over: the week after its last completed week belongs to the next month (or the season ended).
 function recapMonths(weeks) {
     const out = [];
     weeks.forEach(w => { const m = recapMonthOf(w); let o = out.find(x => x.key === m.key); if (!o) { o = { key: m.key, label: m.label, weeks: [] }; out.push(o); } o.weeks.push(w); });
-    return out;
+    return out.filter(o => { const last = Math.max.apply(0, o.weeks); return last >= 18 || recapMonthOf(last + 1).key !== o.key; });
 }
 function computeMonthSummary(weeks, byWk) {
     const P = {}, T = {};
@@ -17284,7 +17285,7 @@ async function lldMonthSlides(key) {
     for (let i = 0; i < cur.weeks.length; i += 3) await Promise.all(cur.weeks.slice(i, i + 3).map(async w => { byWk[w] = await fetchRecapWeek(w, w < latest); }));
     const M = computeMonthSummary(cur.weeks, byWk);
     const mn = parseInt(String(cur.key).slice(5), 10), SEA = { 10: ['hal', 'Happy Halloween'], 11: ['thx', 'Happy Thanksgiving'], 12: ['xmas', 'Happy holidays'] }[mn]; // October, November and December always get their seasonal look
-    LLD_ST.monthStt = SEA ? SEA[0] : '';
+    LLD_ST.monthStt = SEA ? SEA[0] : ''; LLD_ST.monthKey = String(cur.key);
     const w0 = cur.weeks[0], w1 = cur.weeks[cur.weeks.length - 1], rng = w0 === w1 ? 'Week ' + w0 : 'Weeks ' + w0 + ' to ' + w1;
     out.push(stSlide('#a16207', '#14100a', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">${lldChatEsc(cur.label.toUpperCase())}</div><div class="st-h st-a" style="--d:.4s">Monthly recap</div><div class="st-sub st-a" style="--d:.6s">${SEA ? SEA[1] + ' · ' : ''}${rng}</div>`));
     if (!M.top.length) { out.push(stSlide('#334155', '#020617', `<div class="st-h st-a">No completed games this month</div>`)); return out; }
@@ -17469,7 +17470,6 @@ function stShow(i) {
 // Links can be YouTube links (shown in a small player) or direct mp3 links. Team keys can be a franchise number or part of the team name.
 function lldMusCfg() { // beta switch "Recap music" (Settings > Beta features). Songs come from LLD_CONFIG.recapSong (one link or a list) and/or LLD_CONFIG.recapMusic (per team, win/loss, preview)
     try {
-        if (lldBv('mus') !== '1') return null;
         const L = window.LLD_CONFIG || {}; let c = L.recapMusic || null;
         if (L.recapSong) { const g = [].concat(L.recapSong).filter(x => typeof x === 'string' && x.trim()); if (g.length) c = Object.assign({}, c || {}, { generic: [].concat((c && c.generic) || [], g) }); }
         return c;
@@ -17491,7 +17491,10 @@ function lldMusPick(kind) {
     if (kind === 'preview' || kind === 'matchup') return lldMusChoose(C.preview, 'pv') || lldMusChoose(C.generic);
     const S = LLD_ST, me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     // The weekly league recap plays the song of the team with the highest score that week (its "win" song). Other recaps use your own team and result.
-    const top = (kind === 'recap' && S.topFid) ? S.topFid : '', f = kind === 'mrecap' ? S.winFid : (top || me), res = (kind === 'mrecap' || top) ? 'win' : S.myRes, t = lldMusTeam(C, f);
+    // Monthly recap: that month's own songs (recapMusic.months["2026-09"]), then the month's top team's win song.
+    const isMo = kind === 'month' || kind === 'mrecap';
+    if (isMo) { const mv = lldMusChoose(((C.months || {})[S.monthKey || ''])); if (mv) return mv; }
+    const top = (kind === 'recap' && S.topFid) ? S.topFid : '', f = isMo ? S.winFid : (top || me), res = (isMo || top) ? 'win' : S.myRes, t = lldMusTeam(C, f);
     // Order: that team's win (or loss) song, then that team's generic song, then the league win / loss list, then the league generic list.
     const tv = t && (typeof t === 'string' || Array.isArray(t) ? t : ((res && t[res]) || t.generic));
     return lldMusChoose(tv) || (res ? lldMusChoose(C[res]) : '') || lldMusChoose(C.generic);
@@ -17609,6 +17612,7 @@ async function loadRecapsTab() {
         } else if (st.view === 'month') {
             const months = recapMonths(weeks);
             let cur = months.find(m => m.key === st.month) || months[months.length - 1];
+            if (!cur) { container.html(`<div style="padding:10px;">${viewBar}<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:calc(11px * var(--ts,1));">Monthly recaps appear once a month is over.</div></div>`); return; }
             st.month = cur.key;
             const byWk = {};
             for (let i = 0; i < cur.weeks.length; i += 3) {
