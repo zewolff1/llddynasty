@@ -14105,10 +14105,15 @@ function lldHd2Html() {
     const nx = window._nextOpp?.[vf], tw = window._tickWeek;
     let opp = null, wk = '';
     if (nx && nx.opps && nx.opps.length) { opp = nx.opps[0]; wk = nx.week; } else if (tw && tw.pairs && tw.pairs[vf]) { opp = tw.pairs[vf][0]; wk = tw.week; }
+    let forceRec = false;
+    try { // viewing one of your past weeks: show that week's recap
+        const vw = parseInt(window._lldViewWeek, 10), sw = parseInt(window._lldServedWeek, 10) || 0;
+        if (vw && sw && vw < sw && String(vf) === String(myFid)) { const g = (window._lldGames || []).find(x => x.wk === vw && (x.a === vf || x.b === vf)); wk = vw; if (g) opp = g.a === vf ? g.b : g.a; forceRec = true; }
+    } catch (e) { }
     h += statChips;
     if (!onC && c.prev !== 'off' && opp) {
-        const ph = c.phase && c.phase !== 'auto' ? c.phase : lldAutoPhase(), on = esc(leagueFranchises[opp] || opp);
-        h += `<button type="button" class="hd2-pv th-op" data-ph="${ph}"><span class="hd2-pk${ph === 'live' ? ' live' : ''}">${ph === 'live' ? '● LIVE' : 'WEEK ' + wk + ' VS'}</span><img src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><b>${on}</b><span class="hd2-pb">${ph === 'live' ? 'Matchup' : ph === 'recap' ? '▶ Recap' : '▶ Preview'}</span></button>`;
+        const ph = forceRec ? 'recap' : c.phase && c.phase !== 'auto' ? c.phase : lldAutoPhase(), on = esc(leagueFranchises[opp] || opp);
+        h += `<button type="button" class="hd2-pv th-op" data-ph="${ph}" data-wk="${wk}"><span class="hd2-pk${ph === 'live' ? ' live' : ''}">${ph === 'live' ? '● LIVE' : 'WEEK ' + wk + ' VS'}</span><img src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><b>${on}</b><span class="hd2-pb">${ph === 'live' ? 'Matchup' : ph === 'recap' ? '▶ Recap' : '▶ Preview'}</span></button>`;
     }
     if (c.act !== 'off') {
         const CAT = { lineup: 'Lineup', contracts: (lldApv() ? 'Manage' : 'Contracts'), stats: 'Stats', tradetab: 'Trade' };
@@ -16935,9 +16940,9 @@ $(document).on('click touchend', '#lld-hdr-pv', async function (e) {
     const btn = this; if (window._hdrPvBusy) return; window._hdrPvBusy = true; const old = btn.textContent; btn.textContent = 'Loading…';
     try {
         const all = await fetchAllWeekScores(), weeks = Object.keys(all).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
-        const hw = parseInt($('.th-op').first().attr('data-wk'), 10), ew = await lldCurWeek();
-        const wk = Math.max(1, Math.min(18, hw || ew || parseInt(window._liveScoreCurrentWeek, 10) || (latest + 1)));
-        if ((ew && wk < ew) || /Recap/.test(old)) { btn.textContent = old; window._hdrPvBusy = false; lldOpenStory('recap', wk, 0, false); return; }
+        const hw = parseInt($('.th-op').first().attr('data-wk'), 10), ew = await lldCurWeek(), vwk = (String(fid).padStart(4, '0') === String(myFid).padStart(4, '0')) ? (parseInt(window._lldViewWeek, 10) || 0) : 0; // vwk: a past week open on your lineup page
+        const wk = Math.max(1, Math.min(18, vwk || hw || ew || parseInt(window._liveScoreCurrentWeek, 10) || (latest + 1)));
+        if (vwk || (ew && wk < ew) || /Recap/.test(old)) { btn.textContent = old; window._hdrPvBusy = false; lldOpenStory('recap', wk, 0, false); return; }
         const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
         const f = String(fid).padStart(4, '0'), i = P.games.findIndex(g => String(g.t1.fid).padStart(4, '0') === f || String(g.t2.fid).padStart(4, '0') === f);
         if (i < 0) alert('No matchup found for week ' + wk + ' yet.'); else lldOpenStory('matchup', wk, i, false);
@@ -18191,8 +18196,8 @@ function lldMatchRecapBelow(m) {
 }
 window._lldEmbCache = {};
 async function lldEmbedStory(host, kind, wk, idx, mref) {
-    $('#lld-story').remove(); LLD_ST.popup = false; LLD_ST.embed = true;
-    host.html(`<div id="lld-story" class="emb" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div><button type="button" class="emb-replay">↻ Replay</button></div>`);
+    stMusicStop(); $('#lld-story').remove(); LLD_ST.popup = false; LLD_ST.embed = true;
+    host.html(`<div id="lld-story" class="emb" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div><button type="button" class="emb-replay">↻ Replay</button></div>`);
     try {
         LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', 'emb' + (LLD_ST.stt ? ' stt stt-' + LLD_ST.stt : '')); if (LLD_ST.stt) lldSttFonts();
         const key = kind + '|' + wk + '|' + idx + '|' + (mref ? mref.t1.fid + mref.t2.fid + mref.t1.score + mref.t2.score : '');
@@ -18200,6 +18205,7 @@ async function lldEmbedStory(host, kind, wk, idx, mref) {
         if (!slides) { slides = kind === 'mrecap' ? await lldMatchRecapSlides(mref, wk) : await lldStorySlides(kind, wk, idx); slides = slides.filter(x => !/st-cta/.test(x.html)); window._lldEmbCache[key] = slides; }
         if (!$('#lld-story.emb').length) return;
         LLD_ST.slides = slides; LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; LLD_ST.embed = true; stShow(0);
+        if (kind !== 'mrecap') { try { if (lldMusCfg()) stMusicStart('', kind); } catch (e) { } } // each game preview plays a preview song (tap the small circle if the browser waits for a tap)
     } catch (e) { console.warn('embed story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-sub">Could not load this ${kind === 'mrecap' ? 'recap' : 'preview'}</div></div>`); }
 }
 $(document).on('click', '#lld-story .emb-replay', function (e) { e.stopPropagation(); if (LLD_ST.slides.length) stShow(0); });
