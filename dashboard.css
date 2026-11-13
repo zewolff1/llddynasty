@@ -5366,6 +5366,10 @@ html body #lld-scene:not(.desk) .t b, html body #lld-scene:not(.desk) .t i { tex
 #lld-yt iframe{width:160px;height:160px;display:block}
 #lld-yt .yt-x{position:absolute;top:5px;right:5px;z-index:2;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-weight:900;font-size:11px;backdrop-filter:blur(4px)}
 #lld-yt .yt-o{display:none;position:absolute;inset:0;z-index:3;width:100%;height:100%;border:0;background:rgba(15,18,30,.92);color:#fff;font-size:18px}
+#lld-yt .yt-pp{position:absolute;inset:0;z-index:1;width:100%;height:100%;border:0;background:linear-gradient(160deg,rgba(30,27,75,.88),rgba(12,10,32,.94));color:#fff;font-size:34px;font-weight:900;display:grid;place-items:center;cursor:pointer;transition:opacity .25s}
+#lld-yt .yt-pp.on{opacity:0}
+#lld-yt .yt-pp.on:hover,#lld-yt .yt-pp.on:active{opacity:1}
+#lld-yt.col .yt-pp{display:none}
 #lld-yt.col{width:44px;height:44px;border-radius:50%;opacity:.85}
 #lld-yt.col .yt-x{display:none}
 #lld-yt.col .yt-o{display:block}
