@@ -2617,15 +2617,16 @@ function lldApvLine(p) {
         if (x.n < 3) a.push('<span>Needs 3+ games for boom, bust and consistency</span>');
         else {
             const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), cl = x.c == null ? 0 : Math.round(x.c * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
-            if (O.bb) a.push(`<span class="${hl('bb').trim()}"><b class="apv-bo">${bo}%</b> boom</span>`);
-            if (O.bu) a.push(`<span class="${hl('bu').trim()}"><b class="apv-bu">${bu}%</b> bust</span>`);
-            if (O.co) cons = `<span class="apv-cb${hl('co')}"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span>`;
+            if (O.bb) a.push(`<span class="${hl('bb').trim()} apv-bbc"><b class="apv-bo">${bo}%</b> boom</span>`);
+            if (O.bu) a.push(`<span class="${hl('bu').trim()} apv-bbc"><b class="apv-bu">${bu}%</b> bust</span>`);
+            if (O.co) cons = `<span class="apv-cb${hl('co')} apv-bbc"><span class="tr"><i style="width:${cl}%;background:${col}"></i></span><em style="color:${col}">${x.lab}</em></span>`;
         }
     }
     if (t && O.yu && t.you != null) a.push(`<span class="${hl('yu').trim()}"><b class="apv-tq">${t.you}/${t.yn}</b> ${fa ? 'would start for you' : 'start for you'}</span>`);
     if (t && !fa && O.th && t.th != null) a.push(`<span class="${hl('th').trim()}"><b class="apv-tq">${t.th}/${t.thn}</b> start for them</span>`);
     if (t && O.tp && t.tp != null) a.push(`<span class="${hl('tp').trim()}"><b class="apv-tq">${t.tp}%</b> of teams would start</span>`);
-    return a.length || cons ? `<div class="apv-sl">${a.join('')}${cons}</div>` : '';
+    (window._apvSlP = window._apvSlP || {})[String(p.pid)] = p;
+    return a.length || cons ? `<div class="apv-sl" data-pid="${p.pid}">${a.join('')}${cons}</div>` : '';
 }
 function lldApvChip(p) {
     const T = p._tr, O = window._apv.on, nfl = `<img class="apv-nfl" src="${getNFLLogoUrl(String(p.team || 'NFL').toUpperCase())}" onerror="this.style.display='none'">`;
@@ -2915,6 +2916,21 @@ function lldApvCsBlock(p) {
     const head = x.c == null ? `<div class="apv-cs-h"><span>Needs 3+ games</span><b class="apv-lb n/a">N/A</b></div>` : `<div class="apv-cs-h"><span>avg ${x.m.toFixed(1)} · ±${x.sd.toFixed(1)} · range ${rg}</span><b class="apv-lb ${x.lab.toLowerCase()}">${x.lab}</b></div><div class="apv-cs-h">${bb}<span>more consistent than ${Math.round(x.c * 100)}% of ${p.pos}s</span></div>`;
     return `<div class="apv-cs">${head}${lldApvSpark(p)}</div>`;
 }
+// Tap boom, bust or consistency on a row: the games behind those numbers and the consistency chart.
+function lldApvBbOpen(p) {
+    const x = p._ap; if (!x) return;
+    const d = window._apvD, T = x.T || {}, e = lldChatEsc, f1 = v => (+v).toFixed(1), tk = String(p.team || p.realTeam || '').toUpperCase(), games = [];
+    if (d && d.sc) { for (let w = 1; w < d.cw; w++) { const v = d.sc[w] && d.sc[w][p.pid]; if (v == null) continue; const S = d.sched && d.sched[w], g = S && (S[tk] || S[NFL_ABBR_ALIAS[tk]]); games.push({ lab: 'Week ' + w, v: +v, opp: g && g.opp ? (g.isHome === false ? '@' : 'vs ') + g.opp : '' }); } }
+    else (x.g || []).forEach((v, i) => { if (v != null) games.push({ lab: 'Game ' + (i + 1), v: +v, opp: '' }); });
+    const boom = games.filter(g => g.v >= T.hi), bust = games.filter(g => g.v <= T.lo);
+    const sec = (title, cls, arr, rule) => `<div class="apv-bbh ${cls}"><b>${title}</b><span>${arr.length} of ${games.length} games</span></div><div class="apv-bbn">${rule}</div>` + (arr.length ? arr.map(g => `<div class="apv-bbr"><span>${e(g.lab)}</span><span>${e(g.opp)}</span><b class="${cls}">${f1(g.v)}</b></div>`).join('') : '<div class="apv-bbr"><span style="color:var(--text-dim)">None yet</span></div>');
+    const nm = p.name || p.shortName || '', pos = p.realPos || p.pos || '';
+    $('#apv-bb-pop').remove();
+    $('body').append(`<div id="apv-bb-pop"><div class="apv-bbs"><button type="button" class="apv-bbx" aria-label="Close">\u2715</button><div class="apv-bbt">${e(nm)} <span>${e(pos)}</span></div>${lldApvCsBlock(p)}${x.n < 3 ? '<div class="apv-bbn">Needs 3+ games for boom, bust and consistency.</div>' : sec('Boom games', 'bo', boom, `Boom is ${f1(T.hi)}+ points, a top-quarter week for ${e(pos)}s.`) + sec('Bust games', 'bu', bust, `Bust is ${f1(T.lo)} or fewer points, a bottom-quarter week for ${e(pos)}s.`)}</div></div>`);
+}
+$(document).on('click', '.apv-sl .apv-bbc', function (ev) { ev.stopPropagation(); const p = (window._apvSlP || {})[String($(this).closest('.apv-sl').data('pid'))]; if (p) lldApvBbOpen(p); });
+$(document).on('click', '#apv-bb-pop .apv-bbx', () => $('#apv-bb-pop').remove());
+$(document).on('click', '#apv-bb-pop', function (ev) { if (ev.target === this) $('#apv-bb-pop').remove(); });
 function lldApvAbbr(f) { const n = String(leagueFranchises[f] || f).trim(), w = n.split(/\s+/).filter(Boolean); return (w.length > 1 ? w.map(x => x[0]).join('') : n.slice(0, 3)).toUpperCase().slice(0, 3); }
 function lldApvWeekTable(players) {
     const d = window._apvD; if (!d) return '';
@@ -12732,7 +12748,7 @@ try {
 } catch(e) {}
 
         try { await lldApvTrEnrich(myPlayers, myFid); await lldApvTrEnrich(theirPlayers, activeFid); } catch (e) { }
-        try { window._tpMyCap = (await fetchTeamContractMap(myFid)).__totalSalary || 0; } catch (e) { window._tpMyCap = 0; }
+        try { let cm = await fetchTeamContractMap(myFid); if (!cm.__totalSalary) { delete window._contractMapCache[myFid]; cm = await fetchTeamContractMap(myFid); } window._tpMyCap = cm.__totalSalary || 0; } catch (e) { window._tpMyCap = 0; }
         // Track selected assets
         let mySelected = new Set([...(targetPid ? [String(targetPid)] : []), ...presetGive.map(String)]);
         let theirSelected = new Set(presetReceive.map(String));
@@ -17470,11 +17486,15 @@ function lldMusPick(kind) {
     const C = lldMusCfg(); if (!C) return '';
     if (kind === 'preview' || kind === 'matchup') return lldMusChoose(C.preview, 'pv') || lldMusChoose(C.generic);
     const S = LLD_ST, me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
-    const f = kind === 'mrecap' ? S.winFid : me, res = kind === 'mrecap' ? 'win' : S.myRes, t = lldMusTeam(C, f);
+    // The weekly league recap plays the song of the team with the highest score that week (its "win" song). Other recaps use your own team and result.
+    const top = (kind === 'recap' && S.topFid) ? S.topFid : '', f = kind === 'mrecap' ? S.winFid : (top || me), res = (kind === 'mrecap' || top) ? 'win' : S.myRes, t = lldMusTeam(C, f);
+    // Order: that team's win (or loss) song, then that team's generic song, then the league win / loss list, then the league generic list.
     const tv = t && (typeof t === 'string' || Array.isArray(t) ? t : ((res && t[res]) || t.generic));
     return lldMusChoose(tv) || (res ? lldMusChoose(C[res]) : '') || lldMusChoose(C.generic);
 }
-function lldYtId(u) { try { const x = new URL(String(u).trim()); if (!/youtu/.test(x.hostname)) return null; const m = x.hostname.indexOf('youtu.be') >= 0 ? x.pathname.slice(1) : (x.searchParams.get('v') || ((x.pathname.match(/\/(shorts|embed|live)\/([\w-]{11})/) || [])[2])); return m && /^[\w-]{11}$/.test(m) ? { id: m, t: parseInt(x.searchParams.get('t'), 10) || 0 } : null; } catch (e) { return null; } }
+// Start time: 90, 90s, 1m30s or 1:30
+function lldYtSecs(v) { v = String(v || '').trim(); if (!v) return 0; if (/^\d+:\d+(:\d+)?$/.test(v)) return v.split(':').reduce((a, b) => a * 60 + (+b), 0); const m = v.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/i); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0; }
+function lldYtId(u) { try { const x = new URL(String(u).trim()); if (!/youtu/.test(x.hostname)) return null; const m = x.hostname.indexOf('youtu.be') >= 0 ? x.pathname.slice(1) : (x.searchParams.get('v') || ((x.pathname.match(/\/(shorts|embed|live)\/([\w-]{11})/) || [])[2])); return m && /^[\w-]{11}$/.test(m) ? { id: m, t: lldYtSecs(x.searchParams.get('t') || x.searchParams.get('start') || (x.hash.match(/t=([^&]+)/) || [])[1]) } : null; } catch (e) { return null; } }
 function lldYtLoad() { return window._lldYtP || (window._lldYtP = new Promise(res => { if (window.YT && window.YT.Player) return res(); const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { try { prev && prev(); } catch (e) { } res(); }; sc.onerror = () => res(); document.head.appendChild(sc); })); }
 async function lldYtPlay(v, muted) {
     await lldYtLoad(); if (!(window.YT && window.YT.Player) || !$('#lld-story').length) return false;
@@ -23822,7 +23842,6 @@ function lldTdItems() {
         if (lu.empty > 0 && !lu.block) out.push({ k: 'lu', g: 'now', t: 'amber', ic: String(lu.week || '!'), h: 'Set your' + (lu.week ? ' Week ' + lu.week : '') + ' lineup', p: lu.empty + ' starting slot' + (lu.empty > 1 ? 's are' : ' is') + ' empty.', b: 'Set lineup', a: 'lineup' });
     }
     if (A.offers > 0) out.push({ k: 'off', g: 'tr', t: 'blue', ic: String(A.offers), h: A.offers + ' trade offer' + (A.offers > 1 ? 's' : '') + ' waiting for you', p: 'Accept, reject or counter them.', b: 'Review offers', a: 'trades-mkt' });
-    if (A.respond > 0 && !lldTdSkipped('resp')) out.push({ k: 'resp', g: 'tr', t: 'blue', ic: '⇄', h: 'Respond to the trade block', p: A.respond + ' player' + (A.respond > 1 ? 's' : '') + ' on other teams’ blocks you haven’t answered. Mark Interested, Not interested or Maybe.', b: 'Respond', a: 'trades-mkt', skip: true });
     const set = [];
     if (!lldGet('lld_style', '') && !lldGet('lld_theme', '')) set.push({ k: 'th', g: 'set', t: 'blue', ic: '1', h: 'Pick a theme', p: 'Choose how your whole dashboard looks.', b: 'Choose theme', a: 'theme', skip: true });
     let lg = false; try { for (let i = 0; i < localStorage.length; i++) if (/^nfl_logo_style/.test(localStorage.key(i))) lg = true; } catch (x) { }
