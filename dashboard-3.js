@@ -12720,15 +12720,110 @@ try {
     theirCapUsed = parseFloat(theirCapUsed.toFixed(1));
 } catch(e) {}
 
+        try { await lldApvTrEnrich(myPlayers, myFid); await lldApvTrEnrich(theirPlayers, activeFid); } catch (e) { }
         // Track selected assets
         let mySelected = new Set([...(targetPid ? [String(targetPid)] : []), ...presetGive.map(String)]);
         let theirSelected = new Set(presetReceive.map(String));
+// Trade tab rows use the same row style as the Manage / Players rows (ranks, contract lines, boom and bust, trade block status).
+async function lldApvTrEnrich(list, ownerFid) {
+    try {
+        lldGthNorm();
+        if (!window._apvProjTp) { try { window._apvProjTp = await lldApvProj(); } catch (e) { window._apvProjTp = null; } }
+        const own = String(ownerFid || '').padStart(4, '0'), players = [];
+        list.forEach(p => {
+            if (p.isPick) return;
+            const sal = parseFloat(String(p.salary || '0').replace(/[^0-9.]/g, '')) || 0, yrs = parseInt(p.years) || 1, gu = (parseFloat(String(p.guar || '0').replace(/[^0-9.]/g, '')) || 0) / 100;
+            p._a = { pid: p.pid, name: p.name, shortName: p.shortName, pos: dynGrp(p.pos), realPos: p.pos, team: p.team, ownerFid: own, salary: p.salary, years: p.years, guar: p.guar, salNum: sal, yrsNum: yrs, guarNum: gu, capHitNum: sal * gu * yrs, under: true };
+            players.push(p._a);
+        });
+        if (!players.length) return;
+        await lldMflNameDb(); const P = window._mflPos || {}, mine = {}; players.forEach(a => { mine[a.pid] = 1; });
+        const all = players.concat(Object.keys(playerSeason).filter(id => !mine[id] && P[id]).map(id => ({ pid: id, pos: dynGrp(P[id]), realPos: P[id] })));
+        window._apvD = await lldApvWeekData(); await lldApvCalc(all, window._apvD);
+        const Dy = await lldDynFirst(['dp', 'dynasty', 'career', 'y27']); if (Dy) all.forEach(a => { a._dyn = Dy.byPid[a.pid] || null; });
+        await lldApvUni(); lldApvRanks(all);
+        try { await lldApvTradeLoad(players, false); } catch (e) { console.warn('apv trade rows', e); }
+        players.forEach(a => { a._ready = 1; });
+    } catch (e) { console.warn('apv trade enrich', e); }
+}
+function lldApvTrRow(p, isSelected, side, addBtn, plain) {
+    const a = p._a, rk = lldApvRight(a);
+    return '<div class="apv-yc">' + buildUniversalRow({ pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team }, {
+        compact: true, tplKind: 'all', noTabs: true, noDet: true,
+        pill: contractPillHtml(a.capHitNum, a.years, a.guar, playerSortBy), topRight: rk,
+        tpl: { match: lldApvContract(a), sal: '', proj: rk, k: { hit: a.capHitNum, yrs: a.years, guar: a.guar }, rk: { salNum: a.salNum } },
+        bottomRight: '', leftContent: addBtn, nameChip: lldApvChip(a), noPhotoTap: true, rightContent: '',
+        extraClasses: plain ? 'player-modal-trigger' : 'trade-chip player-modal-trigger',
+        extraAttributes: `${plain ? '' : `data-side="${side}" `}data-name="${String(p.name).replace(/"/g, '&quot;')}" data-pos="${p.pos}" data-team="${p.team}"`,
+        rowStyle: `cursor:pointer; ${isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : ''}`
+    }) + lldApvLine(a) + '</div>';
+}
+// Draft pick row for the Trade tab: same height as the player rows, with the projected pick when there is one (next year's picks).
+function lldTpPickRow(o) {
+    const pj = o.pj !== undefined ? o.pj : window._apvProjTp, ny = parseInt(year, 10) + 1, pad = n => String(n).padStart(2, '0');
+    let proj = '';
+    if (o.pickStr) proj = o.pickStr;
+    else if (+o.year === ny && pj && pj.order && o.origFid) { const i = pj.order.indexOf(String(o.origFid).padStart(4, '0')); if (i >= 0) proj = `${o.round}.${pad(i + 1)}`; }
+    const right = proj ? `<div class="apv-r3"><u>${o.pickStr ? 'PICK' : 'PROJ'}</u><b class="now">${proj}</b></div>` : '';
+    const nm = `${o.year} Round ${o.round}`, l2 = o.pickStr ? `Pick <b>${proj}</b>` : proj ? `Projected pick <b>${proj}</b>` : 'Pick not set yet';
+    const via = o.via ? ('via ' + String(o.via).replace(/["<>]/g, '')) : 'Original team pick';
+    return '<div class="apv-yc">' + buildUniversalRow({ pid: o.pid || ('pk_' + o.year + '_' + o.round), name: nm, shortName: nm, pos: 'PICK', team: via }, {
+        compact: true, tplKind: 'all', noTabs: true, noDet: true, topRight: right,
+        tpl: { match: [`<b>${o.year}</b> \u00B7 <b>ROUND ${o.round}</b>`, l2], sal: '', proj: right, k: null, rk: null },
+        bottomRight: '', leftContent: o.left || '', nameChip: '', wmSrc: '', ownerHtml: '<span class="apv-oh"></span>', rightContent: '',
+        circleHtml: `<div class="pk-bd r${o.round}">R${o.round}</div>`, wmHtml: `<span class="pk-wm">R${o.round}</span>`,
+        noPhotoTap: true, extraClasses: 'tp-pk', rowStyle: o.style || ''
+    }) + '</div>';
+}
+function lldTpFidByName(n) { n = String(n || '').trim().toLowerCase(); if (!n) return ''; return Object.keys(leagueFranchises).find(id => String(leagueFranchises[id]).toLowerCase().trim() === n) || ''; }
+// A pick from the builder lists (p.isPick); ownerFid is the team that holds it now.
+function lldTpBuilderPick(p, isSelected, side, plain, ownerFid) {
+    const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', origFid = via ? lldTpFidByName(via) : ownerFid;
+    const left = plain ? '' : lldTpAddBtn(p, isSelected, side);
+    return lldTpPickRow({ pid: p.pid, year: p.pickYear, round: p.pickRound, pickStr: p.pickStr, via, origFid, left, style: isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : '' });
+}
+// Cap bar: grey = used now, colored = used after the trade.
+function lldTpCap(label, used, after, cap) {
+    cap = cap || 1; const pc = v => Math.max(0, Math.min(100, v / cap * 100)).toFixed(1), raw = after / cap * 100, col = raw > 100 ? '#ef4444' : raw > 90 ? '#f59e0b' : '#22c55e';
+    return `<div class="tp-cap"><div class="tp-t"><span>${label}</span><b>$${used.toFixed(1)}m \u2192 <u style="color:${col}">$${after.toFixed(1)}m</u></b></div><div class="tp-bar"><i style="width:${pc(used)}%"></i><i class="n" style="width:${pc(after)}%;background:${col}"></i></div><div class="tp-t tp-sm"><span>of $${cap}m</span><span style="color:${col}">$${(cap - after).toFixed(1)}m left</span></div></div>`;
+}
+// Assets of one side of a pending proposal as full rows (players then picks). Throws if the rows cannot be built, so the caller can use the old chips.
+async function lldTpAssets(cell, contractMap, ownerFid) {
+    const out = { html: '', salaryTotal: 0, pids: [] };
+    if (!cell) return out;
+    await lldMflNameDb(); const P = window._mflPos || {}, list = [], seen = new Set();
+    cell.querySelectorAll('a').forEach(a => {
+        const label = a.textContent.trim(); if (!label) return; seen.add(label);
+        const m = (a.getAttribute('href') || '').match(/\d+/g), pid = m ? m.pop() : null; if (!pid) return;
+        out.pids.push(pid); const c = contractMap[pid]; if (c) out.salaryTotal += c.salNum;
+        const pm = parseMFLName(label), rp = P[pid];
+        list.push({ pid, name: pm.name, shortName: pm.shortName, pos: rp ? dynGrp(rp) : pm.pos, team: pm.team, salary: c ? '$' + c.salNum.toFixed(1) + 'm' : '', years: c ? String(c.yrsNum) : '', guar: c ? Math.round(c.gPct * 100) + '%' : '' });
+    });
+    await lldApvTrEnrich(list, ownerFid);
+    if (list.some(p => !(p._a && p._a._ready))) throw new Error('rows not ready');
+    let left = cell.textContent.replace(/\s+/g, ' ').trim(); seen.forEach(t => { left = left.replace(t, ''); });
+    const picks = [];
+    left.split(/(?=Year \d{4})/).forEach(chunk => {
+        const t = chunk.trim(); if (!t) return;
+        const fm = t.match(/\s*from\s+(.+)$/i), via = fm ? fm[1].trim() : '', body = t.replace(/\s*from\s+.+$/i, '');
+        const ym = body.match(/(\d{4}).*?Round\s*(\d+)/i), dm = body.match(/(\d+)\.(\d+)/);
+        if (ym) picks.push({ year: ym[1], round: ym[2], via, origFid: via ? lldTpFidByName(via) : ownerFid });
+        else if (dm) picks.push({ year: String(year), round: dm[1], pickStr: dm[1] + '.' + dm[2], via, origFid: via ? lldTpFidByName(via) : ownerFid });
+        else throw new Error('pick text');
+    });
+    out.html = list.map(p => lldApvTrRow(p, false, '', '', true)).join('') + picks.map(o => lldTpPickRow(o)).join('');
+    return out;
+}
+function lldTpAddBtn(p, isSelected, side) {
+    return `<button class="trade-add-btn" data-pid="${p.pid}" data-side="${side}" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:calc(14px * var(--ts,1)); font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">${isSelected ? '✓' : '+'}</button>`;
+}
 function buildTradePlayerRow(p, isSelected, side) {
     const sal = parseFloat(String(p.salary || '0').replace(/[^0-9.]/g, '')) || 0;
     const yrs = parseInt(p.years) || 1;
     const gPct = parseFloat(String(p.guar || '0').replace(/[^0-9.]/g, '')) / 100 || 0;
     const capHit = (sal * gPct * yrs).toFixed(1);
-    const addBtn = `<button class="trade-add-btn" data-pid="${p.pid}" data-side="${side}" style="flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid ${isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}; background:${isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? '#22c55e' : 'var(--text-dim)'}; font-size:calc(14px * var(--ts,1)); font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">${isSelected ? '✓' : '+'}</button>`;
+    const addBtn = lldTpAddBtn(p, isSelected, side);
+    if (p._a && p._a._ready) { try { return lldApvTrRow(p, isSelected, side, addBtn); } catch (e) { console.warn('trade row', e); } }
     return buildUniversalRow(
         { pid: p.pid, name: p.name, shortName: p.shortName, pos: p.pos, team: p.team },
         {
@@ -12749,6 +12844,7 @@ function buildTradePlayerRow(p, isSelected, side) {
 function buildPlayerChip(p, selected, side) {
     const isSelected = selected.has(String(p.pid));
     if (!p.isPick) return buildTradePlayerRow(p, isSelected, side);
+    try { return lldTpBuilderPick(p, isSelected, side, false, side === 'mine' ? myFid : activeFid); } catch (e) { console.warn('trade pick row', e); }
     const injHtml = p.isPick ? '' : getInjuryHtml(p.pid);
     const rStat = p.isPick ? '' : (irPids.has(String(p.pid)) ? "IR" : taxiPids.has(String(p.pid)) ? "TS" : "");
     const displayName = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
@@ -12906,13 +13002,12 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
 
             <select id="trade-target-select" style="display:none;">${teamOptions}</select>
 
-            <div id="trade-summary-bar" style="display:flex; gap:8px; margin-bottom:10px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; min-height:44px; align-items:center;">
-<div style="flex:1;">
+            <div id="trade-summary-bar" class="tp-cl" style="display:flex; gap:8px; margin-bottom:10px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; min-height:44px; align-items:flex-start;">
+<div style="flex:1 1 0; min-width:0;">
                     <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#ef4444; text-transform:uppercase; margin-bottom:4px;">✓ Selected to Give</div>
                     <div id="trade-summary-mine" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Tap + on your players</div>
                 </div>
-                <div style="font-size:calc(16px * var(--ts,1)); color:var(--text-dim);">⇄</div>
-                <div style="flex:1; text-align:right;">
+                <div style="flex:1 1 0; min-width:0;">
                     <div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#22c55e; text-transform:uppercase; margin-bottom:4px;">✓ Selected to Get</div>
                     <div id="trade-summary-theirs" style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Tap + on their players</div>
                 </div>
@@ -13162,8 +13257,9 @@ const html = chips.join('') || '<span style="color:var(--text-dim); font-size:ca
 
             const fromMap = await fetchTeamContractMap(fromFid);
             const toMap = await fetchTeamContractMap(toFid);
-            const giveResult = buildAssetChips(cells[2], fromMap);
-            const getResult = buildAssetChips(cells[4], toMap);
+            let giveResult, getResult, tpOk = false;
+            try { giveResult = await lldTpAssets(cells[2], fromMap, fromFid); getResult = await lldTpAssets(cells[4], toMap, toFid); tpOk = true; }
+            catch (e) { console.warn('proposal rows', e); giveResult = buildAssetChips(cells[2], fromMap); getResult = buildAssetChips(cells[4], toMap); }
             const givePlayers = giveResult.html;
             const getPlayers = getResult.html;
 
@@ -13208,7 +13304,18 @@ const rejectLink = makeLink(rejectHref);
                         <span style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-left:auto;">Expires: ${expires}</span>
                     </div>
                     ${lldSgOn('trades') ? lldTrHdr({ isOutgoing, fromName, toName, giveTot: giveResult.salaryTotal, getTot: getResult.salaryTotal, nGive: giveResult.pids.length, nGet: getResult.pids.length, expires }) : ''}
-                    <div style="display:flex; gap:8px; align-items:flex-start;">
+                    ${tpOk ? `<div class="tp-cl">
+                        <div class="tp-side">
+                            <div class="tp-sh"><img src="${fromLogo}" class="team-popup-trigger" data-fid="${fromFid}"><span>${fromName}</span></div>
+                            ${givePlayers}
+                            ${lldTpCap(fromName, fromCurrentUsed, fromNewUsed, salaryCap)}
+                        </div>
+                        <div class="tp-side">
+                            <div class="tp-sh"><img src="${toLogo}" class="team-popup-trigger" data-fid="${toFid}"><span>${toName}</span></div>
+                            ${getPlayers}
+                            ${lldTpCap(toName, toCurrentUsed, toNewUsed, salaryCap)}
+                        </div>
+                    </div>` : `                    <div style="display:flex; gap:8px; align-items:flex-start;">
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; gap:5px; margin-bottom:4px;">
                                 <img src="${fromLogo}" class="team-popup-trigger" data-fid="${fromFid}" style="width:18px; height:18px; border-radius:50%; object-fit:cover; cursor:pointer;">
@@ -13228,7 +13335,7 @@ const rejectLink = makeLink(rejectHref);
                             <div>${getPlayers}</div>
                             <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${toRemaining < 0 ? '#ef4444' : toPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${toNewUsed.toFixed(1)}m used (${toPct}%) · $${toRemaining.toFixed(1)}m left</div>
                         </div>
-                    </div>
+                    </div>`}
 <div style="display:flex; gap:6px; margin-top:8px;">
     ${isOutgoing 
         ? `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="revoke" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Revoke</button>
@@ -13292,16 +13399,19 @@ theirPlayers = await fetchTargetRoster(activeFid);
         theirCapUsed += parseFloat(salCell.textContent.replace(/[^0-9.]/g, '')) || 0;
     });
     theirCapUsed = parseFloat(theirCapUsed.toFixed(1));
+try { await lldApvTrEnrich(theirPlayers, activeFid); } catch (e) { }
 const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
 const theirCapPct = Math.min(100, (theirCapUsed / salaryCap) * 100).toFixed(1);
 const theirCapColor = theirCapUsed > salaryCap ? '#ef4444' : theirCapPct > 90 ? '#f59e0b' : '#22c55e';
 
     // Update header DOM directly without full re-render
+    $('#their-cap-bar-label').data('base', theirCapUsed);
     $('#their-team-logo').attr('src', theirLogoUrl);
     $('#their-team-name').text(theirTeamName);
     $('#their-cap-bar').css('width', theirCapPct + '%').css('background', theirCapColor);
     $('#their-cap-label').text(`$${theirCapUsed.toFixed(1)}m / $${salaryCap}m`).css('color', theirCapColor);
     $('#their-roster-list').html(theirPlayers.map(p => buildPlayerChip(p, theirSelected, 'theirs')).join(''));
+    try { updateTradeSummary(); updateCapBars(); } catch (e) { }
 });
 function openTradeTeamPicker() {
     $('#trade-team-picker').remove();
@@ -13341,6 +13451,10 @@ $(document).off('click', '#trade-their-switcher').on('click', '#trade-their-swit
                 const chipPlayers = side === 'mine' ? myPlayers : theirPlayers;
                 $(listId).html(chipPlayers.map(p => buildPlayerChip(p, set, side)).join(''));
                 updateCapBars();
+                updateTradeSummary();
+            });
+            // Rebuilds the "Selected to Give / Get" box: full rows for each team, with that team's cap before and after.
+            function updateTradeSummary() {
 const playerChipHtml = (p) => {
                     if (!p) return '';
                     const name = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
@@ -13364,18 +13478,18 @@ const playerChipHtml = (p) => {
                     if (p && p.salary) theirSalTotal += parseFloat(p.salary.replace(/[^0-9.]/g, '')) || 0;
                 });
 
-$('#trade-summary-mine')
-                    .html(mineNames.length 
-                        ? `<div style="line-height:1.6;">${mineHtml}</div>${mineSalTotal > 0 ? `<div style="font-size:calc(9px * var(--ts,1)); color:#ef4444; font-weight:800; margin-top:2px;">-$${mineSalTotal.toFixed(1)}m</div>` : ''}` 
-                        : '<span style="color:var(--text-dim);">None selected</span>')
-                    .css('color', '');
-
-                $('#trade-summary-theirs')
-                    .html(theirNames.length 
-                        ? `<div style="line-height:1.6;">${theirHtml}</div>${theirSalTotal > 0 ? `<div style="font-size:calc(9px * var(--ts,1)); color:#22c55e; font-weight:800; margin-top:2px;">+$${theirSalTotal.toFixed(1)}m</div>` : ''}` 
-                        : '<span style="color:var(--text-dim);">None selected</span>')
-                    .css('color', '');
-            });
+const cap = window.leagueSalaryCap || LLD.salaryCap;
+                const myBase = parseFloat($('#my-cap-label').data('base')) || 0, theirBase = parseFloat($('#their-cap-bar-label').data('base')) || 0;
+                const sideHtml = (sel, arr, side, owner) => [...sel].map(pid => arr.find(p => String(p.pid) === pid)).filter(Boolean).map(p => {
+                    try { if (p.isPick) return lldTpBuilderPick(p, false, side, true, owner); if (p._a && p._a._ready) return lldApvTrRow(p, false, side, '', true); } catch (e) { }
+                    return playerChipHtml(p);
+                }).join('');
+                const none = '<span style="color:var(--text-dim);">None selected</span>';
+                if (!mineNames.length && !theirNames.length) { $('#trade-summary-mine').html(none); $('#trade-summary-theirs').html(none); return; }
+                $('#trade-summary-mine').html((mineNames.length ? sideHtml(mySelected, myPlayers, 'mine', myFid) : none) + lldTpCap(leagueFranchises[myFid] || 'You', myBase, Math.max(0, myBase - mineSalTotal + theirSalTotal), cap));
+                $('#trade-summary-theirs').html((theirNames.length ? sideHtml(theirSelected, theirPlayers, 'theirs', activeFid) : none) + lldTpCap(leagueFranchises[activeFid] || 'Them', theirBase, Math.max(0, theirBase - theirSalTotal + mineSalTotal), cap));
+            }
+            if (mySelected.size || theirSelected.size) { try { updateTradeSummary(); } catch (e) { console.warn('trade summary', e); } }
 
             // Submit
 $(document).off('click', '#trade-hub-submit').on('click', '#trade-hub-submit', async function() {
@@ -17332,12 +17446,17 @@ function lldYtId(u) { try { const x = new URL(String(u).trim()); if (!/youtu/.te
 function lldYtLoad() { return window._lldYtP || (window._lldYtP = new Promise(res => { if (window.YT && window.YT.Player) return res(); const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { try { prev && prev(); } catch (e) { } res(); }; sc.onerror = () => res(); document.head.appendChild(sc); })); }
 async function lldYtPlay(v, muted) {
     await lldYtLoad(); if (!(window.YT && window.YT.Player) || !$('#lld-story').length) return false;
-    $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><button type="button" class="yt-pp" aria-label="Play or pause the music">▶</button><div id="lld-yt-p"></div></div>');
-    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } } } });
+    $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt" class="col"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><button type="button" class="yt-pp" aria-label="Play or pause the music">▶</button><div id="lld-yt-p"></div></div>');
+    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); $('#lld-yt .yt-o').text(e.data === 1 ? '🎵' : '▶'); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } } } });
     $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
 }
 $(document).on('click', '#lld-yt .yt-pp', function (e) { e.stopPropagation(); const y = window._stYt; if (!y || !y.getPlayerState) return; try { if (y.getPlayerState() === 1) y.pauseVideo(); else { if (!(localStorage.getItem('lld_st_mute') === '1')) y.unMute(); y.playVideo(); } } catch (x) { } });
-$(document).on('click', '#lld-yt .yt-x, #lld-yt .yt-o', function () { $('#lld-yt').toggleClass('col'); });
+// The player starts minimized (a small circle). Tap it to open; when the music is not playing yet, the tap starts it instead.
+$(document).on('click', '#lld-yt .yt-x, #lld-yt .yt-o', function (e) {
+    e.stopPropagation(); const y = window._stYt, box = $('#lld-yt');
+    if (box.hasClass('col') && y && y.getPlayerState && y.getPlayerState() !== 1) { try { if (localStorage.getItem('lld_st_mute') !== '1') y.unMute(); y.playVideo(); } catch (x) { } return; }
+    box.toggleClass('col');
+});
 function stMusicStop() {
     try { if (window._stYt) window._stYt.destroy(); } catch (e) { } window._stYt = null; $('#lld-yt').remove();
     const a = window._stAudio; window._stAudio = null; if (!a) return; let v = a.volume; const f = setInterval(() => { v -= .1; if (v <= .02) { clearInterval(f); try { a.pause(); } catch (e) { } } else a.volume = v; }, 60);
