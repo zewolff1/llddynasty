@@ -4024,7 +4024,7 @@ $(document).off('click', '.proposal-action-btn').on('click', '.proposal-action-b
         params.set('LEAGUE_ID', lid);
         params.set('TRADE_ID', tradeId);
         params.set('ACTION', action);
-        params.set('COMMENTS', '');
+        params.set('COMMENTS', String($('#tp-pop-note').val() || '').trim());
         const res = await fetch(`${MFL_ORIGIN}/${year}/trade_response`, {
             method: 'POST',
             credentials: 'include',
@@ -4047,6 +4047,17 @@ $(document).off('click', '.proposal-action-btn').on('click', '.proposal-action-b
 
 // "Edit" isn't a native MFL trade action — this revokes the sent proposal, then reopens Trade
 // Hub with the counterparty and the same players preselected on each side, ready to tweak.
+$(document).off('click', '.tp-vd').on('click', '.tp-vd', function () {
+    const d = (window._tpPop || {})[String($(this).data('tid'))]; if (!d) return;
+    $('#tp-pop').remove();
+    $('body').append(`<div id="tp-pop"><div class="tp-sh2"><button type="button" class="tp-cx" aria-label="Close">\u2715</button>${d.top}<div class="tp-nl">${d.out ? 'Note to them' : 'Reply'}</div><textarea id="tp-pop-note" placeholder="${d.out ? 'Add a note (optional)' : 'Write a reply (sent with your answer)'}"></textarea>${d.btns}</div></div>`);
+});
+$(document).on('click', '#tp-pop .tp-cx', () => $('#tp-pop').remove());
+$(document).on('click', '#tp-pop', function (e) { if (e.target === this) $('#tp-pop').remove(); });
+$(document).off('click', '.proposal-counter-btn').on('click', '.proposal-counter-btn', function () {
+    const t = String($(this).data('targetfid')).padStart(4, '0'), g = String($(this).data('give') || '').split(',').filter(Boolean), r = String($(this).data('receive') || '').split(',').filter(Boolean);
+    $('#tp-pop').remove(); window.loadTradeHub(t, null, g, r);
+});
 $(document).off('click', '.proposal-edit-btn').on('click', '.proposal-edit-btn', async function() {
     const tradeId = $(this).data('tradeid');
     const targetFid = String($(this).data('targetfid')).padStart(4, '0');
@@ -12789,7 +12800,7 @@ function lldTpCap(label, used, after, cap) {
 }
 // Assets of one side of a pending proposal as full rows (players then picks). Throws if the rows cannot be built, so the caller can use the old chips.
 async function lldTpAssets(cell, contractMap, ownerFid) {
-    const out = { html: '', salaryTotal: 0, pids: [] };
+    const out = { html: '', salaryTotal: 0, pids: [], names: [] };
     if (!cell) return out;
     await lldMflNameDb(); const P = window._mflPos || {}, list = [], seen = new Set();
     cell.querySelectorAll('a').forEach(a => {
@@ -12797,6 +12808,7 @@ async function lldTpAssets(cell, contractMap, ownerFid) {
         const m = (a.getAttribute('href') || '').match(/\d+/g), pid = m ? m.pop() : null; if (!pid) return;
         out.pids.push(pid); const c = contractMap[pid]; if (c) out.salaryTotal += c.salNum;
         const pm = parseMFLName(label), rp = P[pid];
+        out.names.push(`${pm.shortName} <b class="pos-text-${String(rp ? dynGrp(rp) : pm.pos).toLowerCase()}">${rp ? dynGrp(rp) : pm.pos}</b>${c ? ' \u00B7 $' + c.salNum.toFixed(1) + 'm' : ''}`);
         list.push({ pid, name: pm.name, shortName: pm.shortName, pos: rp ? dynGrp(rp) : pm.pos, team: pm.team, salary: c ? '$' + c.salNum.toFixed(1) + 'm' : '', years: c ? String(c.yrsNum) : '', guar: c ? Math.round(c.gPct * 100) + '%' : '' });
     });
     await lldApvTrEnrich(list, ownerFid);
@@ -12807,6 +12819,7 @@ async function lldTpAssets(cell, contractMap, ownerFid) {
         const t = chunk.trim(); if (!t) return;
         const fm = t.match(/\s*from\s+(.+)$/i), via = fm ? fm[1].trim() : '', body = t.replace(/\s*from\s+.+$/i, '');
         const ym = body.match(/(\d{4}).*?Round\s*(\d+)/i), dm = body.match(/(\d+)\.(\d+)/);
+        if (ym) out.names.push(`${ym[1]} Round ${ym[2]} <b style="color:#f59e0b">PICK</b>`); else if (dm) out.names.push(`Pick ${dm[1]}.${dm[2]} <b style="color:#f59e0b">PICK</b>`);
         if (ym) picks.push({ year: ym[1], round: ym[2], via, origFid: via ? lldTpFidByName(via) : ownerFid });
         else if (dm) picks.push({ year: String(year), round: dm[1], pickStr: dm[1] + '.' + dm[2], via, origFid: via ? lldTpFidByName(via) : ownerFid });
         else throw new Error('pick text');
@@ -13178,6 +13191,7 @@ async function fetchTeamContractMap(tFid) {
     return map;
 }
 async function loadPendingProposals() {
+    $('#tp-pop').remove();
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=05`, { credentials: 'include' });
         const txt = await res.text();
@@ -13260,6 +13274,7 @@ const html = chips.join('') || '<span style="color:var(--text-dim); font-size:ca
             let giveResult, getResult, tpOk = false;
             try { giveResult = await lldTpAssets(cells[2], fromMap, fromFid); getResult = await lldTpAssets(cells[4], toMap, toFid); tpOk = true; }
             catch (e) { console.warn('proposal rows', e); giveResult = buildAssetChips(cells[2], fromMap); getResult = buildAssetChips(cells[4], toMap); }
+            [[giveResult, cells[2]], [getResult, cells[4]]].forEach(([r, c]) => { if (!r.names) r.names = [((c && c.textContent) || '').replace(/\s+/g, ' ').trim()]; });
             const givePlayers = giveResult.html;
             const getPlayers = getResult.html;
 
@@ -13296,7 +13311,7 @@ const rejectLink = makeLink(rejectHref);
 
             const isOutgoing = fromFid === myFid;
 
-            return `
+            const topHtml = `
                 <div style="padding:10px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; border-left:3px solid ${isOutgoing ? 'var(--accent-blue)' : '#22c55e'};">
                     <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
                         <span style="font-size:calc(8px * var(--ts,1)); font-weight:900; text-transform:uppercase; padding:2px 6px; border-radius:4px; color:#fff; background:${isOutgoing ? 'var(--accent-blue)' : 'rgba(34,197,94,0.3)'};">${isOutgoing ? 'Sent' : 'Received'}</span>
@@ -13336,15 +13351,30 @@ const rejectLink = makeLink(rejectHref);
                             <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${toRemaining < 0 ? '#ef4444' : toPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${toNewUsed.toFixed(1)}m used (${toPct}%) · $${toRemaining.toFixed(1)}m left</div>
                         </div>
                     </div>`}
-<div style="display:flex; gap:6px; margin-top:8px;">
+                </div>`;
+            const btnsHtml = `<div style="display:flex; gap:6px; margin-top:8px;">
     ${isOutgoing 
         ? `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="revoke" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Revoke</button>
            <button class="proposal-edit-btn" data-tradeid="${tradeId}" data-targetfid="${toFid}" data-give="${giveResult.pids.join(',')}" data-receive="${getResult.pids.join(',')}" style="flex:1; padding:5px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; color:var(--accent-blue); font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Edit</button>`
         : `<button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="accept" style="flex:1; padding:5px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:6px; color:#22c55e; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Accept</button>
            <button class="proposal-action-btn" data-tradeid="${tradeId}" data-action="reject" style="flex:1; padding:5px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Reject</button>`
     }
-</div>
-                </div>`;
+</div>`;
+            const nm = r => (r.names && r.names.length) ? r.names : ['\u2014'];
+            const myGive = isOutgoing ? giveResult : getResult, myGet = isOutgoing ? getResult : giveResult;
+            const counterBtn = isOutgoing ? '' : `<button class="proposal-counter-btn" data-targetfid="${String(fromFid).padStart(4, '0')}" data-give="${getResult.pids.join(',')}" data-receive="${giveResult.pids.join(',')}" style="flex:1; padding:5px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:6px; color:#93c5fd; font-size:calc(9px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Counter</button>`;
+            window._tpPop = window._tpPop || {};
+            window._tpPop[tradeId || ('t' + date)] = { top: topHtml, btns: btnsHtml.replace(/<\/div>\s*$/, counterBtn + '</div>'), out: isOutgoing };
+            const line = (k, c, arr) => `<div style="display:flex; align-items:center; gap:6px; min-width:0;"><i style="font-style:normal; font-size:calc(9px * var(--ts,1)); font-weight:900; letter-spacing:.06em; width:34px; flex-shrink:0; color:${c};">${k}</i><span style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">${arr.join(' <span style="color:var(--text-dim);">+</span> ')}</span></div>`;
+            return `<div style="padding:10px 12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:10px; border-left:3px solid ${isOutgoing ? '#94a3b8' : '#22c55e'}; display:flex; flex-direction:column; gap:8px; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; padding:2px 7px; border-radius:5px; color:#fff; background:${isOutgoing ? '#64748b' : '#16a34a'};">${isOutgoing ? 'Sent' : 'Received'}</span>
+                    <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${(date || '').split(/\s+\d+:\d+/)[0]}</span>
+                    <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-left:auto;">Expires ${(expires || '').split(/\s+\d+:\d+/)[0]}</span>
+                </div>
+                ${line('GIVE', '#ef4444', nm(myGive))}${line('GET', '#22c55e', nm(myGet))}
+                <button type="button" class="tp-vd" data-tid="${tradeId || ('t' + date)}">View details</button>
+            </div>`;
 }))).filter(Boolean).join('');
 
         $('#pending-proposals-list').html(html || '<div style="text-align:center; color:var(--text-dim); font-size:calc(10px * var(--ts,1)); padding:12px;">No pending proposals.</div>');
@@ -17447,16 +17477,14 @@ function lldYtLoad() { return window._lldYtP || (window._lldYtP = new Promise(re
 async function lldYtPlay(v, muted) {
     await lldYtLoad(); if (!(window.YT && window.YT.Player) || !$('#lld-story').length) return false;
     $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt" class="col"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><button type="button" class="yt-pp" aria-label="Play or pause the music">▶</button><div id="lld-yt-p"></div></div>');
-    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); $('#lld-yt .yt-o').text(e.data === 1 ? '🎵' : '▶'); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } } } });
+    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); lldYtIcon(); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } } } });
     $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
 }
 $(document).on('click', '#lld-yt .yt-pp', function (e) { e.stopPropagation(); const y = window._stYt; if (!y || !y.getPlayerState) return; try { if (y.getPlayerState() === 1) y.pauseVideo(); else { if (!(localStorage.getItem('lld_st_mute') === '1')) y.unMute(); y.playVideo(); } } catch (x) { } });
-// The player starts minimized (a small circle). Tap it to open; when the music is not playing yet, the tap starts it instead.
-$(document).on('click', '#lld-yt .yt-x, #lld-yt .yt-o', function (e) {
-    e.stopPropagation(); const y = window._stYt, box = $('#lld-yt');
-    if (box.hasClass('col') && y && y.getPlayerState && y.getPlayerState() !== 1) { try { if (localStorage.getItem('lld_st_mute') !== '1') y.unMute(); y.playVideo(); } catch (x) { } return; }
-    box.toggleClass('col');
-});
+// The player stays a small circle over the story. Tapping it starts the music or mutes / unmutes it (same as the speaker button at the top).
+function lldYtIcon() { try { const y = window._stYt, on = y && y.getPlayerState && y.getPlayerState() === 1 && !y.isMuted(), t = on ? '🔊' : '🔇'; $('#lld-yt .yt-o').text(t); $('#lld-story .st-mu').text(t); } catch (e) { } }
+$(document).on('click', '#lld-yt .yt-o', function (e) { e.stopPropagation(); $('#lld-story .st-mu').trigger('click'); });
+$(document).on('click', '#lld-story .st-mu', () => { setTimeout(lldYtIcon, 250); });
 function stMusicStop() {
     try { if (window._stYt) window._stYt.destroy(); } catch (e) { } window._stYt = null; $('#lld-yt').remove();
     const a = window._stAudio; window._stAudio = null; if (!a) return; let v = a.volume; const f = setInterval(() => { v -= .1; if (v <= .02) { clearInterval(f); try { a.pause(); } catch (e) { } } else a.volume = v; }, 60);
@@ -17481,7 +17509,11 @@ function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop()
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup; LLD_ST.embed = false;
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
-    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.myRes = null; LLD_ST.winFid = ''; LLD_ST.monthStt = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if (kind === 'month') { LLD_ST.stt = LLD_ST.monthStt || ''; $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); } if ($('#lld-story').length) stMusicStart(LLD_ST.topFid, kind); LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; stShow(0); }
+    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.myRes = null; LLD_ST.winFid = ''; LLD_ST.monthStt = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if (kind === 'month') { LLD_ST.stt = LLD_ST.monthStt || ''; $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); } LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false;
+        const go = withMus => { if (!$('#lld-story').length) return; $('#lld-story .st-mc').remove(); if (withMus) stMusicStart(LLD_ST.topFid, kind); stShow(0); };
+        let hasMus = false; try { hasMus = !!(lldMusPick(kind) || lldMusicUrl(LLD_ST.topFid)); } catch (e) { }
+        if (hasMus && $('#lld-story').length) { window._stGo = go; $('#lld-story').append('<div class="st-mc"><div class="st-mc-t">Play with music?</div><button type="button" class="st-mc-y">🎵 With music</button><button type="button" class="st-mc-n">🔇 Without music</button></div>'); }
+        else go(true); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
 $(document).on('click', '.lld-play', function () { const k = $(this).data('k'); lldOpenStory(k, parseInt($(this).data('wk'), 10), k === 'month' ? String($(this).data('i')) : parseInt($(this).data('i'), 10)); });
@@ -17492,6 +17524,7 @@ $(document).on('click', '#lld-story .st-sp', function () {
     $(this).text(LLD_ST.speed + '×'); $('#lld-story').css('--dur', (5.4 / LLD_ST.speed).toFixed(2) + 's'); stShow(LLD_ST.i); // restart this slide at the new speed
 });
 $(document).on('click', '#lld-story .st-mu', function () { const y = window._stYt; if (y && y.isMuted) { try { if (y.getPlayerState && y.getPlayerState() !== 1) { y.playVideo(); if (localStorage.getItem('lld_st_mute') !== '1') y.unMute(); return; } const m = !y.isMuted(); m ? y.mute() : y.unMute(); $(this).text(m ? '🔇' : '🔊'); localStorage.setItem('lld_st_mute', m ? '1' : '0'); } catch (e) { } return; } const a = window._stAudio; if (!a) return; a.muted = !a.muted; $(this).text(a.muted ? '🔇' : '🔊'); try { localStorage.setItem('lld_st_mute', a.muted ? '1' : '0'); } catch (e) { } });
+$(document).on('click', '#lld-story .st-mc-y, #lld-story .st-mc-n', function (e) { e.stopPropagation(); if (window._stGo) window._stGo($(this).hasClass('st-mc-y')); });
 $(document).on('click', '#lld-story .st-end', () => stShow(Math.max(0, LLD_ST.slides.length - 1)));
 $(document).on('click', '#lld-story .st-zr', () => stShow(LLD_ST.i + 1));
 $(document).on('click', '#lld-story .st-zl', () => stShow(LLD_ST.i - 1));
