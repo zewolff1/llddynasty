@@ -47,6 +47,8 @@ const LLD = Object.assign({
     features: { rules: true }
 }, window.LLD_CONFIG || {});
 const MFL_ORIGIN = LLD.origin;
+// Alerts bell: set alertsUrl in your config (window.LLD_CONFIG = { alertsUrl: 'https://YOU.github.io/REPO/' }) to add a bell beside the settings gear
+(function () { if (!LLD.alertsUrl) return; const put = () => { try { if (document.querySelector('.lld-bell')) return; const g = document.querySelector('.open-settings-btn'); if (!g) return; const a = document.createElement('a'); a.className = 'lld-bell'; a.href = LLD.alertsUrl; a.target = '_blank'; a.rel = 'noopener'; a.title = 'Alerts'; a.textContent = '\uD83D\uDD14'; a.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin-right:6px;border-radius:50%;background:rgba(255,255,255,.08);text-decoration:none;font-size:16px;'; g.parentNode.insertBefore(a, g); } catch (e) { } }; setInterval(put, 1500); })();
 // ===== STYLE ENGINE: base dashboard.css + optional small theme files (themes/<name>.css) + header mode =====
 const LLD_SCRIPT_BASE = (() => {
     try {
