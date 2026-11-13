@@ -17332,11 +17332,11 @@ function lldYtId(u) { try { const x = new URL(String(u).trim()); if (!/youtu/.te
 function lldYtLoad() { return window._lldYtP || (window._lldYtP = new Promise(res => { if (window.YT && window.YT.Player) return res(); const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { try { prev && prev(); } catch (e) { } res(); }; sc.onerror = () => res(); document.head.appendChild(sc); })); }
 async function lldYtPlay(v, muted) {
     await lldYtLoad(); if (!(window.YT && window.YT.Player) || !$('#lld-story').length) return false;
-    $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt"><button type="button" class="yt-x" aria-label="Hide player">✕</button><div id="lld-yt-p"></div></div>');
-    window._stYt = new YT.Player('lld-yt-p', { width: 200, height: 200, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } }, onStateChange: e => { if (e.data === 0) try { e.target.playVideo(); } catch (x) { } } } });
+    $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><div id="lld-yt-p"></div></div>');
+    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); e.target.playVideo(); } catch (x) { } }, onStateChange: e => { if (e.data === 0) try { e.target.playVideo(); } catch (x) { } } } });
     $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
 }
-$(document).on('click', '#lld-yt .yt-x', function () { $('#lld-yt').hide(); });
+$(document).on('click', '#lld-yt .yt-x, #lld-yt .yt-o', function () { $('#lld-yt').toggleClass('col'); });
 function stMusicStop() {
     try { if (window._stYt) window._stYt.destroy(); } catch (e) { } window._stYt = null; $('#lld-yt').remove();
     const a = window._stAudio; window._stAudio = null; if (!a) return; let v = a.volume; const f = setInterval(() => { v -= .1; if (v <= .02) { clearInterval(f); try { a.pause(); } catch (e) { } } else a.volume = v; }, 60);
