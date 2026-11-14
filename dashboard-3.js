@@ -8427,6 +8427,7 @@ $('body').append(`
     </div>
 
 <div class="modal-tabs hide-scroll" id="modal-tabs-row" style="display:flex; overflow-x:auto; flex-wrap:nowrap; border-bottom:1px solid var(--card-border);">
+    <div id="tab-btn-summary" class="modal-tab-btn" style="flex-shrink:0;display:none;" data-target="tab-summary">Summary</div>
     <div id="tab-btn-lineup" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-lineup">Set Lineup</div>
     <div id="tab-btn-tx" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-tx">Contract</div>
     <div id="tab-btn-gamelog" class="modal-tab-btn" style="flex-shrink:0;" data-target="tab-gamelog">Game Log</div>
@@ -8436,6 +8437,7 @@ $('body').append(`
 </div>
 
 <div class="player-modal-body" style="padding: 0;">
+    <div id="tab-summary" class="modal-tab-content"><div id="modal-summary-container" style="padding:15px"></div></div>
     <div id="tab-lineup" class="modal-tab-content">
         <div id="modal-swap-list" class="hide-scroll" style="max-height: 350px; overflow-y: auto;"></div>
     </div>
@@ -8946,7 +8948,7 @@ $('#modal-pos').text(pos).removeClass().css({ fontSize: 'calc(13px * var(--ts,1)
 $('#modal-name').html(name);
 $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
-        $('#modal-bio-pills').html(''); $('#modal-awards').html(''); try { $('#smart-player-modal').toggleClass('pmb', lldDev()); $('#modal-dynamic-header').css('--pc', lldStPosVar($('#modal-pos').text().trim())); } catch (e) { }
+        $('#modal-bio-pills').html(''); $('#modal-awards').html(''); $('#pm-ts, #pm-tsmenu, #pm-slotmenu').remove(); $('#modal-contract-line').html(''); $('#tab-btn-summary').hide(); try { $('#smart-player-modal').toggleClass('pmb', lldDev()); $('#modal-dynamic-header').css('--pc', lldStPosVar($('#modal-pos').text().trim())); } catch (e) { }
         // Load bio pills async
         fetch(`${MFL_ORIGIN}/${year}/player?L=${lid}&P=${pid}&YEAR=${year}&DISPLAY_TYPE=projections&PROJSRC=mfl`, { credentials: 'include' })
             .then(r => r.text())
@@ -8973,7 +8975,7 @@ const hw = bioMap['Height/Weight'] || '';
                 if (exp) details.push(`<span><span style="color:var(--text-dim);">Exp:</span> ${exp}</span>`);
                 if (bye) details.push(`<span><span style="color:var(--text-dim);">Bye:</span> ${bye}</span>`);
                 if (details.length) bioHtml += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
-                if (lldDev()) { $('#modal-bio-pills').html(lldPmBioHtml({ hw, age: ageDisplay, exp, bye })); try { lldPmAwards(pid); } catch (e) { } } else $('#modal-bio-pills').html(bioHtml);
+                if (lldDev()) { try { lldPmHero(pid, { age: ageDisplay, exp, bye, drafted }); } catch (e) { } try { lldPmAwards(pid); } catch (e) { } } else $('#modal-bio-pills').html(bioHtml);
             }).catch(() => {});
     $('#modal-dynamic-header').css({ background: 'rgba(59,130,246,0.2)', 'border-bottom': '1px solid rgba(59,130,246,0.3)' });
 $('.modal-tab-btn').removeClass('active').show();
@@ -9122,6 +9124,7 @@ $('#modal-owner-actions').show();
         let colors = nflColors[teamName.toUpperCase()] || ['#3b82f6', '#1e293b']; 
         
         $('#modal-dynamic-header').css({
+            '--tc1': colors[0], '--tc2': colors[1],
             'background': `linear-gradient(135deg, ${colors[0]}60, ${colors[1]}30)`,
             'border-bottom': `1px solid ${colors[0]}50`
         });
@@ -9133,7 +9136,7 @@ $('#modal-pos').text(pos).removeClass().css({ fontSize: 'calc(13px * var(--ts,1)
         $('#modal-name').html(playerName);
         $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
-        $('#modal-bio-pills').html(''); $('#modal-awards').html(''); try { $('#smart-player-modal').toggleClass('pmb', lldDev()); $('#modal-dynamic-header').css('--pc', lldStPosVar($('#modal-pos').text().trim())); } catch (e) { }
+        $('#modal-bio-pills').html(''); $('#modal-awards').html(''); $('#pm-ts, #pm-tsmenu, #pm-slotmenu').remove(); $('#modal-contract-line').html(''); $('#tab-btn-summary').hide(); try { $('#smart-player-modal').toggleClass('pmb', lldDev()); $('#modal-dynamic-header').css('--pc', lldStPosVar($('#modal-pos').text().trim())); } catch (e) { }
         // Load bio pills async
         fetch(`${MFL_ORIGIN}/${year}/player?L=${lid}&P=${pid}&YEAR=${year}&DISPLAY_TYPE=projections&PROJSRC=mfl`, { credentials: 'include' })
             .then(r => r.text())
@@ -9160,7 +9163,7 @@ const hw = bioMap['Height/Weight'] || '';
                 if (exp) details.push(`<span><span style="color:var(--text-dim);">Exp:</span> ${exp}</span>`);
                 if (bye) details.push(`<span><span style="color:var(--text-dim);">Bye:</span> ${bye}</span>`);
                 if (details.length) bioHtml += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
-                if (lldDev()) { $('#modal-bio-pills').html(lldPmBioHtml({ hw, age: ageDisplay, exp, bye })); try { lldPmAwards(pid); } catch (e) { } } else $('#modal-bio-pills').html(bioHtml);
+                if (lldDev()) { try { lldPmHero(pid, { age: ageDisplay, exp, bye, drafted }); } catch (e) { } try { lldPmAwards(pid); } catch (e) { } } else $('#modal-bio-pills').html(bioHtml);
             }).catch(() => {});
 // Pre-load default tab
 if (!isMyTeam) {
@@ -9171,6 +9174,7 @@ if (!isMyTeam) {
 
 $('#smart-player-modal').css('display', 'flex').hide().fadeIn(200);
 $('body').css('overflow', 'hidden');
+if (lldDev() && !isLineupMode) { $('#tab-btn-summary').show(); setTimeout(() => $('#tab-btn-summary').trigger('click'), 0); }
     });
 $(document).off('click', '.modal-tab-btn').on('click', '.modal-tab-btn', function() {
 
@@ -9186,6 +9190,7 @@ $(document).off('click', '.modal-tab-btn').on('click', '.modal-tab-btn', functio
        else if (target === 'tab-history') loadModalHistory(pid);
     else if (target === 'tab-news') loadModalNews(pid);
     else if (target === 'tab-sx') lldStatsPopupFill(pid);
+    else if (target === 'tab-summary') lldPmSummary(pid);
 });
     $(document).off('click', '.player-modal-close, .player-modal-backdrop').on('click', '.player-modal-close, .player-modal-backdrop', function(e) {
         if ($(e.target).closest('.player-modal-box').length && !$(e.target).hasClass('player-modal-close')) { return; }
@@ -15281,6 +15286,165 @@ document.addEventListener('click', function (e) {
     if (e.target.closest('#active-team-switcher-btn') && !e.target.closest('.team-award-chip, .team-award, .team-awards, .team-award-solo, .team-wk-awards')) { e.stopImmediatePropagation(); e.preventDefault(); lldTmSheet(); }
 }, true);
 // ---- player popup (beta) ----
+// ---- player popup (beta): hero, swappable stats, trade status, summary ----
+const LLD_PM_SL = { age: 'Age', exp: 'Exp', bye: 'Bye', dyn: 'Dynasty', crk: 'Contract rank', sal: 'Salary', yrs: 'Years left', gua: 'Guaranteed', draft: 'Drafted' };
+function lldPmSlots() { try { const a = JSON.parse(localStorage.getItem('lld_pm_slots') || 'null'); if (Array.isArray(a) && a.length === 4 && a.every(k => LLD_PM_SL[k])) return a; } catch (e) { } return ['age', 'exp', 'bye', 'dyn']; }
+function lldPmGroup(pos) { return ({ DE: 'DL', DT: 'DL', CB: 'DB', S: 'DB' })[pos] || pos; }
+async function lldPmData(pid, pos) {
+    window._lldPmDC = window._lldPmDC || {}; const k = String(pid); if (window._lldPmDC[k]) return window._lldPmDC[k];
+    const o = {}, g = lldPmGroup(pos);
+    try { const r = (await getDynRankMap(g))[k]; if (r) o.dyn = '#' + r; } catch (e) { }
+    try {
+        const c = (await lldTbContracts())[k];
+        if (c) {
+            o.own = c.own; o.sal = c.sal; o.yrs = c.yrs; o.gua = c.gu; o.salN = c.sal; o.thru = (parseInt(year, 10) || 2026) + (c.yrs || 1) - 1;
+            const sl = (window.leagueSalaryData && window.leagueSalaryData[g]) || [];
+            if (sl.length) o.crk = 1 + sl.filter(e => e.sal > c.sal + 0.001).length;
+        }
+    } catch (e) { }
+    if (o.own !== undefined) window._lldPmDC[k] = o; return o;
+}
+function lldPmStatVal(k) {
+    const d = window._lldPmD || {}, c = d.c || {};
+    switch (k) {
+        case 'age': return d.age || '—'; case 'exp': return d.exp || '—'; case 'bye': return d.bye || '—'; case 'draft': return d.drafted || '—';
+        case 'dyn': return c.dyn || '—'; case 'crk': return c.crk ? '#' + c.crk : '—';
+        case 'sal': return c.sal != null ? '$' + (+c.sal).toFixed(0) + 'm' : '—'; case 'yrs': return c.yrs != null ? String(c.yrs) : '—';
+        case 'gua': return c.gua != null && !isNaN(c.gua) ? Math.round(c.gua) + '%' : '—';
+    } return '—';
+}
+function lldPmStrip() {
+    const s = lldPmSlots();
+    $('#modal-bio-pills').html(`<div class="pmb-st">${s.map((k, i) => `<div data-slot="${i}" title="Tap to change"><i>${LLD_PM_SL[k]}</i><b>${lldChatEsc(lldPmStatVal(k))}</b></div>`).join('')}</div>`);
+}
+$(document).on('click', '#smart-player-modal .pmb-st [data-slot]', function (e) {
+    e.stopPropagation(); const i = +this.getAttribute('data-slot'); $('#pm-slotmenu').remove();
+    const cur = lldPmSlots(), r = this.getBoundingClientRect();
+    const m = $(`<div id="pm-slotmenu">${Object.keys(LLD_PM_SL).map(k => `<button data-k="${k}" class="${k === cur[i] ? 'on' : ''}">${LLD_PM_SL[k]}<span>${lldChatEsc(lldPmStatVal(k))}</span></button>`).join('')}</div>`).appendTo('#smart-player-modal .player-modal-box');
+    const box = $('#smart-player-modal .player-modal-box')[0].getBoundingClientRect();
+    m.css({ top: (r.bottom - box.top + 4) + 'px', left: Math.max(6, Math.min(r.left - box.left, box.width - 190)) + 'px' }).data('i', i);
+});
+$(document).on('click', '#pm-slotmenu button', function (e) {
+    e.stopPropagation(); const m = $('#pm-slotmenu'), i = +m.data('i'), s = lldPmSlots(); s[i] = this.getAttribute('data-k');
+    try { localStorage.setItem('lld_pm_slots', JSON.stringify(s)); } catch (x) { } m.remove(); lldPmStrip();
+});
+$(document).on('click', function (e) { if (!$(e.target).closest('#pm-slotmenu, .pmb-st [data-slot]').length) $('#pm-slotmenu').remove(); });
+async function lldPmStatus(pid, own) {
+    const d = await lldTbLoad(); const lab = (((d.by || {})[own] || {}).p || {})[String(pid)];
+    return lab ? lldTbParseLabel(lab).s : '';
+}
+async function lldPmDrawStatus(pid, c) {
+    $('#pm-ts').remove(); if (!c || !c.own) return;
+    const mine = c.own === String(fid).padStart(4, '0'); let st = ''; try { st = await lldPmStatus(pid, c.own); } catch (e) { }
+    if (String(window._modalCurrentPid) !== String(pid)) return;
+    const X = LLDTB_ST[st], col = X ? X[1] : '#94a3b8', txt = X ? X[2] : 'Not shopping';
+    const b = $(`<button id="pm-ts" class="${mine ? 'ed' : ''}" ${mine ? '' : 'disabled'}><i style="background:${col}"></i>${txt}${mine ? ' ▾' : ''}</button>`);
+    if (mine) $('#modal-owner-actions').append(b); else $('#modal-trade-offer-btn').after(b);
+    window._lldPmSt = st;
+}
+$(document).on('click', '#pm-ts.ed', function (e) {
+    e.stopPropagation(); if ($('#pm-tsmenu').length) { $('#pm-tsmenu').remove(); return; }
+    const cur = window._lldPmSt || '';
+    $(`<div id="pm-tsmenu">${['S', 'W', 'U', 'N'].map(k => `<button data-s="${k}" class="${cur === k ? 'on' : ''}"><i style="background:${LLDTB_ST[k][1]}"></i>${LLDTB_ST[k][0]}</button>`).join('')}<button data-s="" class="${cur === '' ? 'on' : ''}"><i style="background:#94a3b8"></i>Not shopping</button></div>`).appendTo('#smart-player-modal .player-modal-box');
+    const r = this.getBoundingClientRect(), box = $('#smart-player-modal .player-modal-box')[0].getBoundingClientRect();
+    $('#pm-tsmenu').css({ top: (r.bottom - box.top + 4) + 'px', right: '10px' });
+});
+$(document).on('click', '#pm-tsmenu button', async function (e) {
+    e.stopPropagation(); const s = this.getAttribute('data-s'), pid = String(window._modalCurrentPid); $('#pm-tsmenu').remove();
+    const me = String(fid).padStart(4, '0'), btn = $('#pm-ts').css('opacity', .5);
+    try {
+        const d = await lldTbLoad(true), mine = d.by[me] || { m: '', p: {} }, p = Object.assign({}, mine.p);
+        if (s) { const old = lldTbParseLabel(p[pid]); p[pid] = lldTbMakeLabel(s, old.a); } else delete p[pid];
+        await lldTbSave(mine.m, p);
+    } catch (x) { console.warn('trade status', x); }
+    const c = (window._lldPmD || {}).c; lldPmDrawStatus(pid, c); btn.css('opacity', 1);
+});
+async function lldPmHero(pid, bio) {
+    const pos = $('#modal-pos').text().trim();
+    window._lldPmD = Object.assign({ pid: String(pid), c: null }, bio || {}); lldPmStrip(); $('#tab-btn-summary').show();
+    if (!$('#modal-contract-line').length) $('#modal-name').parent().after('<div id="modal-contract-line"></div>');
+    $('#modal-contract-line').html('');
+    const c = await lldPmData(pid, pos); if (String(window._modalCurrentPid) !== String(pid)) return;
+    window._lldPmD.c = c; lldPmStrip();
+    if (c.sal != null) $('#modal-contract-line').html(`<b>$${(+c.sal).toFixed(0)}m</b> /yr · ${c.yrs} yr${c.yrs !== 1 ? 's' : ''} · thru ${c.thru}`);
+    if (window._resignOpen !== true) $('#header-btn-resign').hide();
+    lldPmDrawStatus(pid, c);
+}
+async function lldPmSummary(pid) {
+    const box = $('#modal-summary-container'); if (!box.length) return;
+    box.html('<div style="text-align:center;padding:20px;color:var(--accent-blue);font-weight:800;font-size:11px;text-transform:uppercase">Loading...</div>');
+    const pos = $('#modal-pos').text().trim(), c = await lldPmData(pid, pos), d = window._lldPmD || {};
+    const t = (i, v, s) => `<div><i>${i}</i><b>${lldChatEsc(String(v))}</b><small>${lldChatEsc(s || '')}</small></div>`;
+    let st = ''; try { st = c.own ? await lldPmStatus(pid, c.own) : ''; } catch (e) { }
+    const X = LLDTB_ST[st];
+    let h = `<div class="pmc"><div class="kv">${t('Dynasty rank', c.dyn || '—', pos)}${t('Contract rank', c.crk ? '#' + c.crk : '—', pos + ' salary')}${t('Contract', c.sal != null ? '$' + (+c.sal).toFixed(0) + 'm' : '—', c.yrs != null ? c.yrs + ' yr' + (c.yrs !== 1 ? 's' : '') + ' · thru ' + c.thru : '')}</div>`;
+    h += `<div class="grp">Trade status</div><div class="cap" style="display:flex;align-items:center;gap:8px"><i style="width:9px;height:9px;border-radius:50%;background:${X ? X[1] : '#94a3b8'}"></i><b>${X ? X[0] : 'Not shopping'}</b></div>`;
+    h += `<div class="grp">Latest news</div><div id="pm-sum-news"><p class="ex dm">Loading...</p></div></div>`;
+    box.html(h);
+    try {
+        await loadModalNews(pid); const it = (window._newsCache && window._newsCache[pid]) || [];
+        if (String(window._modalCurrentPid) !== String(pid)) return;
+        $('#pm-sum-news').html(it.length ? it.slice(0, 2).map(n => `<div class="nw"><small>${lldChatEsc(n.age || '')}</small><p><b>${lldChatEsc(n.head || '')}</b> ${lldChatEsc(n.body || '')}</p></div>`).join('') + (it.length > 2 ? '<p class="ex dm" style="font-size:11px">More on the News tab.</p>' : '') : '<p class="ex dm">No recent news.</p>');
+    } catch (e) { $('#pm-sum-news').html('<p class="ex dm">No news available.</p>'); }
+}
+// ---- player popup (beta): contract tab with re-sign simulator ----
+const LLD_PMS = { yrs: 3, g: 50, up: 0 };
+function lldPmCalc(base, y, g) {
+    const yd = y - 3, gd = g - 50, ym = 1 - yd * (yd < 0 ? 0.12 : 0.06), gm = 1 - (gd / 10) * (gd < 0 ? 0.06 : 0.03);
+    return Math.round(base * ym * gm * 10) / 10;
+}
+function lldPmCtHtml(c) {
+    const m = v => '$' + v.toFixed(1) + 'm', S = LLD_PMS;
+    const left = c.yrsNum, endY = c.startYear + left - 1;
+    const rk = c.rank ? `<div><i>Contract rank</i><b>#${c.rank}</b><small>${lldChatEsc(c.pos)} salary, league-wide</small></div>` : '';
+    const flr = c.baseFloor ? `<div><i>Resign floor</i><b>${m(c.baseFloor)}</b><small>at 3 yrs / 50% guaranteed</small></div>` : '';
+    const now = `<div><i>Contract now</i><b>${m(c.salNum)}</b><small>${left} yr${left !== 1 ? 's' : ''} left · ${Math.round(c.gPct * 100)}% guar.</small></div>`;
+    let h = `<div class="pms"><div class="pms-t">${rk}${flr}${now}</div>`;
+    const yb = []; for (let i = 0; i < left; i++) { const rem = left - i; yb.push(`<div class="${i === 0 ? 'now' : ''}"><i>${c.startYear + i}</i><b>${m(c.salNum)}</b><small>${i === 0 ? 'this year' : i + ' yr' + (i > 1 ? 's' : '') + ' out'}</small></div>`); }
+    h += `<div class="pms-c"><span class="pms-tag">Current contract</span><div class="pms-kv"><span>${left} yr${left !== 1 ? 's' : ''} left · ends ${endY}</span><b>${Math.round(c.gPct * 100)}% guar.</b></div><div class="pms-y">${yb.join('')}</div></div>`;
+    let sal = c.salNum, y = c.yrsNum, g = Math.round(c.gPct * 100);
+    if (c.canSim && c.baseFloor) {
+        y = S.yrs; g = S.g; const base = lldPmCalc(c.baseFloor, y, g), up = S.up || 0; sal = Math.round((base + up) * 10) / 10;
+        const after = c.capUsed - c.salNum + sal, room = c.cap - after, fit = room >= 0, low = sal < c.salNum, dy = y - 3, dg = g - 50;
+        const pct = v => Math.min(100, Math.max(0, v / c.cap * 100)).toFixed(1);
+        h += `<div class="pms-c"><span class="pms-tag">If you resign him</span>
+<div class="pms-sl"><span>Years</span><b>${y} yr${y > 1 ? 's' : ''} · thru ${c.startYear + y - 1}</b></div>
+<div class="pms-yc">${[1, 2, 3, 4, 5].map(n => `<button data-y="${n}" class="${y === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+<div class="pms-sl" style="margin-top:14px"><span>Guaranteed</span><b>${g}%</b></div>
+<div class="pms-stp"><button data-g="-5">−</button><input type="range" id="pms-g" min="10" max="100" step="5" value="${g}"><button data-g="5">+</button></div>
+<div class="pms-qk"><button data-gq="25">25%</button><button data-gq="50">50%</button><button data-gq="75">75%</button><button data-gq="100">100%</button></div>
+<div class="pms-res"><div><i>New salary</i><b>${m(sal)}</b><small>${up > 0 ? 'formula ' + m(base) + ' + ' + m(up) + ' raise' : 'per year'}</small></div><div class="fm">${dy === 0 ? '3 yr baseline' : Math.abs(dy) + ' yr' + (Math.abs(dy) > 1 ? 's' : '') + (dy < 0 ? ' fewer' : ' more') + ' than 3'} <b class="${dy < 0 ? 'u' : dy > 0 ? 'd' : ''}">${dy < 0 ? '↑ higher' : dy > 0 ? '↓ lower' : '—'}</b><br>${dg === 0 ? '50% baseline' : Math.abs(dg) + '% ' + (dg < 0 ? 'below' : 'above') + ' 50'} <b class="${dg < 0 ? 'u' : dg > 0 ? 'd' : ''}">${dg < 0 ? '↑ higher' : dg > 0 ? '↓ lower' : '—'}</b></div></div>
+<div class="pms-sl" style="margin-top:14px"><span>Raise salary</span><b>+${m(up)}</b></div>
+<div class="pms-stp"><button data-u="-0.5">−</button><input type="range" id="pms-u" min="0" max="20" step="0.5" value="${up}"><button data-u="0.5">+</button></div>
+<div class="pms-qk">${c.salNum > base ? `<button data-uq="match">Match current ${m(c.salNum)}</button>` : ''}<button data-uq="0">No raise</button></div>
+${low ? `<p class="pms-warn">Cannot resign below his current salary (${m(c.salNum)}/yr) while years remain. Raise the salary above to match it, or pick fewer years or a lower guarantee.</p>` : ''}</div>
+<div class="pms-c"><span class="pms-tag">Your cap right now</span>
+<div class="pms-r">${m(c.capUsed)} used <span>of $${c.cap}m</span></div><div class="pms-br"><b style="width:${pct(c.capUsed)}%;background:#3b82f6"></b></div>
+<div class="pms-r" style="margin-top:12px">With the new deal <span style="color:${fit ? '#4ade80' : '#f87171'};font-weight:900">${fit ? 'FITS' : 'OVER THE CAP'}</span></div>
+<div class="pms-br"><b style="width:${pct(after)}%;background:${fit ? 'var(--accent-blue)' : '#ef4444'}"></b></div>
+<div class="pms-k3"><div><i>Cap used</i><b>${m(after)}</b></div><div><i>Room left</i><b style="color:${fit ? '#fff' : '#f87171'}">${fit ? '' : '-'}${m(Math.abs(room))}</b></div><div><i>His share</i><b>${(sal / c.cap * 100).toFixed(1)}%</b></div></div>
+<p class="pms-n">Swaps his current ${m(c.salNum)} for the new salary. Dead cap if cut right after signing: ${m(sal * g / 100 * y)} (salary × ${g}% × ${y} yrs).</p></div>`;
+    } else {
+        const pct = v => Math.min(100, Math.max(0, v / c.cap * 100)).toFixed(1);
+        h += `<div class="pms-c"><span class="pms-tag">Team cap</span><div class="pms-r">${m(c.capUsed)} used <span>of $${c.cap}m</span></div><div class="pms-br"><b style="width:${pct(c.capUsed)}%;background:#3b82f6"></b></div><div class="pms-k3"><div><i>His share</i><b>${(c.salNum / c.cap * 100).toFixed(1)}%</b></div><div><i>Room left</i><b>${m(c.cap - c.capUsed)}</b></div><div><i>Dead if cut</i><b>${m(c.salNum * c.gPct * c.yrsNum)}</b></div></div></div>`;
+    }
+    const dyrs = c.canSim && c.baseFloor ? y : c.yrsNum;
+    const dsal = c.canSim && c.baseFloor ? sal : c.salNum, dg2 = (c.canSim && c.baseFloor ? g : Math.round(c.gPct * 100)) / 100;
+    h += `<div class="pms-c"><span class="pms-tag">Dead cap by year${c.canSim && c.baseFloor ? ' (new deal)' : ' if cut'}</span><div class="pms-y">${Array.from({ length: dyrs }, (_, i) => `<div class="${i === 0 ? 'now' : ''}"><i>${c.startYear + i}</i><b>${m(dsal)}</b><small>cap hit ${m(dsal * dg2 * (dyrs - i))}</small></div>`).join('')}</div></div></div>`;
+    return h;
+}
+function lldPmCtDraw() { const c = window._lldPmCt; if (!c) return; const box = $('#modal-actions-container'); if (window._modalActionsLock || !box.length) return; box.html(lldPmCtHtml(c)); }
+$(document).on('click', '#modal-actions-container .pms [data-y]', function () { LLD_PMS.yrs = +this.getAttribute('data-y'); lldPmCtDraw(); });
+$(document).on('click', '#modal-actions-container .pms [data-g]', function () { LLD_PMS.g = Math.max(10, Math.min(100, LLD_PMS.g + +this.getAttribute('data-g'))); lldPmCtDraw(); });
+$(document).on('click', '#modal-actions-container .pms [data-gq]', function () { LLD_PMS.g = +this.getAttribute('data-gq'); lldPmCtDraw(); });
+$(document).on('click', '#modal-actions-container .pms [data-u]', function () { LLD_PMS.up = Math.max(0, Math.min(20, Math.round(((LLD_PMS.up || 0) + +this.getAttribute('data-u')) * 10) / 10)); lldPmCtDraw(); });
+$(document).on('click', '#modal-actions-container .pms [data-uq]', function () {
+    const c = window._lldPmCt; if (!c) return;
+    if (this.getAttribute('data-uq') === 'match') { const b = lldPmCalc(c.baseFloor, LLD_PMS.yrs, LLD_PMS.g); LLD_PMS.up = Math.max(0, Math.min(20, Math.ceil((c.salNum - b) * 2) / 2)); } else LLD_PMS.up = 0;
+    lldPmCtDraw();
+});
+$(document).on('input', '#pms-g', function () { LLD_PMS.g = +this.value; lldPmCtDraw(); const n = document.getElementById('pms-g'); if (n) n.focus(); });
+$(document).on('input', '#pms-u', function () { LLD_PMS.up = +this.value; lldPmCtDraw(); const n = document.getElementById('pms-u'); if (n) n.focus(); });
 function lldPmBioHtml(b) {
     const it = (k, v) => v ? `<div><i>${k}</i><b>${lldChatEsc(v)}</b></div>` : '';
     return `<div class="pmb-st">${it('Ht / Wt', b.hw)}${it('Age', b.age)}${it('Exp', b.exp)}${it('Bye', b.bye)}</div>`;
@@ -15294,6 +15458,15 @@ async function lldPmAwards(pid) {
     if (window._modalCurrentPid && String(window._modalCurrentPid) !== String(pid)) return;
     const h = Object.keys(cnt).map(k => `<span title="${LLD_PM_AW[k][1]}"><em>${LLD_PM_AW[k][0]}</em>×${cnt[k]}</span>`).join('');
     $('#modal-awards').html(h);
+}
+const LLD_PM_AWI = { potw: 'M8 21h8M12 17v4M7 3h10v6a5 5 0 0 1-10 0V3zM7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3', sunday: 'M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8z', gutsy: 'M12 3c.6 3.6 5 5.4 5 10a5 5 0 0 1-10 0c0-1.9.8-3 2-4 0 1.8.9 2.8 2 2.8C11 8.5 10.8 6 12 3z' };
+// awards per season in the career table (recap events only cover the current season)
+async function lldPmCareerAw(pid) {
+    let ev = []; try { ev = (await getAllRecapEvents()) || []; } catch (e) { return; }
+    const pc = e => String((e.p && (e.p.pid || e.p.id)) || (e.c && e.c.g && (e.c.g.pid || e.c.g.id)) || ''), cnt = {};
+    ev.forEach(e => { if (LLD_PM_AWI[e.type] && pc(e) === String(pid)) cnt[e.type] = (cnt[e.type] || 0) + 1; });
+    const h = Object.keys(cnt).map(k => `<span title="${LLD_PM_AW[k][1]}" style="display:inline-flex;align-items:center;gap:3px;margin-right:6px;font-weight:900;color:#f5b942"><svg width="11" height="11" viewBox="0 0 24 24"><path d="${LLD_PM_AWI[k]}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>×${cnt[k]}</span>`).join('');
+    if (h) $('.pm-awc[data-yr="' + year + '"]').html(h);
 }
 // weekly list for the Game Log tab: boom / bust and the awards he won that week
 async function lldPmWeeks(pid, pos, merged, yr) {
@@ -21222,17 +21395,18 @@ html += `
             function buildCareerTable() {
                 if (!careerRows.length) return `<div style="text-align:center; padding:20px; color:var(--text-dim);">No career data.</div>`;
                 const colHeaders = Array.from(projDoc.querySelectorAll('table.biohistory th')).map(th => th.textContent.trim()).filter(t => t && t !== '\u00a0');
+                if (lldDev()) setTimeout(() => { try { lldPmCareerAw(window._modalCurrentPid); } catch (e) { } }, 0);
                 return `
                     <div style="overflow-x:auto;" class="hide-scroll">
                         <table style="width:100%; border-collapse:collapse; font-size:calc(10px * var(--ts,1));">
                             <thead>
-                                <tr>${colHeaders.map(h => `<th style="padding:5px 8px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; border-bottom:1px solid var(--card-border);">${h}</th>`).join('')}</tr>
+                                <tr>${colHeaders.map(h => `<th style="padding:5px 8px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; border-bottom:1px solid var(--card-border);">${h}</th>`).join('')}${lldDev() ? '<th style="padding:5px 8px; text-align:center; font-size:calc(8px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; border-bottom:1px solid var(--card-border);">Awards</th>' : ''}</tr>
                             </thead>
                             <tbody>
                                 ${careerRows.map(r => `
                                     <tr style="border-bottom:1px solid rgba(255,255,255,0.04); ${r.isProjected ? 'opacity:0.7;' : ''}">
                                         <td style="padding:6px 8px; font-weight:900; color:${r.isProjected ? '#f59e0b' : 'var(--accent-blue)'}; white-space:nowrap;">${r.yr}${r.isProjected ? '*' : ''}</td>
-                                        ${r.cells.map(c => `<td style="padding:6px 8px; text-align:center; color:#fff; font-weight:800;">${c}</td>`).join('')}
+                                        ${r.cells.map(c => `<td style="padding:6px 8px; text-align:center; color:#fff; font-weight:800;">${c}</td>`).join('')}${lldDev() ? `<td class="pm-awc" data-yr="${r.yr}" style="padding:6px 8px; text-align:left; white-space:nowrap; color:var(--text-dim);">${r.isProjected ? '' : '–'}</td>` : ''}
                                     </tr>`).join('')}
                             </tbody>
                         </table>
@@ -21428,6 +21602,14 @@ let capUsed = window.currentTeamCapUsed || 0;
         const capRemaining = (salaryCap - capUsed).toFixed(1);
 
         if (lldDev()) {
+            const sl = (window.leagueSalaryData && window.leagueSalaryData[posGroup]) || [];
+            const rank = sl.length ? 1 + sl.filter(e => e.sal > salNum + 0.001).length : null;
+            const mine = !ownerFid || String(ownerFid).padStart(4, '0') === String(fid).padStart(4, '0');
+            window._lldPmCt = { salNum, yrsNum, gPct, startYear, baseFloor, rank, pos: posGroup, cap: salaryCap, capUsed: capUsed || rowsCap(), canSim: mine && window._resignOpen === true };
+            container.html(lldPmCtHtml(window._lldPmCt));
+            return;
+        }
+        if (false) {
             const yc = []; for (let i = 0; i < yrsNum; i++) { const rem = yrsNum - i, dc = Math.round(salNum * gPct * rem * 10) / 10; yc.push(`<div class="${i === 0 ? 'now' : ''}"><i>${startYear + i}</i><b>$${salNum.toFixed(1)}m</b><small>dead $${dc.toFixed(1)}m</small></div>`); }
             const pmShare = salaryCap ? Math.min(100, salNum / salaryCap * 100) : 0, others = Math.max(0, Math.min(100, capUsed / salaryCap * 100) - pmShare);
             const dc1 = Math.round(salNum * gPct * yrsNum * 10) / 10, dcLater = Math.max(0, Math.round((dc1 - salNum * gPct * yrsNum / yrsNum * 1) * 10) / 10);
