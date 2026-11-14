@@ -5912,3 +5912,24 @@ body.lld-b2 #team-selector-drawer{display:none!important}
 #pm-tsmenu,#pm-slotmenu{position:absolute;z-index:30;background:#12192e;border:1px solid var(--card-border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);padding:5px;min-width:170px;max-height:260px;overflow:auto}
 #pm-tsmenu button,#pm-slotmenu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;color:#fff;font:inherit;font-size:12px;font-weight:800;padding:9px 10px;border-radius:8px;cursor:pointer}
 #pm-tsmenu button.on,#pm-slotmenu button.on{background:rgba(255,255,255,.1)}#pm-slotmenu button span{margin-left:auto;color:var(--text-dim);font-weight:700}
+
+#smart-player-modal.pmb #tab-btn-sx{display:none!important}
+/* position points + roster grid (beta) */
+#stt .pgt{display:flex;gap:6px;margin:2px 0 8px;flex-wrap:wrap}#stt .pgt .sp{flex:1}
+#stt .pgt button{font:inherit;font-size:calc(12px * var(--ts,1));font-weight:800;padding:7px 13px;border-radius:999px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer}
+#stt .pgt button.on{background:rgba(59,130,246,.16);border-color:var(--accent-blue);color:#fff}
+#stt .pgg{border:1px solid var(--card-border);border-radius:14px;background:var(--card-bg);padding:12px}
+#stt .glg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--text-dim);margin-bottom:10px}#stt .glg span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:4px}
+#stt .grw{display:flex;align-items:center;gap:8px;margin-bottom:9px}#stt .grw .nm{flex:0 0 92px;max-width:92px;font-size:11px;font-weight:800;line-height:1.15}#stt .grw.me .nm{color:var(--accent-teal)}
+#stt .grw .bw{flex:1;min-width:0}#stt .grw .bars{display:flex;height:26px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.05)}
+#stt .grw .seg{height:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;border-right:1px solid rgba(0,0,0,.25);min-width:0;overflow:hidden}
+#stt .grw .tot{flex:0 0 38px;text-align:right;font-size:11px;font-weight:800;color:var(--text-dim)}
+#stt td.c{min-width:84px;height:auto;padding:3px 2px}#stt .pgc{display:block;border-radius:9px;padding:5px 3px;cursor:pointer;color:#06121f;line-height:1.15}#stt .pgc b{display:block;font-size:calc(13px * var(--ts,1));font-weight:900}#stt .pgc small{display:block;font-size:9px;font-weight:700;color:#06121f;opacity:.8;overflow:hidden;text-overflow:ellipsis;max-width:78px;margin:1px auto 0}
+#stt .pgc.nh{color:var(--text-dim);background:rgba(255,255,255,.05);cursor:default}#stt .pgc.nh small{color:var(--text-dim)}
+#stt .pgc .bo{color:#064e3b}#stt .pgc .bs{color:#7f1d1d}
+#stt tr.g td{border-top:1px solid var(--card-border)}
+#stt td.sl.srt,#stt th.sl{min-width:70px;max-width:70px;font-size:12px;font-weight:900}#stt td.sl .pos,#lld-sh-pop .pos{display:inline-block;font-size:9px;font-weight:900;padding:2px 5px;border-radius:5px;color:#fff;margin-right:6px;background:var(--c)}
+#stt thead th.ct{height:auto;padding:8px 4px;vertical-align:bottom;min-width:84px}#stt thead th.ct .lg{margin:0 auto 3px;width:28px;height:28px}#stt thead th.ct .tnm{display:block;max-width:80px;overflow:hidden;text-overflow:ellipsis;font-size:9px;margin:0 auto}#stt thead th.ct .dy{display:block;font-size:9px;color:var(--accent-blue);margin-top:2px}
+#lld-sh-pop .pgk{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#lld-sh-pop .pgk>div{background:rgba(255,255,255,.035);border:1px solid var(--card-border);border-radius:10px;padding:8px;text-align:center;min-width:0}#lld-sh-pop .pgk i{display:block;font-style:normal;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);font-weight:800}#lld-sh-pop .pgk b{display:block;font-size:15px;margin-top:2px;color:#fff}
+#lld-sh-pop .bo{color:#22c55e}#lld-sh-pop .bs{color:#f87171}
+#lld-sh-pop .pgl{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.035);margin-bottom:5px;font-size:12px}#lld-sh-pop .pgl i{width:10px;height:10px;border-radius:50%;flex:0 0 auto}#lld-sh-pop .pgl b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}#lld-sh-pop .pgl em{font-style:normal;color:var(--text-dim);font-size:11px}#lld-sh-pop .pgl span{font-weight:900;color:#fff}
