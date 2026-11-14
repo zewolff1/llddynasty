@@ -8394,6 +8394,7 @@ $('body').append(`
                 <img id="modal-team-logo" src="" style="width: 18px; height: 18px; object-fit: contain; flex-shrink:0;">
                 <span id="modal-pid-text" style="font-size: calc(10px * var(--ts,1)); color: var(--text-dim); font-weight: 700;"></span>
             </div>
+            <div id="modal-awards"></div>
             <div id="modal-bio-pills" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;"></div>
 <button id="modal-trade-offer-btn" onclick="txAction('propose', window._modalCurrentPid, event)"
     style="display:none; margin-top:8px; padding:5px 12px; background:rgba(59,130,246,0.15); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.4); border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">
@@ -8589,6 +8590,7 @@ $('#team-popup-owner').text(owner || '');
         });
         capUsed = parseFloat(capUsed.toFixed(1));
         const capRemaining = parseFloat((salaryCap - capUsed).toFixed(1));
+        if (!capUsed) capUsed = rowsCap();
         const capPct = Math.min(100, (capUsed / salaryCap) * 100).toFixed(1);
         const barColor = capUsed > salaryCap ? '#ef4444' : capPct > 90 ? '#f59e0b' : '#22c55e';
         $('#team-popup-cap-label').text(`$${capUsed}m / $${salaryCap}m`).css('color', barColor);
@@ -8944,7 +8946,7 @@ $('#modal-pos').text(pos).removeClass().css({ fontSize: 'calc(13px * var(--ts,1)
 $('#modal-name').html(name);
 $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
-        $('#modal-bio-pills').html('');
+        $('#modal-bio-pills').html(''); $('#modal-awards').html(''); try { $('#smart-player-modal').toggleClass('pmb', lldDev()); $('#modal-dynamic-header').css('--pc', lldStPosVar($('#modal-pos').text().trim())); } catch (e) { }
         // Load bio pills async
         fetch(`${MFL_ORIGIN}/${year}/player?L=${lid}&P=${pid}&YEAR=${year}&DISPLAY_TYPE=projections&PROJSRC=mfl`, { credentials: 'include' })
             .then(r => r.text())
@@ -8971,7 +8973,7 @@ const hw = bioMap['Height/Weight'] || '';
                 if (exp) details.push(`<span><span style="color:var(--text-dim);">Exp:</span> ${exp}</span>`);
                 if (bye) details.push(`<span><span style="color:var(--text-dim);">Bye:</span> ${bye}</span>`);
                 if (details.length) bioHtml += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
-                $('#modal-bio-pills').html(bioHtml);
+                if (lldDev()) { $('#modal-bio-pills').html(lldPmBioHtml({ hw, age: ageDisplay, exp, bye })); try { lldPmAwards(pid); } catch (e) { } } else $('#modal-bio-pills').html(bioHtml);
             }).catch(() => {});
     $('#modal-dynamic-header').css({ background: 'rgba(59,130,246,0.2)', 'border-bottom': '1px solid rgba(59,130,246,0.3)' });
 $('.modal-tab-btn').removeClass('active').show();
@@ -9131,7 +9133,7 @@ $('#modal-pos').text(pos).removeClass().css({ fontSize: 'calc(13px * var(--ts,1)
         $('#modal-name').html(playerName);
         $('#modal-inj').html(injHtml);
 $('#modal-pid-text').text('');
-        $('#modal-bio-pills').html('');
+        $('#modal-bio-pills').html(''); $('#modal-awards').html(''); try { $('#smart-player-modal').toggleClass('pmb', lldDev()); $('#modal-dynamic-header').css('--pc', lldStPosVar($('#modal-pos').text().trim())); } catch (e) { }
         // Load bio pills async
         fetch(`${MFL_ORIGIN}/${year}/player?L=${lid}&P=${pid}&YEAR=${year}&DISPLAY_TYPE=projections&PROJSRC=mfl`, { credentials: 'include' })
             .then(r => r.text())
@@ -9158,7 +9160,7 @@ const hw = bioMap['Height/Weight'] || '';
                 if (exp) details.push(`<span><span style="color:var(--text-dim);">Exp:</span> ${exp}</span>`);
                 if (bye) details.push(`<span><span style="color:var(--text-dim);">Bye:</span> ${bye}</span>`);
                 if (details.length) bioHtml += `<div style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#fff; margin-top:3px; display:flex; flex-wrap:wrap; gap:6px;">${details.join('')}</div>`;
-                $('#modal-bio-pills').html(bioHtml);
+                if (lldDev()) { $('#modal-bio-pills').html(lldPmBioHtml({ hw, age: ageDisplay, exp, bye })); try { lldPmAwards(pid); } catch (e) { } } else $('#modal-bio-pills').html(bioHtml);
             }).catch(() => {});
 // Pre-load default tab
 if (!isMyTeam) {
@@ -14955,17 +14957,17 @@ function lldShPopHtml(b) {
     if (b === 'cap') {
         const T = lldShTotals(d, sy), order = Object.keys(T).sort((a, c) => T[c] - T[a]);
         t = 'Salary spent by team'; sub = `${sy} · cap limit ${lldShM(cap)} · ${vf in T ? 'you are ' + lldLsOrd(order.indexOf(vf) + 1) + ' of ' + order.length : ''} (most spent first)`;
-        h = order.map((f, i) => lldDev() ? `<div class="pr cp${f === vf ? ' me' : ''}" style="--pc:${f === vf ? 'var(--accent-teal)' : 'var(--accent-blue)'}"><div class="wm"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"></div><div class="av"><div class="im lg"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"><span class="rkb">${i + 1}</span></div></div><div class="nm"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div><i>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</i></div><div class="vl">${lldShM(T[f])}</div></div>` : `<div class="tr2${f === vf ? ' me' : ''}"><div class="rk">${i + 1}</div><div class="nmx"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div></div><div class="vl">${lldShM(T[f])}<small>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</small></div></div>`).join('');
+        h = order.map((f, i) => true ? `<div class="pr cp${f === vf ? ' me' : ''}" style="--pc:${f === vf ? 'var(--accent-teal)' : 'var(--accent-blue)'}"><div class="wm"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"></div><div class="av"><div class="im lg"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"><span class="rkb">${i + 1}</span></div></div><div class="nm"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div><i>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</i></div><div class="vl">${lldShM(T[f])}</div></div>` : `<div class="tr2${f === vf ? ' me' : ''}"><div class="rk">${i + 1}</div><div class="nmx"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div></div><div class="vl">${lldShM(T[f])}<small>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</small></div></div>`).join('');
     } else if (b === 'exp') {
         const mine = d.exp.filter(x => x.fid === vf).sort((a, c) => c.sal - a.sal), tot = mine.reduce((s, x) => s + x.sal, 0);
         t = 'Expiring contracts'; sub = P.tab === 'mine' ? `Yours · ${mine.length} contract${mine.length === 1 ? '' : 's'} · ${lldShM(tot)} coming off after ${year}` : `Every team · contracts expiring after ${year}`;
         const tabs = `<div class="ptabs"><button class="ptab${P.tab === 'mine' ? ' on' : ''}" data-t="mine">My team</button><button class="ptab${P.tab === 'league' ? ' on' : ''}" data-t="league">Whole league</button></div>`;
         const nmOf = x => (d.info[x.id] && d.info[x.id].name) || ('#' + x.id), posOf = x => (d.info[x.id] && d.info[x.id].pos) || '';
-        if (P.tab === 'mine') h = tabs + (mine.length ? mine.map(x => lldDev() ? lldShPl(x, nmOf(x), posOf(x), 'expires after ' + year, lldShM(x.sal), x.fid === vf) : `<div class="ln2"><b>${lldShEsc(nmOf(x))} <span>${posOf(x)}</span></b><b>${lldShM(x.sal)}</b></div>`).join('') : '<div class="ln2"><span>No expiring contracts</span></div>');
+        if (P.tab === 'mine') h = tabs + (mine.length ? mine.map(x => true ? lldShPl(x, nmOf(x), posOf(x), 'expires after ' + year, lldShM(x.sal), x.fid === vf) : `<div class="ln2"><b>${lldShEsc(nmOf(x))} <span>${posOf(x)}</span></b><b>${lldShM(x.sal)}</b></div>`).join('') : '<div class="ln2"><span>No expiring contracts</span></div>');
         else {
             const PS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'LB', 'DL', 'DB'], grp = p => ({ DE: 'DL', DT: 'DL', CB: 'DB', S: 'DB' }[p] || p);
             const rows = d.exp.filter(x => P.pos === 'ALL' || grp(posOf(x)) === P.pos).sort((a, c) => c.sal - a.sal);
-            h = tabs + `<div class="pfs">${PS.map(q => `<button class="pf${P.pos === q ? ' on' : ''}" data-p="${q}">${q}</button>`).join('')}</div>` + (rows.length ? rows.map(x => lldDev() ? lldShPl(x, nmOf(x), posOf(x), nm(x.fid), lldShM(x.sal), x.fid === vf) : `<div class="tr2${x.fid === vf ? ' me' : ''}"><div class="rk">${posOf(x)}</div><div class="nmx"><b>${lldShEsc(nmOf(x))}</b><span class="ow">${nm(x.fid)}</span></div><div class="vl">${lldShM(x.sal)}</div></div>`).join('') : `<div class="ln2"><span>No expiring ${P.pos} contracts</span></div>`);
+            h = tabs + `<div class="pfs">${PS.map(q => `<button class="pf${P.pos === q ? ' on' : ''}" data-p="${q}">${q}</button>`).join('')}</div>` + (rows.length ? rows.map(x => true ? lldShPl(x, nmOf(x), posOf(x), nm(x.fid), lldShM(x.sal), x.fid === vf) : `<div class="tr2${x.fid === vf ? ' me' : ''}"><div class="rk">${posOf(x)}</div><div class="nmx"><b>${lldShEsc(nmOf(x))}</b><span class="ow">${nm(x.fid)}</span></div><div class="vl">${lldShM(x.sal)}</div></div>`).join('') : `<div class="ln2"><span>No expiring ${P.pos} contracts</span></div>`);
         }
     } else if (b === 'dead') {
         const dd = (d.dead[vf] || []).slice().sort((a, c) => c.amt - a.amt), dt = dd.reduce((s, x) => s + x.amt, 0);
@@ -14974,7 +14976,7 @@ function lldShPopHtml(b) {
     }
     return lldShHd(t, sub) + h;
 }
-function lldShHd(t, sub) { return lldDev() ? `<div class="hd"><div><h4>${t}</h4><p>${sub}</p></div><button class="x" id="lld-sh-x">✕</button></div>` : `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p>`; }
+function lldShHd(t, sub) { return true ? `<div class="hd"><div><h4>${t}</h4><p>${sub}</p></div><button class="x" id="lld-sh-x">✕</button></div>` : `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p>`; }
 function lldLsOrd(k) { return lldShOrd(k); }
 // a player row for the sheets (headshot ring in the position color, team logo watermark)
 function lldShPl(x, name, pos, sub, val, me) {
@@ -14983,7 +14985,7 @@ function lldShPl(x, name, pos, sub, val, me) {
 }
 function lldShShow(b) {
     let o = $('#lld-sh-pop'); if (!o.length) { o = $('<div id="lld-sh-pop"><div class="sh"></div></div>'); $('body').append(o); }
-    window._lldShPopB = b; o.toggleClass('n', lldDev()); o.find('.sh').html(lldShPopHtml(b)); o.addClass('on');
+    window._lldShPopB = b; o.addClass('n'); o.find('.sh').html(lldShPopHtml(b)); o.addClass('on');
     if (!window._lldShD && b !== 'year') lldShLoad().then(() => { if (window._lldShPopB === b) o.find('.sh').html(lldShPopHtml(b)); });
 }
 $(document).on('click', '#lld-sh .pv, #lld-sh .bk[data-b="wk"]', function (e) { e.stopPropagation(); $('#lld-hdr-pv').first().trigger('click'); });
@@ -14998,10 +15000,10 @@ setInterval(() => { if (lldShOn() && $('#tab-team').is(':visible')) { const el =
 
 
 // ===== BETA (0000 / 0001): one standings table (everything from Stats, per-week averages, tap a cell to see why) + restyled bottom sheets =====
-function lldStOn() { try { return lldDev() && !window._lldStOld; } catch (e) { return false; } }
+function lldStOn() { try { return !window._lldStOld; } catch (e) { return false; } }
 const LLD_ST_PICK = [18, 48, 80, 110]; // estimated dynasty rank of a draft pick by round (1st, 2nd, 3rd, later). Edit these to change how picks count.
 const LLD_ST_BW = [.5, .4, .3, .22, .16, .12, .08, .05];
-window._lldSt = window._lldSt || { V: lldGet('lld_st_v', 'ov'), cols: null, sk: null, sd: -1, picks: lldGet('lld_st_pk', '0') === '1', logos: false, X: {} };
+window._lldSt = window._lldSt || { V: lldGet('lld_st_v', 'ov'), cols: null, sk: null, sd: -1, picks: false, logos: false, X: {} };
 try { window._lldSt.cols = JSON.parse(lldGet('lld_st_cols', 'null')); } catch (e) { }
 const LLD_ST_PRE = {
     ov: { n: 'Overview', t: 'Standings', cols: ['rec', 'pfw', 'paw', 'st'], note: 'Points are averages per week, not per game, so double-header weeks do not inflate them. Tap any cell for the details.' },
@@ -15091,7 +15093,7 @@ function lldStDefs(S) {
             if (!X.dyn) return '<p class="ex">Loading dynasty values…</p>'; const pk = window._lldSt.picks, A = X.dyn.calc(t.f, false), cur = X.dyn.calc(t.f, pk), tt = X.dyn.T[t.f], rk = X.dyn.rk[pk ? 'yes' : 'no'][t.f];
             const ln = (x, w) => `<div class="ln"><span>${lldStPp(x.p)}</span><b>${lldChatEsc(x.n)}</b><span class="dm">rank ${x.r}</span><span class="wt">${w}</span></div>`;
             return `<div class="grp">What it means</div><p class="ex">${C.dyn.m}</p><div class="grp">How the number is figured</div><p class="ex">Score = weighted average of dynasty ranks. Starters count 1.00 each. The 8 best bench assets count .50, .40, .30, .22, .16, .12, .08 and .05. The lowest score is #1.</p>
-            ${X.dyn.hasPicks ? `<button type="button" class="pkb ${pk ? 'on' : ''}" id="stt-pk"><span>Include draft picks</span><i>${pk ? 'On' : 'Off'}</i></button><p class="ex dm" style="margin-top:6px">${pk ? 'Each pick counts as a bench player at an estimated rank by round, so a high pick can crowd a weak bench player out of the top 8.' : 'Picks are not counted right now. Turn this on to treat each pick like a bench player at an estimated rank.'} ${t.f === S.me ? 'You are' : 'They are'} <b>#${X.dyn.rk.no[t.f]}</b> without picks and <b>#${X.dyn.rk.yes[t.f]}</b> with picks.</p>` : '<p class="ex dm" style="margin-top:6px">Draft picks are not counted. MFL did not return any future picks.</p>'}
+            ${false ? `<button type="button" class="pkb ${pk ? 'on' : ''}" id="stt-pk"><span>Include draft picks</span><i>${pk ? 'On' : 'Off'}</i></button><p class="ex dm" style="margin-top:6px">${pk ? 'Each pick counts as a bench player at an estimated rank by round, so a high pick can crowd a weak bench player out of the top 8.' : 'Picks are not counted right now. Turn this on to treat each pick like a bench player at an estimated rank.'} ${t.f === S.me ? 'You are' : 'They are'} <b>#${X.dyn.rk.no[t.f]}</b> without picks and <b>#${X.dyn.rk.yes[t.f]}</b> with picks.</p>` : '<p class="ex dm" style="margin-top:6px">Draft picks are not counted. MFL did not return any future picks.</p>'}
             <div class="grp">Starters · rank counts fully</div>${tt.starters.map(x => ln(x, '×1.00')).join('')}
             <div class="grp">Bench · best 8 counted</div>${cur.bench.map((x, i) => ln(x, '×' + LLD_ST_BW[i].toFixed(2))).join('')}
             ${pk && cur.rest.length ? `<div class="grp">Outside the counted bench</div>${cur.rest.map(x => ln(x, 'not counted')).join('')}` : ''}
@@ -15212,6 +15214,106 @@ async function lldStRecSheet() {
     } catch (e) { console.warn('rec sheet', e); lldStSheet('<div class="hd"><div><h4>Standings</h4><p>Could not load</p></div><button class="x" id="lld-sh-x">✕</button></div><button type="button" class="seeall" id="stt-all">See full standings ›</button>'); }
 }
 $(document).on('click', '#stt-all', function () { $('#lld-sh-pop').removeClass('on'); lldGoLeagueSub('Standings'); });
+
+// ===== BETA: week schedule sheet, team switcher sheet, player popup extras =====
+function lldBetaOn() { try { return lldDev(); } catch (e) { return false; } }
+setInterval(() => { try { document.body.classList.toggle('lld-b2', lldBetaOn()); } catch (e) { } }, 1500);
+function lldBsOpen(tag, html) {
+    let o = $('#lld-sh-pop'); if (!o.length) { o = $('<div id="lld-sh-pop"><div class="sh"></div></div>'); $('body').append(o); }
+    window._lldShPopB = tag; o.addClass('n'); o.find('.sh').html(html); o.addClass('on');
+}
+function lldBsF(v) { return String(v).padStart(4, '0'); }
+async function lldWkSheet() {
+    const me = lldBsF(myFid), cw = (await lldCurWeek()) || 0, view = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek, 10) || cw;
+    lldBsOpen('wk', lldShHd(year + ' schedule', 'Loading…'));
+    let G = window._lldGames || []; if (!G.length) { try { await loadNextOpponents(); G = window._lldGames || []; } catch (e) { } }
+    let S = null; try { S = await lldStatsLoad(); } catch (e) { }
+    const mine = G.filter(g => g.a === me || g.b === me).sort((x, y) => x.wk - y.wk), si = S ? S.F.findIndex(f => lldBsF(f) === me) : -1;
+    let w = 0, l = 0, t = 0, pf = 0, rows = '';
+    mine.forEach(g => {
+        const o = g.a === me ? g.b : g.a, past = cw && g.wk < cw, isc = g.wk === cw, po = g.wk >= 15;
+        let sub = isc ? 'Lineup open' : past ? 'Played' : 'Opens when the week starts', right = '';
+        if (past && S && si >= 0 && g.wk - 1 < S.W && S.sc[si][g.wk - 1] != null) {
+            const wi = g.wk - 1, oi = S.opp[si][wi], a = S.sc[si][wi], b = oi != null ? S.sc[oi][wi] : null;
+            pf += a; if (b != null) { if (a > b) w++; else if (a < b) l++; else t++; }
+            sub = b == null ? a.toFixed(1) : `<u class="${a > b ? 'W' : a < b ? 'L' : ''}">${a > b ? 'W' : a < b ? 'L' : 'T'} ${a.toFixed(1)}–${b.toFixed(1)}</u>`;
+        }
+        if (past) right = `<button type="button" class="rc" data-rc="${g.wk}">Recap</button>`;
+        else right = `<span class="go">${isc ? 'This week' : 'Upcoming'}</span>`;
+        rows += (g.wk === 1 ? '<div class="sec">Regular season</div>' : '') + (g.wk === 15 ? '<div class="sec">Playoffs</div>' : '') +
+            `<div class="wkr${isc ? ' cur' : ''}${g.wk === view ? ' view' : ''}${po ? ' po' : ''}" data-w="${g.wk}"><div class="n"><b>${g.wk}</b><i>WK</i></div><div class="lg"><img src="${getFranchiseLogoUrl(o)}" onerror="this.style.display='none'"></div><div class="t"><b>vs ${lldChatEsc(leagueFranchises[o] || o)}</b><i>${sub}</i></div>${right}</div>`;
+    });
+    if (!rows) rows = '<p class="ex dm">No schedule found.</p>';
+    const sum = S && si >= 0 ? `<div class="kv"><div><i>Record</i><b>${S.wins[si]}-${S.losses[si]}${S.ties[si] ? '-' + S.ties[si] : ''}</b></div><div><i>Points for</i><b>${S.pf[si].toFixed(1)}</b></div><div><i>Week</i><b>${cw || '—'}</b></div></div>` : '';
+    lldBsOpen('wk', lldShHd(year + ' schedule', lldChatEsc(leagueFranchises[me] || '')) + `<div class="bsb">${sum}${rows}<p class="ex dm" style="text-align:center;margin-top:10px;font-size:11px">Tap a week to go to it. Played weeks also have a Recap button.</p></div>`);
+    setTimeout(() => { const c = document.querySelector('#lld-sh-pop .wkr.cur'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center' }); }, 60);
+}
+$(document).on('click', '#lld-sh-pop .wkr', function (e) {
+    const w = parseInt(this.getAttribute('data-w'), 10), rc = $(e.target).closest('[data-rc]').length;
+    $('#lld-sh-pop').removeClass('on'); lldWkGo(w, !rc);
+});
+async function lldTmSheet() {
+    const me = lldBsF(myFid), cur = lldBsF(fid), cw = (await lldCurWeek()) || 0;
+    lldBsOpen('tm', lldShHd('Switch team', 'Loading…'));
+    let G = window._lldGames || []; if (!G.length) { try { await loadNextOpponents(); G = window._lldGames || []; } catch (e) { } }
+    const g = G.find(x => x.wk === cw && (x.a === me || x.b === me)), opp = g ? (g.a === me ? g.b : g.a) : '';
+    let S = null; try { S = await lldStatsLoad(); } catch (e) { }
+    const ids = Object.keys(leagueFranchises).map(lldBsF), info = {};
+    if (S) { const ord = S.F.map((f, i) => i).sort((a, b) => S.wins[b] - S.wins[a] || S.pf[b] - S.pf[a]); ord.forEach((i, r) => { info[lldBsF(S.F[i])] = { rec: S.wins[i] + '-' + S.losses[i] + (S.ties[i] ? '-' + S.ties[i] : ''), rk: r + 1 }; }); }
+    const lay = lldGet('lld_tm_lay', 'g');
+    const one = id => { const x = info[id] || {}, isme = id === me, iso = id === opp;
+        return lay === 'g'
+            ? `<div class="tmc${isme ? ' me' : ''}${iso ? ' opp' : ''}${id === cur ? ' on' : ''}" data-f="${id}">${isme ? '<span class="tg">YOU</span>' : iso ? '<span class="tg">OPP</span>' : ''}${x.rk ? `<span class="rk">${x.rk}</span>` : ''}<div class="lg"><img src="${getFranchiseLogoUrl(id)}" onerror="this.style.display='none'"></div><b>${lldChatEsc(leagueFranchises[id] || id)}</b><i>${x.rec || ''}</i></div>`
+            : `<div class="tml${isme ? ' me' : ''}${iso ? ' opp' : ''}${id === cur ? ' on' : ''}" data-f="${id}"><span class="rk">${x.rk || ''}</span><div class="lg"><img src="${getFranchiseLogoUrl(id)}" onerror="this.style.display='none'"></div><div class="t"><b>${lldChatEsc(leagueFranchises[id] || id)}${isme ? '<span class="tag">YOU</span>' : iso ? '<span class="tag o">WEEK ' + cw + ' OPP</span>' : ''}</b><i>${x.rec || ''}</i></div><span class="r">${id === cur ? 'Viewing' : '›'}</span></div>`; };
+    const list = ids.sort((a, b) => ((info[a] || {}).rk || 99) - ((info[b] || {}).rk || 99)).map(one).join('');
+    lldBsOpen('tm', lldShHd('Switch team', 'Viewing ' + lldChatEsc(leagueFranchises[cur] || '')) + `<div class="bsb"><div class="leg"><span><b style="background:var(--accent-teal)"></b>You</span>${opp ? `<span><b style="background:#f59e0b"></b>Week ${cw} opponent</span>` : ''}<span><b style="background:var(--accent-blue)"></b>Viewing</span></div><div class="seg"><button type="button" data-l="g" class="${lay === 'g' ? 'on' : ''}">Grid</button><button type="button" data-l="l" class="${lay === 'l' ? 'on' : ''}">List</button></div>${lay === 'g' ? '<div class="tmg">' + list + '</div>' : list}</div>`);
+}
+$(document).on('click', '#lld-sh-pop .seg button', function () { lldSet('lld_tm_lay', this.getAttribute('data-l')); lldTmSheet(); });
+$(document).on('click', '#lld-sh-pop [data-f]', function () {
+    const f = this.getAttribute('data-f'); $('#lld-sh-pop').removeClass('on');
+    if (f === lldBsF(fid)) return;
+    const it = $('.team-selector-item[data-fid="' + f + '"], .team-selector-item[data-fid="' + parseInt(f, 10) + '"]').first(); if (it.length) it.trigger('click');
+});
+document.addEventListener('click', function (e) {
+    if (!lldBetaOn() || !e.target.closest) return;
+    if (e.target.closest('#lld-wkbar .lld-wk-t')) { e.stopImmediatePropagation(); e.preventDefault(); lldWkSheet(); return; }
+    if (document.body.classList.contains('hdr-s1')) return;
+    if (e.target.closest('#active-team-switcher-btn') && !e.target.closest('.team-award-chip, .team-award, .team-awards, .team-award-solo, .team-wk-awards')) { e.stopImmediatePropagation(); e.preventDefault(); lldTmSheet(); }
+}, true);
+// ---- player popup (beta) ----
+function lldPmBioHtml(b) {
+    const it = (k, v) => v ? `<div><i>${k}</i><b>${lldChatEsc(v)}</b></div>` : '';
+    return `<div class="pmb-st">${it('Ht / Wt', b.hw)}${it('Age', b.age)}${it('Exp', b.exp)}${it('Bye', b.bye)}</div>`;
+}
+const LLD_PM_AW = { potw: ['🏆', 'Player of the Week'], sunday: ['⭐', 'Sunday Hero'], gutsy: ['🔥', 'Gutsy call'], overthink: ['🧠', 'Overthought it'] };
+async function lldPmAwards(pid) {
+    $('#modal-awards').html('');
+    let ev = []; try { ev = (await getAllRecapEvents()) || []; } catch (e) { return; }
+    const pc = e => String((e.p && (e.p.pid || e.p.id)) || (e.c && e.c.g && (e.c.g.pid || e.c.g.id)) || ''), cnt = {};
+    ev.forEach(e => { if (LLD_PM_AW[e.type] && pc(e) === String(pid)) cnt[e.type] = (cnt[e.type] || 0) + 1; });
+    if (window._modalCurrentPid && String(window._modalCurrentPid) !== String(pid)) return;
+    const h = Object.keys(cnt).map(k => `<span title="${LLD_PM_AW[k][1]}"><em>${LLD_PM_AW[k][0]}</em>×${cnt[k]}</span>`).join('');
+    $('#modal-awards').html(h);
+}
+// weekly list for the Game Log tab: boom / bust and the awards he won that week
+async function lldPmWeeks(pid, pos, merged, yr) {
+    const box = $('#pm-weeks'); if (!box.length) return;
+    let S = null, ev = []; try { S = await lldStatsLoad(); } catch (e) { } try { ev = (await getAllRecapEvents()) || []; } catch (e) { }
+    const th = S && S.THR && S.THR[pos] || null, aw = {};
+    if (yr === parseInt(year, 10)) ev.forEach(e => { if (!LLD_PM_AW[e.type]) return; const p = String((e.p && (e.p.pid || e.p.id)) || (e.c && e.c.g && (e.c.g.pid || e.c.g.id)) || ''); if (p === String(pid)) (aw[e.wk] = aw[e.wk] || []).push(e.type); });
+    const pts = Object.keys(merged).map(w => merged[w] && parseFloat(merged[w].pts)).filter(x => !isNaN(x));
+    const sum = pts.length ? `<div class="kv"><div><i>Avg</i><b>${(pts.reduce((a, b) => a + b, 0) / pts.length).toFixed(1)}</b></div><div><i>High</i><b>${Math.max.apply(0, pts).toFixed(1)}</b></div><div><i>Low</i><b>${Math.min.apply(0, pts).toFixed(1)}</b></div></div>` : '';
+    const mx = Math.max(20, Math.max.apply(0, pts.concat([0])));
+    let h = '';
+    Object.keys(merged).map(Number).sort((a, b) => a - b).forEach(w => {
+        const d = merged[w]; if (!d || (!d.pts && !d.opp)) return;
+        const bye = (d.opp || '').toLowerCase() === 'bye', n = parseFloat(d.pts), has = !isNaN(n) && d.pts !== '', pr = !!d.proj;
+        let tag = ''; if (has && th && !pr) tag = n >= th[0] ? '<span class="bb bo">BOOM</span>' : n <= th[1] ? '<span class="bb bu">BUST</span>' : '<span class="bb st">STEADY</span>';
+        const aws = (aw[w] || []).map(k => `<span class="aw"><em>${LLD_PM_AW[k][0]}</em>${LLD_PM_AW[k][1]}</span>`).join('');
+        h += `<div class="glw"><span class="wk">W${w}</span><div class="op"><b>${lldChatEsc(bye ? 'Bye' : (d.opp || '—'))}</b>${tag || aws ? `<div class="tags">${tag}${aws}</div>` : ''}${has ? `<div class="bar"><b style="width:${Math.max(2, Math.min(100, n / mx * 100)).toFixed(0)}%"></b></div>` : ''}</div><span class="pt"${pr ? ' style="opacity:.5"' : ''}>${has ? n.toFixed(1) : '—'}${pr ? '<small>proj</small>' : ''}</span></div>`;
+    });
+    box.html(sum + (h ? '<div class="grp">By week</div>' + h : '<p class="ex dm">No games yet.</p>') + '<p class="ex dm" style="font-size:11px;margin-top:8px">Boom is a week in the top 25% of scores at his position in your league, bust is the bottom 25%.</p>');
+}
 
 // ===== SLEEPER SCOREBOARD TAB (beta switch "slt", commissioner franchises only, default off) =====
 // A "Sleeper" button on Scores. Type your Sleeper username once; your NFL leagues for the season show as chips, with the same matchup layout.
@@ -20958,7 +21060,7 @@ async function loadModalGameLog(pid) {
     container.html('<div style="text-align:center; padding:20px; color:var(--accent-blue); font-weight:800; font-size:calc(11px * var(--ts,1)); text-transform:uppercase; animation:pulse-blue 1.5s infinite;">Loading...</div>');
     
     let activeYear = parseInt(year);
-    let activeLogTab = 'stats';
+    let activeLogTab = lldDev() ? 'weeks' : 'stats';
 
     async function fetchAndRender() {
 
@@ -21158,6 +21260,7 @@ html += `
             }
 
 function getTabContent() {
+    if (activeLogTab === 'weeks') { const m = {}; allWeeks.forEach(w => { const rs = statsMap[w] && statsMap[w].pts && statsMap[w].pts.trim() !== ''; m[w] = rs ? statsMap[w] : (projMap[w] ? Object.assign({ proj: true }, projMap[w]) : null); }); let ps = ($('#modal-pos').text() || '').trim(); if (ps === 'DE' || ps === 'DT') ps = 'DL'; if (ps === 'CB' || ps === 'S') ps = 'DB'; setTimeout(() => lldPmWeeks(pid, ps, m, activeYear), 0); return '<div id="pm-weeks" style="padding:10px"><p class="ex dm">Loading…</p></div>'; }
     if (activeLogTab === 'stats') return buildWeekRows();
     if (activeLogTab === 'career') return buildCareerTable();
     if (activeLogTab === 'bio') return buildBioSection();
@@ -21174,7 +21277,7 @@ function getTabContent() {
                         <button class="gl-year-btn" data-yr="${priorYear}" style="padding:4px 10px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid ${activeYear===priorYear?'var(--accent-blue)':'var(--card-border)'}; background:${activeYear===priorYear?'var(--accent-blue)':'rgba(255,255,255,0.05)'}; color:${activeYear===priorYear?'#fff':'var(--text-dim)'};">${priorYear}</button>
                     </div>
                     <div style="display:flex; gap:0; overflow-x:auto;" class="hide-scroll" id="gamelog-tabs">
-${'<div class="gl-tab" data-tab="stats" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:' + (activeLogTab==='stats'?'#fff':'var(--text-dim)') + '; border-bottom:2px solid ' + (activeLogTab==='stats'?'var(--accent-blue)':'transparent') + ';">Stats</div>'}
+${lldDev() ? '<div class="gl-tab" data-tab="weeks" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:' + (activeLogTab==='weeks'?'#fff':'var(--text-dim)') + '; border-bottom:2px solid ' + (activeLogTab==='weeks'?'var(--accent-blue)':'transparent') + ';">Weeks</div>' : ''}${'<div class="gl-tab" data-tab="stats" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:' + (activeLogTab==='stats'?'#fff':'var(--text-dim)') + '; border-bottom:2px solid ' + (activeLogTab==='stats'?'var(--accent-blue)':'transparent') + ';">Stats</div>'}
 <div class="gl-tab" data-tab="career" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:${activeLogTab==='career'?'#fff':'var(--text-dim)'}; border-bottom:2px solid ${activeLogTab==='career'?'var(--accent-blue)':'transparent'};">Career</div>
 <div class="gl-tab" data-tab="bio" style="flex-shrink:0; padding:8px 12px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; color:${activeLogTab==='bio'?'#fff':'var(--text-dim)'}; border-bottom:2px solid ${activeLogTab==='bio'?'var(--accent-blue)':'transparent'};">Bio</div>                    </div>
                 </div>
@@ -21315,6 +21418,7 @@ async function loadModalContract(pid) {const realContainer = $('#modal-actions-c
 
         const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
 let capUsed = window.currentTeamCapUsed || 0;
+        const rowsCap = () => rows.reduce((sum, r) => sum + (parseFloat((r.querySelector('td.salary')?.textContent || '').replace(/[^0-9.]/g, '')) || 0), 0);
         if (ownerFid && ownerFid !== String(fid).padStart(4, '0')) {
             // Another team's player: total that team's salaries instead of the viewed team's cap
             capUsed = rows.reduce((sum, r) => sum + (parseFloat((r.querySelector('td.salary')?.textContent || '').replace(/[^0-9.]/g, '')) || 0), 0);
@@ -21323,6 +21427,18 @@ let capUsed = window.currentTeamCapUsed || 0;
         const barColor = capUsed > salaryCap ? '#ef4444' : capPct > 90 ? '#f59e0b' : '#22c55e';
         const capRemaining = (salaryCap - capUsed).toFixed(1);
 
+        if (lldDev()) {
+            const yc = []; for (let i = 0; i < yrsNum; i++) { const rem = yrsNum - i, dc = Math.round(salNum * gPct * rem * 10) / 10; yc.push(`<div class="${i === 0 ? 'now' : ''}"><i>${startYear + i}</i><b>$${salNum.toFixed(1)}m</b><small>dead $${dc.toFixed(1)}m</small></div>`); }
+            const pmShare = salaryCap ? Math.min(100, salNum / salaryCap * 100) : 0, others = Math.max(0, Math.min(100, capUsed / salaryCap * 100) - pmShare);
+            const dc1 = Math.round(salNum * gPct * yrsNum * 10) / 10, dcLater = Math.max(0, Math.round((dc1 - salNum * gPct * yrsNum / yrsNum * 1) * 10) / 10);
+            container.html(`<div class="pmc"><div class="kv"><div id="contract-floor-toggle" style="cursor:pointer"><i>Dynasty rank</i><b>${dynastyRank ? '#' + dynastyRank : '—'}</b><small>${lldChatEsc(playerPos)}</small></div><div id="contract-floor-toggle2" style="cursor:pointer"><i>Floor</i><b>${baseFloor ? '$' + baseFloor + 'm' : '—'}</b><small>tap for scale</small></div><div><i>Contract</i><b>${salary}</b><small>${yrsNum} yr${yrsNum !== 1 ? 's' : ''} · ${guar} · to ${expirationYear}</small></div></div>
+                ${drawerRows ? `<div id="contract-floor-drawer" style="display:none;background:rgba(0,0,0,0.2);border-radius:10px;overflow:hidden;margin-top:8px;">${drawerRows}</div>` : ''}
+                <div class="grp">Team cap</div><div class="cap"><div class="r">$${capUsed.toFixed(1)}m used <span>of $${salaryCap}m</span></div><div class="br"><b style="width:${others.toFixed(1)}%;background:${barColor}"></b><b style="width:${pmShare.toFixed(1)}%;background:var(--pc,#ef4444)"></b></div><div class="r"><span>${lldChatEsc($('#modal-name').text().trim())} is ${(salaryCap ? salNum / salaryCap * 100 : 0).toFixed(1)}% of the cap</span><span style="color:${parseFloat(capRemaining) < 0 ? '#ef4444' : 'var(--text-dim)'}">$${capRemaining}m left</span></div></div>
+                <div class="grp">Years &amp; dead cap if cut</div><div class="yrs">${yc.join('')}</div>
+                <p class="ex dm" style="font-size:11px;margin-top:8px">Cutting him today puts $${(Math.round(salNum * gPct * yrsNum * 10) / 10).toFixed(1)}m of dead money on the cap, counting every year left.</p></div>`);
+            $(document).off('click', '#contract-floor-toggle, #contract-floor-toggle2').on('click', '#contract-floor-toggle, #contract-floor-toggle2', function () { $('#contract-floor-drawer').slideToggle(200); });
+            return;
+        }
         container.html(`
             <div style="animation:fadeIn 0.3s ease;">
                 <div style="font-size:calc(11px * var(--ts,1));font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:10px;text-align:center;">${$('#modal-name').text().trim()}</div>
