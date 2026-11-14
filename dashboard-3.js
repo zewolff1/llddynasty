@@ -1128,6 +1128,18 @@ function lldStatsViews(S) {
         const lab = c >= .67 ? ['Steady', 'good'] : c <= .33 ? ['Volatile', 'bad'] : ['Average', 'warn'];
         let h = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div class="sub">${llsLbl(pos)} · ${owner ? (mineP ? 'Your team' : esc(D.names[owner] || '')) : 'Free agent'}</div><div style="text-align:right"><div class="${lab[1]}" style="font-weight:900">${st.n ? lab[0] : ''}</div><div class="sub">avg ${f1(st.avg)} · ±${f1(st.sd)}</div></div></div>`;
         if (p && st.n) h += `<h2>This season</h2><div class="card" style="padding:10px">${spark(pid)}<div class="sub">Weekly points against your league’s boom and bust lines.</div></div>`;
+        if (lldDev()) try { // how much of his team's scoring he is responsible for
+            const ow = S.lastOwner(pid), oi = ow != null ? S.idx[ow] : null;
+            if (oi != null) {
+                let on = 0, stn = 0, pp = 0, tt = 0, ps = 0; const ps0 = S.posOf(pid);
+                (S.entries[oi] || []).forEach(ents => { let there = false; (ents || []).forEach(e => { if (String(e.pid) === String(pid)) { there = true; if (e.isStarter) { stn++; pp += e.score; } } if (e.isStarter) { tt += e.score; if (e.pos === ps0 || S.posOf(e.pid) === ps0) ps += e.score; } }); if (there) on++; });
+                if (on) h += `<h2>Role on ${ow === me ? 'your' : esc(D.names[ow] || 'that')} fantasy team</h2><div class="tiles" style="grid-template-columns:1fr 1fr 1fr">${tile('Weeks started', pct(stn / on), stn + ' of ' + on)}${tile('Of team points', tt ? pct(pp / tt) : '–', 'all starters')}${tile('Of ' + ps0 + ' points', ps ? pct(pp / ps) : '–', 'his position')}</div>`;
+            }
+        } catch (e) { }
+        if (lldDev()) try { // scoring against his projection
+            let vn = 0, vs = 0, vo = 0; S.F.forEach((f, i) => (S.entries[i] || []).forEach(ents => (ents || []).forEach(e => { if (String(e.pid) === String(pid) && e.proj != null && e.proj > 0) { vn++; vs += e.score - e.proj; if (e.score > e.proj) vo++; } })));
+            if (vn) { const av = vs / vn; h += `<h2>Vs projection</h2><div class="tiles" style="grid-template-columns:1fr 1fr 1fr">${tile('Avg vs proj', (av >= 0 ? '+' : '') + f1(av), av >= 0 ? 'beats it' : 'falls short', av >= 0 ? 'good' : 'bad')}${tile('Over', vo + ' of ' + vn, pct(vo / vn))}${tile('Under', (vn - vo) + ' of ' + vn, pct((vn - vo) / vn))}</div><div class="sub">Weeks he scored more or less than MFL projected for him that week.</div>`; }
+        } catch (e) { }
         if (!S.hasRos && !p) return h + '<div class="sub">No stats for this player yet.</div>';
         const fin = S.posFinish(pid);
         if (mineP && p) {
@@ -15012,7 +15024,9 @@ window._lldSt = window._lldSt || { V: lldGet('lld_st_v', 'ov'), cols: null, sk: 
 try { window._lldSt.cols = JSON.parse(lldGet('lld_st_cols', 'null')); } catch (e) { }
 const LLD_ST_PRE = {
     ov: { n: 'Overview', t: 'Standings', cols: ['rec', 'pfw', 'paw', 'st'], note: 'Points are averages per week, not per game, so double-header weeks do not inflate them. Tap any cell for the details.' },
-    sc: { n: 'Scoring', t: 'Scoring & All-Play', cols: ['pfw', 'paw', 'ap', 'lk'], note: 'All-Play is your record if you played every team every week. Luck is actual wins minus expected wins; positive means the schedule has been kind.' },
+    sc: { n: 'Scoring', t: 'Scoring & All-Play', cols: ['pfw', 'paw', 'ap', 'lk', 'bm'], note: 'Boom pts is the share of starter points that came from boom games. All-Play is your record if you played every team every week. Luck is actual wins minus expected wins; positive means the schedule has been kind.' },
+    pw: { n: 'Pos. points', beta: 1, t: 'Points by Position', cols: [], note: 'Average starter points per week at each position, with each position\'s share of the team\'s points underneath. Color is the rank among all teams, green is best. Tap a position to see which players scored it.' },
+    rg: { n: 'Roster grid', beta: 1, t: 'Every Starter Slot', cols: [], note: 'Every starter slot on every team. Slot 1 is the team\'s top scorer at that position. Pick a stat above the grid and tap any cell for the full player stats.' },
     pj: { n: 'Projected', t: 'Projected Final Standings', cols: ['pj', 'pr', 'mk', 'rec'], note: 'Simulates the remaining weeks from current records, scoring and projected lineups.' },
     ln: { n: 'Lineups', t: 'Lineup Efficiency', cols: ['ef', 'rc', 'bn', 'pfw'], note: 'Efficiency is points scored by your starters divided by the points your best possible lineup would have scored.' },
     po: { n: 'Positions', t: 'Position Strength', cols: ['pQB', 'pRB', 'pWR', 'pTE', 'pDL', 'pLB', 'pDB'], note: 'Rank among all teams by points scored by starters at each position. 1 is best. Tap a cell to see the players.' },
@@ -15079,6 +15093,7 @@ function lldStDefs(S) {
     def('pf', { l: 'PF total', g: 'Scoring', hi: 1, r: t => t.pf, fm: x => x.toFixed(1), f: t => t.pf.toFixed(1), m: 'Season total points scored.', h: t => `${t.pf.toFixed(1)} points across ${W} weeks.` });
     def('pa', { l: 'PA total', g: 'Scoring', hi: 0, r: t => t.pa, fm: x => x.toFixed(1), f: t => t.pa.toFixed(1), m: 'Season total points allowed. Lower is better.', h: t => `${t.pa.toFixed(1)} points allowed across ${W} weeks.` });
     def('ap', { l: 'All-play', g: 'Scoring', hi: 1, r: t => t.ap / Math.max(1, t.ap + t.apL), fm: x => (x * 100).toFixed(1) + '%', f: t => (+t.ap.toFixed(1)) + '-' + (+t.apL.toFixed(1)), sub: t => '<small>' + (t.ap / Math.max(1, t.ap + t.apL) * 100).toFixed(0) + '%</small>', m: 'Your record if you had played every other team every week. It removes schedule luck.', h: t => `${W} weeks × ${N - 1} opponents = ${W * (N - 1)} matchups: ${+t.ap.toFixed(1)} wins and ${+t.apL.toFixed(1)} losses.` });
+    if (lldDev()) def('bm', { l: 'Boom pts', g: 'Scoring', hi: 1, r: t => t.bm.p, fm: x => (x * 100).toFixed(0) + '%', f: t => t.bm.p == null ? '–' : (t.bm.p * 100).toFixed(0) + '%', m: 'The share of a team’s starter points that came from boom games, meaning a player scoring above the boom line for his position in your league. A high share means the scoring leans on big weeks.', h: t => `${t.bm.bg} of ${t.bm.g} starter games were booms, and they produced ${t.bm.p == null ? 0 : (t.bm.p * 100).toFixed(1)}% of the points.` });
     def('lk', { l: 'Luck', g: 'Scoring', hi: 1, r: t => t.lk, fm: x => lldStSg(x), f: t => `<span class="${t.lk >= 0 ? 'u' : 'd'}">${lldStSg(t.lk)}</span>`, m: 'Actual wins minus the wins the team was expected to have from its scoring. Positive means the schedule has been kind, negative means unlucky.', h: t => `${t.w} actual wins minus ${(t.w - t.lk).toFixed(1)} expected wins (all-play win rate × ${t.gp} games).` });
     const B = t => (S.base && S.base[t.i]) || null;
     def('pj', { l: 'Proj W-L', g: 'Projected', hi: 1, r: t => B(t) ? B(t).w : null, fm: x => x.toFixed(1) + ' wins', f: t => B(t) ? Math.round(B(t).w) + '-' + (S.totG[t.i] - Math.round(B(t).w)) : '–', m: 'Final record if the remaining weeks play out the way the simulation expects, using current records, scoring and projected lineups.', h: t => B(t) ? `Currently ${wlt(t)}, projected to finish ${Math.round(B(t).w)}-${S.totG[t.i] - Math.round(B(t).w)}.` : 'No projection yet.' });
@@ -15139,8 +15154,12 @@ function lldStDefs(S) {
     return C;
 }
 function lldStPp(p) { p = String(p || ''); return `<span class="pps" style="color:${p === 'PK' ? '#f59e0b' : lldStPosVar(p)}">${p === 'PK' ? 'PICK' : lldChatEsc(p)}</span>`; }
+function lldStBoom(S, i) { // share of a team's starter points that came from boom games
+    let tot = 0, bm = 0, g = 0, bg = 0; try { (S.entries[i] || []).forEach(ents => (ents || []).forEach(e => { if (!e.isStarter) return; tot += e.score; g++; const th = S.THR[e.pos]; if (th && e.score >= th[0]) { bm += e.score; bg++; } })); } catch (e) { }
+    return { p: tot ? bm / tot : null, g, bg };
+}
 function lldStRows(S) {
-    const D = S.D; return S.F.map((f, i) => ({ i, f, n: D.names[f] || f, w: S.wins[i], l: S.losses[i], tie: S.ties[i], gp: S.gp[i], pf: S.pf[i], pa: S.pa[i], ap: S.ap[i], apL: S.apL[i], lk: S.wins[i] - S.expW(i), o: S.standing.indexOf(i) + 1, sk: lldStStreak(S, i) }));
+    const D = S.D; return S.F.map((f, i) => ({ i, f, n: D.names[f] || f, w: S.wins[i], l: S.losses[i], tie: S.ties[i], gp: S.gp[i], pf: S.pf[i], pa: S.pa[i], ap: S.ap[i], apL: S.apL[i], lk: S.wins[i] - S.expW(i), bm: lldStBoom(S, i), o: S.standing.indexOf(i) + 1, sk: lldStStreak(S, i) }));
 }
 function lldStSorted(rows, C) {
     const st = window._lldSt, r = rows.slice();
@@ -15149,14 +15168,146 @@ function lldStSorted(rows, C) {
     else r.sort((a, b) => a.o - b.o);
     return r;
 }
+// ===== beta (0000 / 0001): Position points + Roster grid views in the standings =====
+const LLD_PG_POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'], LLD_PG_SL = [['QB', 1], ['RB', 2], ['WR', 3], ['TE', 1], ['DL', 2], ['LB', 2], ['DB', 2]];
+const LLD_PG_COL = { QB: '#ef4444', RB: '#22c55e', WR: '#3b82f6', TE: '#f59e0b', DL: '#a855f7', LB: '#14b8a6', DB: '#ec4899' }, LLD_PG_HUE = { QB: 0, RB: 142, WR: 217, TE: 38, DL: 271, LB: 173, DB: 330 };
+window._lldPg = window._lldPg || { mode: 'table', gs: 'pts', K: 'tot', ps: { k: null, d: 1 }, rs: { k: null, d: 1 }, cs: { t: null, d: 1 }, ctx: null, data: null };
+const lldPgHeat = (r, n) => 'hsl(' + Math.round(165 - (r - 1) * (150 / Math.max(1, n - 1))) + ',68%,' + (r <= 3 ? 56 : 60) + '%)';
+const lldPgOrd = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0] || 'th');
+function lldPgBuild(S) {
+    const D = S.D, W = S.W || 1, teams = [];
+    S.F.forEach((f, i) => {
+        const pl = {}; let all = 0;
+        (S.entries[i] || []).forEach(ents => (ents || []).forEach(e => {
+            const p = pl[e.pid] || (pl[e.pid] = { pid: e.pid, pos: e.pos, name: (D.pinfo[e.pid] && D.pinfo[e.pid].name) || e.pid, nfl: (D.pinfo[e.pid] && D.pinfo[e.pid].team) || '', on: 0, st: 0, tot: 0, boom: 0, bust: 0, vs: 0, vn: 0 });
+            p.on++;
+            if (e.isStarter) {
+                p.st++; p.tot += e.score; all += e.score; const th = S.THR[e.pos];
+                if (th) { if (e.score >= th[0]) p.boom++; else if (e.score <= th[1]) p.bust++; }
+                if (e.proj != null && e.proj > 0) { p.vs += e.score - e.proj; p.vn++; }
+            }
+        }));
+        const t = { f, i, n: D.names[f] || f, all, pos: {}, slots: {} };
+        LLD_PG_POS.forEach(pp => { const arr = Object.keys(pl).map(k => pl[k]).filter(p => p.pos === pp && p.st > 0).sort((a, b) => b.tot - a.tot); t.pos[pp] = { tot: arr.reduce((a, p) => a + p.tot, 0), players: arr }; });
+        LLD_PG_SL.forEach(([pp, n]) => { for (let k = 0; k < n; k++) t.slots[pp + (k + 1)] = t.pos[pp].players[k] || null; });
+        teams.push(t);
+    });
+    return { teams, W };
+}
+async function lldPgCtx(S) {
+    const g = window._lldPg; if (g.ctx) return g.ctx; const c = { con: {}, dyn: {}, age: {}, teamDyn: {} };
+    try { c.con = await lldTbContracts(); } catch (e) { }
+    try { for (const p of LLD_PG_POS) c.dyn[p] = await getDynRankMap(p); } catch (e) { }
+    try { const j = await lldChatJson('TYPE=players&DETAILS=1'), now = Date.now() / 1000; lldChatArr(j && j.players && j.players.player).forEach(p => { if (p.birthdate && +p.birthdate) c.age[p.id] = Math.floor((now - +p.birthdate) / 31557600); }); } catch (e) { }
+    try { const X = await lldStDynLoad(S); c.teamDyn = X.rk.no; } catch (e) { }
+    g.ctx = c; return c;
+}
+const LLD_PG_M = [
+    ['tot', 'Total points', (p, t, c, W) => p.tot, v => v.toFixed(0)],
+    ['ppw', 'Pts / week', (p, t, c, W) => p.tot / W, v => v.toFixed(1)],
+    ['st', '% started', (p, t, c, W) => p.on ? p.st / p.on * 100 : null, v => v.toFixed(0) + '%'],
+    ['tm', '% of team pts', (p, t, c, W) => t.all ? p.tot / t.all * 100 : null, v => v.toFixed(1) + '%'],
+    ['pj', 'Vs projection', (p, t, c, W) => p.vn ? p.vs / p.vn : null, v => (v >= 0 ? '+' : '') + v.toFixed(1)],
+    ['bb', 'Boom / bust', (p, t, c, W) => p.st ? (p.boom - p.bust) / p.st * 100 : null, (v, p) => `<span class="bo">${Math.round(p.boom / p.st * 100)}%</span> / <span class="bs">${Math.round(p.bust / p.st * 100)}%</span>`],
+    ['sp', 'Salary % of cap', (p, t, c, W) => { const k = c.con[p.pid]; const cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0); return k && k.sal && cap ? k.sal / cap * 100 : null; }, v => v.toFixed(1) + '%', 1],
+    ['yr', 'Years left', (p, t, c, W) => { const k = c.con[p.pid]; return k && k.yrs ? k.yrs : null; }, v => v + (v === 1 ? ' yr' : ' yrs')],
+    ['ag', 'Age', (p, t, c, W) => c.age[p.pid] != null ? c.age[p.pid] : null, v => String(v), 1],
+    ['dr', 'Dynasty rank', (p, t, c, W) => { const r = (c.dyn[p.pos] || {})[p.pid]; return r ? +r : null; }, v => '#' + v, 1]
+];
+const lldPgNm = n => { n = String(n || ''); if (n.indexOf(',') > 0) { const a = n.split(','); return (a[1].trim().charAt(0) + '. ' + a[0].trim()); } return n.replace(/^(\S)\S*\s+/, '$1. '); };
+const lldPgTeamCell = (t, rk) => `<td class="tm" data-t="${t.f}"><div class="tc"><span class="rk">${rk}</span><span class="lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></span><span class="nm">${lldChatEsc(t.n)}</span></div></td>`;
+async function lldPgDraw(body, P) {
+    const st = window._lldSt, S = st.S, g = window._lldPg; if (!g.data || g.data.S !== S) { g.data = lldPgBuild(S); g.data.S = S; }
+    const views = Object.keys(LLD_ST_PRE).filter(k => !LLD_ST_PRE[k].beta || lldDev()).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('') + '<button type="button" class="cols" data-sv="cols">⚙ Columns</button>';
+    const ctl = st.V === 'pw' ? `<div class="pgt"><button data-pm="table" class="${g.mode === 'table' ? 'on' : ''}">Table</button><button data-pm="graph" class="${g.mode === 'graph' ? 'on' : ''}">Graph</button>${g.mode === 'graph' ? `<span class="sp"></span><button data-pg="pts" class="${g.gs === 'pts' ? 'on' : ''}">Points</button><button data-pg="pct" class="${g.gs === 'pct' ? 'on' : ''}">Share</button>` : ''}</div>`
+        : `<div class="pgt">${LLD_PG_M.map(m => `<button data-pk="${m[0]}" class="${g.K === m[0] ? 'on' : ''}">${m[1]}</button>`).join('')}</div>`;
+    body.html(`<div class="views">${views}</div>${ctl}<div class="ttl"><h2>${P.t}</h2></div><div id="pg-main"><div class="loading-text" style="text-align:center;padding:24px;color:var(--text-dim)">Loading…</div></div><p class="note">${P.note}</p>`);
+    if (st.V === 'rg') await lldPgCtx(S);
+    if (window._lldSt.V !== st.V) return;
+    $('#pg-main').html(st.V === 'pw' ? lldPgPosHtml(g.data) : lldPgGridHtml(g.data, g.ctx || { con: {}, dyn: {}, age: {}, teamDyn: {} }));
+    try { reapplyAllTeamStyles(); } catch (e) { }
+}
+function lldPgPosVals(d) { return d.teams.map(t => { const o = { t, pts: {}, sh: {} }; LLD_PG_POS.forEach(p => { o.pts[p] = t.pos[p].tot / d.W; o.sh[p] = t.all ? t.pos[p].tot / t.all * 100 : 0; }); return o; }); }
+function lldPgPosHtml(d) {
+    const g = window._lldPg, S = window._lldSt.S, rows = lldPgPosVals(d), N = rows.length;
+    const key = r => g.ps.k === 'all' ? r.t.all / d.W : g.ps.k ? r.pts[g.ps.k] : null;
+    if (g.ps.k) rows.sort((a, b) => (key(b) - key(a)) * g.ps.d); else rows.sort((a, b) => S.standing.indexOf(a.t.i) - S.standing.indexOf(b.t.i));
+    const rk = (p, v) => 1 + rows.filter(r => r.pts[p] > v + 1e-9).length;
+    if (g.mode === 'graph') {
+        const mx = Math.max.apply(0, rows.map(r => r.t.all / d.W));
+        return `<div class="pgg"><div class="glg">${LLD_PG_POS.map(p => `<span style="--c:${LLD_PG_COL[p]}">${p}</span>`).join('')}</div>` + rows.map(r => { const P = r.t.all / d.W, wd = g.gs === 'pct' ? 100 : P / mx * 100;
+            return `<div class="grw ${r.t.f === S.me ? 'me' : ''}"><span class="nm">${lldChatEsc(r.t.n)}</span><div class="bw"><div class="bars" style="width:${wd}%">${LLD_PG_POS.map(p => `<span class="seg" data-t="${r.t.f}" data-p="${p}" style="width:${P ? r.pts[p] / P * 100 : 0}%;background:${LLD_PG_COL[p]}">${P && r.pts[p] / P > .075 ? (g.gs === 'pct' ? Math.round(r.pts[p] / P * 100) + '%' : r.pts[p].toFixed(0)) : ''}</span>`).join('')}</div></div><span class="tot">${g.gs === 'pct' ? '' : P.toFixed(0)}</span></div>`; }).join('') + '<p class="note" style="margin-top:6px">Bar length is total starter points per week. Tap a segment to see the players.</p></div>';
+    }
+    const arrow = k => g.ps.k === k ? (g.ps.d === 1 ? ' ▾' : ' ▴') : '';
+    const head = `<tr><th class="tm" data-pps="">Team${g.ps.k ? ' ✕' : ''}</th>` + LLD_PG_POS.map(p => `<th data-pps="${p}" class="${g.ps.k === p ? 's' : ''}">${p}${arrow(p)}</th>`).join('') + `<th data-pps="all" class="${g.ps.k === 'all' ? 's' : ''}">Total${arrow('all')}</th></tr>`;
+    const trs = rows.map((r, ix) => `<tr class="${r.t.f === S.me ? 'me' : ''}">${lldPgTeamCell(r.t, ix + 1)}` + LLD_PG_POS.map(p => `<td class="cl" data-t="${r.t.f}" data-p="${p}"><span class="hm" style="background:${lldPgHeat(rk(p, r.pts[p]), N)}">${r.pts[p].toFixed(1)}</span><small>${r.sh[p].toFixed(0)}%</small></td>`).join('') + `<td>${(r.t.all / d.W).toFixed(1)}</td></tr>`).join('');
+    return `<div class="tb"><table><thead>${head}</thead><tbody>${trs}</tbody></table></div><div class="hint">Swipe sideways · tap a heading to sort · tap a position to see the players</div>`;
+}
+function lldPgPie(items, hue) {
+    const tot = items.reduce((a, b) => a + b.v, 0) || 1, R = 84, cx = 100, cy = 100; let a0 = -Math.PI / 2, out = '';
+    items.forEach((it, i) => { const a1 = a0 + it.v / tot * Math.PI * 2, lg = a1 - a0 > Math.PI ? 1 : 0, c = `hsl(${hue},${70 - i * 6}%,${52 - i * 6}%)`;
+        out += items.length === 1 ? `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${c}"/>` : `<path d="M${cx},${cy} L${cx + R * Math.cos(a0)},${cy + R * Math.sin(a0)} A${R},${R} 0 ${lg} 1 ${cx + R * Math.cos(a1)},${cy + R * Math.sin(a1)} Z" fill="${c}" stroke="var(--card-bg)" stroke-width="2"/>`; a0 = a1; });
+    return `<svg viewBox="0 0 200 200" width="190" height="190">${out}<circle cx="${cx}" cy="${cy}" r="36" fill="var(--card-bg)"/><text x="100" y="97" text-anchor="middle" font-size="20" font-weight="900" fill="#fff">${tot.toFixed(1)}</text><text x="100" y="114" text-anchor="middle" font-size="9" fill="#8b97b5">PTS / WK</text></svg>`;
+}
+function lldPgPieSheet(f, p) {
+    const g = window._lldPg, d = g.data, t = d.teams.find(x => x.f === f); if (!t) return;
+    const pl = t.pos[p].players.map(x => ({ n: lldPgNm(x.name), v: x.tot / d.W, tm: x.nfl, pct: 0, part: false })), all = t.pos[p].tot / d.W;
+    const rk = 1 + d.teams.filter(x => x.pos[p].tot > t.pos[p].tot + 1e-9).length, hue = LLD_PG_HUE[p];
+    const top = pl.slice(0, 7), rest = pl.slice(7).reduce((a, b) => a + b.v, 0); if (rest > 0) top.push({ n: 'Others', v: rest, tm: '', part: true });
+    lldStSheet(`<div class="hd"><div><h4>${p} points</h4><p>${lldChatEsc(t.n)}</p></div><button class="x" id="lld-sh-x">✕</button></div>
+<div style="display:flex;justify-content:center;margin:6px 0 12px">${lldPgPie(top, hue)}</div>
+<div class="pgk"><div><i>Points / wk</i><b>${all.toFixed(1)}</b></div><div><i>Share of team</i><b>${t.all ? (t.pos[p].tot / t.all * 100).toFixed(0) : 0}%</b></div><div><i>Rank</i><b>${rk} of ${d.teams.length}</b></div></div>
+<div class="grp">Who scored it</div>${top.map((x, i) => `<div class="pgl"><i style="background:hsl(${hue},${70 - i * 6}%,${52 - i * 6}%)"></i><b>${lldChatEsc(x.n)}</b><em>${lldChatEsc(x.tm)}</em><span>${x.v.toFixed(1)}</span><em>${all ? (x.v / all * 100).toFixed(0) : 0}%</em></div>`).join('')}
+<p class="ex dm" style="margin-top:8px;font-size:11px">Average points per week from each player while he was a starter at ${p} for this fantasy team.</p>`);
+}
+function lldPgGridHtml(d, c) {
+    const g = window._lldPg, S = window._lldSt.S, m = LLD_PG_M.find(x => x[0] === g.K), inv = !!m[4], SL = [].concat.apply([], LLD_PG_SL.map(([p, n]) => Array.from({ length: n }, (_, k) => p + (k + 1))));
+    const val = (t, sl) => { const p = t.slots[sl]; return p ? m[2](p, t, c, d.W) : null; };
+    const avgOf = t => { const v = SL.map(sl => val(t, sl)).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const avs = d.teams.map(avgOf), N = d.teams.length;
+    const rkOf = (arr, v) => inv ? 1 + arr.filter(x => x != null && x < v - 1e-9).length : 1 + arr.filter(x => x != null && x > v + 1e-9).length;
+    let TO = d.teams.map((t, i) => i);
+    if (g.rs.k) { const val2 = i => g.rs.k === 'avg' ? avs[i] : val(d.teams[i], g.rs.k); TO.sort((a, b) => { const va = val2(a), vb = val2(b); if (va == null) return 1; if (vb == null) return -1; return (va - vb) * (inv ? 1 : -1) * g.rs.d || a - b; }); }
+    let SLO = SL; if (g.cs.t != null) { const t0 = d.teams[g.cs.t]; SLO = SL.slice().sort((a, b) => { const va = val(t0, a), vb = val(t0, b); if (va == null) return 1; if (vb == null) return -1; return (va - vb) * (inv ? 1 : -1) * g.cs.d || SL.indexOf(a) - SL.indexOf(b); }); }
+    const ar = k => g.rs.k === k ? (g.rs.d === 1 ? ' ▾' : ' ▴') : '';
+    const head = `<tr><th class="tm sl" data-rg="">Slot${g.rs.k || g.cs.t != null ? ' ✕' : ''}</th>` + TO.map(i => { const t = d.teams[i]; return `<th class="ct ${t.f === S.me ? 's' : ''}" data-ct="${i}"><span class="lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></span><span class="tnm">${lldChatEsc(t.n)}${g.cs.t === i ? (g.cs.d === 1 ? ' ▾' : ' ▴') : ''}</span>${g.K === 'dr' && c.teamDyn[t.f] ? `<span class="dy">Dynasty #${c.teamDyn[t.f]}</span>` : ''}</th>`; }).join('') + '</tr>';
+    const body = SLO.map((sl, ri) => { const vals = d.teams.map(t => val(t, sl)), first = g.cs.t == null && ri > 0 && SLO[ri - 1].slice(0, 2) !== sl.slice(0, 2);
+        return `<tr class="${first ? 'g' : ''}"><td class="tm sl srt" data-rg="${sl}"><span class="pos" style="--c:${LLD_PG_COL[sl.slice(0, 2)]}">${sl.slice(0, 2)}</span>${sl.slice(2)}${ar(sl)}</td>` + TO.map(i => { const t = d.teams[i], p = t.slots[sl], v = vals[i];
+            if (!p || v == null) return `<td class="c"><span class="pgc nh"><b>–</b>${p ? `<small>${lldChatEsc(lldPgNm(p.name))}</small>` : ''}</span></td>`;
+            return `<td class="c"><span class="pgc" data-t="${t.f}" data-s="${sl}" style="background:${lldPgHeat(rkOf(vals, v), N)}"><b>${m[3](v, p)}</b><small>${lldChatEsc(lldPgNm(p.name))}</small></span></td>`; }).join('') + '</tr>'; }).join('');
+    const fa = v => g.K === 'yr' ? v.toFixed(1) + ' yrs' : g.K === 'dr' ? '#' + v.toFixed(1) : g.K === 'tot' ? v.toFixed(0) : g.K === 'pj' ? (v >= 0 ? '+' : '') + v.toFixed(1) : (g.K === 'st' || g.K === 'tm' || g.K === 'bb' || g.K === 'sp') ? v.toFixed(1) + '%' : v.toFixed(1);
+    const arow = `<tr class="g avg"><td class="tm sl srt" data-rg="avg">Avg${ar('avg')}</td>` + TO.map(i => { const v = avs[i], t = d.teams[i]; if (v == null) return '<td class="c"><span class="pgc nh"><b>–</b></span></td>';
+        const ps = SL.map(sl => t.slots[sl]).filter(Boolean), bb = g.K === 'bb' ? `<span class="bo">${Math.round(ps.reduce((a, p) => a + (p.st ? p.boom / p.st : 0), 0) / ps.length * 100)}%</span> / <span class="bs">${Math.round(ps.reduce((a, p) => a + (p.st ? p.bust / p.st : 0), 0) / ps.length * 100)}%</span>` : fa(v);
+        return `<td class="c"><span class="pgc" style="background:${lldPgHeat(rkOf(avs, v), N)}"><b>${bb}</b><small>all starters</small></span></td>`; }).join('') + '</tr>';
+    return `<div class="tb"><table><thead>${head}</thead><tbody>${body}${arow}</tbody></table></div><div class="hint">Tap a team to sort the slots · tap a slot or Avg to sort the teams · tap Slot to reset · green is best${inv ? ' (lowest)' : ' (highest)'}</div>`;
+}
+function lldPgGridSheet(f, sl) {
+    const g = window._lldPg, d = g.data, c = g.ctx || { con: {}, dyn: {}, age: {}, teamDyn: {} }, t = d.teams.find(x => x.f === f), p = t && t.slots[sl]; if (!p) return;
+    const k = c.con[p.pid] || {}, cap = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0);
+    const tiles = LLD_PG_M.map(m => { const v = m[2](p, t, c, d.W); return `<div><i>${m[1]}</i><b>${v == null ? '–' : m[3](v, p)}</b></div>`; }).join('');
+    const arr = d.teams.map(x => x.slots[sl] ? x.slots[sl].tot : null), rk = 1 + arr.filter(x => x != null && x > p.tot + 1e-9).length;
+    lldStSheet(`<div class="hd"><div><h4>${lldChatEsc(lldPgNm(p.name))}</h4><p>${p.pos} · ${lldChatEsc(t.n)} · ${sl}${p.nfl ? ' · ' + lldChatEsc(p.nfl) : ''}</p></div><button class="x" id="lld-sh-x">✕</button></div>
+<div class="pgk">${tiles}${c.teamDyn[t.f] ? `<div><i>Team dynasty rank</i><b>#${c.teamDyn[t.f]}</b></div>` : ''}${k.sal ? `<div><i>Salary</i><b>$${(+k.sal).toFixed(1)}m</b></div>` : ''}<div><i>Weeks started</i><b>${p.st} of ${p.on}</b></div><div><i>Rank at ${sl}</i><b>${rk} of ${d.teams.length}</b></div></div>
+<p class="ex dm" style="margin-top:8px;font-size:11px">Points are what he scored while starting for this fantasy team. ${sl} means this team's ${lldPgOrd(+sl.slice(2))} highest scorer at ${p.pos}.</p>`);
+}
+$(document).on('click', '#stt [data-pm]', function () { window._lldPg.mode = this.getAttribute('data-pm'); lldStDraw(); });
+$(document).on('click', '#stt [data-pg]', function () { window._lldPg.gs = this.getAttribute('data-pg'); lldStDraw(); });
+$(document).on('click', '#stt [data-pk]', function () { window._lldPg.K = this.getAttribute('data-pk'); lldStDraw(); });
+$(document).on('click', '#stt th[data-pps]', function (e) { e.stopImmediatePropagation(); const k = this.getAttribute('data-pps'), s = window._lldPg.ps; if (!k) { s.k = null; s.d = 1; } else if (s.k === k) s.d = -s.d; else { s.k = k; s.d = 1; } lldStDraw(); });
+$(document).on('click', '#stt td.cl[data-p], #stt .seg[data-p]', function (e) { e.stopImmediatePropagation(); lldPgPieSheet(this.getAttribute('data-t'), this.getAttribute('data-p')); });
+$(document).on('click', '#stt .pgc[data-s]', function (e) { e.stopImmediatePropagation(); lldPgGridSheet(this.getAttribute('data-t'), this.getAttribute('data-s')); });
+$(document).on('click', '#stt th[data-ct]', function (e) { e.stopImmediatePropagation(); const g = window._lldPg, i = +this.getAttribute('data-ct'); if (g.cs.t === i) g.cs.d = -g.cs.d; else g.cs = { t: i, d: 1 }; lldStDraw(); });
+$(document).on('click', '#stt [data-rg]', function (e) { e.stopImmediatePropagation(); const g = window._lldPg, k = this.getAttribute('data-rg'); if (!k) { g.rs = { k: null, d: 1 }; g.cs = { t: null, d: 1 }; } else if (g.rs.k === k) g.rs.d = -g.rs.d; else g.rs = { k, d: 1 }; lldStDraw(); });
 function lldStDraw() {
     const body = $('#stt'); if (!body.length || !window._lldSt.S) return;
     const st = window._lldSt, S = st.S, C = lldStDefs(S), P = LLD_ST_PRE[st.V] || LLD_ST_PRE.ov;
+    if (P.beta && lldDev()) { lldPgDraw(body, P); return; }
+    if (P.beta) { st.V = 'ov'; lldStDraw(); return; }
     const cols = (st.V === 'cu' ? (st.cols || P.cols) : P.cols).filter(k => C[k]);
     if (st.V !== 'cu') st._shown = cols; else st._shown = cols;
     const rows = lldStSorted(lldStRows(S), C), arrow = k => st.sk === k ? (st.sd === -1 ? ' ▾' : ' ▴') : '';
     const lbl = k => k === 'dyn' && st.picks ? 'Dynasty +picks' : C[k].l;
-    const views = Object.keys(LLD_ST_PRE).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('') + '<button type="button" class="cols" data-sv="cols">⚙ Columns</button>';
+    const views = Object.keys(LLD_ST_PRE).filter(k => !LLD_ST_PRE[k].beta || lldDev()).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('') + '<button type="button" class="cols" data-sv="cols">⚙ Columns</button>';
     const head = `<tr><th class="tm ${st.sk === '_n' ? 's' : ''}" data-sk="_n">Team${arrow('_n')}</th>` + cols.map(k => `<th data-sk="${k}" class="${st.sk === k ? 's' : ''}">${lbl(k)}${arrow(k)}</th>`).join('') + '</tr>';
     const me = S.me;
     const trs = rows.map((t, ix) => `<tr class="${t.f === me ? 'me' : ''}"><td class="tm" data-t="${t.f}"><div class="tc"><span class="rk">${st.sk ? ix + 1 : t.o}</span><span class="lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></span><span class="nm">${lldChatEsc(t.n)}</span></div></td>` + cols.map(k => { const c = C[k]; return `<td class="cl" data-t="${t.f}" data-c="${k}">${c.f(t)}${c.sub ? c.sub(t) : ''}</td>`; }).join('') + '</tr>').join('');
@@ -15379,12 +15530,13 @@ async function lldPmSummary(pid) {
     const X = LLDTB_ST[st];
     let h = `<div class="pmc"><div class="kv">${t('Dynasty rank', c.dyn || '—', pos)}${t('Contract rank', c.crk ? '#' + c.crk : '—', pos + ' salary')}${t('Contract', c.sal != null ? '$' + (+c.sal).toFixed(0) + 'm' : '—', c.yrs != null ? c.yrs + ' yr' + (c.yrs !== 1 ? 's' : '') + ' · thru ' + c.thru : '')}</div>`;
     h += `<div class="grp">Trade status</div><div class="cap" style="display:flex;align-items:center;gap:8px"><i style="width:9px;height:9px;border-radius:50%;background:${X ? X[1] : '#94a3b8'}"></i><b>${X ? X[0] : 'Not shopping'}</b></div>`;
-    h += `<div class="grp">Latest news</div><div id="pm-sum-news"><p class="ex dm">Loading...</p></div></div>`;
+    h += `<div id="pm-sum-stats" style="margin-top:14px"></div><div class="grp">Latest news</div><div id="pm-sum-news"><p class="ex dm">Loading...</p></div></div>`;
     box.html(h);
+    try { lldStatsPopupFill(pid, $('#pm-sum-stats')); } catch (e) { }
     try {
         await loadModalNews(pid); const it = (window._newsCache && window._newsCache[pid]) || [];
         if (String(window._modalCurrentPid) !== String(pid)) return;
-        $('#pm-sum-news').html(it.length ? it.slice(0, 2).map(n => `<div class="nw"><small>${lldChatEsc(n.age || '')}</small><p><b>${lldChatEsc(n.head || '')}</b> ${lldChatEsc(n.body || '')}</p></div>`).join('') + (it.length > 2 ? '<p class="ex dm" style="font-size:11px">More on the News tab.</p>' : '') : '<p class="ex dm">No recent news.</p>');
+        window._newsOpen = it; $('#pm-sum-news').html(it.length ? it.slice(0, 4).map((n, i) => `<div class="news-item-row" data-i="${i}" style="display:flex; align-items:center; gap:8px; padding:10px; margin-bottom:6px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); cursor:pointer;"><span style="flex:1; min-width:0; font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.4;">${newsEsc(n.head)}</span><span style="flex-shrink:0; color:var(--text-dim); font-size:calc(14px * var(--ts,1));">›</span></div>`).join('') + (it.length > 4 ? '<p class="ex dm" style="font-size:11px">More stories on the News tab.</p>' : '') : '<p class="ex dm">No recent news.</p>');
     } catch (e) { $('#pm-sum-news').html('<p class="ex dm">No news available.</p>'); }
 }
 // ---- player popup (beta): contract tab with re-sign simulator ----
@@ -24805,8 +24957,8 @@ $(document).on('change', '#sx-give, #sx-get, #sx-tid', function () {
     if (this.id === 'sx-tid') { T.tid = this.value; T.get = []; } else T[this.id === 'sx-give' ? 'give' : 'get'] = [...this.selectedOptions].map(o => o.value);
     lldStatsDraw('team');
 });
-async function lldStatsPopupFill(pid) {
-    const c = $('#tab-sx'); c.html('<div class="lld-stats lld-sx-pop"><div class="lld-sx-loading">Loading stats…</div></div>');
+async function lldStatsPopupFill(pid, el) {
+    const c = el || $('#tab-sx'); c.html('<div class="lld-stats lld-sx-pop"><div class="lld-sx-loading">Loading stats…</div></div>');
     try {
         const S = await lldStatsLoad(); await lldStatsEnsurePlayer(S, String(pid));
         if (!S.pl[pid] && S.D.pinfo[pid]) { /* free agent / unrostered: fit() uses faScores */ }
