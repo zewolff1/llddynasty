@@ -2191,7 +2191,7 @@ function lldGoLeagueSub(label, cb) {
     const t = e.target.closest && e.target.closest('.th-rec, .th-op, .th-sk, .th-aw'); if (!t) return;
     e.stopImmediatePropagation(); if (ev === 'touchend') return;
     e.preventDefault();
-    if (t.classList.contains('th-rec')) lldGoLeagueSub('Standings');
+    if (t.classList.contains('th-rec')) { if (lldStOn()) lldStRecSheet(); else lldGoLeagueSub('Standings'); }
     else if (t.classList.contains('th-op')) $('#lld-hdr-pv').trigger('click');
     else if (t.classList.contains('th-sk')) { const mine = String(t.dataset.fid) === String(myFid).padStart(4, '0'); window._tbX = { view: mine ? 'mine' : 'mkt' }; lldGoLeagueSub('Trades'); }
     else if (t.classList.contains('th-aw')) $(t).trigger('lldaw');
@@ -2271,7 +2271,7 @@ function buildTeamInfoPanel(targetFid) {
     } catch (e) { }
     try { // on your own team, a past week always shows that week's recap (not this week's preview)
         const vw2 = parseInt(window._lldViewWeek, 10), sw = parseInt(window._lldServedWeek, 10) || 0;
-        if (vw2 && sw && vw2 < sw && String(targetFid) === String(myFid)) { const g3 = (window._lldGames || []).find(x => x.wk === vw2 && (x.a === targetFid || x.b === targetFid)); nx = { week: vw2, opps: [g3 ? (g3.a === targetFid ? g3.b : g3.a) : ''], recap: true }; }
+        if (vw2 && (!sw || vw2 < sw) && String(targetFid) === String(myFid)) { const g3 = (window._lldGames || []).find(x => x.wk === vw2 && (x.a === targetFid || x.b === targetFid)); nx = { week: vw2, opps: [g3 ? (g3.a === targetFid ? g3.b : g3.a) : ''], recap: true }; }
     } catch (e) { }
     let oppBox;
     if (nx && nx.opps.length) {
@@ -2810,9 +2810,13 @@ function lldApvLuGloss() {
     return `<h4>Matchup</h4>` + t('OPP', 'The team he plays this week.') + t('DEF', 'How many points that defense allows to his position. 1 is the toughest, 32 is the easiest. Green is easy, red is tough.') + t('TIME', 'Kickoff day and time.');
 }
 function lldApvLuStale() { const rs = Array.from(document.querySelectorAll('#slots-starters .player-row[data-pid]:not(.empty-slot), #slots-bench .player-row[data-pid]')); return rs.some(r => !r.classList.contains('apv-lu-done') || (r.classList.contains('apv-lu-s') && !(r.nextElementSibling && r.nextElementSibling.classList.contains('lu')))) || document.querySelectorAll('.apv-sl.lu').length > document.querySelectorAll('.player-row.apv-lu-s').length; }
-function lldApvLuBar() {
-    return `<div id="apv-lu-bar" class="apv-bar"><div class="apv-r2"><button type="button" class="apv-b apv-morebtn">\u2699<span> More toggles</span></button><button type="button" class="player-gloss-btn apv-b" data-fa="0">\u24D8<span class="apv-gtx"> Guide</span></button></div></div>`;
+function lldApvLuTools() {
+    return `<div class="apv-r2"><button type="button" class="apv-b apv-morebtn">\u2699<span> More toggles</span></button><button type="button" class="player-gloss-btn apv-b" data-fa="0">\u24D8<span class="apv-gtx"> Guide</span></button></div>`;
 }
+function lldApvLuBar() {
+    return `<div id="apv-lu-bar" class="apv-bar"></div>`;
+}
+
 function lldApvLuRow(el, p) {
     const O = window._apv.on, $r = $(el), pi = $r.find('.lld-pi, .player-info').first(), sv = playerSortBy; playerSortBy = '';
     try {
@@ -2890,7 +2894,7 @@ function lldApvExSteps(kind) {
 function lldApvExSample(kind) {
     const st = h => String(h || '').replace(/ id="[^"]*"/g, '');
     let bar, row;
-    if (kind === 'lu') { bar = $('#apv-lu-bar').first(); const r = $('#slots-starters .player-row[data-pid]:not(.empty-slot)').first(); row = $('<div></div>').append(r.clone()).append(r.next('.apv-sl.lu').clone()); }
+    if (kind === 'lu') { bar = ($('#lld-wkbar').length ? $('#lld-wkbar') : $('#apv-lu-bar')).first(); const r = $('#slots-starters .player-row[data-pid]:not(.empty-slot)').first(); row = $('<div></div>').append(r.clone()).append(r.next('.apv-sl.lu').clone()); }
     else { const root = kind === 'ct' ? $('#apv-ct-box') : $('#player-rows-container'); bar = root.find('.apv-bar').first(); row = root.find('.apv-yc').first().clone(); row = $('<div></div>').append(row); }
     return { bar: bar.length ? st(bar[0].outerHTML) : '', row: row.length ? st(row.html()) : '' };
 }
@@ -6100,6 +6104,7 @@ container.append(`<div id="lineup-notifications"></div>
                 <div class="sticky-block" data-block="bench">
                     ${lldApv() ? '' : getToggleBarHtml('lineup')}
                     <div class="lineup-section" data-section="bench">
+                        <h3 class="section-header">Bench</h3>
                         <div class="roster-grid" id="slots-bench">${benchBuffer}</div>
                     </div>
                 </div>
@@ -6444,52 +6449,32 @@ $('#roster-dashboard-inject').html(dashboardHtml);
             const isCommish = true; // 🔑 YOUR MASTER KEY
             const isMyTeam = (typeof myFid !== 'undefined') ? (fid === myFid) : true;
             const canEdit = isMyTeam || isCommish; // Unlocks if it's your team OR you are commish
+            const stBad = stats.filter(s => s.c < s.r), isRo = activeSub === 'roster';
+            const one = canEdit && !needsOptimization && !isRo;
             let optimizeBtnHtml = '';
-            
             if (canEdit) {
-optimizeBtnHtml = needsOptimization 
-                   ? `<button class="accept-optimal-btn" onclick="openOptimizeModal()" style="background:var(--accent-blue);color:#fff;border:none;padding:6px 12px;border-radius:4px;font-weight:800;font-size:calc(11px * var(--ts,1));cursor:pointer;">OPTIMIZE</button>`
-                    : `<button disabled style="background:rgba(255,255,255,0.1);color:var(--text-dim);border:none;padding:6px 12px;border-radius:4px;font-weight:800;font-size:calc(11px * var(--ts,1));cursor:not-allowed;">OPTIMIZED</button>`;
+                optimizeBtnHtml = needsOptimization
+                    ? `<button type="button" class="lu-opt accept-optimal-btn" onclick="openOptimizeModal()">OPTIMIZE</button>`
+                    : `<button type="button" class="lu-opt" disabled>OPTIMIZED</button>`;
             } else {
-                optimizeBtnHtml = `<div style="background:rgba(255,255,255,0.05);color:var(--text-dim);padding:6px 12px;border-radius:4px;font-weight:800;font-size:calc(11px * var(--ts,1));text-transform:uppercase;border:1px dashed rgba(255,255,255,0.2);">VIEW ONLY</div>`;
+                optimizeBtnHtml = `<div class="lu-vo">VIEW ONLY</div>`;
             }
-
+            const boxes = one
+                ? `<div class="lu-bx one"><div><span class="l t">Optimal</span><span class="v t">${optimalProj}</span></div></div>`
+                : `<div class="lu-bx"><div><span class="l">Current</span><span class="v">${currentProj}</span></div><div><span class="l t">Optimal</span><span class="v t">${optimalProj}</span></div></div>`;
 dashboardHtml = `<div class="roster-dashboard">
-                <div class="dashboard-header-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: calc(13px * var(--ts,1)); letter-spacing: 1px;">Starters</span>
-                    </div>                    <div style="display: flex; align-items: center; gap: 12px;">
-                        ${activeSub === 'roster' ? '<span class="dashboard-title" style="font-weight:800; color:#fff; text-transform:uppercase;">Total Roster</span>' : ''}
-                        <div style="display: flex; background: rgba(0,0,0,0.25); border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden;">
-                            <div style="padding: 4px 10px; border-right: 1px solid var(--card-border); text-align: center;">
-                                <span style="display: block; font-size: calc(8px * var(--ts,1)); color: var(--text-dim); text-transform: uppercase; line-height: 1.2;">Current</span>
-                                <span style="display: block; font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #fff;">${currentProj}</span>
-                            </div>
-                            <div style="padding: 4px 10px; text-align: center; background: rgba(0, 206, 184, 0.05);">
-                                <span style="display: block; font-size: calc(8px * var(--ts,1)); color: #00ceb8; text-transform: uppercase; line-height: 1.2;">Optimal</span>
-                                <span style="display: block; font-size: calc(13px * var(--ts,1)); font-weight: 800; color: #00ceb8;">${optimalProj}</span>
-                            </div>
-                        </div>
-                    </div>
+                <div class="lu-sh">
+                    <div class="lu-l"><span class="lu-t">${isRo ? 'Total Roster' : 'Starters'}</span>${stBad.length === 0 ? '<span class="lu-ok">\u2713<span> Valid</span></span>' : ''}</div>
+                    ${boxes}
                     ${optimizeBtnHtml}
                 </div>
-
-                <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:4px;">
-                    ${stats.filter(s => s.c < s.r).length === 0
-                        ? '<span style="font-size:calc(10px * var(--ts,1)); color:#22c55e; font-weight:800;">✓ Lineup Valid</span>'
-                        : `<div style="display:flex; align-items:center; gap:6px; padding:8px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px;">
-                            <span style="font-size:calc(14px * var(--ts,1));">⚠️</span>
-                            <div style="display:flex; flex-direction:column; gap:2px;">
-                                ${stats.filter(s => s.c < s.r).map(s => {
-                                    const need = s.r - s.c;
-                                    const posName = s.l === 'QB' ? 'QB' : s.l === 'RB' ? 'RB' : s.l === 'WR' ? 'WR' : s.l === 'TE' ? 'TE' : s.l === 'PK' ? 'Kicker' : s.l === 'Def' ? 'Defense' : s.l === 'SFLEX' ? 'Superflex' : s.l === 'FLEX' ? 'Flex' : s.l === 'DL' ? 'DL' : s.l === 'LB' ? 'LB' : s.l === 'DB' ? 'DB' : s.l === 'IDP' ? 'IDP Flex' : s.l;
-                                    return `<span style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:#f59e0b;">Needs ${need} more ${posName}${need > 1 ? 's' : ''}</span>`;
-                                }).join('')}
-                            </div>
-                           </div>`
-                    }
-                </div>
-
+                ${stBad.length === 0 ? '' : `<div class="lu-warn"><span>\u26A0\uFE0F</span><div style="display:flex; flex-direction:column; gap:2px;">
+                    ${stBad.map(s => {
+                        const need = s.r - s.c;
+                        const posName = s.l === 'PK' ? 'Kicker' : s.l === 'Def' ? 'Defense' : s.l === 'SFLEX' ? 'Superflex' : s.l === 'FLEX' ? 'Flex' : s.l === 'IDP' ? 'IDP Flex' : s.l;
+                        return `<span>Needs ${need} more ${posName}${need > 1 ? 's' : ''}</span>`;
+                    }).join('')}
+                    </div></div>`}
             </div>`;
             
 $('#lineup-dashboard-inject').html(dashboardHtml);
@@ -14108,7 +14093,7 @@ function lldHd2Html() {
     let forceRec = false;
     try { // viewing one of your past weeks: show that week's recap
         const vw = parseInt(window._lldViewWeek, 10), sw = parseInt(window._lldServedWeek, 10) || 0;
-        if (vw && sw && vw < sw && String(vf) === String(myFid)) { const g = (window._lldGames || []).find(x => x.wk === vw && (x.a === vf || x.b === vf)); wk = vw; if (g) opp = g.a === vf ? g.b : g.a; forceRec = true; }
+        if (vw && (!sw || vw < sw) && String(vf) === String(myFid)) { const g = (window._lldGames || []).find(x => x.wk === vw && (x.a === vf || x.b === vf)); wk = vw; if (g) opp = g.a === vf ? g.b : g.a; forceRec = true; }
     } catch (e) { }
     h += statChips;
     if (!onC && c.prev !== 'off' && opp) {
@@ -14830,7 +14815,7 @@ async function lldShLoad(force) {
         try {
             await Promise.all(chunks.map(async ch => {
                 const q = await lldChatJson('TYPE=players&PLAYERS=' + ch.join(','));
-                lldChatArr(q && q.players && q.players.player).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); d.info[String(p.id)] = { name: n.length > 1 ? n[1].charAt(0) + '. ' + n[0] : n[0], pos: p.position || '' }; });
+                lldChatArr(q && q.players && q.players.player).forEach(p => { const n = String(p.name || '').split(',').map(x => x.trim()); d.info[String(p.id)] = { name: n.length > 1 ? n[1].charAt(0) + '. ' + n[0] : n[0], pos: p.position || '', team: p.team || '' }; });
             }));
         } catch (e) { console.warn('sh players', e); }
         window._lldShD = d; window._lldShBusy = null;
@@ -14964,46 +14949,269 @@ function lldShPopHtml(b) {
         const T = d ? null : null, yrs = (window._capYears && window._capYears.length) ? window._capYears : [0, 1, 2, 3, 4].map(i => String((parseInt(year) || 2026) + i));
         t = 'Contract year'; sub = 'Pick the season to view cap and contracts for';
         h = yrs.map(y => { const on = parseInt(y, 10) === sy; return `<button type="button" class="yr-i${on ? ' on' : ''}" data-y="${y}">${y}${on ? ' ✓' : ''}</button>`; }).join('');
-        return `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p><div class="yrs">${h}</div>`;
+        return lldShHd(t, sub) + `<div class="yrs">${h}</div>`;
     }
     if (!d) return '<button class="x" id="lld-sh-x">✕</button><h4>Loading…</h4>';
     if (b === 'cap') {
         const T = lldShTotals(d, sy), order = Object.keys(T).sort((a, c) => T[c] - T[a]);
         t = 'Salary spent by team'; sub = `${sy} · cap limit ${lldShM(cap)} · ${vf in T ? 'you are ' + lldLsOrd(order.indexOf(vf) + 1) + ' of ' + order.length : ''} (most spent first)`;
-        h = order.map((f, i) => `<div class="tr2${f === vf ? ' me' : ''}"><div class="rk">${i + 1}</div><div class="nmx"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div></div><div class="vl">${lldShM(T[f])}<small>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</small></div></div>`).join('');
+        h = order.map((f, i) => lldDev() ? `<div class="pr cp${f === vf ? ' me' : ''}" style="--pc:${f === vf ? 'var(--accent-teal)' : 'var(--accent-blue)'}"><div class="wm"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"></div><div class="av"><div class="im lg"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"><span class="rkb">${i + 1}</span></div></div><div class="nm"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div><i>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</i></div><div class="vl">${lldShM(T[f])}</div></div>` : `<div class="tr2${f === vf ? ' me' : ''}"><div class="rk">${i + 1}</div><div class="nmx"><b>${nm(f)}</b><div class="br"><b style="width:${Math.min(100, T[f] / cap * 100).toFixed(1)}%"></b></div></div><div class="vl">${lldShM(T[f])}<small>${(T[f] / cap * 100).toFixed(1)}% · ${lldShM(cap - T[f])} left</small></div></div>`).join('');
     } else if (b === 'exp') {
         const mine = d.exp.filter(x => x.fid === vf).sort((a, c) => c.sal - a.sal), tot = mine.reduce((s, x) => s + x.sal, 0);
         t = 'Expiring contracts'; sub = P.tab === 'mine' ? `Yours · ${mine.length} contract${mine.length === 1 ? '' : 's'} · ${lldShM(tot)} coming off after ${year}` : `Every team · contracts expiring after ${year}`;
         const tabs = `<div class="ptabs"><button class="ptab${P.tab === 'mine' ? ' on' : ''}" data-t="mine">My team</button><button class="ptab${P.tab === 'league' ? ' on' : ''}" data-t="league">Whole league</button></div>`;
         const nmOf = x => (d.info[x.id] && d.info[x.id].name) || ('#' + x.id), posOf = x => (d.info[x.id] && d.info[x.id].pos) || '';
-        if (P.tab === 'mine') h = tabs + (mine.length ? mine.map(x => `<div class="ln2"><b>${lldShEsc(nmOf(x))} <span>${posOf(x)}</span></b><b>${lldShM(x.sal)}</b></div>`).join('') : '<div class="ln2"><span>No expiring contracts</span></div>');
+        if (P.tab === 'mine') h = tabs + (mine.length ? mine.map(x => lldDev() ? lldShPl(x, nmOf(x), posOf(x), 'expires after ' + year, lldShM(x.sal), x.fid === vf) : `<div class="ln2"><b>${lldShEsc(nmOf(x))} <span>${posOf(x)}</span></b><b>${lldShM(x.sal)}</b></div>`).join('') : '<div class="ln2"><span>No expiring contracts</span></div>');
         else {
             const PS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'LB', 'DL', 'DB'], grp = p => ({ DE: 'DL', DT: 'DL', CB: 'DB', S: 'DB' }[p] || p);
             const rows = d.exp.filter(x => P.pos === 'ALL' || grp(posOf(x)) === P.pos).sort((a, c) => c.sal - a.sal);
-            h = tabs + `<div class="pfs">${PS.map(q => `<button class="pf${P.pos === q ? ' on' : ''}" data-p="${q}">${q}</button>`).join('')}</div>` + (rows.length ? rows.map(x => `<div class="tr2${x.fid === vf ? ' me' : ''}"><div class="rk">${posOf(x)}</div><div class="nmx"><b>${lldShEsc(nmOf(x))}</b><span class="ow">${nm(x.fid)}</span></div><div class="vl">${lldShM(x.sal)}</div></div>`).join('') : `<div class="ln2"><span>No expiring ${P.pos} contracts</span></div>`);
+            h = tabs + `<div class="pfs">${PS.map(q => `<button class="pf${P.pos === q ? ' on' : ''}" data-p="${q}">${q}</button>`).join('')}</div>` + (rows.length ? rows.map(x => lldDev() ? lldShPl(x, nmOf(x), posOf(x), nm(x.fid), lldShM(x.sal), x.fid === vf) : `<div class="tr2${x.fid === vf ? ' me' : ''}"><div class="rk">${posOf(x)}</div><div class="nmx"><b>${lldShEsc(nmOf(x))}</b><span class="ow">${nm(x.fid)}</span></div><div class="vl">${lldShM(x.sal)}</div></div>`).join('') : `<div class="ln2"><span>No expiring ${P.pos} contracts</span></div>`);
         }
     } else if (b === 'dead') {
         const dd = (d.dead[vf] || []).slice().sort((a, c) => c.amt - a.amt), dt = dd.reduce((s, x) => s + x.amt, 0);
         t = 'Dead money'; sub = `${lldShM(dt)} this year · ${dd.length} player${dd.length === 1 ? '' : 's'}`;
         h = dd.length ? dd.map(x => `<div class="ln2"><b>${lldShEsc(x.name)}</b><b>${lldShM(x.amt)}</b></div>`).join('') : '<div class="ln2"><span>No dead money</span></div>';
     }
-    return `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p>${h}`;
+    return lldShHd(t, sub) + h;
 }
+function lldShHd(t, sub) { return lldDev() ? `<div class="hd"><div><h4>${t}</h4><p>${sub}</p></div><button class="x" id="lld-sh-x">✕</button></div>` : `<button class="x" id="lld-sh-x">✕</button><h4>${t}</h4><p>${sub}</p>`; }
 function lldLsOrd(k) { return lldShOrd(k); }
+// a player row for the sheets (headshot ring in the position color, team logo watermark)
+function lldShPl(x, name, pos, sub, val, me) {
+    const d = (window._lldShD && window._lldShD.info[x.id]) || {}, tm = (d.team || '').toUpperCase();
+    return `<div class="pr${me ? ' me' : ''}" style="--pc:${lldStPosVar(pos)}"><div class="wm">${tm ? `<img src="${getNFLLogoUrl(tm)}" onerror="this.style.display='none'">` : ''}</div><div class="av"><div class="im"><img src="https://www.mflscripts.com/playerImages_80x107/mfl_${x.id}.png" onerror="this.style.display='none'"></div></div><div class="nm"><b>${lldShEsc(name)} <span class="ps">${lldShEsc(pos)}</span></b><i>${tm ? tm + ' · ' : ''}${sub}</i></div><div class="vl">${val}</div></div>`;
+}
 function lldShShow(b) {
     let o = $('#lld-sh-pop'); if (!o.length) { o = $('<div id="lld-sh-pop"><div class="sh"></div></div>'); $('body').append(o); }
-    window._lldShPopB = b; o.find('.sh').html(lldShPopHtml(b)); o.addClass('on');
+    window._lldShPopB = b; o.toggleClass('n', lldDev()); o.find('.sh').html(lldShPopHtml(b)); o.addClass('on');
     if (!window._lldShD && b !== 'year') lldShLoad().then(() => { if (window._lldShPopB === b) o.find('.sh').html(lldShPopHtml(b)); });
 }
 $(document).on('click', '#lld-sh .pv, #lld-sh .bk[data-b="wk"]', function (e) { e.stopPropagation(); $('#lld-hdr-pv').first().trigger('click'); });
 $(document).on('click', '#lld-sh .bk[data-b="tb"]', function () { lldMyBlockGo(); });
-$(document).on('click', '#lld-sh .bk[data-b="rec"]', function () { lldGoLeagueSub('Standings'); });
+$(document).on('click', '#lld-sh .bk[data-b="rec"]', function () { if (lldStOn()) lldStRecSheet(); else lldGoLeagueSub('Standings'); });
 $(document).on('click', '#lld-sh .bk[data-b="dyn"]', function () { if (typeof window.lldDpOpen === 'function') window.lldDpOpen(); });
 $(document).on('click', '#lld-sh .bk[data-b="cap"], #lld-sh .bk[data-b="exp"], #lld-sh .bk[data-b="dead"]', function () { if (this.dataset.b === 'exp') window._lldShPop = { tab: 'mine', pos: 'ALL' }; lldShShow(this.dataset.b); });
 $(document).on('click', '#lld-sh-pop .ptab', function () { window._lldShPop.tab = this.dataset.t; lldShShow('exp'); });
 $(document).on('click', '#lld-sh-pop .pf', function () { window._lldShPop.pos = this.dataset.p; lldShShow('exp'); });
 $(document).on('click', '#lld-sh-x, #lld-sh-pop', function (e) { if (e.target.id === 'lld-sh-x' || e.target.id === 'lld-sh-pop') $('#lld-sh-pop').removeClass('on'); });
 setInterval(() => { if (lldShOn() && $('#tab-team').is(':visible')) { const el = $('#lld-sh'); if (!el.length || !el.children().length) lldShRender(); } }, 3000);
+
+
+// ===== BETA (0000 / 0001): one standings table (everything from Stats, per-week averages, tap a cell to see why) + restyled bottom sheets =====
+function lldStOn() { try { return lldDev() && !window._lldStOld; } catch (e) { return false; } }
+const LLD_ST_PICK = [18, 48, 80, 110]; // estimated dynasty rank of a draft pick by round (1st, 2nd, 3rd, later). Edit these to change how picks count.
+const LLD_ST_BW = [.5, .4, .3, .22, .16, .12, .08, .05];
+window._lldSt = window._lldSt || { V: lldGet('lld_st_v', 'ov'), cols: null, sk: null, sd: -1, picks: lldGet('lld_st_pk', '0') === '1', logos: false, X: {} };
+try { window._lldSt.cols = JSON.parse(lldGet('lld_st_cols', 'null')); } catch (e) { }
+const LLD_ST_PRE = {
+    ov: { n: 'Overview', t: 'Standings', cols: ['rec', 'pfw', 'paw', 'st'], note: 'Points are averages per week, not per game, so double-header weeks do not inflate them. Tap any cell for the details.' },
+    sc: { n: 'Scoring', t: 'Scoring & All-Play', cols: ['pfw', 'paw', 'ap', 'lk'], note: 'All-Play is your record if you played every team every week. Luck is actual wins minus expected wins; positive means the schedule has been kind.' },
+    pj: { n: 'Projected', t: 'Projected Final Standings', cols: ['pj', 'pr', 'mk', 'rec'], note: 'Simulates the remaining weeks from current records, scoring and projected lineups.' },
+    ln: { n: 'Lineups', t: 'Lineup Efficiency', cols: ['ef', 'rc', 'bn', 'pfw'], note: 'Efficiency is points scored by your starters divided by the points your best possible lineup would have scored.' },
+    po: { n: 'Positions', t: 'Position Strength', cols: ['pQB', 'pRB', 'pWR', 'pTE', 'pDL', 'pLB', 'pDB'], note: 'Rank among all teams by points scored by starters at each position. 1 is best. Tap a cell to see the players.' },
+    aw: { n: 'Awards', t: 'Weekly Awards', cols: ['a_tot', 'a_high', 'a_potw', 'a_blowout', 'a_close', 'a_upset', 'a_gutsy', 'a_overthink', 'a_sunday'], note: 'Weekly recap awards, counted per week. Tap a count to see which weeks and what happened.' },
+    mo: { n: 'Money', t: 'Money & Cap', cols: ['cap', 'cl', 'cu', 'dyn'], note: 'Salary spent against the cap for the selected season, with dynasty value rank.' },
+    cu: { n: 'Custom', t: 'Your Columns', cols: ['rec', 'pfw', 'cap', 'ef'], note: 'Pick any columns with the Columns button. Your choice is remembered.' }
+};
+const LLD_ST_POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'];
+const lldStOrd = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0] || 'th');
+const lldStSg = (x, d = 1) => (x > 0 ? '+' : '') + x.toFixed(d);
+const lldStPc = x => x == null ? '–' : (x * 100).toFixed(0) + '%';
+const lldStHeat = r => 'hsl(' + Math.round(165 - (r - 1) * (150 / 9)) + ',70%,' + (r <= 3 ? 55 : 58) + '%)';
+function lldStPosVar(p) { p = String(p || '').toUpperCase(); const g = { DE: 'dl', DT: 'dl', CB: 'db', S: 'db', DL: 'dl', DB: 'db', LB: 'lb', QB: 'qb', RB: 'rb', WR: 'wr', TE: 'te', PK: 'pk' }[p] || 'def'; return 'var(--pos-' + g + ')'; }
+function lldStStreak(S, i) {
+    const res = []; for (let wi = 0; wi < S.W; wi++) (S.opps[i][wi] || []).forEach(o => { const a = S.sc[i][wi], b = S.sc[o][wi]; res.push(a > b ? 'W' : a < b ? 'L' : 'T'); });
+    if (!res.length) return { k: '', n: 0 }; const k = res[res.length - 1]; let n = 0; for (let j = res.length - 1; j >= 0 && res[j] === k; j--) n++; return { k, n };
+}
+// dynasty rank per team, with or without draft picks (same method as the dynasty power rankings)
+async function lldStDynLoad(S) {
+    const X = window._lldSt.X; if (X.dyn) return X.dyn;
+    const grps = {}; ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'PK'].forEach(g => { grps[g] = getDynRankMap(g); });
+    const dyn = {}; for (const g of Object.keys(grps)) dyn[g] = await grps[g];
+    const picks = {};
+    try {
+        const j = await lldSxJson('futureDraftPicks');
+        lldSxArr(j && j.futureDraftPicks && j.futureDraftPicks.franchise).forEach(f => {
+            picks[String(f.id).padStart(4, '0')] = lldSxArr(f.futureDraftPick).map(p => { const m = String(p.pick || '').match(/^FP_(\d+)_(\d+)_(\d+)/); return m ? { yr: m[2], rd: parseInt(m[3], 10), orig: m[1].padStart(4, '0') } : null; }).filter(Boolean);
+        });
+    } catch (e) { }
+    const D = S.D, T = {};
+    S.F.forEach(f => {
+        const pool = (D.rosters[f] || []).map(id => { const pos = lldSxPos((D.pinfo[id] || {}).pos || S.posOf(id)), g = dynGrp(pos), r = (dyn[g] && dyn[g][id]) || 150; return { pid: id, p: pos, n: (D.pinfo[id] || {}).name || id, r }; });
+        const st = llsOpt(pool.map(p => ({ pid: p.pid, pos: p.p, r: p.r, v: -p.r })), S.slots), starters = pool.filter(p => st.has(p.pid)).sort((a, b) => a.r - b.r), bench = pool.filter(p => !st.has(p.pid));
+        const pk = (picks[f] || []).map(x => ({ pid: null, p: 'PK', pick: 1, n: x.yr + ' round ' + x.rd + (x.orig !== f ? ' (from ' + lldChatEsc(D.names[x.orig] || x.orig) + ')' : ''), r: LLD_ST_PICK[Math.min(x.rd, LLD_ST_PICK.length) - 1] }));
+        T[f] = { starters, bench: bench.sort((a, b) => a.r - b.r), pk };
+    });
+    const calc = (f, wp) => {
+        const t = T[f], pool = t.bench.concat(wp ? t.pk : []).sort((a, b) => a.r - b.r), bn = pool.slice(0, LLD_ST_BW.length), rest = pool.slice(LLD_ST_BW.length);
+        const ss = t.starters.reduce((a, x) => a + x.r, 0), sb = bn.reduce((a, x, i) => a + x.r * LLD_ST_BW[i], 0), wt = t.starters.length + bn.reduce((a, x, i) => a + LLD_ST_BW[i], 0);
+        return { score: wt ? (ss + sb) / wt : 999, bench: bn, rest };
+    };
+    const out = { T, calc, rk: { no: {}, yes: {} }, hasPicks: Object.keys(picks).length > 0 };
+    [false, true].forEach(wp => { S.F.slice().sort((a, b) => calc(a, wp).score - calc(b, wp).score).forEach((f, i) => { out.rk[wp ? 'yes' : 'no'][f] = i + 1; }); });
+    return X.dyn = out;
+}
+async function lldStLoadExtras(S, cols) {
+    const X = window._lldSt.X;
+    const tasks = [];
+    if (cols.some(k => /^(cap|cl|cu)$/.test(k)) && !X.cap) tasks.push((async () => { const sh = await lldShLoad(), sy = (typeof selectedYear !== 'undefined' ? selectedYear : parseInt(year)) || 2026; X.cap = lldShTotals(sh, sy); X.limit = window.leagueSalaryCap || (typeof LLD !== 'undefined' ? LLD.salaryCap : 0); })());
+    if (cols.includes('dyn') && !X.dyn) tasks.push(lldStDynLoad(S));
+    if (cols.some(k => /^a_/.test(k)) && !X.ev) tasks.push((async () => { X.ev = await getAllRecapEvents(); })());
+    if (tasks.length) await Promise.all(tasks.map(p => p.catch(e => console.warn('standings extra', e))));
+}
+function lldStDefs(S) {
+    const X = window._lldSt.X, N = S.N, W = S.W, D = S.D, C = {};
+    const nm = f => lldChatEsc(D.names[f] || f);
+    const def = (k, o) => { o.v = t => { const r = o.r(t); return r == null ? -1e9 : (o.hi ? r : -r); }; C[k] = o; };
+    const wlt = t => t.w + '-' + t.l + (t.tie ? '-' + t.tie : '');
+    def('rec', { l: 'Record', g: 'Record', hi: 1, r: t => t.gp ? t.w / t.gp : 0, fm: x => x.toFixed(3), f: t => wlt(t), sub: t => '<small>' + (t.gp ? (t.w / t.gp >= 1 ? '1.000' : (t.w / t.gp).toFixed(3).slice(1)) : '.000') + '</small>', m: 'Wins and losses against your weekly opponent. Weeks with two games count each game, so the totals can run past the number of weeks played.', h: t => `${wlt(t)} over ${W} weeks = ${(t.gp ? t.w / t.gp * 100 : 0).toFixed(1)}% wins.` });
+    def('st', { l: 'Streak', g: 'Record', hi: 1, r: t => t.sk.n ? (t.sk.k === 'W' ? 1 : t.sk.k === 'L' ? -1 : 0) * t.sk.n : 0, fm: x => lldStSg(x, 1), f: t => t.sk.n ? `<span class="${t.sk.k === 'W' ? 'u' : t.sk.k === 'L' ? 'd' : ''}">${t.sk.k}${t.sk.n}</span>` : '–', m: 'How many games in a row the team has won (W) or lost (L).', h: t => t.sk.n ? `Current run: ${t.sk.k === 'W' ? 'won' : t.sk.k === 'L' ? 'lost' : 'tied'} the last ${t.sk.n} game${t.sk.n === 1 ? '' : 's'}.` : 'No games yet.' });
+    def('pfw', { l: 'PF /wk', g: 'Scoring', hi: 1, r: t => t.pf / (W || 1), fm: x => x.toFixed(1), f: t => (t.pf / (W || 1)).toFixed(1), m: 'Average points scored per week. It is per week, not per game, so double-header weeks do not inflate it.', h: t => `${t.pf.toFixed(1)} total points over ${W} weeks = ${(t.pf / (W || 1)).toFixed(1)} per week.` });
+    def('paw', { l: 'PA /wk', g: 'Scoring', hi: 0, r: t => t.pa / (W || 1), fm: x => x.toFixed(1), f: t => (t.pa / (W || 1)).toFixed(1), m: 'Average points opponents scored against this team per week. Lower is better.', h: t => `${t.pa.toFixed(1)} points allowed over ${W} weeks = ${(t.pa / (W || 1)).toFixed(1)} per week.` });
+    def('dfw', { l: 'Diff /wk', g: 'Scoring', hi: 1, r: t => (t.pf - t.pa) / (W || 1), fm: x => lldStSg(x), f: t => { const d = (t.pf - t.pa) / (W || 1); return `<span class="${d >= 0 ? 'u' : 'd'}">${lldStSg(d)}</span>`; }, m: 'Average weekly margin: points for minus points against.', h: t => `${(t.pf / (W || 1)).toFixed(1)} scored minus ${(t.pa / (W || 1)).toFixed(1)} allowed per week = ${lldStSg((t.pf - t.pa) / (W || 1))}.` });
+    def('pf', { l: 'PF total', g: 'Scoring', hi: 1, r: t => t.pf, fm: x => x.toFixed(1), f: t => t.pf.toFixed(1), m: 'Season total points scored.', h: t => `${t.pf.toFixed(1)} points across ${W} weeks.` });
+    def('pa', { l: 'PA total', g: 'Scoring', hi: 0, r: t => t.pa, fm: x => x.toFixed(1), f: t => t.pa.toFixed(1), m: 'Season total points allowed. Lower is better.', h: t => `${t.pa.toFixed(1)} points allowed across ${W} weeks.` });
+    def('ap', { l: 'All-play', g: 'Scoring', hi: 1, r: t => t.ap / Math.max(1, t.ap + t.apL), fm: x => (x * 100).toFixed(1) + '%', f: t => (+t.ap.toFixed(1)) + '-' + (+t.apL.toFixed(1)), sub: t => '<small>' + (t.ap / Math.max(1, t.ap + t.apL) * 100).toFixed(0) + '%</small>', m: 'Your record if you had played every other team every week. It removes schedule luck.', h: t => `${W} weeks × ${N - 1} opponents = ${W * (N - 1)} matchups: ${+t.ap.toFixed(1)} wins and ${+t.apL.toFixed(1)} losses.` });
+    def('lk', { l: 'Luck', g: 'Scoring', hi: 1, r: t => t.lk, fm: x => lldStSg(x), f: t => `<span class="${t.lk >= 0 ? 'u' : 'd'}">${lldStSg(t.lk)}</span>`, m: 'Actual wins minus the wins the team was expected to have from its scoring. Positive means the schedule has been kind, negative means unlucky.', h: t => `${t.w} actual wins minus ${(t.w - t.lk).toFixed(1)} expected wins (all-play win rate × ${t.gp} games).` });
+    const B = t => (S.base && S.base[t.i]) || null;
+    def('pj', { l: 'Proj W-L', g: 'Projected', hi: 1, r: t => B(t) ? B(t).w : null, fm: x => x.toFixed(1) + ' wins', f: t => B(t) ? Math.round(B(t).w) + '-' + (S.totG[t.i] - Math.round(B(t).w)) : '–', m: 'Final record if the remaining weeks play out the way the simulation expects, using current records, scoring and projected lineups.', h: t => B(t) ? `Currently ${wlt(t)}, projected to finish ${Math.round(B(t).w)}-${S.totG[t.i] - Math.round(B(t).w)}.` : 'No projection yet.' });
+    def('pr', { l: 'Proj rank', g: 'Projected', hi: 0, r: t => B(t) ? B(t).rk : null, fm: x => '#' + (Number.isInteger(x) ? x : x.toFixed(1)), f: t => B(t) ? '#' + Math.round(B(t).rk) : '–', sub: t => { if (!B(t)) return ''; const d = t.o - Math.round(B(t).rk); return d ? `<small class="${d > 0 ? 'u' : 'd'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</small>` : ''; }, m: 'Where the simulation expects this team to finish in the final standings.', h: t => B(t) ? `Now #${t.o}, projected #${Math.round(B(t).rk)}.` : '' });
+    def('mk', { l: 'Make it', g: 'Projected', hi: 1, r: t => B(t) ? B(t).po : null, fm: x => x.toFixed(0) + '%', f: t => B(t) ? B(t).po + '%' : '–', m: 'Chance of making the playoffs, from simulating the rest of the season many times.', h: t => B(t) ? `${B(t).po} out of every 100 simulated seasons ends with this team in the top ${D.playoffTeams || 6}.` : '' });
+    def('ef', { l: 'Efficiency', g: 'Lineups', hi: 1, r: t => S.eff[t.i], fm: x => (x * 100).toFixed(1) + '%', f: t => lldStPc(S.eff[t.i]), m: 'Points your starters scored divided by what your best possible lineup would have scored that week.', h: t => `Starters captured ${(S.eff[t.i] * 100).toFixed(1)}% of the points available on the roster.` });
+    def('rc', { l: 'Right calls', g: 'Lineups', hi: 1, r: t => S.acc[t.i], fm: x => (x * 100).toFixed(1) + '%', f: t => lldStPc(S.acc[t.i]), m: 'How often the team started the better player when choosing between close options.', h: t => `${(S.acc[t.i] * 100).toFixed(1)}% of start or sit decisions were the right call.` });
+    def('bn', { l: 'On bench /wk', g: 'Lineups', hi: 0, r: t => S.left[t.i], fm: x => x.toFixed(1), f: t => S.left[t.i].toFixed(1), m: 'Average points per week a better lineup would have added. It is per week, so double-header weeks are not doubled. Lower is better.', h: t => `${S.left[t.i].toFixed(1)} points per week left on the bench.` });
+    def('cap', { l: 'Cap spent', g: 'Money', hi: 1, r: t => X.cap ? X.cap[t.f] : null, fm: x => '$' + x.toFixed(1) + 'm', f: t => X.cap ? '$' + X.cap[t.f].toFixed(1) + 'm' : '…', sub: t => X.cap && X.limit ? `<span class="sb"><b style="width:${Math.min(100, X.cap[t.f] / X.limit * 100)}%"></b></span>` : '', m: 'Salary committed to the roster for the selected season, including dead money.', h: t => X.cap ? `$${X.cap[t.f].toFixed(1)}m of the $${(X.limit || 0).toFixed(1)}m cap.` : '' });
+    def('cl', { l: 'Cap left', g: 'Money', hi: 1, r: t => X.cap && X.limit ? X.limit - X.cap[t.f] : null, fm: x => '$' + x.toFixed(1) + 'm', f: t => X.cap && X.limit ? '$' + (X.limit - X.cap[t.f]).toFixed(1) + 'm' : '…', m: 'Cap space still open.', h: t => X.cap ? `$${(X.limit || 0).toFixed(1)}m cap minus $${X.cap[t.f].toFixed(1)}m spent.` : '' });
+    def('cu', { l: '% used', g: 'Money', hi: 1, r: t => X.cap && X.limit ? X.cap[t.f] / X.limit * 100 : null, fm: x => x.toFixed(1) + '%', f: t => X.cap && X.limit ? (X.cap[t.f] / X.limit * 100).toFixed(1) + '%' : '…', m: 'Share of the salary cap already spent.', h: t => X.cap ? `$${X.cap[t.f].toFixed(1)}m ÷ $${(X.limit || 0).toFixed(1)}m.` : '' });
+    const wp = () => window._lldSt.picks ? 'yes' : 'no';
+    def('dyn', {
+        l: 'Dynasty', g: 'Money', hi: 0, r: t => X.dyn ? X.dyn.rk[wp()][t.f] : null, fm: x => '#' + (Number.isInteger(x) ? x : x.toFixed(1)), f: t => X.dyn ? '#' + X.dyn.rk[wp()][t.f] : '…',
+        m: 'Where the roster ranks in long-term dynasty value across the league. Each player has a dynasty rank (1 is the most valuable). Starters count fully and bench players count less and less. Lower is better.', h: t => '',
+        x: t => {
+            if (!X.dyn) return '<p class="ex">Loading dynasty values…</p>'; const pk = window._lldSt.picks, A = X.dyn.calc(t.f, false), cur = X.dyn.calc(t.f, pk), tt = X.dyn.T[t.f], rk = X.dyn.rk[pk ? 'yes' : 'no'][t.f];
+            const ln = (x, w) => `<div class="ln"><span>${lldStPp(x.p)}</span><b>${lldChatEsc(x.n)}</b><span class="dm">rank ${x.r}</span><span class="wt">${w}</span></div>`;
+            return `<div class="grp">What it means</div><p class="ex">${C.dyn.m}</p><div class="grp">How the number is figured</div><p class="ex">Score = weighted average of dynasty ranks. Starters count 1.00 each. The 8 best bench assets count .50, .40, .30, .22, .16, .12, .08 and .05. The lowest score is #1.</p>
+            ${X.dyn.hasPicks ? `<button type="button" class="pkb ${pk ? 'on' : ''}" id="stt-pk"><span>Include draft picks</span><i>${pk ? 'On' : 'Off'}</i></button><p class="ex dm" style="margin-top:6px">${pk ? 'Each pick counts as a bench player at an estimated rank by round, so a high pick can crowd a weak bench player out of the top 8.' : 'Picks are not counted right now. Turn this on to treat each pick like a bench player at an estimated rank.'} ${t.f === S.me ? 'You are' : 'They are'} <b>#${X.dyn.rk.no[t.f]}</b> without picks and <b>#${X.dyn.rk.yes[t.f]}</b> with picks.</p>` : '<p class="ex dm" style="margin-top:6px">Draft picks are not counted. MFL did not return any future picks.</p>'}
+            <div class="grp">Starters · rank counts fully</div>${tt.starters.map(x => ln(x, '×1.00')).join('')}
+            <div class="grp">Bench · best 8 counted</div>${cur.bench.map((x, i) => ln(x, '×' + LLD_ST_BW[i].toFixed(2))).join('')}
+            ${pk && cur.rest.length ? `<div class="grp">Outside the counted bench</div>${cur.rest.map(x => ln(x, 'not counted')).join('')}` : ''}
+            ${!pk && tt.pk.length ? `<div class="grp">Draft picks · not counted</div>${tt.pk.map(x => ln(x, 'not counted')).join('')}<p class="ex dm" style="margin-top:6px">Estimated ranks by round: ${LLD_ST_PICK.map((r, i) => (i + 1) + (i === LLD_ST_PICK.length - 1 ? '+' : '') + ' = ' + r).join(', ')}.</p>` : ''}
+            <div class="grp">Score</div><p class="ex"><b>${cur.score.toFixed(1)}</b> average rank${pk ? ' with picks' : ''} → <b>#${rk}</b> of ${N}</p>`;
+        }
+    });
+    LLD_ST_POS.forEach(p => def('p' + p, {
+        l: p, g: 'Positions', hi: 0, r: t => S.PR[p] ? S.PR[p][t.i] : null, fm: x => '#' + (Number.isInteger(x) ? x : x.toFixed(1)), f: t => S.PR[p] ? `<span class="hm" style="background:${lldStHeat(S.PR[p][t.i])}">${S.PR[p][t.i]}</span>` : '–',
+        m: `Rank among all teams for points scored by ${p} starters. 1 is best.`, h: t => '',
+        x: t => {
+            const all = Object.keys(S.pl).filter(pid => S.pl[pid].pos === p && S.stat(pid).n > 0).map(pid => ({ pid, a: S.stat(pid).avg })).sort((a, b) => b.a - a.a), rkOf = {}; all.forEach((x, i) => { rkOf[x.pid] = i + 1; });
+            const mine = (S.cur[t.f] || []).filter(pid => S.posOf(pid) === p && rkOf[pid]).sort((a, b) => rkOf[a] - rkOf[b]).slice(0, 5);
+            return `<div class="grp">What it means</div><p class="ex">Teams are ranked by the points their ${p} starters score. ${t.f === S.me ? 'Your' : 'Their'} team is <b>#${S.PR[p][t.i]}</b> of ${N}, scoring ${(((S.byPos[t.i] || {})[p] || 0) / (W || 1)).toFixed(1)} per week from ${p} starters (league average ${(S.posAvgLg && S.posAvgLg[p] != null ? S.posAvgLg[p] : 0).toFixed(1)}).</p>
+            <div class="grp">${p}s on the roster</div>${mine.length ? mine.map(pid => `<div class="ln" style="--pc:${lldStPosVar(p)}"><span>${lldStPp(p)}</span><b>${lldChatEsc((D.pinfo[pid] || {}).name || pid)} <em>${lldChatEsc((D.pinfo[pid] || {}).team || '')}</em></b><span class="dm">${p}${rkOf[pid]} this season</span><span class="wt">${S.stat(pid).avg.toFixed(1)}/wk</span></div>`).join('') : '<p class="ex dm">No scoring ' + p + 's on the roster.</p>'}
+            <p class="ex dm" style="margin-top:6px">The rank next to each player is where he ranks among all ${p}s in the league this season by average points per week.</p>`;
+        }
+    }));
+    // weekly awards (from the recap events)
+    const AWD = [['high', 'Highest score', 'Top score', 'Highest score of the week across the whole league.'], ['potw', 'Player of the week', 'POTW', 'Had the best individual player performance at a position that week.'], ['blowout', 'Biggest blowout', 'Blowout', 'Won by the largest margin of the week.'], ['close', 'Closest game', 'Closest', 'Won the closest game of the week.'], ['upset', 'Upset', 'Upsets', 'Beat a team that would have beaten most of the league that week.'], ['gutsy', 'Gutsiest call', 'Gutsy', 'Started a player over the projected pick and it paid off.'], ['overthink', 'The overthinker', 'Overthink', 'Started a player over the projected pick and it backfired.'], ['sunday', 'Any given Sunday', 'Sunday', 'A player who beat his projection by the most.']];
+    const evOf = (t, key) => ((X.ev || []).filter(e => e.type === key && e.fid === t.f)).sort((a, b) => a.wk - b.wk);
+    const evTxt = e => {
+        const o = f => nm(f), pn = p => p ? lldChatEsc(p.name || '') : '';
+        if (e.type === 'high') return `${(+e.score).toFixed(1)} pts${e.opp ? ', against ' + o(e.opp.fid) : ''}`;
+        if (e.type === 'potw') return `${pn(e.p)} ${lldChatEsc(e.pos || '')} scored ${(+e.p.score).toFixed(1)}`;
+        if (e.type === 'blowout' || e.type === 'close') return `Won by ${(+e.d).toFixed(1)} over ${o(e.l.fid)}`;
+        if (e.type === 'upset') return `Beat ${o(e.u.l.fid)} (${(+e.u.w.score).toFixed(1)}–${(+e.u.l.score).toFixed(1)})`;
+        if (e.type === 'gutsy') return `Started ${pn(e.c.g)} over ${pn(e.c.d)}: +${(+e.c.margin).toFixed(1)}`;
+        if (e.type === 'overthink') return `Started ${pn(e.c.g)} over ${pn(e.c.d)}: lost ${(+e.c.margin).toFixed(1)}`;
+        if (e.type === 'sunday') return `${pn(e.p)} scored ${(+e.p.score).toFixed(1)}, ${(+e.sd.diff).toFixed(1)} over projection`;
+        return '';
+    };
+    AWD.forEach(a => def('a_' + a[0], {
+        l: a[2], g: 'Awards', hi: 1, r: t => X.ev ? evOf(t, a[0]).length : null, fm: x => Number.isInteger(x) ? String(x) : x.toFixed(1), f: t => X.ev ? (evOf(t, a[0]).length || '<span class="dm">–</span>') : '…', m: a[3] + ' Counted once each time it is handed out.', h: t => '',
+        x: t => { const L = evOf(t, a[0]); return `<div class="grp">What it means</div><p class="ex">${a[3]} Counted once each time it is handed out.</p><div class="grp">${t.f === S.me ? 'Your' : 'Their'} ${a[1].toLowerCase()} weeks · ${L.length}</div>${L.length ? L.map(e => `<div class="ln"><span class="pps" style="color:var(--accent-blue)">WK ${e.wk}</span><b style="white-space:normal">${evTxt(e)}</b></div>`).join('') : '<p class="ex dm">None yet this season.</p>'}`; }
+    }));
+    def('a_tot', { l: 'Total', g: 'Awards', hi: 1, r: t => X.ev ? AWD.reduce((n, a) => n + evOf(t, a[0]).length, 0) : null, fm: x => Number.isInteger(x) ? String(x) : x.toFixed(1), f: t => X.ev ? AWD.reduce((n, a) => n + evOf(t, a[0]).length, 0) : '…', m: 'Every weekly award won this season.', h: t => '', x: t => `<div class="grp">What it means</div><p class="ex">Every weekly award this team has won this season, added up.</p><div class="grp">By award</div>${AWD.map(a => `<div class="ln"><b>${a[1]}</b><span class="wt">${evOf(t, a[0]).length}</span></div>`).join('')}<p class="ex dm" style="margin-top:6px">Tap a single award column to see which weeks.</p>` });
+    return C;
+}
+function lldStPp(p) { p = String(p || ''); return `<span class="pps" style="color:${p === 'PK' ? '#f59e0b' : lldStPosVar(p)}">${p === 'PK' ? 'PICK' : lldChatEsc(p)}</span>`; }
+function lldStRows(S) {
+    const D = S.D; return S.F.map((f, i) => ({ i, f, n: D.names[f] || f, w: S.wins[i], l: S.losses[i], tie: S.ties[i], gp: S.gp[i], pf: S.pf[i], pa: S.pa[i], ap: S.ap[i], apL: S.apL[i], lk: S.wins[i] - S.expW(i), o: S.standing.indexOf(i) + 1, sk: lldStStreak(S, i) }));
+}
+function lldStSorted(rows, C) {
+    const st = window._lldSt, r = rows.slice();
+    if (st.sk === '_n') r.sort((a, b) => st.sd * -1 * String(a.n).localeCompare(String(b.n)));
+    else if (st.sk && C[st.sk]) { const c = C[st.sk]; r.sort((a, b) => (c.v(b) - c.v(a)) * (st.sd === -1 ? 1 : -1) || a.o - b.o); }
+    else r.sort((a, b) => a.o - b.o);
+    return r;
+}
+function lldStDraw() {
+    const body = $('#stt'); if (!body.length || !window._lldSt.S) return;
+    const st = window._lldSt, S = st.S, C = lldStDefs(S), P = LLD_ST_PRE[st.V] || LLD_ST_PRE.ov;
+    const cols = (st.V === 'cu' ? (st.cols || P.cols) : P.cols).filter(k => C[k]);
+    if (st.V !== 'cu') st._shown = cols; else st._shown = cols;
+    const rows = lldStSorted(lldStRows(S), C), arrow = k => st.sk === k ? (st.sd === -1 ? ' ▾' : ' ▴') : '';
+    const lbl = k => k === 'dyn' && st.picks ? 'Dynasty +picks' : C[k].l;
+    const views = Object.keys(LLD_ST_PRE).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('') + '<button type="button" class="cols" data-sv="cols">⚙ Columns</button>';
+    const head = `<tr><th class="tm ${st.sk === '_n' ? 's' : ''}" data-sk="_n">Team${arrow('_n')}</th>` + cols.map(k => `<th data-sk="${k}" class="${st.sk === k ? 's' : ''}">${lbl(k)}${arrow(k)}</th>`).join('') + '</tr>';
+    const me = S.me;
+    const trs = rows.map((t, ix) => `<tr class="${t.f === me ? 'me' : ''}"><td class="tm" data-t="${t.f}"><div class="tc"><span class="rk">${st.sk ? ix + 1 : t.o}</span><span class="lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></span><span class="nm">${lldChatEsc(t.n)}</span></div></td>` + cols.map(k => { const c = C[k]; return `<td class="cl" data-t="${t.f}" data-c="${k}">${c.f(t)}${c.sub ? c.sub(t) : ''}</td>`; }).join('') + '</tr>').join('');
+    body.html(`<div class="views">${views}</div><div class="ttl"><h2>${P.t}</h2><button type="button" id="stt-lo" class="lob ${st.logos ? 'on' : ''}">Logos only</button></div><div class="tb ${st.logos ? 'lo' : ''}"><table><thead>${head}</thead><tbody>${trs}</tbody></table></div><div class="hint">Swipe sideways for more columns · tap a heading to sort · tap a cell to see why</div><p class="note">${P.note}</p><button type="button" class="stt-old" id="stt-old">Switch to the old standings list</button>`);
+    try { reapplyAllTeamStyles(); } catch (e) { }
+}
+async function lldStRender(container) {
+    const st = window._lldSt;
+    container.html('<div id="stt"><div class="loading-text" style="text-align:center; padding:30px; color:var(--text-dim);">Loading standings…</div></div>');
+    try {
+        const S = await lldStatsLoad(); st.S = S;
+        if (!S.W) { $('#stt').html('<div class="sub" style="padding:30px 10px;text-align:center;color:var(--text-dim)">No completed weeks yet. The table appears after the first week is scored.</div>'); return; }
+        const P = LLD_ST_PRE[st.V] || LLD_ST_PRE.ov, cols = st.V === 'cu' ? (st.cols || P.cols) : P.cols;
+        lldStDraw(); await lldStLoadExtras(S, cols); lldStDraw();
+    } catch (e) { console.warn('standings table', e); container.html('<div style="text-align:center; color:#ef4444; padding:20px; font-weight:800;">Could not load the standings table.</div><div style="text-align:center"><button type="button" class="stt-old" id="stt-old">Show the old standings list</button></div>'); }
+}
+function lldStSheet(html) {
+    let o = $('#lld-sh-pop'); if (!o.length) { o = $('<div id="lld-sh-pop"><div class="sh"></div></div>'); $('body').append(o); }
+    o.addClass('n on').find('.sh').html(html).scrollTop(0);
+}
+function lldStExplain(f, k) {
+    const st = window._lldSt, S = st.S; if (!S) return; const C = lldStDefs(S), c = C[k]; if (!c) return;
+    const rows = lldStRows(S), t = rows.find(x => x.f === f); if (!t) return; st._last = [f, k];
+    const vals = rows.map(x => c.r(x)).filter(v => v != null), rank = 1 + rows.filter(x => c.v(x) > c.v(t)).length;
+    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0, best = rows.slice().sort((a, b) => c.v(b) - c.v(a)), w = best[0], z = best[best.length - 1];
+    const nmx = x => lldChatEsc(x.n), big = String(c.f(t)).replace(/<small>.*?<\/small>/g, '').replace(/<[^>]+>/g, '');
+    lldStSheet(`<div class="hd"><div><h4>${c.l}</h4><p>${lldChatEsc(t.n)}</p></div><button class="x" id="lld-sh-x">✕</button></div>
+    <div class="big"><span class="lg"><img src="${getFranchiseLogoUrl(f)}" onerror="this.style.display='none'"></span><div><b>${big}</b><span>${c.r(t) == null ? '' : lldStOrd(rank) + ' of ' + S.N}</span></div></div>
+    <div class="kv"><div><i>League average</i><b>${c.fm(avg)}</b></div><div><i>Best</i><b>${c.r(w) == null ? '–' : c.fm(c.r(w))}</b><small>${nmx(w)}</small></div><div><i>Worst</i><b>${c.r(z) == null ? '–' : c.fm(c.r(z))}</b><small>${nmx(z)}</small></div></div>
+    ${c.x ? c.x(t) : `<div class="grp">What it means</div><p class="ex">${c.m}</p><div class="grp">How ${f === S.me ? 'yours is' : 'it is'} figured</div><p class="ex">${c.h(t)}</p>`}`);
+}
+$(document).on('click', '#stt [data-sv]', async function () {
+    const st = window._lldSt, v = this.dataset.sv;
+    if (v === 'cols') { lldStColSheet(); return; }
+    st.V = v; st.sk = null; lldSet('lld_st_v', v); lldStDraw(); const P = LLD_ST_PRE[v], cols = v === 'cu' ? (st.cols || P.cols) : P.cols; await lldStLoadExtras(st.S, cols); lldStDraw();
+});
+$(document).on('click', '#stt th[data-sk]', function () { const st = window._lldSt, k = this.dataset.sk; if (st.sk === k) st.sd = -st.sd; else { st.sk = k; st.sd = k === '_n' ? 1 : -1; } lldStDraw(); });
+$(document).on('click', '#stt td.cl', function () { lldStExplain(this.dataset.t, this.dataset.c); });
+$(document).on('click', '#stt #stt-lo', function () { const st = window._lldSt; st.logos = !st.logos; lldStDraw(); });
+$(document).on('click', '#stt-old', function () { window._lldStOld = true; window._standingsCache = null; try { loadLeagueStandings(); } catch (e) { } });
+$(document).on('click', '#lld-sh-pop #stt-pk', function () { const st = window._lldSt; st.picks = !st.picks; lldSet('lld_st_pk', st.picks ? '1' : '0'); lldStDraw(); if (st._last) lldStExplain(st._last[0], st._last[1]); });
+function lldStColSheet() {
+    const st = window._lldSt, S = st.S, C = lldStDefs(S), cur = (st._shown || []).slice(), gs = []; Object.keys(C).forEach(k => { if (gs.indexOf(C[k].g) < 0) gs.push(C[k].g); });
+    lldStSheet(`<div class="hd"><div><h4>Columns</h4><p>Tap to add or remove. ${cur.length} showing.</p></div><button class="x" id="lld-sh-x">✕</button></div>` + gs.map(g => `<div class="grp">${g}</div><div class="chips">${Object.keys(C).filter(k => C[k].g === g).map(k => `<button type="button" data-cc="${k}" class="${cur.indexOf(k) >= 0 ? 'on' : ''}">${C[k].l}</button>`).join('')}</div>`).join('') + '<button type="button" class="done" id="stt-done">Done</button>');
+}
+$(document).on('click', '#lld-sh-pop [data-cc]', async function () {
+    const st = window._lldSt, k = this.dataset.cc; let cols = (st._shown || []).slice();
+    if (cols.indexOf(k) >= 0) { if (cols.length > 1) cols = cols.filter(x => x !== k); } else cols.push(k);
+    st.cols = cols; st.V = 'cu'; st.sk = null; lldSet('lld_st_cols', JSON.stringify(cols)); lldSet('lld_st_v', 'cu'); st._shown = cols; lldStDraw(); lldStColSheet(); await lldStLoadExtras(st.S, cols); lldStDraw();
+});
+$(document).on('click', '#stt-done', function () { $('#lld-sh-pop').removeClass('on'); });
+// tapping a record opens the standings in a bottom sheet (beta); "See full standings" goes to the tab
+async function lldStRecSheet() {
+    lldStSheet('<div class="hd"><div><h4>Standings</h4><p>Loading…</p></div><button class="x" id="lld-sh-x">✕</button></div>');
+    try {
+        const S = await lldStatsLoad(), D = S.D; if (!S.W) { lldStSheet('<div class="hd"><div><h4>Standings</h4><p>No completed weeks yet</p></div><button class="x" id="lld-sh-x">✕</button></div><button type="button" class="seeall" id="stt-all">See full standings ›</button>'); return; }
+        const vf = String(fid).padStart(4, '0'), rows = lldStRows(S).sort((a, b) => a.o - b.o), me = rows.find(x => x.f === vf), PT = D.playoffTeams || 6, po = me && S.base && S.base[me.i] ? S.base[me.i].po : null, wk = Math.max(1, S.W);
+        const sub = `${(typeof selectedYear !== 'undefined' ? selectedYear : year)} · ${me ? 'you are ' + lldStOrd(me.o) + ' of ' + S.N : ''}${po != null ? ' · ' + po + '% to make playoffs' : ''}`;
+        lldStSheet(`<div class="hd"><div><h4>Standings</h4><p>${sub}</p></div><button class="x" id="lld-sh-x">✕</button></div>` + rows.map((t, i) => `<div class="pr st${t.f === vf ? ' me' : ''}" style="--pc:${i < PT ? 'var(--accent-blue)' : 'var(--card-border)'}"><div class="wm"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></div><div class="av"><span class="rk">${i + 1}</span><div class="im lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></div></div><div class="nm"><b>${lldChatEsc(t.n)}</b><i>PF ${(t.pf / wk).toFixed(1)}/wk · PA ${(t.pa / wk).toFixed(1)}/wk</i></div><div class="vl">${t.w}-${t.l}${t.tie ? '-' + t.tie : ''}</div></div>` + (i === PT - 1 && PT < rows.length ? '<div class="cut">Playoff line</div>' : '')).join('') + '<button type="button" class="seeall" id="stt-all">See full standings ›</button>');
+    } catch (e) { console.warn('rec sheet', e); lldStSheet('<div class="hd"><div><h4>Standings</h4><p>Could not load</p></div><button class="x" id="lld-sh-x">✕</button></div><button type="button" class="seeall" id="stt-all">See full standings ›</button>'); }
+}
+$(document).on('click', '#stt-all', function () { $('#lld-sh-pop').removeClass('on'); lldGoLeagueSub('Standings'); });
 
 // ===== SLEEPER SCOREBOARD TAB (beta switch "slt", commissioner franchises only, default off) =====
 // A "Sleeper" button on Scores. Type your Sleeper username once; your NFL leagues for the season show as chips, with the same matchup layout.
@@ -15608,7 +15816,8 @@ function lldWeekBar() {
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const host = document.querySelector('.sticky-block[data-block="starters"]') || document.getElementById('lld-pastlu'); if (!host) return;
     const w = parseInt(window._lldViewWeek || window._lldLineupWeek || window._lldEffWeek || window._lldServedWeek, 10); if (!w) return;
-    const html = `<button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="lld-wk-t">Week ${w} ▾${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</button><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button>`;
+    const tools = (!document.getElementById('lld-pastlu') && lldApvLuOn()) ? lldApvLuTools() : '';
+    const html = `<div class="lld-wk-n"><button type="button" class="lld-wk-b" data-d="-1"${w <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="lld-wk-t">Week ${w} ▾${window._lldWeekMsg ? ' · <em>' + lldChatEsc(window._lldWeekMsg) + '</em>' : ''}</button><button type="button" class="lld-wk-b" data-d="1"${w >= 18 ? ' disabled' : ''}>›</button></div>${tools}`;
     let bar = document.getElementById('lld-wkbar');
     if (!bar) { host.insertAdjacentHTML('beforebegin', '<div id="lld-wkbar"></div>'); bar = document.getElementById('lld-wkbar'); }
     if (bar.getAttribute('data-h') !== html) { bar.setAttribute('data-h', html); bar.innerHTML = html; }
@@ -15616,6 +15825,7 @@ function lldWeekBar() {
 // read-only look at a week that is already over (MFL only opens the current week's lineup page)
 async function lldPastLineup(w) {
     window._lldViewWeek = String(w); window._lldWeekMsg = ''; $('#lld-wkbar,#lld-wkpick').remove();
+    try { refreshTeamInfoPanel(); } catch (e) { } // the header button switches to "Recap" right away
     const box = $('#player-rows-container'); box.html('<div id="lld-pastlu"><div style="text-align:center; padding:30px; color:var(--text-dim); font-weight:800;">Loading week ' + w + '…</div></div>');
     try { lldWeekBar(); } catch (e) { }
     let ms = [], sched = {}; try { [ms, sched] = await Promise.all([fetchRecapWeek(w, w < (parseInt(window._lldServedWeek, 10) || 99)), fetchNflScheduleForWeek(w)]); } catch (e) { }
@@ -19234,6 +19444,7 @@ async function loadLeagueStandings() {
     const body = $('#standings-seg-body');
     if (seg === 'order') await renderProjectedDraft(body);
     else if (seg === 'bracket') await renderPlayoffBracket(body);
+    else if (lldStOn()) await lldStRender(body);
     else await loadStandingsTable();
 }
 
