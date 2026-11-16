@@ -5007,9 +5007,20 @@ $(document).on('click touchend', '.open-settings-btn', function() {
                 if (!Array.isArray(l)) l = l ? [l] : [];
                 return l;
             };
-            const [ytd, avg] = await Promise.all([get('YTD'), get('AVG')]);
+            const [ytd, avg] = await Promise.all([get('YTD').catch(() => get('YTD').catch(() => [])), get('AVG').catch(() => get('AVG').catch(() => []))]);
             const avgMap = {};
             avg.forEach(x => { if (x && x.id) avgMap[x.id] = parseFloat(x.score) || 0; });
+            // if MFL's average feed came back empty, work each average out from the weekly scores instead
+            if (!Object.keys(avgMap).length && ytd.length) {
+                try {
+                    const cw = parseInt(window._lldServedWeek || window._liveScoreCurrentWeek, 10) || 0, wks = [];
+                    for (let w = 1; w <= cw; w++) wks.push(w);
+                    const per = await Promise.all(wks.map(w => get(w).catch(() => [])));
+                    const gpMap = {};
+                    per.forEach(l => l.forEach(x => { if (x && x.id && (parseFloat(x.score) || 0) !== 0) gpMap[x.id] = (gpMap[x.id] || 0) + 1; }));
+                    ytd.forEach(x => { if (x && x.id && gpMap[x.id]) avgMap[x.id] = (parseFloat(x.score) || 0) / gpMap[x.id]; });
+                } catch (e) { console.warn('avg fallback', e); }
+            }
             ytd.forEach(x => {
                 if (!x || !x.id) return;
                 const pts = parseFloat(x.score) || 0;
@@ -16192,6 +16203,22 @@ function lldNflGameState(team, sched) {
     }
     return null;
 }
+// Every player's points for one week, from MFL's own player scores (used when the live feed gives a bench player 0)
+async function lldWeekPlayerScores(wk) {
+    window._lldWkPs = window._lldWkPs || {};
+    const c = window._lldWkPs[wk];
+    if (c && Date.now() - c.t < 30000) return c.m;
+    const m = {};
+    try {
+        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=playerScores&L=${lid}&W=${wk}&YEAR=${year}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const d = await r.json();
+        let l = d && d.playerScores && d.playerScores.playerScore || [];
+        if (!Array.isArray(l)) l = l ? [l] : [];
+        l.forEach(x => { if (x && x.id) m[String(x.id)] = parseFloat(x.score) || 0; });
+    } catch (e) { console.warn('week player scores', e); }
+    window._lldWkPs[wk] = { t: Date.now(), m };
+    return m;
+}
 async function lldFranchiseScores(f, wk) {
     window._lldFsc = window._lldFsc || {};
     const k = f + '|' + wk, c = window._lldFsc[k];
@@ -16216,8 +16243,8 @@ async function lldLineupPlayedPass(targetFid) {
     }
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const wk = window._lldLineupWeek || window._lldServedWeek || window._liveScoreCurrentWeek || '';
-    let sched = {}, sc = {};
-    try { [sched, sc] = await Promise.all([fetchNflScheduleForWeek(wk), lldFranchiseScores(targetFid, wk)]); } catch (e) { return; }
+    let sched = {}, sc = {}, wm = {};
+    try { [sched, sc, wm] = await Promise.all([fetchNflScheduleForWeek(wk), lldFranchiseScores(targetFid, wk), lldWeekPlayerScores(wk)]); } catch (e) { return; }
     if ($('#subtabs-team .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts') !== 'lineup') return;
     const played = new Set();
     $('#slots-starters .player-row[data-pid], #slots-bench .player-row[data-pid]').each(function () {
@@ -16229,7 +16256,7 @@ async function lldLineupPlayedPass(targetFid) {
         played.add(pid);
         const live = g.state === 'live', col = live ? '#ef4444' : '#94a3b8', e = g.e;
         row.addClass('lld-played' + (live ? ' lld-live' : '')).css('--ps', col);
-        const pts = (sc[pid] != null ? sc[pid] : 0).toFixed(1), opp = e.opp || '';
+        const pts = (sc[pid] ? sc[pid] : (wm[pid] != null ? wm[pid] : 0)).toFixed(1), opp = e.opp || '';
         const line = `${g.key} ${e.score}–${e.oppScore} ${opp}`;
         row.find('.player-info').first().append(`<div class="lld-ppill"><img src="${getNFLLogoUrl(g.key)}" onerror="this.style.display='none'">${opp ? `<img class="o" src="${getNFLLogoUrl(opp)}" onerror="this.style.display='none'">` : ''}<span>${lldRvG(lldChatEsc(line), pid)}</span></div>`);
         row.append(`<div class="lld-pscore"><b style="color:${live ? '#22c55e' : '#fff'}">${lldRvWrap(pts, 'p' + pid)}</b><i style="color:${col}">${live ? '● ' : ''}${lldChatEsc(g.label)}</i></div>`);
@@ -19792,6 +19819,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
 
         // Bench players who already played can come back as 0 from the detailed feed, so their points are also read from the plain feed (what the Lineup page uses)
         const bnScores = {};
+        let wkScores = {}; try { wkScores = await lldWeekPlayerScores(activeWeek); } catch (e) { }
         try {
             const bd = await lldTickJson(`${MFL_ORIGIN}/${year}/export?TYPE=liveScoring&L=${lid}&W=${activeWeek}&JSON=1`) || {};
             const asB = v => (Array.isArray(v) ? v : (v ? [v] : []));
@@ -19820,6 +19848,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
                     const pid = p.id ?? p.player_id ?? p.pid ?? '';
                     let pScore = parseFloat(p.score ?? p.points ?? p.pts ?? 0) || 0;
                     if (!pScore && bnScores[fid2] && bnScores[fid2][String(pid)]) pScore = bnScores[fid2][String(pid)];
+                    if (!pScore && wkScores[String(pid)]) pScore = wkScores[String(pid)];
                     const gsrRaw = p.gameSecondsRemaining ?? p.game_seconds_remaining ?? p.secondsRemaining ?? null;
                     const rawStatus = p.status ?? p.gameStatus ?? p.game_status ?? null;
                     const info = playerInfoMap[pid] || {};
