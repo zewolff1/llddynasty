@@ -19366,15 +19366,38 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
     </div>`;
 }
 
+// Puts each team's starters into the league's real lineup slots so both sides line up row for row.
+// Needs the slot list (LLD_CONFIG.slots, or the built-in one for league 63085); otherwise rows pair by list position as before.
+function lldScoreSlotDefs() {
+    const c = window.LLD_CONFIG && window.LLD_CONFIG.slots;
+    if (Array.isArray(c) && c.length) return c;
+    return String(typeof lid !== 'undefined' ? lid : '') === '63085' ? LLDS_SLOTS : null;
+}
+function lldAssignScoreSlots(starters, defs) {
+    const out = defs.map(() => null), left = starters.slice();
+    const posOf = p => { const x = recapNormPos(p) || String(p.pos || '').toUpperCase(); return x === 'DE' || x === 'DT' ? 'DL' : (x === 'CB' || x === 'S' ? 'DB' : x); };
+    const take = (i, prefer) => {
+        const el = defs[i];
+        let k = prefer ? left.findIndex(p => posOf(p) === prefer && el.indexOf(posOf(p)) >= 0) : -1;
+        if (k < 0) k = left.findIndex(p => el.indexOf(posOf(p)) >= 0);
+        if (k >= 0) out[i] = left.splice(k, 1)[0];
+    };
+    defs.forEach((el, i) => { if (el.length === 1) take(i); });
+    defs.forEach((el, i) => { if (el.length > 1 && el.indexOf('QB') >= 0) take(i, 'QB'); });
+    defs.forEach((el, i) => { if (el.length > 1 && el.indexOf('QB') < 0) take(i); });
+    return { out, left };
+}
+function lldScoreSlotLabel(el) { return el.length === 1 ? el[0] : (el.indexOf('QB') >= 0 ? 'SFLX' : (el.indexOf('DL') >= 0 ? 'IDP' : 'FLEX')); }
 function buildPairedRosterHtml(r1, r2, projMap, liveDetails, tc1, tc2) {
     const a = sortLiveScoreRoster(r1), b = sortLiveScoreRoster(r2);
-    const section = (label, l1, l2, fixedLabel) => {
+    const section = (label, l1, l2, fixedLabel, labels) => {
         const n = Math.max(l1.length, l2.length);
         if (!n) return '';
         let html = buildLiveScoreSectionHeader(label);
         for (let i = 0; i < n; i++) {
             const p1 = l1[i], p2 = l2[i];
-            const slot = fixedLabel || lsSlotLabel(p1, p2);
+            if (!p1 && !p2) continue;
+            const slot = fixedLabel || (labels && labels[i]) || lsSlotLabel(p1, p2);
             const slotColor = (!fixedLabel && slot.length <= 2) ? `var(--pos-${slot.toLowerCase()}, #fff)` : '#fff';
             html += `<div style="position:relative; display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:6px;">
                 ${lsSideCard(p1, projMap, liveDetails, tc1, 'left')}${lsSideCard(p2, projMap, liveDetails, tc2, 'right')}
@@ -19383,7 +19406,14 @@ function buildPairedRosterHtml(r1, r2, projMap, liveDetails, tc1, tc2) {
         }
         return html;
     };
-    return section('Starters', a.starters, b.starters) + section('Bench', a.bench, b.bench, 'BN');
+    const defs = lldScoreSlotDefs();
+    let startersHtml;
+    if (defs) {
+        const A = lldAssignScoreSlots(a.starters, defs), B = lldAssignScoreSlots(b.starters, defs);
+        const labels = defs.map(lldScoreSlotLabel).concat(Array(Math.max(A.left.length, B.left.length)).fill(null));
+        startersHtml = section('Starters', A.out.concat(A.left), B.out.concat(B.left), null, labels);
+    } else startersHtml = section('Starters', a.starters, b.starters);
+    return startersHtml + section('Bench', a.bench, b.bench, 'BN');
 }
 async function renderLiveScoreCard() {    const container = $('#scores-content-container');    const matchups = window._liveScoreMatchups || [];
     if (matchups.length === 0) {
