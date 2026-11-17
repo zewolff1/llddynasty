@@ -13247,12 +13247,12 @@ const html = (await Promise.all(rows.map(async row => {
 const fromImg = cells[1]?.querySelector('img');
 const fromName = fromImg?.alt || cells[1]?.querySelector('a')?.textContent.trim() || '';
 const fromFid = cells[1]?.querySelector('a')?.href.match(/F=(\d+)/)?.[1] || '';
-            const fromLogo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_icon${fromFid}.png`;
+            const fromLogo = getFranchiseLogoUrl(fromFid);
 
 const toImg = cells[3]?.querySelector('img');
 const toName = toImg?.alt || cells[3]?.querySelector('a')?.textContent.trim() || '';
 const toFid = cells[3]?.querySelector('a')?.href.match(/F=(\d+)/)?.[1] || '';
-            const toLogo = `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_franchise_icon${toFid}.png`;
+            const toLogo = getFranchiseLogoUrl(toFid);
 
 // Build a chip row (avatar + text) for each asset in a cell — one chip per player link,
             // and one chip per leftover plain-text pick description — instead of one flat text blob.
@@ -13408,6 +13408,7 @@ const rejectLink = makeLink(rejectHref);
                     <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">${(date || '').split(/\s+\d+:\d+/)[0]}</span>
                     <span style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim); margin-left:auto;">Expires ${(expires || '').split(/\s+\d+:\d+/)[0]}</span>
                 </div>
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;"><img src="${isOutgoing ? toLogo : fromLogo}" class="team-popup-trigger" data-fid="${isOutgoing ? toFid : fromFid}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex-shrink:0; cursor:pointer;" onerror="this.style.display='none'"><span style="font-size:calc(12px * var(--ts,1)); font-weight:900; color:#fff; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><i style="font-style:normal; font-weight:800; color:var(--text-dim); font-size:calc(9px * var(--ts,1)); letter-spacing:.06em; text-transform:uppercase; margin-right:6px;">${isOutgoing ? 'To' : 'From'}</i>${isOutgoing ? toName : fromName}</span></div>
                 ${line('GIVE', '#ef4444', nm(myGive))}${line('GET', '#22c55e', nm(myGet))}
                 <button type="button" class="tp-vd" data-tid="${tradeId || ('t' + date)}">View details</button>
             </div>`;
