@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LLD Dynasty</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LLD">
+<meta name="theme-color" content="#070b14">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+html,body{margin:0;background:#070b14;color:#e5e7eb;font-family:-apple-system,system-ui,sans-serif}
+#lld-app-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:radial-gradient(120% 80% at 15% 0%,rgba(0,206,184,.18),transparent 55%),#070b14}
+#lld-app-login form{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px}
+#lld-app-login h1{margin:0 0 4px;font-size:22px;text-align:center}
+#lld-app-login input{padding:13px 14px;border-radius:10px;border:1px solid #243049;background:#0f1626;color:#fff;font-size:16px}
+#lld-app-login button{padding:13px;border-radius:10px;border:0;background:#14b8a6;color:#04201d;font-weight:800;font-size:16px}
+#lld-app-err{min-height:18px;color:#f87171;font-size:13px;text-align:center}
+#lld-app-boot{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#94a3b8;font-size:13px}
+</style>
+</head>
+<body>
+<div id="lld-app-boot">Loading your league…</div>
+<div id="lld-app-login" style="display:none">
+  <form id="lld-app-form" autocomplete="on">
+    <h1>LLD Dynasty</h1>
+    <input name="username" placeholder="MFL username" autocomplete="username" autocapitalize="none" required>
+    <input name="password" type="password" placeholder="MFL password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <div id="lld-app-err"></div>
+  </form>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

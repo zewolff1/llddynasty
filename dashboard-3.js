@@ -1306,7 +1306,7 @@ function lldFxBuild(kind, host) {
     const small = Math.min(window.innerWidth, 700) < 600;
     if (kind === 'fall' || kind === 'thanksgiving') {
         const cols = kind === 'fall' ? ['#e8731c', '#c2410c', '#f0a030', '#9a3412', '#d9a21b'] : ['#b8412a', '#d9822b', '#e3b23c', '#7a4a21', '#a33a2c'];
-        const n = small ? 9 : 16;
+        const n = kind === 'thanksgiving' ? (small ? 3 : 5) : (small ? 9 : 16);
         for (let k = 0; k < n; k++) {
             const d = kind === 'fall' ? r(9, 17) : r(14, 24), sz = kind === 'fall' ? r(12, 20) : r(12, 20);
             add('fx-p ' + (kind === 'fall' ? 'leaf' : 'feather'), { '--x': r(-2, 98).toFixed(1) + '%', '--sz': sz.toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--dx': r(-90, 90).toFixed(0) + 'px', '--rot': r(-360, 360).toFixed(0) + 'deg' }, kind === 'fall' ? lldFxLeaf(cols[k % cols.length]) : lldFxFeather(cols[k % cols.length]));
