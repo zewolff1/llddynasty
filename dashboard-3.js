@@ -2829,6 +2829,28 @@ function lldApvLuBar() {
     return `<div id="apv-lu-bar" class="apv-bar"></div>`;
 }
 
+// ===== BETA (0000 / 0001): compact Sleeper-density Lineup rows (switch "clr") =====
+// One slim row per player: ranks + boom / bust (+ Steady / Volatile word) run along the bottom of the row instead of a second box under it.
+function lldClrOn() { try { return lldDev() && lldBv('clr') === '1'; } catch (e) { return false; } }
+function lldClrAvg(p) { const O = window._apv.on, a = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1); return O.now ? `<span class="lld-clr-av">${a} avg</span>` : ''; }
+function lldClrFoot(p) {
+    const A = window._apv, O = A.on, x = p._ap, cur = lldApvNow(p.pid), lb = r => r ? p.pos + '#' + r : '\u2013';
+    const df = r => { if (!cur || !r) return ''; const d = cur - r; return d === 0 ? '<s class="eq">\u2013</s>' : d > 0 ? `<s class="up">\u25B2${d}</s>` : `<s class="dn">\u25BC${-d}</s>`; };
+    const rk = [];
+    if (O.now) rk.push(`<span><u>NOW</u><b class="now">${cur ? p.pos + '#' + cur : 'NR'}</b></span>`);
+    if (O.ros) rk.push(`<span><u>ROS</u><b>${lb(p._rROS)}</b>${df(p._rROS)}</span>`);
+    if (O.dyn) rk.push(`<span><u>DYN</u><b>${lb(p._rDYN)}</b>${df(p._rDYN)}</span>`);
+    let bb = '';
+    if ((O.bb || O.bu || O.co) && x && x.n >= 3) {
+        const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542', a = [];
+        if (O.bb) a.push(`<span class="apv-bbc"><b class="apv-bo">${bo}%</b>\u2191</span>`);
+        if (O.bu) a.push(`<span class="apv-bbc"><b class="apv-bu">${bu}%</b>\u2193</span>`);
+        if (O.co && lldBv('clrv') !== '0') a.push(`<span class="apv-bbc"><em style="color:${col}">${x.lab}</em></span>`);
+        (window._apvSlP = window._apvSlP || {})[String(p.pid)] = p;
+        bb = `<div class="apv-sl in" data-pid="${p.pid}">${a.join('')}</div>`;
+    }
+    return (rk.length || bb) ? `<div class="lld-clr-f"><div class="lld-clr-rk">${rk.join('')}</div>${bb}</div>` : '';
+}
 function lldApvLuRow(el, p) {
     const O = window._apv.on, $r = $(el), pi = $r.find('.lld-pi, .player-info').first(), sv = playerSortBy; playerSortBy = '';
     try {
@@ -2840,8 +2862,10 @@ function lldApvLuRow(el, p) {
             l1.innerHTML = parts.join(' · '); l1.style.display = parts.length ? '' : 'none';
         }
         const l2 = el.querySelector('.lld-l2'); if (l2) l2.style.display = O.df ? '' : 'none';
-        const det = el.querySelector('.lld-det'); if (det) { if (det.dataset.o == null) det.dataset.o = det.innerHTML; det.innerHTML = lldApvRight(p); }
-        const sl = lldApvLine(p); if (sl) { el.insertAdjacentHTML('afterend', sl.replace('class="apv-sl"', 'class="apv-sl lu"')); el.classList.add('apv-lu-s'); } else el.classList.remove('apv-lu-s');
+        const clr = lldClrOn(); el.querySelectorAll(':scope > .lld-clr-f').forEach(x => x.remove());
+        const det = el.querySelector('.lld-det'); if (det) { if (det.dataset.o == null) det.dataset.o = det.innerHTML; det.innerHTML = clr ? lldClrAvg(p) : lldApvRight(p); }
+        if (clr) { const f = lldClrFoot(p); if (f) el.insertAdjacentHTML('beforeend', f); el.classList.remove('apv-lu-s'); el.classList.add('apv-lu-c'); }
+        else { el.classList.remove('apv-lu-c'); const sl = lldApvLine(p); if (sl) { el.insertAdjacentHTML('afterend', sl.replace('class="apv-sl"', 'class="apv-sl lu"')); el.classList.add('apv-lu-s'); } else el.classList.remove('apv-lu-s'); }
     } finally { playerSortBy = sv; }
     el.classList.add('apv-lu-done');
 }
@@ -13802,7 +13826,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 
@@ -13914,6 +13938,7 @@ function lldApplyBeta() {
     c.toggle('lld-slp', b && lldBv('slp') === '1');
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
+    c.toggle('lld-clr', lldClrOn());
     try { lldNavApply(); } catch (e) { }
     try { if (window.lldTdSync) window.lldTdSync(); } catch (e) { }
     try { if (window.lldAwSync) window.lldAwSync(); } catch (e) { }
@@ -16147,7 +16172,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact Lineup rows: Sleeper-style slim rows with ranks and boom / bust along the bottom')}${onoff('clr')}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -16176,7 +16201,7 @@ $(document).on('click', '.lld-b-btn', function () {
     lldSet('lld_b_' + this.dataset.k, this.dataset.v);
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
-    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv' || this.dataset.k === 'shb') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
+    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv' || this.dataset.k === 'shb' || this.dataset.k === 'clr' || this.dataset.k === 'clrv') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
     try { if (this.dataset.k === 'lock' || this.dataset.k === 'rv') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
