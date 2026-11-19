@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-09-23 3";
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-4"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -7259,7 +7259,7 @@ window._dynErr = window._dynErr || {};
 window._dynFull = window._dynFull || {}; // grp -> pid -> { pts, adp } from FantasySharks (your league's scoring)
 // Dynasty ranks: FantasySharks' own dynasty list first (matched to MFL players by name), MFL's rankings report if that can't be reached.
 function lldNormName(n) { return String(n || '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '').replace(/[^a-z]/g, ''); }
-function lldApv() { return true; } // out of beta: everyone gets the new Lineup / Manage / Players views
+function lldApv() { return true; } window.lldApv = lldApv; // also global: lldMyBlockTab (outside the main closure) calls it // out of beta: everyone gets the new Lineup / Manage / Players views
 // MFL players by name, so FantasySharks' lists (Name = "Last, First", Pos, Team) can be matched to MFL player ids
 function lldMflNameDb() {
     if (!window._mflNameDb) window._mflNameDb = (async () => {
