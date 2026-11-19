@@ -2867,7 +2867,8 @@ function lldCondPickInfo(p, holder) {
 .lc-c b{color:#f5c542}.lc-c i{font-style:normal;color:#2dd4bf;font-weight:900}.lc-c small{display:block;color:var(--text-dim);font-weight:700}
 .lc-b{padding:7px 12px;border-radius:8px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(10px * var(--ts,1));text-transform:uppercase;cursor:pointer}
 .lc-x{background:none;border:0;color:#f87171;font-size:calc(13px * var(--ts,1));cursor:pointer}.lc-m{font-size:calc(10px * var(--ts,1));color:var(--text-dim)}.lc-e{color:#f87171}
-.lc-lk{color:#f5c542;font-weight:900}`; document.head.appendChild(st); } } catch (e) { } })();
+.lc-lk{color:#f5c542;font-weight:900}
+.lc-pk{flex-shrink:0;margin-left:4px;padding:3px 7px;border-radius:12px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(9px * var(--ts,1));cursor:pointer}.lc-pk.on{background:#f5c542;color:#1a1300}`; document.head.appendChild(st); } } catch (e) { } })();
 function lldCondCtx() { try { return window._lldCondCtx ? window._lldCondCtx() : null; } catch (e) { return null; } }
 function lldCondState() { return window._lldCondSt = window._lldCondSt || { tr: 'rank', out: 'swap', list: [] }; }
 function lldCondPanelHtml() {
@@ -2891,6 +2892,7 @@ function lldCondRefresh() {
     const gone = x => !A.picks.some(p => p.v === x);
     S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
     const old = {}; host.querySelectorAll('select,input').forEach(el => { if (el.id) old[el.id] = el.value; });
+    if (S.pickPre) { old['lc-a'] = S.pickPre; S.pickPre = null; if (S.out === 'add') { S.out = 'swap'; delete old['lc-out']; } }
     const sel = (id, opts, def) => `<select id="${id}">${opts.map(o => { const v = typeof o === 'object' ? o.v : o, l = typeof o === 'object' ? o.l : o; const cur = old[id] != null ? old[id] : def; return `<option value="${lldCondEsc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${lldCondEsc(l)}</option>`; }).join('')}</select>`;
     const pls = A.players.map(p => ({ v: p.v, l: p.label })), tms = [{ v: 'mine', l: tn.mine }, { v: 'theirs', l: tn.theirs }], ssn = sel('lc-s', seasons, seasons[0]);
     const num = (id, v) => `<input type="number" id="${id}" value="${old[id] != null ? old[id] : v}" min="0">`;
@@ -2910,7 +2912,7 @@ function lldCondRefresh() {
         if (!A.picks.length) o += '<span class="lc-m lc-e">Select a pick in the trade first.</span>';
         else {
             o += sel('lc-a', A.picks.map(p => ({ v: p.v, l: tn[p.side] + '\u2019s ' + p.label })), A.picks[0].v);
-            aVal = (host.querySelector('#lc-a') || {}).value || A.picks[0].v; if (!A.picks.some(p => p.v === aVal)) aVal = A.picks[0].v;
+            aVal = old['lc-a'] || A.picks[0].v; if (!A.picks.some(p => p.v === aVal)) aVal = A.picks[0].v;
             if (S.out === 'swap') { const ap = A.picks.find(p => p.v === aVal), rest = A.rest[ap.side]; o += '<label>becomes</label>' + (rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'); }
         }
     } else { o += sel('lc-w', tms, 'mine') + '<label>also sends</label>'; const sd = (host.querySelector('#lc-w') || { value: 'mine' }).value, rest = A.rest[old['lc-w'] || sd]; o += rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'; }
@@ -2948,9 +2950,14 @@ $(document).on('change', '#lld-cond-b select', function () {
 $(document).on('click', '#lc-add', function () {
     const r = lldCondBuild(), er = document.getElementById('lc-err');
     if (r.err) { if (er) er.textContent = r.err; return; }
-    lldCondState().list.push(r.c); lldCondRefresh();
+    lldCondState().list.push(r.c); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { }
 });
-$(document).on('click', '#lld-cond-b .lc-x', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); });
+$(document).on('click', '#lld-cond-b .lc-x', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { } });
+$(document).on('click touchend', '.lc-pk', function (e) {
+    if (e.type === 'touchend') e.preventDefault(); e.stopPropagation();
+    const S = lldCondState(); S.pickPre = this.dataset.side + ':' + this.dataset.pid; if (S.out === 'add') S.out = 'swap'; lldCondRefresh();
+    const h = document.getElementById('lld-cond-b'); if (h && h.scrollIntoView) h.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
 setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).length && document.querySelector('.apv-ct-gh')) { try { renderActiveTab(); } catch (e) { } } }); } catch (e) { } }, 2500);
 
 // ===== BETA (0000 / 0001): compact Sleeper-density Lineup rows (switch "clr") =====
@@ -12888,7 +12895,7 @@ async function fetchTargetRoster(tFid) {
 }
 
 let theirPlayers = await fetchTargetRoster(activeFid);
-        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [] };
+        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { $('#my-roster-list').html(myPlayers.map(p => buildPlayerChip(p, mySelected, 'mine')).join('')); $('#their-roster-list').html(theirPlayers.map(p => buildPlayerChip(p, theirSelected, 'theirs')).join('')); } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [] };
         try { await Promise.race([lldCondLoadLocks(), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
         const theirPicks = await fetchTargetPicks(activeFid);
         theirPicks.forEach(pick => {
@@ -12978,7 +12985,8 @@ function lldTpFidByName(n) { n = String(n || '').trim().toLowerCase(); if (!n) r
 function lldTpBuilderPick(p, isSelected, side, plain, ownerFid) {
     const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', origFid = via ? lldTpFidByName(via) : ownerFid;
     const lock = lldCondLockOf(p.pickYear, p.pickRound, origFid);
-    const left = plain ? '' : lock ? '<span title="Locked by a condition" style="font-size:18px;">\uD83D\uDD12</span>' : lldTpAddBtn(p, isSelected, side);
+    let ifb = ''; if (!plain && !lock && isSelected && lldCondOn()) { const has = lldCondState().list.some(c => c.a === side + ':' + p.pid); ifb = `<button type="button" class="lc-pk${has ? ' on' : ''}" data-pid="${p.pid}" data-side="${side}" title="Add a condition to this pick">${has ? 'IF \u2713' : 'IF'}</button>`; }
+    const left = plain ? '' : lock ? '<span title="Locked by a condition" style="font-size:18px;">\uD83D\uDD12</span>' : lldTpAddBtn(p, isSelected, side) + ifb;
     return lldTpPickRow({ pid: p.pid, year: p.pickYear, round: p.pickRound, pickStr: p.pickStr, via, origFid, left, lock, style: isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : '' });
 }
 // Cap bar: grey = used now, colored = used after the trade.
