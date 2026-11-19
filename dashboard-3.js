@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-13"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-14"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -25046,7 +25046,13 @@ async function lldStatsLoad(force) {
         } catch (e) { delete D.rec; }
         prog('Loading box scores…');
         const byWk = {};
-        await lldSxBatch(wks, 2, async wk => { byWk[wk] = (await lldSxRetry(() => { delete window._recapWeekCache[wk]; return fetchRecapWeek(wk, true); }, r => r && r.length)) || []; });
+        // finished weeks never change, so each one is saved on this device the first time and never fetched again (only the newest week is re-fetched)
+        const wkKey = wk => 'sxw_' + year + '_' + lid + '_' + wk, newest = wks.length ? wks[wks.length - 1] : 0;
+        await lldSxBatch(wks, 4, async wk => {
+            if (wk < newest) { try { const c = await lldIdbGet(wkKey(wk)); if (c && c.R && c.R.length) { byWk[wk] = c.R; return; } } catch (e) { } }
+            byWk[wk] = (await lldSxRetry(() => { delete window._recapWeekCache[wk]; return fetchRecapWeek(wk, true); }, r => r && r.length)) || [];
+            if (wk < newest && byWk[wk].length) { try { await lldIdbSet(wkKey(wk), { R: byWk[wk], t: Date.now() }); } catch (e) { } }
+        });
         wks.forEach(wk => {
             const teams = {};
             (byWk[wk] || []).forEach(m => {
@@ -25063,7 +25069,12 @@ async function lldStatsLoad(force) {
         prog('Loading projections…');
         const lastWk = D.weeks.length ? D.weeks[D.weeks.length - 1].wk : 0;
         const projWeeks = []; for (let w = 1; w <= D.reg; w++) projWeeks.push(w);
-        await lldSxBatch(projWeeks, 2, async w => { D.proj[w] = (await lldSxRetry(() => { delete window._weekProjScoreCache[String(w)]; return fetchWeekProjectedScoresMap(w); }, m => m && Object.keys(m).length, w <= lastWk + 1 ? 3 : 1)) || {}; });
+        const prKey = w => 'sxp_' + year + '_' + lid + '_' + w;
+        await lldSxBatch(projWeeks, 4, async w => {
+            if (w < lastWk) { try { const c = await lldIdbGet(prKey(w)); if (c && c.M && Object.keys(c.M).length) { D.proj[w] = c.M; return; } } catch (e) { } }
+            D.proj[w] = (await lldSxRetry(() => { delete window._weekProjScoreCache[String(w)]; return fetchWeekProjectedScoresMap(w); }, m => m && Object.keys(m).length, w <= lastWk + 1 ? 3 : 1)) || {};
+            if (w < lastWk && Object.keys(D.proj[w]).length) { try { await lldIdbSet(prKey(w), { M: D.proj[w], t: Date.now() }); } catch (e) { } }
+        });
         prog('Loading free agents…');
         try {
             const fa = await lldSxJson('freeAgents'); const ids = [];
