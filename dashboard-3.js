@@ -2873,7 +2873,7 @@ function lldCondCtx() { try { return window._lldCondCtx ? window._lldCondCtx() :
 function lldCondState() { return window._lldCondSt = window._lldCondSt || { tr: 'rank', out: 'swap', list: [] }; }
 function lldCondPanelHtml() {
     setTimeout(() => { try { lldCondRefresh(); } catch (e) { } }, 0);
-    return `<div class="lc-box" id="lld-cond-panel"><div class="lc-h">Note to the other owner</div><textarea id="trade-hub-comments" placeholder="Optional comment sent with the proposal"></textarea>${lldCondOn() ? '<div id="lld-cond-b"></div>' : ''}</div>`;
+    return `<div class="lc-box" id="lld-cond-panel"><div class="lc-h">Note to the other owner</div><textarea id="trade-hub-comments" placeholder="Optional comment sent with the proposal"></textarea><div id="lld-cond-b"></div></div>`;
 }
 function lldCondAssets() {
     const c = lldCondCtx(); if (!c) return null;
@@ -2887,7 +2887,7 @@ function lldCondAssets() {
 }
 function lldCondRefresh() {
     const host = document.getElementById('lld-cond-b'); if (!host) return;
-    const A = lldCondAssets(); if (!A) { host.innerHTML = ''; return; }
+    const A = lldCondOn() ? lldCondAssets() : null; if (!A) { host.innerHTML = ''; return; }
     const S = lldCondState(), c = A.c, yr = parseInt(year, 10), seasons = [yr, yr + 1, yr + 2].map(String), tn = { mine: leagueFranchises[c.myFid] || 'You', theirs: leagueFranchises[c.theirFid] || 'Them' };
     const gone = x => !A.picks.some(p => p.v === x);
     S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
