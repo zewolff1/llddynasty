@@ -57,6 +57,19 @@
     if (sc && session) { session.cookie = sc; save(session); }
     return res;
   }
+  /* Share + retry: the dashboard asks MFL for the same thing many times at once (and MFL answers "429 too many requests").
+     So identical GET requests made at the same moment share one answer, recent answers are reused for a short time,
+     and a 429 is retried after a short wait instead of failing. Any write to MFL clears the saved answers. */
+  var TTL = { league: 600000, rules: 3600000, allRules: 3600000, players: 3600000, nflByeWeeks: 3600000, nflSchedule: 300000, calendar: 300000, injuries: 120000, salaries: 60000, assets: 30000, futureDraftPicks: 30000, schedule: 120000, leagueStandings: 30000, weeklyResults: 60000, playerScores: 30000, projectedScores: 60000, tradeBait: 20000, messageBoard: 20000, transactions: 20000, rosters: 20000, liveScoring: 15000 };
+  var DEFAULT_TTL = 10000, inflight = {}, saved = {};
+  function kindOf(u) { var m = String(u).match(/[?&]TYPE=([A-Za-z]+)/i); return m ? m[1] : ''; }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function send(to, init, tries) {
+    return realFetch(to, init).then(function (res) {
+      if (res.status === 429 && tries < 3) return sleep(700 * Math.pow(2, tries) + Math.random() * 400).then(function () { return send(to, init, tries + 1); });
+      return res;
+    });
+  }
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input : (input && input.url) || String(input);
     var to = rewrite(url);
@@ -68,11 +81,19 @@
     if (session) h.set('X-MFL-Cookie', session.cookie);
     h.set('X-MFL-Host', C.host);
     init.headers = h;
-    return realFetch(to, init).then(function (res) {
-      remember(res);
-      if (res.status === 200 && /^(401|403)$/.test(res.headers.get('X-MFL-Status') || '')) { /* session ended */ }
-      return res;
+    var isGet = !init.method || String(init.method).toUpperCase() === 'GET', kind = isGet ? kindOf(url) : '', key = kind ? to + '|' + (session ? session.fid : '') : '';
+    if (!isGet) { saved = {}; inflight = {}; }
+    var finish = function (res) { remember(res); return res; };
+    if (!key) return send(to, init, 0).then(finish);
+    var hit = saved[key];
+    if (hit && Date.now() - hit.t < (TTL[kind] || DEFAULT_TTL)) return Promise.resolve(new Response(hit.body, { status: 200, headers: { 'Content-Type': hit.ct } }));
+    if (inflight[key]) return inflight[key].then(function (r) { return r.clone(); });
+    var p = send(to, init, 0).then(finish).then(function (res) {
+      if (res.status !== 200) return res;
+      return res.clone().text().then(function (body) { saved[key] = { t: Date.now(), body: body, ct: res.headers.get('Content-Type') || 'application/json' }; return res; });
     });
+    inflight[key] = p; var done = function () { delete inflight[key]; }; p.then(done, done);
+    return p.then(function (r) { return r.clone(); });
   };
   function patchJquery() {
     if (!window.jQuery || window.jQuery.__lldPatched) return;
