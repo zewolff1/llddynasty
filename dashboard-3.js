@@ -2800,7 +2800,7 @@ function lldApvPicksHtml(C) {
         else if (+pk.year === ny && pj && x.o.f) { const i = pj.order.indexOf(x.o.f); if (i >= 0) right = `<div class="apv-r3"><u>PROJ</u><b class="now">${pk.round}.${pad(i + 1)}</b></div>`; }
         const lg = x.o.f ? `<img src="${getFranchiseLogoUrl(x.o.f)}" onerror="this.style.display='none'" style="width:14px;height:14px;border-radius:50%;object-fit:cover;vertical-align:-2px;margin-right:4px">` : '';
         const nm = `${pk.year} Round ${pk.round}`;
-        const slim = x.st ? `<div class="apv-sl"><span><b>${LLDTB_ST[x.st][0]}</b></span></div>` : '';
+        const lkc = lldCondLockOf(pk.year, pk.round, x.o.f || fid), slim = (x.st ? `<div class="apv-sl"><span><b>${LLDTB_ST[x.st][0]}</b></span></div>` : '') + (lkc ? `<div class="apv-sl"><span class="lc-lk">\uD83D\uDD12 Conditional pick \u00B7 locked until ${lldCondFmt(lkc.u)} \u00B7 ${lldCondEsc(lkc.i)}</span></div>` : '');
         return '<div class="apv-yc">' + buildUniversalRow({ pid: x.key, name: nm, shortName: nm, pos: 'PICK', team: '' }, {
             compact: true, tplKind: 'all', noTabs: true, noDet: true, topRight: right,
             tpl: { match: [x.o.via ? lg + 'via ' + x.o.via : 'Your own pick', ''], sal: '', proj: right, k: null, rk: null },
@@ -2828,6 +2828,130 @@ function lldApvLuTools() {
 function lldApvLuBar() {
     return `<div id="apv-lu-bar" class="apv-bar"></div>`;
 }
+
+// ===== Conditional picks (beta switch "cnd", 0000 / 0001 can write them; everyone sees the locks) =====
+// A condition is plain text in the trade's MFL comment:  IF: ... | THEN: ... | UNTIL: 2027-01-10 | LOCK: 2027-R2-0001,2027-R3-0001;
+// Picks named in LOCK stay with their team (they are left out of the MFL trade) and show as locked on the site until the UNTIL date passes.
+function lldCondOn() { try { return lldDev() && lldBv('cnd') === '1'; } catch (e) { return false; } }
+function lldCondEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function lldCondClean(s) { return String(s == null ? '' : s).replace(/[|;\n\r]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function lldCondKey(y, r, f) { return y + '-R' + r + '-' + String(f || '').padStart(4, '0'); }
+function lldCondLine(c) { return 'IF: ' + c.i + ' | THEN: ' + c.t + ' | UNTIL: ' + c.u + ' | LOCK: ' + c.l.join(',') + ';'; }
+function lldCondParse(txt) {
+    const out = [], re = /IF:\s*(.+?)\s*\|\s*THEN:\s*(.+?)\s*\|\s*UNTIL:\s*(\d{4}-\d{2}-\d{2})\s*\|\s*LOCK:\s*([^;]*);/g; let m;
+    const s = String(txt || ''); while ((m = re.exec(s))) out.push({ i: m[1], t: m[2], u: m[3], l: m[4].split(',').map(x => x.trim()).filter(Boolean) });
+    return out;
+}
+function lldCondToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function lldCondFmt(u) { const a = String(u).split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+function lldCondLockOf(y, r, f) { const l = (window._lldCondLocks || {})[lldCondKey(y, r, f)]; return (l && l.u >= lldCondToday()) ? l : null; }
+async function lldCondLoadLocks(force) {
+    const c = window._lldCondLk; if (!force && c && Date.now() - c.t < 300000) return c.m;
+    const m = {};
+    try {
+        const ys = [String(year), String(parseInt(year, 10) - 1)], lists = await Promise.all(ys.map(y => pvFetchTransactions(y, true)));
+        lists.forEach(l => l.forEach(t => lldCondParse(t.comments || t.comment || t.note || '').forEach(cd => cd.l.forEach(k => { if (!m[k] || m[k].u < cd.u) m[k] = { u: cd.u, i: cd.i, t: cd.t }; }))));
+    } catch (e) { console.warn('cond locks', e); }
+    window._lldCondLk = { t: Date.now(), m }; window._lldCondLocks = m; return m;
+}
+function lldCondPickInfo(p, holder) {
+    const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', o = (via && lldTpFidByName(via)) || holder;
+    return { key: lldCondKey(p.pickYear, p.pickRound, o), label: p.pickYear + ' R' + p.pickRound + (p.pickStr ? ' (' + p.pickStr + ')' : '') + (via && o !== holder ? ' via ' + via : '') };
+}
+(function () { try { if (!document.getElementById('lld-cond-css')) { const st = document.createElement('style'); st.id = 'lld-cond-css'; st.textContent = `.lc-box{margin-top:10px;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:8px}
+.lc-h{font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f5c542}
+.lc-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.lc-r>label{font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);min-width:38px}
+.lc-box select,.lc-box input,.lc-box textarea{background:rgba(0,0,0,.35);color:#fff;border:1px solid var(--card-border);border-radius:6px;padding:6px 7px;font-size:calc(11px * var(--ts,1));font-weight:700;min-width:0;max-width:100%;font-family:inherit}
+.lc-box textarea{width:100%;min-height:54px;box-sizing:border-box}.lc-box input[type=number]{width:58px}
+.lc-c{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;border-left:3px solid #f5c542;background:rgba(255,255,255,.05);border-radius:6px;padding:6px 8px;font-size:calc(10.5px * var(--ts,1));font-weight:700;color:#fff}
+.lc-c b{color:#f5c542}.lc-c i{font-style:normal;color:#2dd4bf;font-weight:900}.lc-c small{display:block;color:var(--text-dim);font-weight:700}
+.lc-b{padding:7px 12px;border-radius:8px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(10px * var(--ts,1));text-transform:uppercase;cursor:pointer}
+.lc-x{background:none;border:0;color:#f87171;font-size:calc(13px * var(--ts,1));cursor:pointer}.lc-m{font-size:calc(10px * var(--ts,1));color:var(--text-dim)}.lc-e{color:#f87171}
+.lc-lk{color:#f5c542;font-weight:900}`; document.head.appendChild(st); } } catch (e) { } })();
+function lldCondCtx() { try { return window._lldCondCtx ? window._lldCondCtx() : null; } catch (e) { return null; } }
+function lldCondState() { return window._lldCondSt = window._lldCondSt || { tr: 'rank', out: 'swap', list: [] }; }
+function lldCondPanelHtml() {
+    setTimeout(() => { try { lldCondRefresh(); } catch (e) { } }, 0);
+    return `<div class="lc-box" id="lld-cond-panel"><div class="lc-h">Note to the other owner</div><textarea id="trade-hub-comments" placeholder="Optional comment sent with the proposal"></textarea>${lldCondOn() ? '<div id="lld-cond-b"></div>' : ''}</div>`;
+}
+function lldCondAssets() {
+    const c = lldCondCtx(); if (!c) return null;
+    const mk = (sel, arr, side, fid) => {
+        const sp = [], spk = [], rest = [];
+        arr.forEach(p => { const id = String(p.pid), on = sel.has(id); if (p.isPick) { const i = lldCondPickInfo(p, fid); const o = { v: side + ':' + id, id, side, fid, p, info: i, label: i.label }; if (on) spk.push(o); else rest.push(o); } else if (on) sp.push({ v: side + ':' + id, id, side, fid, label: p.shortName || p.name }); });
+        return { sp, spk, rest };
+    };
+    const a = mk(c.mySel, c.myP, 'mine', c.myFid), b = mk(c.theirSel, c.theirP, 'theirs', c.theirFid);
+    return { c, players: a.sp.concat(b.sp), picks: a.spk.concat(b.spk), rest: { mine: a.rest, theirs: b.rest } };
+}
+function lldCondRefresh() {
+    const host = document.getElementById('lld-cond-b'); if (!host) return;
+    const A = lldCondAssets(); if (!A) { host.innerHTML = ''; return; }
+    const S = lldCondState(), c = A.c, yr = parseInt(year, 10), seasons = [yr, yr + 1, yr + 2].map(String), tn = { mine: leagueFranchises[c.myFid] || 'You', theirs: leagueFranchises[c.theirFid] || 'Them' };
+    const gone = x => !A.picks.some(p => p.v === x);
+    S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
+    const old = {}; host.querySelectorAll('select,input').forEach(el => { if (el.id) old[el.id] = el.value; });
+    const sel = (id, opts, def) => `<select id="${id}">${opts.map(o => { const v = typeof o === 'object' ? o.v : o, l = typeof o === 'object' ? o.l : o; const cur = old[id] != null ? old[id] : def; return `<option value="${lldCondEsc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${lldCondEsc(l)}</option>`; }).join('')}</select>`;
+    const pls = A.players.map(p => ({ v: p.v, l: p.label })), tms = [{ v: 'mine', l: tn.mine }, { v: 'theirs', l: tn.theirs }], ssn = sel('lc-s', seasons, seasons[0]);
+    const num = (id, v) => `<input type="number" id="${id}" value="${old[id] != null ? old[id] : v}" min="0">`;
+    const TR = { rank: 'A player finishes in the top N at his position', pts: 'A player scores at least N fantasy points', gp: 'A player plays at least N games', nfl: 'A player is (or isn\u2019t) on an NFL roster in Week X', po: 'A team makes the playoffs', wins: 'A team wins at least N games', champ: 'A team wins the title' };
+    const needP = ['rank', 'pts', 'gp', 'nfl'].includes(S.tr);
+    let f = '';
+    if (needP) f += pls.length ? sel('lc-p', pls, pls[0].v) : '<span class="lc-m lc-e">Select a player in the trade first.</span>';
+    if (S.tr === 'rank') f += '<label>top</label>' + num('lc-n', 24) + sel('lc-pos', ['QB', 'RB', 'WR', 'TE'], 'RB') + '<label>in</label>' + ssn;
+    if (S.tr === 'pts') f += '<label>at least</label>' + num('lc-n', 150) + '<label>pts in</label>' + ssn;
+    if (S.tr === 'gp') f += '<label>at least</label>' + num('lc-n', 12) + '<label>games in</label>' + ssn;
+    if (S.tr === 'nfl') f += sel('lc-st', ['is', 'is not'], 'is') + '<label>on an NFL roster, Week</label>' + num('lc-n', 1) + '<label>of</label>' + ssn;
+    if (S.tr === 'po' || S.tr === 'champ') f += sel('lc-t', tms, 'mine') + '<label>in</label>' + ssn;
+    if (S.tr === 'wins') f += sel('lc-t', tms, 'mine') + '<label>at least</label>' + num('lc-n', 9) + '<label>wins in</label>' + ssn;
+    const OUT = { swap: 'A pick in the trade becomes a different pick', drop: 'A pick in the trade comes out of the deal', add: 'A pick is added to the deal' };
+    let o = '', aVal = '';
+    if (S.out === 'swap' || S.out === 'drop') {
+        if (!A.picks.length) o += '<span class="lc-m lc-e">Select a pick in the trade first.</span>';
+        else {
+            o += sel('lc-a', A.picks.map(p => ({ v: p.v, l: tn[p.side] + '\u2019s ' + p.label })), A.picks[0].v);
+            aVal = (host.querySelector('#lc-a') || {}).value || A.picks[0].v; if (!A.picks.some(p => p.v === aVal)) aVal = A.picks[0].v;
+            if (S.out === 'swap') { const ap = A.picks.find(p => p.v === aVal), rest = A.rest[ap.side]; o += '<label>becomes</label>' + (rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'); }
+        }
+    } else { o += sel('lc-w', tms, 'mine') + '<label>also sends</label>'; const sd = (host.querySelector('#lc-w') || { value: 'mine' }).value, rest = A.rest[old['lc-w'] || sd]; o += rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'; }
+    const list = S.list.map((cd, i) => `<div class="lc-c"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div><button type="button" class="lc-x" data-i="${i}">\u2715</button></div>`).join('');
+    host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${list || '<div class="lc-m">None. Picks named in a condition stay with their team and are locked until the date.</div>'}
+<div class="lc-r"><label>IF</label>${sel('lc-tr', Object.keys(TR).map(k => ({ v: k, l: TR[k] })), S.tr)}</div><div class="lc-r">${f}</div>
+<div class="lc-r"><label>THEN</label>${sel('lc-out', Object.keys(OUT).map(k => ({ v: k, l: OUT[k] })), S.out)}</div><div class="lc-r">${o}</div>
+<div class="lc-r"><label>Until</label><input type="date" id="lc-u" value="${lldCondEsc(old['lc-u'] || '')}"><span class="lc-m">locked through this date</span></div>
+<div class="lc-r"><button type="button" class="lc-b" id="lc-add">Add condition</button><span class="lc-m lc-e" id="lc-err"></span></div>`;
+    host.querySelector('#lc-tr').value = S.tr; host.querySelector('#lc-out').value = S.out;
+}
+function lldCondBuild() {
+    const A = lldCondAssets(), S = lldCondState(), $v = id => { const e = document.getElementById(id); return e ? e.value : ''; }; if (!A) return { err: 'Trade not ready.' };
+    const c = A.c, tn = { mine: leagueFranchises[c.myFid] || 'You', theirs: leagueFranchises[c.theirFid] || 'Them' }, ssn = $v('lc-s'), n = $v('lc-n'), u = $v('lc-u');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(u)) return { err: 'Pick the date the lock ends.' };
+    if (u < lldCondToday()) return { err: 'That date has already passed.' };
+    let i = '';
+    if (['rank', 'pts', 'gp', 'nfl'].includes(S.tr)) {
+        const pl = A.players.find(p => p.v === $v('lc-p')); if (!pl) return { err: 'Select a player in the trade first.' };
+        const nm = lldCondClean(pl.label);
+        i = S.tr === 'rank' ? `${nm} finishes top ${n} ${$v('lc-pos')} in ${ssn}` : S.tr === 'pts' ? `${nm} scores at least ${n} pts in ${ssn}` : S.tr === 'gp' ? `${nm} plays at least ${n} games in ${ssn}` : `${nm} ${$v('lc-st')} on an NFL roster in Week ${n} of ${ssn}`;
+    } else { const t = lldCondClean(tn[$v('lc-t')] || ''); i = S.tr === 'po' ? `${t} make the playoffs in ${ssn}` : S.tr === 'champ' ? `${t} win the title in ${ssn}` : `${t} win at least ${n} games in ${ssn}`; }
+    let t = '', lock = [], a = '';
+    if (S.out === 'swap' || S.out === 'drop') {
+        const ap = A.picks.find(p => p.v === $v('lc-a')); if (!ap) return { err: 'Select a pick in the trade first.' };
+        a = ap.v; lock.push(ap.info.key);
+        if (S.out === 'drop') t = `${lldCondClean(tn[ap.side])} ${ap.label} pick comes out of the deal`;
+        else { const bp = A.rest[ap.side].find(p => p.v === $v('lc-b')); if (!bp) return { err: 'Choose the pick it becomes.' }; lock.push(bp.info.key); t = `${lldCondClean(tn[ap.side])} ${ap.label} pick becomes ${bp.label}`; }
+    } else { const side = $v('lc-w'), bp = A.rest[side].find(p => p.v === $v('lc-b')); if (!bp) return { err: 'Choose the pick to add.' }; lock.push(bp.info.key); t = `${lldCondClean(tn[side])} also send ${bp.label}`; }
+    return { c: { i: lldCondClean(i), t: lldCondClean(t), u, l: lock, a } };
+}
+$(document).on('change', '#lld-cond-b select', function () {
+    const S = lldCondState(); if (this.id === 'lc-tr') S.tr = this.value; if (this.id === 'lc-out') S.out = this.value; lldCondRefresh();
+});
+$(document).on('click', '#lc-add', function () {
+    const r = lldCondBuild(), er = document.getElementById('lc-err');
+    if (r.err) { if (er) er.textContent = r.err; return; }
+    lldCondState().list.push(r.c); lldCondRefresh();
+});
+$(document).on('click', '#lld-cond-b .lc-x', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); });
+setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).length && document.querySelector('.apv-ct-gh')) { try { renderActiveTab(); } catch (e) { } } }); } catch (e) { } }, 2500);
 
 // ===== BETA (0000 / 0001): compact Sleeper-density Lineup rows (switch "clr") =====
 // One slim row per player: ranks + boom / bust (+ Steady / Volatile word) run along the bottom of the row instead of a second box under it.
@@ -12764,6 +12888,8 @@ async function fetchTargetRoster(tFid) {
 }
 
 let theirPlayers = await fetchTargetRoster(activeFid);
+        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [] };
+        try { await Promise.race([lldCondLoadLocks(), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
         const theirPicks = await fetchTargetPicks(activeFid);
         theirPicks.forEach(pick => {
             theirPlayers.push({
@@ -12836,7 +12962,8 @@ function lldTpPickRow(o) {
     if (o.pickStr) proj = o.pickStr;
     else if (+o.year === ny && pj && pj.order && o.origFid) { const i = pj.order.indexOf(String(o.origFid).padStart(4, '0')); if (i >= 0) proj = `${o.round}.${pad(i + 1)}`; }
     const right = proj ? `<div class="apv-r3"><u>${o.pickStr ? 'PICK' : 'PROJ'}</u><b class="now">${proj}</b></div>` : '';
-    const nm = `${o.year} Round ${o.round}`, l2 = o.pickStr ? `Pick <b>${proj}</b>` : proj ? `Projected pick <b>${proj}</b>` : 'Pick not set yet';
+    const nm = `${o.year} Round ${o.round}`; let l2 = o.pickStr ? `Pick <b>${proj}</b>` : proj ? `Projected pick <b>${proj}</b>` : 'Pick not set yet';
+    if (o.lock) l2 = `<b class="lc-lk">\uD83D\uDD12 Conditional pick \u00B7 locked until ${lldCondFmt(o.lock.u)}</b>`;
     const via = o.via ? ('via ' + String(o.via).replace(/["<>]/g, '')) : 'Original team pick';
     return '<div class="apv-yc">' + buildUniversalRow({ pid: o.pid || ('pk_' + o.year + '_' + o.round), name: nm, shortName: nm, pos: 'PICK', team: via }, {
         compact: true, tplKind: 'all', noTabs: true, noDet: true, topRight: right,
@@ -12850,8 +12977,9 @@ function lldTpFidByName(n) { n = String(n || '').trim().toLowerCase(); if (!n) r
 // A pick from the builder lists (p.isPick); ownerFid is the team that holds it now.
 function lldTpBuilderPick(p, isSelected, side, plain, ownerFid) {
     const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', origFid = via ? lldTpFidByName(via) : ownerFid;
-    const left = plain ? '' : lldTpAddBtn(p, isSelected, side);
-    return lldTpPickRow({ pid: p.pid, year: p.pickYear, round: p.pickRound, pickStr: p.pickStr, via, origFid, left, style: isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : '' });
+    const lock = lldCondLockOf(p.pickYear, p.pickRound, origFid);
+    const left = plain ? '' : lock ? '<span title="Locked by a condition" style="font-size:18px;">\uD83D\uDD12</span>' : lldTpAddBtn(p, isSelected, side);
+    return lldTpPickRow({ pid: p.pid, year: p.pickYear, round: p.pickRound, pickStr: p.pickStr, via, origFid, left, lock, style: isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : '' });
 }
 // Cap bar: grey = used now, colored = used after the trade.
 function lldTpCap(label, used, after, cap) {
@@ -13136,6 +13264,7 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
                 </div>
             </div>
 
+            ${lldCondPanelHtml()}
             <div id="trade-action-bar" style="display:flex; gap:8px; margin-top:10px;">
                 <button id="trade-back-btn" style="display:none; flex:1; padding:12px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">← Back</button>
                 <button id="trade-next-btn" style="flex:1; padding:12px; background:var(--accent-blue); color:#fff; border:none; border-radius:8px; font-size:calc(12px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">Next →</button>
@@ -13547,6 +13676,7 @@ $(document).off('click', '#trade-their-switcher').on('click', '#trade-their-swit
             });
             // Rebuilds the "Selected to Give / Get" box: full rows for each team, with that team's cap before and after.
             function updateTradeSummary() {
+                try { lldCondRefresh(); } catch (e) { }
 const playerChipHtml = (p) => {
                     if (!p) return '';
                     const name = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
@@ -13591,12 +13721,13 @@ $(document).off('click', '#trade-hub-submit').on('click', '#trade-hub-submit', a
                 }
                 $(this).text('Sending...').prop('disabled', true);
 try {
+                    const heldPk = new Set(lldCondState().list.map(c => c.a).filter(Boolean).map(v => v.split(':').slice(1).join(':')));
                     const myPlayerIds = [...mySelected].filter(id => !id.startsWith('pick_'));
                     const theirPlayerIds = [...theirSelected].filter(id => !id.startsWith('pick_'));
 
                     // Build pick objects from selected pick entries
-                    const myPickObjs = [...mySelected].filter(id => id.startsWith('pick_')).map(id => myPlayers.find(p => String(p.pid) === id)).filter(Boolean);
-                    const theirPickObjs = [...theirSelected].filter(id => id.startsWith('pick_')).map(id => theirPlayers.find(p => String(p.pid) === id)).filter(Boolean);
+                    const myPickObjs = [...mySelected].filter(id => id.startsWith('pick_') && !heldPk.has(id)).map(id => myPlayers.find(p => String(p.pid) === id)).filter(Boolean);
+                    const theirPickObjs = [...theirSelected].filter(id => id.startsWith('pick_') && !heldPk.has(id)).map(id => theirPlayers.find(p => String(p.pid) === id)).filter(Boolean);
 
                     // MFL's real pick-ID scheme (same convention the Trade Block feature already uses):
                     // current-year picks -> DP_{round-1}_{pickInRound-1}, future picks -> FP_{ownerFid}_{year}_{round}
@@ -13617,6 +13748,7 @@ try {
                     // Merge picks into the SAME give-up/receive lists as players — MFL has no separate pick params
                     const giveUpAll = [...myPlayerIds, ...myPickIds];
                     const receiveAll = [...theirPlayerIds, ...theirPickIds];
+                    if (!giveUpAll.length && !receiveAll.length) { alert('Every asset in this trade is held back by a condition. Add at least one player or pick that moves right away.'); $(this).text('Send Proposal').prop('disabled', false); return; }
 
                     const params = new URLSearchParams();
                     params.append('TYPE', 'tradeProposal');
@@ -13626,7 +13758,7 @@ try {
                     params.append('WILL_GIVE_UP', giveUpAll.join(','));
                     params.append('WILL_RECEIVE', receiveAll.join(','));
 
-                    const comments = $('#trade-hub-comments').val()?.trim();
+                    const comments = [($('#trade-hub-comments').val() || '').trim()].concat(lldCondState().list.map(lldCondLine)).filter(Boolean).join('\n');
                     if (comments) params.append('COMMENTS', comments);
 
 
@@ -13638,7 +13770,7 @@ try {
                         const m = txt.match(/<error[^>]*>(.*?)<\/error>/i);
                         alert('MFL Error: ' + (m ? m[1] : 'Unknown error — check console'));
 } else {
-                        alert('Proposal sent!');
+                        alert('Proposal sent!'); lldCondState().list = [];
                         mySelected.clear(); theirSelected.clear();
                         loadTradeHub(activeFid);
                     }
@@ -13826,7 +13958,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', cnd: '0', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 
@@ -16172,7 +16304,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact Lineup rows: Sleeper-style slim rows with ranks and boom / bust along the bottom')}${onoff('clr')}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact Lineup rows: Sleeper-style slim rows with ranks and boom / bust along the bottom')}${onoff('clr')}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lab('Conditional picks: add IF / THEN conditions to trade proposals (the lock labels show for everyone)')}${onoff('cnd')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -16201,7 +16333,7 @@ $(document).on('click', '.lld-b-btn', function () {
     lldSet('lld_b_' + this.dataset.k, this.dataset.v);
     $(`.lld-b-btn[data-k="${this.dataset.k}"]`).removeClass('on'); $(this).addClass('on');
     lldApplyBeta();
-    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv' || this.dataset.k === 'shb' || this.dataset.k === 'clr' || this.dataset.k === 'clrv') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
+    try { if (this.dataset.k === 'tpl' || this.dataset.k === 'slp' || this.dataset.k === 'sst' || this.dataset.k === 'hd2' || this.dataset.k === 'sct' || this.dataset.k === 'smt' || this.dataset.k === 'str' || this.dataset.k === 'nav' || this.dataset.k === 'hdm' || this.dataset.k === 'rv' || this.dataset.k === 'shb' || this.dataset.k === 'clr' || this.dataset.k === 'clrv' || this.dataset.k === 'cnd') { setTimeout(() => { try { renderActiveTab(); } catch (e) { } }, 60); } } catch (e) { }
     try { if (this.dataset.k === 'lock' || this.dataset.k === 'rv') { $('.player-row.lld-pchk').removeClass('lld-pchk'); lldLineupPlayedPass(typeof fid !== 'undefined' ? fid : ''); } } catch (e) { }
 });
 // ---- Lineup rows for players whose NFL game has started or finished: locked, and styled like the Scores tab ----
