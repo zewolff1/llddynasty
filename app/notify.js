@@ -1,0 +1,73 @@
+/* Notifications panel for franchises 0000 / 0001 (Settings > Team Settings).
+   Turns on push for this phone, lets you pick which alerts you get, and sends a test. Needs the alerts Worker (config.js: alerts). */
+(function () {
+  'use strict';
+  var C = window.LLD_APP || {}, W = String(C.alerts || '').replace(/\/+$/, '');
+  var KINDS = [['offer', 'Trade offers to me'], ['trade', 'Completed trades'], ['tx', 'Adds, drops and waivers'], ['lineup', 'Lineup problems'], ['preview', 'Matchup previews'], ['recap', 'Weekly recaps'], ['board', 'Message board posts'], ['tb', 'Trade block updates']];
+  function isBeta() { var f = String(window.franchise_id || '').padStart(4, '0'); return f === '0000' || f === '0001'; }
+  function u8(s) { var p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, function (c) { return c.charCodeAt(0); }); }
+  function idOf(sub) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode(sub.endpoint)).then(function (h) { return Array.from(new Uint8Array(h)).map(function (x) { return x.toString(16).padStart(2, '0'); }).join('').slice(0, 24); }); }
+  function reg() { return navigator.serviceWorker.getRegistration().then(function (r) { return r || navigator.serviceWorker.register('sw.js?w=' + encodeURIComponent(W)); }).then(function (r) { return navigator.serviceWorker.ready.then(function () { return r; }); }); }
+  function box() { return document.getElementById('lld-notif-box'); }
+  function say(m) { var e = document.getElementById('lld-nf-st'); if (e) e.textContent = m; }
+  function can() { return W && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+
+  function build() {
+    var host = document.getElementById('tab-team-set'); if (!host || box() || !isBeta()) return;
+    var d = document.createElement('div'); d.id = 'lld-notif-box';
+    d.style.cssText = 'margin:0 0 14px;padding:12px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.04)';
+    d.innerHTML = '<div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;margin-bottom:6px">Notifications</div>' +
+      '<div id="lld-nf-st" style="font-size:12px;color:var(--text-dim);margin-bottom:8px"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" id="lld-nf-on" class="lld-nf-b">Turn on</button><button type="button" id="lld-nf-test" class="lld-nf-b">Send test notification</button></div>' +
+      '<div id="lld-nf-pf" style="display:none;flex-direction:column;gap:6px">' + KINDS.map(function (k) { return '<label style="display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;color:#fff"><input type="checkbox" data-k="' + k[0] + '" checked> ' + k[1] + '</label>'; }).join('') + '</div>';
+    host.insertBefore(d, host.firstChild);
+    d.querySelectorAll('.lld-nf-b').forEach(function (b) { b.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:900;font-size:11px;text-transform:uppercase'; });
+    status();
+  }
+  function status() {
+    if (!can()) { say(!W ? 'Notifications are not configured (config.js needs the alerts address).' : 'This browser cannot do push. On iPhone, open the app from the Home Screen icon.'); return; }
+    reg().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) {
+      say(s ? 'Notifications are ON for this phone.' : 'Notifications are off. Tap Turn on.');
+      if (s) prefsLoad(s);
+    }).catch(function (e) { say('Could not check: ' + e.message); });
+  }
+  function prefsLoad(sub) {
+    idOf(sub).then(function (id) {
+      return fetch(W + '/prefs?id=' + id).then(function (r) { return r.json(); }).then(function (j) {
+        var p = j.prefs || {}, pf = document.getElementById('lld-nf-pf'); if (!pf) return;
+        pf.querySelectorAll('input').forEach(function (i) { i.checked = p[i.dataset.k] !== false; i.onchange = function () { var o = {}; pf.querySelectorAll('input').forEach(function (x) { o[x.dataset.k] = x.checked; }); fetch(W + '/prefs?id=' + id, { method: 'POST', body: JSON.stringify(o) }).catch(function () { say('Could not save your choices.'); }); }; });
+        pf.style.display = 'flex';
+      });
+    }).catch(function () { });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target.closest('#lld-nf-on, #lld-nf-test') : null; if (!t) return;
+    if (t.id === 'lld-nf-on') {
+      if (!can()) return status();
+      say('Turning on…');
+      reg().then(function (r) {
+        return Notification.requestPermission().then(function (perm) {
+          if (perm !== 'granted') throw new Error('permission was not granted (allow notifications for this app in iPhone Settings)');
+          return fetch(W + '/vapid').then(function (x) { return x.json(); }).then(function (v) {
+            if (!v.key) throw new Error('the alerts Worker gave no key');
+            return r.pushManager.getSubscription().then(function (s) { return s || r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(v.key) }); });
+          });
+        });
+      }).then(function (s) { return fetch(W + '/subscribe', { method: 'POST', body: JSON.stringify(s.toJSON()) }).then(function () { say('Notifications are ON for this phone.'); prefsLoad(s); }); })
+        .catch(function (err) { say('Could not turn on: ' + err.message); });
+    } else {
+      say('Sending test…');
+      reg().then(function (r) { return r.pushManager.getSubscription().then(function (s) {
+        if (!s) throw new Error('turn notifications on first');
+        return idOf(s).then(function (id) { return fetch(W + '/testme?id=' + id).then(function (x) { return x.json().catch(function () { return {}; }); }).then(function (j) {
+          if (j && j.ok) { say('Test sent. It should arrive in a few seconds.'); return; }
+          // alerts Worker is older than this app (no /testme yet): still prove this phone can show notifications
+          return r.showNotification('LLD Alerts', { body: 'Local test: this phone can show notifications. (Update the alerts Worker for a full end-to-end test.)', icon: 'icon-192.png' }).then(function () { say('Showed a local test. The alerts Worker needs the new version for a full test.'); });
+        }); });
+      }); }).catch(function (err) { say('Test failed: ' + err.message); });
+    }
+  });
+  // build the panel whenever Settings opens
+  document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('.open-settings-btn')) { setTimeout(build, 350); setTimeout(build, 1200); } }, true);
+  document.addEventListener('touchend', function (e) { if (e.target && e.target.closest && e.target.closest('.open-settings-btn')) { setTimeout(build, 350); setTimeout(build, 1200); } }, true);
+})();

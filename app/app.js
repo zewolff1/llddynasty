@@ -104,11 +104,11 @@
       var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
       script('https://code.jquery.com/jquery-3.7.1.min.js', function () {
         patchJquery();
-        script(C.base + C.script + '?v=' + Math.floor(Date.now() / 120000), function () { $('#lld-app-boot').style.display = 'none'; });
+        script(C.base + C.script + '?v=' + Math.floor(Date.now() / 120000), function () { $('#lld-app-boot').style.display = 'none'; script('notify.js?v=' + Math.floor(Date.now() / 120000), function () { }); });
       });
     }).catch(function (e) { showLogin('Could not start: ' + e.message); });
   }
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?w=' + encodeURIComponent(C.alerts || '')).catch(function () { });
   if (session) start(); else showLogin();
 })();
