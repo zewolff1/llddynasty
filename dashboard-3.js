@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-8"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-9"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2844,6 +2844,17 @@ function lldCondParse(txt) {
 }
 function lldCondToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function lldCondFmt(u) { const a = String(u).split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+function lldCondTradeNote(txt) {
+    try {
+        const raw = String(txt || '').trim(); if (!raw) return '';
+        const cs = lldCondParse(raw), note = raw.replace(/IF:\s*.+?\|\s*THEN:\s*.+?\|\s*UNTIL:\s*\d{4}-\d{2}-\d{2}\s*\|\s*LOCK:\s*[^;]*;/g, '').replace(/\s+/g, ' ').trim();
+        const e = lldCondEsc, box = 'margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.25);font-size:calc(10px * var(--ts,1));font-weight:700;color:#fff;';
+        let h = '';
+        if (note) h += `<div style="${box}border-left:3px solid var(--accent-blue)"><div style="font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px">Note</div>${e(note)}</div>`;
+        cs.forEach(c => { h += `<div style="${box}border-left:3px solid #f5c542"><div style="font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f5c542;margin-bottom:3px">\uD83D\uDD12 Conditional pick</div><b style="color:#f5c542">IF</b> ${e(c.i)} <b style="color:#2dd4bf">THEN</b> ${e(c.t)}<div style="color:var(--text-dim);margin-top:2px">Picks locked until ${e(lldCondFmt(c.u))}</div></div>`; });
+        return h;
+    } catch (er) { return ''; }
+}
 function lldCondLockOf(y, r, f) { const l = (window._lldCondLocks || {})[lldCondKey(y, r, f)]; return (l && l.u >= lldCondToday()) ? l : null; }
 async function lldCondLoadLocks(force) {
     const c = window._lldCondLk; if (!force && c && Date.now() - c.t < 300000) return c.m;
@@ -13407,6 +13418,8 @@ async function fetchTeamContractMap(tFid) {
 }
 async function loadPendingProposals() {
     $('#tp-pop').remove();
+    const commById = {};
+    try { const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=pendingTrades&L=${lid}&JSON=1`, { credentials: 'include' }); const j = await r.json(); let a = j && j.pendingTrades && j.pendingTrades.pendingTrade; if (a && !Array.isArray(a)) a = [a]; (a || []).forEach(t => { commById[String(t.trade_id)] = t.comments || ''; }); } catch (e) { }
     try {
         const res = await fetch(`${MFL_ORIGIN}/${year}/options?L=${lid}&O=05`, { credentials: 'include' });
         const txt = await res.text();
@@ -13566,6 +13579,7 @@ const rejectLink = makeLink(rejectHref);
                             <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:${toRemaining < 0 ? '#ef4444' : toPct > 90 ? '#f59e0b' : '#22c55e'}; margin-top:4px;">If Accepted: $${toNewUsed.toFixed(1)}m used (${toPct}%) · $${toRemaining.toFixed(1)}m left</div>
                         </div>
                     </div>`}
+                    ${lldCondTradeNote(commById[String(tradeId)] || (row.nextElementSibling ? (row.nextElementSibling.querySelector('.comments, td.comments') || {}).textContent : ''))}
                 </div>`;
             const btnsHtml = `<div style="display:flex; gap:6px; margin-top:8px;">
     ${isOutgoing 
@@ -23138,8 +23152,6 @@ $(document).on('click touchend', '.open-settings-btn', function() {
     Object.keys(prefs).forEach(id => {
         if (prefs[id]) $(`#${id}`).prop('checked', true);
     });
-    const webhook = localStorage.getItem(`notif_discord_${lid}`) || '';
-    $('#notif-discord-webhook').val(webhook);
 });
 
 $(document).on('click', '#notif-save-btn', function() {
@@ -23151,11 +23163,6 @@ $(document).on('click', '#notif-save-btn', function() {
     $('#notif-save-status').text('Saved!').fadeOut(2000, function() { $(this).show().text(''); });
 });
 
-$(document).on('click', '#notif-discord-save', function() {
-    const webhook = $('#notif-discord-webhook').val().trim();
-    localStorage.setItem(`notif_discord_${lid}`, webhook);
-    $('#notif-discord-status').text('Webhook saved!').fadeOut(2000, function() { $(this).show().text(''); });
-});
 $(document).on('click', '#notif-bell-btn', async function(e) {
     e.stopPropagation();
     $('#notif-panel').remove();
