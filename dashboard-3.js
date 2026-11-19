@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-11"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-12"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -4845,11 +4845,13 @@ $(document).on('change', '#style-gradient-toggle', function() {
 });
 function lldSyncCommishBtn() {
     const b = $('#settings-commish-toggle'); if (!b.length) return;
-    if (!window._commishToggleUrl) { b.hide(); return; }
+    const appCommish = !!(window.LLD_STANDALONE && typeof window.lldAppBecome === 'function' && (myFid === '0000' || myFid === '0001'));
+    if (!window._commishToggleUrl && !appCommish) { b.hide(); return; }
     b.show().text(myFid === '0000' ? '\uD83D\uDC64 Owner' : '\uD83D\uDC51 Commish');
 }
 $(document).on('click touchend', '.open-settings-btn', function () { lldSyncCommishBtn(); setTimeout(lldSyncCommishBtn, 400); try { $('.settings-tab-btn[data-target="tab-sleeper"]').toggle(typeof lldSltOn === 'function' && lldSltOn()); } catch (e) { } });
 $(document).on('click', '#settings-commish-toggle', function() {
+    if (window.LLD_STANDALONE && typeof window.lldAppBecome === 'function') { $(this).text('Switching\u2026'); window.lldAppBecome(myFid === '0000' ? '0001' : '0000'); return; } // standalone app: no MFL page to click, so the app asks MFL itself
     if (window._commishToggleUrl) {
         window.location.href = window._commishToggleUrl;
     }

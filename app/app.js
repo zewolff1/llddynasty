@@ -11,6 +11,11 @@
   function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { } }
   var session = load();
 
+  /* commissioner <-> owner switch (MFL's own BECOME link), used by the Settings button */
+  window.lldAppBecome = function (target) {
+    var u = 'https://' + C.host + '/' + C.year + '/home/' + C.leagueId + '?BECOME=' + target;
+    fetch(u).catch(function () { }).then(function () { if (session) { session.fid = target; save(session); } location.reload(); });
+  };
   window.lldAppLogout = function () { try { localStorage.removeItem(KEY); } catch (e) { } location.reload(); };
 
   /* ---- 1. sign in ---- */
