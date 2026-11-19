@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-6"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-7"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2869,7 +2869,13 @@ function lldCondPickInfo(p, holder) {
 .lc-b{padding:7px 12px;border-radius:8px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(10px * var(--ts,1));text-transform:uppercase;cursor:pointer}
 .lc-x{background:none;border:0;color:#f87171;font-size:calc(13px * var(--ts,1));cursor:pointer}.lc-m{font-size:calc(10px * var(--ts,1));color:var(--text-dim)}.lc-e{color:#f87171}
 .lc-lk{color:#f5c542;font-weight:900}
-.lc-sheet{position:fixed !important;left:0;right:0;bottom:0;z-index:2147483000;max-height:78vh;overflow:auto;background:#121826;border-top:2px solid #f5c542;box-shadow:0 -10px 30px rgba(0,0,0,.6);padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
+.lc-sheet{position:fixed !important;left:50% !important;right:auto !important;top:auto !important;bottom:0 !important;transform:translateX(-50%);width:min(560px,100vw);box-sizing:border-box;z-index:2147483000;max-height:86vh;overflow:auto;background:#121826 !important;opacity:1 !important;border:2px solid #f5c542;border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 0 0 100vmax rgba(0,0,0,.78),0 -10px 30px rgba(0,0,0,.6);padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.lc-sheet .lc-sec{background:#1b2336;border:1px solid #2b3550;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.lc-sheet .lc-st{font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#f5c542}
+.lc-sheet select,.lc-sheet input{background:#0d1220 !important;font-size:calc(12px * var(--ts,1))}
+.lc-sheet .lc-sec>.lc-r:first-of-type>select{flex:1 1 100%}.lc-sheet .lc-r>label{min-width:0;color:#9aa6c0}
+.lc-sheet .lc-go{width:100%;padding:11px;font-size:calc(12px * var(--ts,1));background:#f5c542;color:#1a1300}
+.lc-sheet .lc-e{width:100%}
 .lc-sh{display:flex;justify-content:space-between;align-items:center}
 .lc-pk{flex-shrink:0;margin-left:4px;padding:3px 7px;border-radius:12px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(9px * var(--ts,1));cursor:pointer}.lc-pk.on{background:#f5c542;color:#1a1300}`; document.head.appendChild(st); } } catch (e) { } })();
 function lldCondCtx() { try { return window._lldCondCtx ? window._lldCondCtx() : null; } catch (e) { return null; } }
@@ -2926,10 +2932,10 @@ function lldCondRefresh() {
     } else { o += sel('lc-w', tms, 'mine') + '<label>also sends</label>'; const sd = (sh.querySelector('#lc-w') || { value: 'mine' }).value, rest = A.rest[old['lc-w'] || sd]; o += rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'; }
     const list = listHtml();
     sh.innerHTML = `<div class="lc-sh"><div class="lc-h">New condition</div><button type="button" class="lc-x" id="lc-close">\u2715 Close</button></div>${list}
-<div class="lc-r"><label>IF</label>${sel('lc-tr', Object.keys(TR).map(k => ({ v: k, l: TR[k] })), S.tr)}</div><div class="lc-r">${f}</div>
-<div class="lc-r"><label>THEN</label>${sel('lc-out', Object.keys(OUT).map(k => ({ v: k, l: OUT[k] })), S.out)}</div><div class="lc-r">${o}</div>
-<div class="lc-r"><label>Until</label><input type="date" id="lc-u" value="${lldCondEsc(old['lc-u'] || '')}"><span class="lc-m">locked through this date</span></div>
-<div class="lc-r"><button type="button" class="lc-b" id="lc-add">Add condition</button><span class="lc-m lc-e" id="lc-err"></span></div>`;
+<div class="lc-sec"><div class="lc-st">1 \u00B7 If this happens</div><div class="lc-r">${sel('lc-tr', Object.keys(TR).map(k => ({ v: k, l: TR[k] })), S.tr)}</div><div class="lc-r">${f}</div></div>
+<div class="lc-sec"><div class="lc-st">2 \u00B7 Then this changes</div><div class="lc-r">${sel('lc-out', Object.keys(OUT).map(k => ({ v: k, l: OUT[k] })), S.out)}</div><div class="lc-r">${o}</div></div>
+<div class="lc-sec"><div class="lc-st">3 \u00B7 Picks stay locked until</div><div class="lc-r"><input type="date" id="lc-u" value="${lldCondEsc(old['lc-u'] || '')}"></div></div>
+<div class="lc-r"><button type="button" class="lc-b lc-go" id="lc-add">Add condition</button><span class="lc-m lc-e" id="lc-err"></span></div>`;
     sh.querySelector('#lc-tr').value = S.tr; sh.querySelector('#lc-out').value = S.out;
 }
 function lldCondBuild() {
