@@ -82,7 +82,7 @@
   }
 
   /* ---- 3. boot the dashboard ---- */
-  function text(path) { return realFetch(C.base + path).then(function (r) { if (!r.ok) throw new Error(path + ' ' + r.status); return r.text(); }); }
+  function text(path) { return realFetch(C.base + path, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(path + ' ' + r.status); return r.text(); }); }
   function script(src, cb) { var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = function () { showLogin('Could not load ' + src); }; document.head.appendChild(s); }
   function start() {
     if (!session) return showLogin();
@@ -90,7 +90,7 @@
     $('#lld-app-boot').style.display = 'flex';
     window.franchise_id = session.fid;
     Promise.all([
-      realFetch(C.base + 'leagues/' + C.leagueId + '.json').then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }),
+      realFetch(C.base + 'leagues/' + C.leagueId + '.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }),
       text('shell.html')
     ]).then(function (res) {
       window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], { origin: C.worker + '/mfl' });
