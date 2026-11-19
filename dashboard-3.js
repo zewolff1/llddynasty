@@ -2894,7 +2894,7 @@ function lldCondRefresh() {
     const gone = x => !A.picks.some(p => p.v === x);
     S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
     const listHtml = () => S.list.map((cd, i) => `<div class="lc-c"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div><button type="button" class="lc-x" data-i="${i}">\u2715</button></div>`).join('');
-    if (!S.open) { host.classList.remove('lc-sheet'); host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${listHtml() || '<div class="lc-m">None. Tap IF on a selected pick, or add one here. Picks named in a condition stay with their team and are locked until the date.</div>'}<div class="lc-r"><button type="button" class="lc-b" id="lc-open">+ Add condition</button></div>`; return; }
+    if (!S.open) { host.classList.remove('lc-sheet'); host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${listHtml() || '<div class="lc-m">None. Tap IF on a pick in \u201CSelected to Give\u201D, or add one here. Picks named in a condition stay with their team and are locked until the date.</div>'}<div class="lc-r"><button type="button" class="lc-b" id="lc-open">+ Add condition</button></div>`; return; }
     host.classList.add('lc-sheet');
     const old = {}; host.querySelectorAll('select,input').forEach(el => { if (el.id) old[el.id] = el.value; });
     if (S.pickPre) { old['lc-a'] = S.pickPre; S.pickPre = null; if (S.out === 'add') { S.out = 'swap'; delete old['lc-out']; } }
@@ -12901,7 +12901,7 @@ async function fetchTargetRoster(tFid) {
 }
 
 let theirPlayers = await fetchTargetRoster(activeFid);
-        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { $('#my-roster-list').html(myPlayers.map(p => buildPlayerChip(p, mySelected, 'mine')).join('')); $('#their-roster-list').html(theirPlayers.map(p => buildPlayerChip(p, theirSelected, 'theirs')).join('')); } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [], open: false };
+        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { try { window._lldTradeSumm && window._lldTradeSumm(); } catch (e) { } } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [], open: false };
         try { await Promise.race([lldCondLoadLocks(), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
         const theirPicks = await fetchTargetPicks(activeFid);
         theirPicks.forEach(pick => {
@@ -12991,8 +12991,8 @@ function lldTpFidByName(n) { n = String(n || '').trim().toLowerCase(); if (!n) r
 function lldTpBuilderPick(p, isSelected, side, plain, ownerFid) {
     const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', origFid = via ? lldTpFidByName(via) : ownerFid;
     const lock = lldCondLockOf(p.pickYear, p.pickRound, origFid);
-    let ifb = ''; if (!plain && !lock && isSelected && lldCondOn()) { const has = lldCondState().list.some(c => c.a === side + ':' + p.pid); ifb = `<button type="button" class="lc-pk${has ? ' on' : ''}" data-pid="${p.pid}" data-side="${side}" title="Add a condition to this pick">${has ? 'IF \u2713' : 'IF'}</button>`; }
-    const left = plain ? '' : lock ? '<span title="Locked by a condition" style="font-size:18px;">\uD83D\uDD12</span>' : lldTpAddBtn(p, isSelected, side) + ifb;
+    let ifb = ''; if (plain && !lock && lldCondOn()) { const has = lldCondState().list.some(c => c.a === side + ':' + p.pid); ifb = `<button type="button" class="lc-pk${has ? ' on' : ''}" data-pid="${p.pid}" data-side="${side}" title="Add a condition to this pick">${has ? 'IF \u2713' : 'IF'}</button>`; }
+    const left = plain ? ifb : lock ? '<span title="Locked by a condition" style="font-size:18px;">\uD83D\uDD12</span>' : lldTpAddBtn(p, isSelected, side) + ifb;
     return lldTpPickRow({ pid: p.pid, year: p.pickYear, round: p.pickRound, pickStr: p.pickStr, via, origFid, left, lock, style: isSelected ? 'background:rgba(16,185,129,0.12) !important; border-color:rgba(16,185,129,0.4) !important;' : '' });
 }
 // Cap bar: grey = used now, colored = used after the trade.
@@ -13725,6 +13725,7 @@ const cap = window.leagueSalaryCap || LLD.salaryCap;
                 $('#trade-summary-mine').html((mineNames.length ? sideHtml(mySelected, myPlayers, 'mine', myFid) : none) + lldTpCap(leagueFranchises[myFid] || 'You', myBase, Math.max(0, myBase - mineSalTotal + theirSalTotal), cap));
                 $('#trade-summary-theirs').html((theirNames.length ? sideHtml(theirSelected, theirPlayers, 'theirs', activeFid) : none) + lldTpCap(leagueFranchises[activeFid] || 'Them', theirBase, Math.max(0, theirBase - theirSalTotal + mineSalTotal), cap));
             }
+            window._lldTradeSumm = updateTradeSummary;
             if (mySelected.size || theirSelected.size) { try { updateTradeSummary(); } catch (e) { console.warn('trade summary', e); } }
 
             // Submit
