@@ -17,10 +17,12 @@
     var d = document.createElement('div'); d.id = 'lld-notif-box';
     d.style.cssText = 'margin:0 0 14px;padding:12px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.04)';
     d.innerHTML = '<div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;margin-bottom:6px">Notifications</div>' +
+      '<div id="lld-nf-boot" style="font-size:11px;color:var(--text-dim);margin-bottom:6px"></div>' +
       '<div id="lld-nf-st" style="font-size:12px;color:var(--text-dim);margin-bottom:8px"></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" id="lld-nf-on" class="lld-nf-b">Turn on</button><button type="button" id="lld-nf-test" class="lld-nf-b">Send test notification</button></div>' +
       '<div id="lld-nf-pf" style="display:none;flex-direction:column;gap:6px">' + KINDS.map(function (k) { return '<label style="display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;color:#fff"><input type="checkbox" data-k="' + k[0] + '" checked> ' + k[1] + '</label>'; }).join('') + '</div>';
     host.insertBefore(d, host.firstChild);
+    try { var t = window.LLD_BOOT || {}; document.getElementById('lld-nf-boot').textContent = 'Last launch: version check ' + (t.version || '?') + ' ms, files ' + (t.files || '?') + ' ms, dashboard loaded at ' + (t.dashboard || '?') + ' ms'; } catch (e) { }
     d.querySelectorAll('.lld-nf-b').forEach(function (b) { b.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:900;font-size:11px;text-transform:uppercase'; });
     status();
   }

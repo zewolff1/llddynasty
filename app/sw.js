@@ -4,7 +4,7 @@ const WORKER = decodeURIComponent(new URL(self.location.href).searchParams.get('
 async function myId() { const s = await self.registration.pushManager.getSubscription(); if (!s) return ''; const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s.endpoint))); return [...h].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 24); }
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-self.addEventListener('fetch', () => {});
+// No 'fetch' listener on purpose: even an empty one makes iPhone wake this worker for every file the app loads, which slows launches.
 self.addEventListener('push', e => e.waitUntil((async () => {
   let msgs = [];
   try { if (WORKER) { const r = await fetch(WORKER + '/latest?id=' + await myId()); msgs = (await r.json()).msgs || []; } } catch (x) { }
