@@ -2868,6 +2868,8 @@ function lldCondPickInfo(p, holder) {
 .lc-b{padding:7px 12px;border-radius:8px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(10px * var(--ts,1));text-transform:uppercase;cursor:pointer}
 .lc-x{background:none;border:0;color:#f87171;font-size:calc(13px * var(--ts,1));cursor:pointer}.lc-m{font-size:calc(10px * var(--ts,1));color:var(--text-dim)}.lc-e{color:#f87171}
 .lc-lk{color:#f5c542;font-weight:900}
+.lc-sheet{position:fixed !important;left:0;right:0;bottom:0;z-index:2147483000;max-height:78vh;overflow:auto;background:#121826;border-top:2px solid #f5c542;box-shadow:0 -10px 30px rgba(0,0,0,.6);padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
+.lc-sh{display:flex;justify-content:space-between;align-items:center}
 .lc-pk{flex-shrink:0;margin-left:4px;padding:3px 7px;border-radius:12px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(9px * var(--ts,1));cursor:pointer}.lc-pk.on{background:#f5c542;color:#1a1300}`; document.head.appendChild(st); } } catch (e) { } })();
 function lldCondCtx() { try { return window._lldCondCtx ? window._lldCondCtx() : null; } catch (e) { return null; } }
 function lldCondState() { return window._lldCondSt = window._lldCondSt || { tr: 'rank', out: 'swap', list: [] }; }
@@ -2891,6 +2893,9 @@ function lldCondRefresh() {
     const S = lldCondState(), c = A.c, yr = parseInt(year, 10), seasons = [yr, yr + 1, yr + 2].map(String), tn = { mine: leagueFranchises[c.myFid] || 'You', theirs: leagueFranchises[c.theirFid] || 'Them' };
     const gone = x => !A.picks.some(p => p.v === x);
     S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
+    const listHtml = () => S.list.map((cd, i) => `<div class="lc-c"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div><button type="button" class="lc-x" data-i="${i}">\u2715</button></div>`).join('');
+    if (!S.open) { host.classList.remove('lc-sheet'); host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${listHtml() || '<div class="lc-m">None. Tap IF on a selected pick, or add one here. Picks named in a condition stay with their team and are locked until the date.</div>'}<div class="lc-r"><button type="button" class="lc-b" id="lc-open">+ Add condition</button></div>`; return; }
+    host.classList.add('lc-sheet');
     const old = {}; host.querySelectorAll('select,input').forEach(el => { if (el.id) old[el.id] = el.value; });
     if (S.pickPre) { old['lc-a'] = S.pickPre; S.pickPre = null; if (S.out === 'add') { S.out = 'swap'; delete old['lc-out']; } }
     const sel = (id, opts, def) => `<select id="${id}">${opts.map(o => { const v = typeof o === 'object' ? o.v : o, l = typeof o === 'object' ? o.l : o; const cur = old[id] != null ? old[id] : def; return `<option value="${lldCondEsc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${lldCondEsc(l)}</option>`; }).join('')}</select>`;
@@ -2916,8 +2921,8 @@ function lldCondRefresh() {
             if (S.out === 'swap') { const ap = A.picks.find(p => p.v === aVal), rest = A.rest[ap.side]; o += '<label>becomes</label>' + (rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'); }
         }
     } else { o += sel('lc-w', tms, 'mine') + '<label>also sends</label>'; const sd = (host.querySelector('#lc-w') || { value: 'mine' }).value, rest = A.rest[old['lc-w'] || sd]; o += rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'; }
-    const list = S.list.map((cd, i) => `<div class="lc-c"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div><button type="button" class="lc-x" data-i="${i}">\u2715</button></div>`).join('');
-    host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${list || '<div class="lc-m">None. Picks named in a condition stay with their team and are locked until the date.</div>'}
+    const list = listHtml();
+    host.innerHTML = `<div class="lc-sh"><div class="lc-h">New condition</div><button type="button" class="lc-x" id="lc-close">\u2715 Close</button></div>${list}
 <div class="lc-r"><label>IF</label>${sel('lc-tr', Object.keys(TR).map(k => ({ v: k, l: TR[k] })), S.tr)}</div><div class="lc-r">${f}</div>
 <div class="lc-r"><label>THEN</label>${sel('lc-out', Object.keys(OUT).map(k => ({ v: k, l: OUT[k] })), S.out)}</div><div class="lc-r">${o}</div>
 <div class="lc-r"><label>Until</label><input type="date" id="lc-u" value="${lldCondEsc(old['lc-u'] || '')}"><span class="lc-m">locked through this date</span></div>
@@ -2950,14 +2955,15 @@ $(document).on('change', '#lld-cond-b select', function () {
 $(document).on('click', '#lc-add', function () {
     const r = lldCondBuild(), er = document.getElementById('lc-err');
     if (r.err) { if (er) er.textContent = r.err; return; }
-    lldCondState().list.push(r.c); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { }
+    const S0 = lldCondState(); S0.list.push(r.c); S0.open = false; lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { }
 });
-$(document).on('click', '#lld-cond-b .lc-x', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { } });
+$(document).on('click', '#lld-cond-b .lc-x[data-i]', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { } });
 $(document).on('click touchend', '.lc-pk', function (e) {
     if (e.type === 'touchend') e.preventDefault(); e.stopPropagation();
-    const S = lldCondState(); S.pickPre = this.dataset.side + ':' + this.dataset.pid; if (S.out === 'add') S.out = 'swap'; lldCondRefresh();
-    const h = document.getElementById('lld-cond-b'); if (h && h.scrollIntoView) h.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const S = lldCondState(); S.open = true; S.pickPre = this.dataset.side + ':' + this.dataset.pid; if (S.out === 'add') S.out = 'swap'; lldCondRefresh();
 });
+$(document).on('click', '#lc-open', function () { lldCondState().open = true; lldCondRefresh(); });
+$(document).on('click', '#lc-close', function () { lldCondState().open = false; lldCondRefresh(); });
 setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).length && document.querySelector('.apv-ct-gh')) { try { renderActiveTab(); } catch (e) { } } }); } catch (e) { } }, 2500);
 
 // ===== BETA (0000 / 0001): compact Sleeper-density Lineup rows (switch "clr") =====
@@ -12895,7 +12901,7 @@ async function fetchTargetRoster(tFid) {
 }
 
 let theirPlayers = await fetchTargetRoster(activeFid);
-        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { $('#my-roster-list').html(myPlayers.map(p => buildPlayerChip(p, mySelected, 'mine')).join('')); $('#their-roster-list').html(theirPlayers.map(p => buildPlayerChip(p, theirSelected, 'theirs')).join('')); } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [] };
+        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { $('#my-roster-list').html(myPlayers.map(p => buildPlayerChip(p, mySelected, 'mine')).join('')); $('#their-roster-list').html(theirPlayers.map(p => buildPlayerChip(p, theirSelected, 'theirs')).join('')); } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [], open: false };
         try { await Promise.race([lldCondLoadLocks(), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
         const theirPicks = await fetchTargetPicks(activeFid);
         theirPicks.forEach(pick => {
