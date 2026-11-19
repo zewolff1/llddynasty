@@ -89,22 +89,32 @@
   /* ---- 3. boot the dashboard ---- */
   function text(path) { return realFetch(C.base + path, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(path + ' ' + r.status); return r.text(); }); }
   function script(src, cb) { var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = function () { showLogin('Could not load ' + src); }; document.head.appendChild(s); }
+  /* Loads fast: the big dashboard files are cached by the phone and only re-downloaded when version.json changes
+     (version.json is tiny and always fetched fresh). Everything else loads in parallel instead of one after another. */
+  function getVersion() {
+    return realFetch(C.base + 'version.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { return String(j.v || ''); }).catch(function () { return String(Math.floor(Date.now() / 600000)); });
+  }
+  function preload(href, as) { var l = document.createElement('link'); l.rel = 'preload'; l.as = as; l.href = href; document.head.appendChild(l); }
   function start() {
     if (!session) return showLogin();
     $('#lld-app-login').style.display = 'none';
     $('#lld-app-boot').style.display = 'flex';
     window.franchise_id = session.fid;
-    Promise.all([
-      realFetch(C.base + 'leagues/' + C.leagueId + '.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }),
-      text('shell.html')
-    ]).then(function (res) {
-      window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], { origin: C.worker + '/mfl' });
-      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = C.base + C.css + '?v=' + Math.floor(Date.now() / 120000); document.head.appendChild(css);
-      document.body.insertAdjacentHTML('afterbegin', res[1]);
-      var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
-      script('https://code.jquery.com/jquery-3.7.1.min.js', function () {
+    getVersion().then(function (v) {
+      var q = '?v=' + encodeURIComponent(v), js = C.base + C.script + q, cssUrl = C.base + C.css + q;
+      preload(js, 'script'); preload(cssUrl, 'style');
+      var jq = new Promise(function (ok) { script('https://code.jquery.com/jquery-3.7.1.min.js', ok); });
+      return Promise.all([
+        realFetch(C.base + 'leagues/' + C.leagueId + '.json' + q).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }),
+        realFetch(C.base + 'shell.html' + q).then(function (r) { if (!r.ok) throw new Error('shell.html ' + r.status); return r.text(); }),
+        jq
+      ]).then(function (res) {
+        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], { origin: C.worker + '/mfl' });
+        var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = cssUrl; document.head.appendChild(css);
+        document.body.insertAdjacentHTML('afterbegin', res[1]);
+        var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
         patchJquery();
-        script(C.base + C.script + '?v=' + Math.floor(Date.now() / 120000), function () { $('#lld-app-boot').style.display = 'none'; script('notify.js?v=' + Math.floor(Date.now() / 120000), function () { }); });
+        script(js, function () { $('#lld-app-boot').style.display = 'none'; script('notify.js' + q, function () { }); });
       });
     }).catch(function (e) { showLogin('Could not start: ' + e.message); });
   }
