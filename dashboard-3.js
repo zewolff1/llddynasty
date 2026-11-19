@@ -2861,8 +2861,8 @@ function lldCondPickInfo(p, holder) {
 (function () { try { if (!document.getElementById('lld-cond-css')) { const st = document.createElement('style'); st.id = 'lld-cond-css'; st.textContent = `.lc-box{margin-top:10px;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:8px}
 .lc-h{font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f5c542}
 .lc-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.lc-r>label{font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);min-width:38px}
-.lc-box select,.lc-box input,.lc-box textarea{background:rgba(0,0,0,.35);color:#fff;border:1px solid var(--card-border);border-radius:6px;padding:6px 7px;font-size:calc(11px * var(--ts,1));font-weight:700;min-width:0;max-width:100%;font-family:inherit}
-.lc-box textarea{width:100%;min-height:54px;box-sizing:border-box}.lc-box input[type=number]{width:58px}
+.lc-box select,.lc-box input,.lc-box textarea,.lc-sheet select,.lc-sheet input{background:rgba(0,0,0,.35);color:#fff;border:1px solid var(--card-border);border-radius:6px;padding:6px 7px;font-size:calc(11px * var(--ts,1));font-weight:700;min-width:0;max-width:100%;font-family:inherit}
+.lc-box textarea{width:100%;min-height:54px;box-sizing:border-box}.lc-box input[type=number],.lc-sheet input[type=number]{width:58px}
 .lc-c{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;border-left:3px solid #f5c542;background:rgba(255,255,255,.05);border-radius:6px;padding:6px 8px;font-size:calc(10.5px * var(--ts,1));font-weight:700;color:#fff}
 .lc-c b{color:#f5c542}.lc-c i{font-style:normal;color:#2dd4bf;font-weight:900}.lc-c small{display:block;color:var(--text-dim);font-weight:700}
 .lc-b{padding:7px 12px;border-radius:8px;border:1px solid #f5c542;background:rgba(245,197,66,.12);color:#f5c542;font-weight:900;font-size:calc(10px * var(--ts,1));text-transform:uppercase;cursor:pointer}
@@ -2894,9 +2894,11 @@ function lldCondRefresh() {
     const gone = x => !A.picks.some(p => p.v === x);
     S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
     const listHtml = () => S.list.map((cd, i) => `<div class="lc-c"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div><button type="button" class="lc-x" data-i="${i}">\u2715</button></div>`).join('');
-    if (!S.open) { host.classList.remove('lc-sheet'); host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${listHtml() || '<div class="lc-m">None. Tap IF on a pick in \u201CSelected to Give\u201D, or add one here. Picks named in a condition stay with their team and are locked until the date.</div>'}<div class="lc-r"><button type="button" class="lc-b" id="lc-open">+ Add condition</button></div>`; return; }
-    host.classList.add('lc-sheet');
-    const old = {}; host.querySelectorAll('select,input').forEach(el => { if (el.id) old[el.id] = el.value; });
+    host.classList.remove('lc-sheet'); host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${listHtml() || '<div class="lc-m">None. Tap IF on a pick in \u201CSelected to Give\u201D, or add one here. Picks named in a condition stay with their team and are locked until the date.</div>'}<div class="lc-r"><button type="button" class="lc-b" id="lc-open">+ Add condition</button></div>`;
+    let sh = document.getElementById('lld-cond-sheet');
+    if (!S.open) { if (sh) sh.remove(); return; }
+    if (!sh) { sh = document.createElement('div'); sh.id = 'lld-cond-sheet'; sh.className = 'lc-sheet'; document.body.appendChild(sh); }
+    const old = {}; sh.querySelectorAll('select,input').forEach(el => { if (el.id) old[el.id] = el.value; });
     if (S.pickPre) { old['lc-a'] = S.pickPre; S.pickPre = null; if (S.out === 'add') { S.out = 'swap'; delete old['lc-out']; } }
     const sel = (id, opts, def) => `<select id="${id}">${opts.map(o => { const v = typeof o === 'object' ? o.v : o, l = typeof o === 'object' ? o.l : o; const cur = old[id] != null ? old[id] : def; return `<option value="${lldCondEsc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${lldCondEsc(l)}</option>`; }).join('')}</select>`;
     const pls = A.players.map(p => ({ v: p.v, l: p.label })), tms = [{ v: 'mine', l: tn.mine }, { v: 'theirs', l: tn.theirs }], ssn = sel('lc-s', seasons, seasons[0]);
@@ -2920,14 +2922,14 @@ function lldCondRefresh() {
             aVal = old['lc-a'] || A.picks[0].v; if (!A.picks.some(p => p.v === aVal)) aVal = A.picks[0].v;
             if (S.out === 'swap') { const ap = A.picks.find(p => p.v === aVal), rest = A.rest[ap.side]; o += '<label>becomes</label>' + (rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'); }
         }
-    } else { o += sel('lc-w', tms, 'mine') + '<label>also sends</label>'; const sd = (host.querySelector('#lc-w') || { value: 'mine' }).value, rest = A.rest[old['lc-w'] || sd]; o += rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'; }
+    } else { o += sel('lc-w', tms, 'mine') + '<label>also sends</label>'; const sd = (sh.querySelector('#lc-w') || { value: 'mine' }).value, rest = A.rest[old['lc-w'] || sd]; o += rest.length ? sel('lc-b', rest.map(p => ({ v: p.v, l: p.label })), rest[0].v) : '<span class="lc-m lc-e">No other picks on that team.</span>'; }
     const list = listHtml();
-    host.innerHTML = `<div class="lc-sh"><div class="lc-h">New condition</div><button type="button" class="lc-x" id="lc-close">\u2715 Close</button></div>${list}
+    sh.innerHTML = `<div class="lc-sh"><div class="lc-h">New condition</div><button type="button" class="lc-x" id="lc-close">\u2715 Close</button></div>${list}
 <div class="lc-r"><label>IF</label>${sel('lc-tr', Object.keys(TR).map(k => ({ v: k, l: TR[k] })), S.tr)}</div><div class="lc-r">${f}</div>
 <div class="lc-r"><label>THEN</label>${sel('lc-out', Object.keys(OUT).map(k => ({ v: k, l: OUT[k] })), S.out)}</div><div class="lc-r">${o}</div>
 <div class="lc-r"><label>Until</label><input type="date" id="lc-u" value="${lldCondEsc(old['lc-u'] || '')}"><span class="lc-m">locked through this date</span></div>
 <div class="lc-r"><button type="button" class="lc-b" id="lc-add">Add condition</button><span class="lc-m lc-e" id="lc-err"></span></div>`;
-    host.querySelector('#lc-tr').value = S.tr; host.querySelector('#lc-out').value = S.out;
+    sh.querySelector('#lc-tr').value = S.tr; sh.querySelector('#lc-out').value = S.out;
 }
 function lldCondBuild() {
     const A = lldCondAssets(), S = lldCondState(), $v = id => { const e = document.getElementById(id); return e ? e.value : ''; }; if (!A) return { err: 'Trade not ready.' };
@@ -2949,21 +2951,20 @@ function lldCondBuild() {
     } else { const side = $v('lc-w'), bp = A.rest[side].find(p => p.v === $v('lc-b')); if (!bp) return { err: 'Choose the pick to add.' }; lock.push(bp.info.key); t = `${lldCondClean(tn[side])} also send ${bp.label}`; }
     return { c: { i: lldCondClean(i), t: lldCondClean(t), u, l: lock, a } };
 }
-$(document).on('change', '#lld-cond-b select', function () {
-    const S = lldCondState(); if (this.id === 'lc-tr') S.tr = this.value; if (this.id === 'lc-out') S.out = this.value; lldCondRefresh();
-});
-$(document).on('click', '#lc-add', function () {
+// Handlers run in the capture phase on document so nothing else on the page can swallow the tap.
+function lldCondEv(type, sel, fn) { document.addEventListener(type, function (e) { const t = e.target && e.target.closest ? e.target.closest(sel) : null; if (!t) return; try { fn.call(t, e); } catch (err) { console.error('cond', err); } }, true); }
+lldCondEv('change', '#lld-cond-sheet select', function () { const S = lldCondState(); if (this.id === 'lc-tr') S.tr = this.value; if (this.id === 'lc-out') S.out = this.value; lldCondRefresh(); });
+let lldCondLastTap = 0;
+function lldCondTap(sel, fn) { ['click', 'touchend'].forEach(ty => lldCondEv(ty, sel, function (e) { if (ty === 'touchend') { e.preventDefault(); lldCondLastTap = Date.now(); } else if (Date.now() - lldCondLastTap < 600) return; e.stopPropagation(); fn.call(this, e); })); }
+lldCondTap('#lc-add', function () {
     const r = lldCondBuild(), er = document.getElementById('lc-err');
     if (r.err) { if (er) er.textContent = r.err; return; }
     const S0 = lldCondState(); S0.list.push(r.c); S0.open = false; lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { }
 });
-$(document).on('click', '#lld-cond-b .lc-x[data-i]', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { } });
-$(document).on('click touchend', '.lc-pk', function (e) {
-    if (e.type === 'touchend') e.preventDefault(); e.stopPropagation();
-    const S = lldCondState(); S.open = true; S.pickPre = this.dataset.side + ':' + this.dataset.pid; if (S.out === 'add') S.out = 'swap'; lldCondRefresh();
-});
-$(document).on('click', '#lc-open', function () { lldCondState().open = true; lldCondRefresh(); });
-$(document).on('click', '#lc-close', function () { lldCondState().open = false; lldCondRefresh(); });
+lldCondTap('#lld-cond-b .lc-x[data-i]', function () { lldCondState().list.splice(+this.dataset.i, 1); lldCondRefresh(); try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { } });
+lldCondTap('.lc-pk', function () { const S = lldCondState(); S.open = true; S.pickPre = this.dataset.side + ':' + this.dataset.pid; if (S.out === 'add') S.out = 'swap'; lldCondRefresh(); });
+lldCondTap('#lc-open', function () { lldCondState().open = true; lldCondRefresh(); });
+lldCondTap('#lc-close', function () { lldCondState().open = false; lldCondRefresh(); });
 setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).length && document.querySelector('.apv-ct-gh')) { try { renderActiveTab(); } catch (e) { } } }); } catch (e) { } }, 2500);
 
 // ===== BETA (0000 / 0001): compact Sleeper-density Lineup rows (switch "clr") =====
@@ -12901,7 +12902,7 @@ async function fetchTargetRoster(tFid) {
 }
 
 let theirPlayers = await fetchTargetRoster(activeFid);
-        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { try { window._lldTradeSumm && window._lldTradeSumm(); } catch (e) { } } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [], open: false };
+        window._lldCondCtx = () => ({ mySel: mySelected, theirSel: theirSelected, myP: myPlayers, theirP: theirPlayers, myFid, theirFid: activeFid, rows: () => { try { window._lldTradeSumm && window._lldTradeSumm(); } catch (e) { } } }); window._lldCondSt = { tr: 'rank', out: 'swap', list: [], open: false }; { const o = document.getElementById('lld-cond-sheet'); if (o) o.remove(); }
         try { await Promise.race([lldCondLoadLocks(), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
         const theirPicks = await fetchTargetPicks(activeFid);
         theirPicks.forEach(pick => {
