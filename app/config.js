@@ -1,6 +1,6 @@
 // Edit this file only. Everything else in /app stays the same.
 window.LLD_APP = {
-  worker: 'https://lld-proxy.zewolff1.workers.dev',   // your deployed worker/lld-proxy.js
+  worker: 'https://lld-proxy.y9d7rsw57p.workers.dev',   // your deployed worker/lld-proxy.js
   leagueId: '63085',
   year: new Date().getFullYear(),
   host: 'www45.myfantasyleague.com',
