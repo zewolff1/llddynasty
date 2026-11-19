@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-7"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-8"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2910,7 +2910,7 @@ function lldCondRefresh() {
     const sel = (id, opts, def) => `<select id="${id}">${opts.map(o => { const v = typeof o === 'object' ? o.v : o, l = typeof o === 'object' ? o.l : o; const cur = old[id] != null ? old[id] : def; return `<option value="${lldCondEsc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${lldCondEsc(l)}</option>`; }).join('')}</select>`;
     const pls = A.players.map(p => ({ v: p.v, l: p.label })), tms = [{ v: 'mine', l: tn.mine }, { v: 'theirs', l: tn.theirs }], ssn = sel('lc-s', seasons, seasons[0]);
     const num = (id, v) => `<input type="number" id="${id}" value="${old[id] != null ? old[id] : v}" min="0">`;
-    const TR = { rank: 'A player finishes in the top N at his position', pts: 'A player scores at least N fantasy points', gp: 'A player plays at least N games', nfl: 'A player is (or isn\u2019t) on an NFL roster in Week X', po: 'A team makes the playoffs', wins: 'A team wins at least N games', champ: 'A team wins the title' };
+    const TR = { rank: 'A player finishes in the top N at his position', pts: 'A player scores at least N fantasy points', gp: 'A player plays at least N games', nfl: 'A player is (or isn\u2019t) on an NFL roster in Week X', po: 'A team makes the playoffs', wins: 'A team wins at least N games', champ: 'A team wins the title', pk: 'A pick in the trade lands in the top N of its round' };
     const needP = ['rank', 'pts', 'gp', 'nfl'].includes(S.tr);
     let f = '';
     if (needP) f += pls.length ? sel('lc-p', pls, pls[0].v) : '<span class="lc-m lc-e">Select a player in the trade first.</span>';
@@ -2918,6 +2918,7 @@ function lldCondRefresh() {
     if (S.tr === 'pts') f += '<label>at least</label>' + num('lc-n', 150) + '<label>pts in</label>' + ssn;
     if (S.tr === 'gp') f += '<label>at least</label>' + num('lc-n', 12) + '<label>games in</label>' + ssn;
     if (S.tr === 'nfl') f += sel('lc-st', ['is', 'is not'], 'is') + '<label>on an NFL roster, Week</label>' + num('lc-n', 1) + '<label>of</label>' + ssn;
+    if (S.tr === 'pk') f += A.picks.length ? sel('lc-k', A.picks.map(p => ({ v: p.v, l: tn[p.side] + '\u2019s ' + p.label })), A.picks[0].v) + '<label>lands in the top</label>' + num('lc-n', 5) + '<label>of its round</label>' : '<span class="lc-m lc-e">Select a pick in the trade first.</span>';
     if (S.tr === 'po' || S.tr === 'champ') f += sel('lc-t', tms, 'mine') + '<label>in</label>' + ssn;
     if (S.tr === 'wins') f += sel('lc-t', tms, 'mine') + '<label>at least</label>' + num('lc-n', 9) + '<label>wins in</label>' + ssn;
     const OUT = { swap: 'A pick in the trade becomes a different pick', drop: 'A pick in the trade comes out of the deal', add: 'A pick is added to the deal' };
@@ -2948,6 +2949,9 @@ function lldCondBuild() {
         const pl = A.players.find(p => p.v === $v('lc-p')); if (!pl) return { err: 'Select a player in the trade first.' };
         const nm = lldCondClean(pl.label);
         i = S.tr === 'rank' ? `${nm} finishes top ${n} ${$v('lc-pos')} in ${ssn}` : S.tr === 'pts' ? `${nm} scores at least ${n} pts in ${ssn}` : S.tr === 'gp' ? `${nm} plays at least ${n} games in ${ssn}` : `${nm} ${$v('lc-st')} on an NFL roster in Week ${n} of ${ssn}`;
+    } else if (S.tr === 'pk') {
+        const kp = A.picks.find(p => p.v === $v('lc-k')); if (!kp) return { err: 'Select a pick in the trade first.' };
+        i = `${lldCondClean(tn[kp.side])} ${kp.label} pick lands in the top ${n} of its round`;
     } else { const t = lldCondClean(tn[$v('lc-t')] || ''); i = S.tr === 'po' ? `${t} make the playoffs in ${ssn}` : S.tr === 'champ' ? `${t} win the title in ${ssn}` : `${t} win at least ${n} games in ${ssn}`; }
     let t = '', lock = [], a = '';
     if (S.out === 'swap' || S.out === 'drop') {
