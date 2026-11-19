@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-12"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-13"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -1636,7 +1636,7 @@ const CHAMPIONSHIPS = LLD.championships;
 
 const lid = window.location.href.match(/\/home\/(\d+)/)?.[1] || LLD.leagueId;
 
-const year = window.location.href.match(/\/(\d{4})\//)?.[1] || new Date().getFullYear().toString();
+const year = (window.LLD_YEAR ? String(window.LLD_YEAR) : '') || window.location.href.match(/\/(\d{4})\//)?.[1] || new Date().getFullYear().toString(); // LLD_YEAR: set by the standalone app to view a past season
 const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
 const IR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:16px; width:auto; vertical-align:middle; fill:#ef4444;"><path d="M341.8 72.6C329.5 61.2 310.5 61.2 298.3 72.6L74.3 280.6C64.7 289.6 61.5 303.5 66.3 315.7C71.1 327.9 82.8 336 96 336L112 336L112 512C112 547.3 140.7 576 176 576L464 576C499.3 576 528 547.3 528 512L528 336L544 336C557.2 336 569 327.9 573.8 315.7C578.6 303.5 575.4 289.5 565.8 280.6L341.8 72.6zM288 312C288 303.2 295.2 296 304 296L336 296C344.8 296 352 303.2 352 312L352 352L392 352C400.8 352 408 359.2 408 368L408 400C408 408.8 400.8 416 392 416L352 416L352 456C352 464.8 344.8 472 336 472L304 472C295.2 472 288 464.8 288 456L288 416L248 416C239.2 416 232 408.8 232 400L232 368C232 359.2 239.2 352 248 352L288 352L288 312z"/></svg>`;
 
@@ -16840,7 +16840,7 @@ function lldSeasonChips() {
     if (ys.some(y => !ok(y))) h += `<div class="yr-note">Earlier seasons are coming soon.</div>`;
     return h;
 }
-$(document).on('click', '.lld-yrb[data-yr]', function (e) { e.stopPropagation(); const y = this.dataset.yr; if (String(y) === String(year)) return; window.location.href = window.location.href.replace(/\/(\d{4})\//, '/' + y + '/'); });
+$(document).on('click', '.lld-yrb[data-yr]', function (e) { e.stopPropagation(); const y = this.dataset.yr; if (String(y) === String(year)) return; if (window.LLD_STANDALONE) { try { localStorage.setItem('lld_app_year', String(y)); } catch (x) { } location.reload(); return; } window.location.href = window.location.href.replace(/\/(\d{4})\//, '/' + y + '/'); });
 $(document).on('click', '#scn-lgb', async function (e) {
     e.stopPropagation(); const m = document.getElementById('scn-menu'); if (!m) return; m.hidden = !m.hidden; if (m.hidden) return;
     lldScnMenu();

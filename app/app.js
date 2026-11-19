@@ -10,6 +10,8 @@
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
   function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { } }
   var session = load();
+  /* past seasons: the season picker in Settings stores a year; the dashboard then uses it in every MFL address */
+  (function () { var y = ''; try { y = localStorage.getItem('lld_app_year') || ''; } catch (e) { } var now = new Date().getFullYear(); if (/^\d{4}$/.test(y) && +y !== now) { window.LLD_YEAR = y; } window.LLD_SEASONS_READY = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017]; try { if (+y === now) localStorage.removeItem('lld_app_year'); } catch (e) { } })();
 
   /* commissioner <-> owner switch (MFL's own BECOME link), used by the Settings button */
   window.lldAppBecome = function (target) {
