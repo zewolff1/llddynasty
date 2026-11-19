@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-5"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-6"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2854,8 +2854,9 @@ async function lldCondLoadLocks(force) {
     } catch (e) { console.warn('cond locks', e); }
     window._lldCondLk = { t: Date.now(), m }; window._lldCondLocks = m; return m;
 }
+function lldCondFidByName(n) { n = String(n || '').trim().toLowerCase(); if (!n) return ''; return Object.keys(leagueFranchises).find(id => String(leagueFranchises[id]).toLowerCase().trim() === n) || ''; }
 function lldCondPickInfo(p, holder) {
-    const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', o = (via && lldTpFidByName(via)) || holder;
+    const vm = String(p.desc || '').match(/via ([^.)]+)/), via = vm ? vm[1].trim() : '', o = (via && lldCondFidByName(via)) || holder;
     return { key: lldCondKey(p.pickYear, p.pickRound, o), label: p.pickYear + ' R' + p.pickRound + (p.pickStr ? ' (' + p.pickStr + ')' : '') + (via && o !== holder ? ' via ' + via : '') };
 }
 (function () { try { if (!document.getElementById('lld-cond-css')) { const st = document.createElement('style'); st.id = 'lld-cond-css'; st.textContent = `.lc-box{margin-top:10px;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:8px}
