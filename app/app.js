@@ -94,12 +94,12 @@
       text('shell.html')
     ]).then(function (res) {
       window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], { origin: C.worker + '/mfl' });
-      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = C.base + C.css; document.head.appendChild(css);
+      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = C.base + C.css + '?v=' + Math.floor(Date.now() / 120000); document.head.appendChild(css);
       document.body.insertAdjacentHTML('afterbegin', res[1]);
       var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
       script('https://code.jquery.com/jquery-3.7.1.min.js', function () {
         patchJquery();
-        script(C.base + C.script, function () { $('#lld-app-boot').style.display = 'none'; });
+        script(C.base + C.script + '?v=' + Math.floor(Date.now() / 120000), function () { $('#lld-app-boot').style.display = 'none'; });
       });
     }).catch(function (e) { showLogin('Could not start: ' + e.message); });
   }
