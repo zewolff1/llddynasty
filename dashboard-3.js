@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-9"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-10"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2851,7 +2851,9 @@ function lldCondTradeNote(txt) {
         const e = lldCondEsc, box = 'margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.25);font-size:calc(10px * var(--ts,1));font-weight:700;color:#fff;';
         let h = '';
         if (note) h += `<div style="${box}border-left:3px solid var(--accent-blue)"><div style="font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px">Note</div>${e(note)}</div>`;
-        cs.forEach(c => { h += `<div style="${box}border-left:3px solid #f5c542"><div style="font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f5c542;margin-bottom:3px">\uD83D\uDD12 Conditional pick</div><b style="color:#f5c542">IF</b> ${e(c.i)} <b style="color:#2dd4bf">THEN</b> ${e(c.t)}<div style="color:var(--text-dim);margin-top:2px">Picks locked until ${e(lldCondFmt(c.u))}</div></div>`; });
+        const lab = k => { const m = String(k).match(/^(\d{4})-R(\d+)-(\d{4})$/); if (!m) return k; let n = ''; try { n = leagueFranchises[m[3]] || ''; } catch (x) { } return m[1] + ' Round ' + m[2] + (n ? ' (' + n + ')' : ''); };
+        const wr = 'overflow-wrap:anywhere;word-break:break-word;white-space:normal;line-height:1.35;', hd = 'font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;text-transform:uppercase;';
+        cs.forEach(c => { h += `<div style="${box}${wr}border-left:3px solid #f5c542"><div style="${hd}color:#f5c542;margin-bottom:5px">\uD83D\uDD12 Conditional pick</div><div style="margin-bottom:4px"><b style="color:#f5c542">IF</b> ${e(c.i)}</div><div style="margin-bottom:4px"><b style="color:#2dd4bf">THEN</b> ${e(c.t)}</div><div style="color:var(--text-dim)"><b>Until:</b> ${e(lldCondFmt(c.u))}</div>${c.l.length ? `<div style="color:var(--text-dim);margin-top:2px"><b>Locked picks:</b> ${e(c.l.map(lab).join(' \u00B7 '))}</div>` : ''}</div>`; });
         return h;
     } catch (er) { return ''; }
 }
