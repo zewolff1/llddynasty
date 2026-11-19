@@ -1626,7 +1626,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-10"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-11"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2832,7 +2832,7 @@ function lldApvLuBar() {
 // ===== Conditional picks (beta switch "cnd", 0000 / 0001 can write them; everyone sees the locks) =====
 // A condition is plain text in the trade's MFL comment:  IF: ... | THEN: ... | UNTIL: 2027-01-10 | LOCK: 2027-R2-0001,2027-R3-0001;
 // Picks named in LOCK stay with their team (they are left out of the MFL trade) and show as locked on the site until the UNTIL date passes.
-function lldCondOn() { try { return lldDev() && lldBv('cnd') === '1'; } catch (e) { return false; } }
+function lldCondOn() { return true; } // out of beta: everyone can add conditions to trade proposals
 function lldCondEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function lldCondClean(s) { return String(s == null ? '' : s).replace(/[|;\n\r]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function lldCondKey(y, r, f) { return y + '-R' + r + '-' + String(f || '').padStart(4, '0'); }
@@ -16347,7 +16347,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact Lineup rows: Sleeper-style slim rows with ranks and boom / bust along the bottom')}${onoff('clr')}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lab('Conditional picks: add IF / THEN conditions to trade proposals (the lock labels show for everyone)')}${onoff('cnd')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact Lineup rows: Sleeper-style slim rows with ranks and boom / bust along the bottom')}${onoff('clr')}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
