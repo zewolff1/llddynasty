@@ -9,17 +9,6 @@
                     <img id="custom-header-logo" src="" alt="League Logo" class="league-logo">
                 </div>
 <div class="header-right-controls" style="display:flex; align-items:center; gap:8px;">
-    <a href="https://slack.com/app_redirect?channel=C0BC1UBU11R" target="_blank"
-        style="display:flex; align-items:center; justify-content:center; width:34px; height:34px; text-decoration:none; color:#e01e5a; flex-shrink:0;"
-        title="League Chat">
-        <i class="fa-brands fa-slack" style="font-size:20px;"></i>
-    </a>
-
-    <button id="notif-bell-btn" aria-label="Notifications" style="position:relative; background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:20px; width:auto; fill:#f59e0b;"><path d="M320 64C302.3 64 288 78.3 288 96L288 99.2C215 114 160 178.6 160 256L160 277.7C160 325.8 143.6 372.5 113.6 410.1L103.8 422.3C98.7 428.6 96 436.4 96 444.5C96 464.1 111.9 480 131.5 480L508.4 480C528 480 543.9 464.1 543.9 444.5C543.9 436.4 541.2 428.6 536.1 422.3L526.3 410.1C496.4 372.5 480 325.8 480 277.7L480 256C480 178.6 425 114 352 99.2L352 96C352 78.3 337.7 64 320 64zM258 528C265.1 555.6 290.2 576 320 576C349.8 576 374.9 555.6 382 528L258 528z"/></svg>
-        <span id="notif-badge" style="display:none; position:absolute; top:0; right:0; width:8px; height:8px; background:#ef4444; border-radius:50%;"></span>
-    </button>
-
     <button id="open-calendar-btn" aria-label="League Calendar" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="height:20px; width:auto; fill:#60a5fa;">
             <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z"/>
@@ -46,7 +35,7 @@
             <div class="sub-tabs-container hide-scroll">
                               <div id="subtabs-team" class="sub-tabs-group active">
                     <button class="sub-tab-btn active" onclick="openSubTab(event, 'lineup')">Lineup</button>
- <button class="sub-tab-btn" onclick="openSubTab(event, 'contracts')">Contracts</button>
+<button class="sub-tab-btn" onclick="openSubTab(event, 'contracts')">Manage</button>
 <button class="sub-tab-btn" onclick="
     document.querySelector('.tab-btn[onclick*=\'tab-league\']').click();
     setTimeout(() => {
@@ -64,7 +53,6 @@
 
                 <div id="subtabs-league" class="sub-tabs-group">
                     <button class="sub-tab-btn active" onclick="openLeagueSubTab(event, 'standings')">Standings</button>
-                    <button class="sub-tab-btn" onclick="openLeagueSubTab(event, 'league-schedule')">Schedule</button>
                     <button class="sub-tab-btn" onclick="openLeagueSubTab(event, 'transactions')">Transactions</button>
                     <button class="sub-tab-btn" onclick="openLeagueSubTab(event, 'league-stats')">Stats</button>
 <button class="sub-tab-btn" onclick="openLeagueSubTab(event, 'trades')">Trades</button>
@@ -119,5 +107,3 @@
     <span>Submit Lineup Changes</span>
     <span class="change-count">0</span>
 </button>
-
-<div id="admin-toggle-btn" onclick="toggleAdminMode()" title="Toggle MFL Menus">⚙️</div>
