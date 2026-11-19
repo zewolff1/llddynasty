@@ -404,7 +404,7 @@ body.theme-season_thanksgiving, body.theme-season_thanksgiving#body_home {
     font-family: "Libre Baskerville", system-ui, sans-serif;
 }
 body.theme-season_thanksgiving .app-container, body.theme-season_thanksgiving .main-page-wrapper { background-color: transparent; background-image: none; }
-body.theme-season_thanksgiving .app-header { background-color: var(--page-bg); background-image: linear-gradient(90deg, var(--accent-blue) 0 66%, var(--accent-teal) 66% 100%); background-size: 100% 4px; background-repeat: no-repeat; border-bottom: 1px solid var(--card-border); }
+body.theme-season_thanksgiving .app-header { background-color: var(--page-bg); background-image: linear-gradient(90deg, var(--accent-teal), var(--accent-teal)); background-size: 100% 4px; background-repeat: no-repeat; border-bottom: 1px solid var(--card-border); }
 body.theme-season_thanksgiving .tab-btn, body.theme-season_thanksgiving .sub-tab-btn, body.theme-season_thanksgiving .section-header, body.theme-season_thanksgiving button, body.theme-season_thanksgiving .player-row .full-name, body.theme-season_thanksgiving .player-row .short-name, body.theme-season_thanksgiving [class*="score"], body.theme-season_thanksgiving [class*="proj"], body.theme-season_thanksgiving [class*="points"] { font-family: "Libre Baskerville", system-ui, sans-serif; font-weight: 700; }
 body.theme-season_thanksgiving .tab-btn { letter-spacing: .05em; }
 body.theme-season_thanksgiving .tab-btn.active { color: #fff; border-bottom-color: var(--accent-blue); }
@@ -412,12 +412,7 @@ body.theme-season_thanksgiving .sub-tab-btn.active { background: var(--accent-bl
 body.theme-season_thanksgiving .section-header { border-left: 3px solid var(--accent-blue); padding-left: 8px; }
 body.theme-season_thanksgiving .player-row { border-left: 3px solid var(--accent-teal) !important; }
 @media (hover: hover) { body.theme-season_thanksgiving .player-row:hover { border-color: var(--accent-teal) !important; transform: none; } }
-body.theme-season_thanksgiving .player-row { background-image: linear-gradient(color-mix(in srgb, var(--accent-blue) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--accent-blue) 8%, transparent) 1px, transparent 1px) !important; background-size: 14px 14px !important; }
-body.theme-season_thanksgiving .section-header::before { content: "🦃"; margin-right: 8px; font-size: 13px; }
-body.theme-season_thanksgiving .player-row { border-left: 0 !important; border-top: 4px solid var(--accent-blue) !important; border-radius: 0 0 10px 10px !important; }
 body.theme-season_thanksgiving .section-header { border-left: 0; border-bottom: 4px double var(--accent-blue); padding-left: 0; letter-spacing: .2em; }
-body.theme-season_thanksgiving .tab-btn { letter-spacing: .2em; }
-body.theme-season_thanksgiving .tab-btn.active { background: color-mix(in srgb, var(--accent-blue) 25%, transparent); border-bottom: 0; box-shadow: inset 0 3px 0 var(--accent-blue); }
 
 html:has(body.theme-season_christmas) { background-color: #0b1a12 !important; }
 body.theme-season_christmas, body.theme-season_christmas#body_home {
@@ -756,7 +751,7 @@ body.theme-season_fall, body.theme-season_fall#body_home { background-image: rad
 html:has(body.theme-season_fall) { background-color: #1a120c !important; }
 body.theme-season_halloween, body.theme-season_halloween#body_home { background-image: radial-gradient(circle at 85% 6%, rgba(255,246,201,.35) 0 22px, transparent 60px), radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1px 1px at 40% 80%, #fff, transparent), linear-gradient(180deg, #2a1546 0, #120a18 420px) !important; background-size: auto !important; background-attachment: scroll !important; background-repeat: repeat !important; background-color: #120a18 !important; }
 html:has(body.theme-season_halloween) { background-color: #120a18 !important; }
-body.theme-season_thanksgiving, body.theme-season_thanksgiving#body_home { background-image: radial-gradient(ellipse at 50% 0, rgba(224,169,59,.25), transparent 60%), repeating-linear-gradient(45deg, rgba(224,169,59,.05) 0 10px, transparent 10px 20px) !important; background-size: auto !important; background-attachment: scroll !important; background-repeat: repeat !important; background-color: #1c1112 !important; }
+body.theme-season_thanksgiving, body.theme-season_thanksgiving#body_home { background-image: none !important; background-size: auto !important; background-attachment: scroll !important; background-repeat: repeat !important; background-color: #1c1112 !important; }
 html:has(body.theme-season_thanksgiving) { background-color: #1c1112 !important; }
 body.theme-season_christmas, body.theme-season_christmas#body_home { background-image: radial-gradient(3px 3px at 15% 20%, rgba(255,255,255,.7), transparent), radial-gradient(2px 2px at 60% 55%, rgba(255,255,255,.6), transparent), radial-gradient(3px 3px at 85% 80%, rgba(255,255,255,.6), transparent), repeating-linear-gradient(90deg, rgba(200,32,47,.07) 0 14px, transparent 14px 28px), linear-gradient(180deg, #123a24 0, #0b1a12 400px) !important; background-size: 90px 90px, 130px 130px, 170px 170px, auto, auto !important; background-attachment: scroll !important; background-repeat: repeat !important; background-color: #0b1a12 !important; }
 html:has(body.theme-season_christmas) { background-color: #0b1a12 !important; }
