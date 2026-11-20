@@ -1602,6 +1602,7 @@ const lidFromUrl = window.location.href.match(/\/home\/(\d+)/)?.[1] || window.lo
 const yearFromUrl = new Date().getFullYear().toString();
 const myAppIconUrl = `${MFL_ORIGIN}/fflnetdynamic${yearFromUrl}/${lidFromUrl}_league_logo.png`;
     function injectIcons() {
+        if (window.LLD_STANDALONE) return; // the app lets each person choose their own Home Screen icon (app/install.js)
         document.querySelectorAll('link[rel="shortcut icon"], link[rel="icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]').forEach(e => e.remove());
         
         ['apple-touch-icon', 'apple-touch-icon-precomposed'].forEach(rel => {
@@ -1630,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 subtabs-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 icons-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -4078,10 +4079,12 @@ $('#custom-header-logo').off('error').attr('src', leagueLogoUrl).on('error', fun
     $(this).off('error').attr('src', `${MFL_ORIGIN}/fflnetdynamic${year}/${lid}_league_logo.jpg`);
 });
 $('#custom-header-logo').attr('src', leagueLogoUrl);
+if (!window.LLD_STANDALONE) {
 $('link[rel="shortcut icon"], link[rel="icon"], link[rel="apple-touch-icon"]').remove();
 $('head').append(`<link rel="icon" type="image/png" href="${leagueLogoUrl}">`);
 $('head').append(`<link rel="shortcut icon" type="image/png" href="${leagueLogoUrl}">`);
 $('head').append(`<link rel="apple-touch-icon" sizes="180x180" href="${leagueLogoUrl}">`);
+}
 
         // Find the franchise name
         const teamIconElement = $(`#franchiseicon_${fid}`);
