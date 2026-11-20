@@ -1,5 +1,6 @@
-/* Notifications panel for franchises 0000 / 0001 (Settings > Team Settings).
-   Turns on push for this phone, lets you pick which alerts you get, and sends a test. Needs the alerts Worker (config.js: alerts). */
+/* Notifications panel for every owner (Settings > Team Settings).
+   Turns on push for this phone, lets you pick which alerts you get, and sends a test. Alerts are for the team you are signed in as.
+   Needs the alerts Worker (config.js: alerts). */
 (function () {
   'use strict';
   var C = window.LLD_APP || {}, W = String(C.alerts || '').replace(/\/+$/, '');
@@ -10,10 +11,13 @@
   function reg() { return navigator.serviceWorker.getRegistration().then(function (r) { return r || navigator.serviceWorker.register('sw.js?w=' + encodeURIComponent(W)); }).then(function (r) { return navigator.serviceWorker.ready.then(function () { return r; }); }); }
   function box() { return document.getElementById('lld-notif-box'); }
   function say(m) { var e = document.getElementById('lld-nf-st'); if (e) e.textContent = m; }
+  function cookie() { try { return (JSON.parse(localStorage.getItem('lld_app_session_v1') || '{}') || {}).cookie || ''; } catch (e) { return ''; } }
+  // tells the Worker which phone this is and which team is signed in (the Worker checks the login with MFL and does not keep it)
+  function sendSub(s) { var b = s.toJSON(); b.cookie = cookie(); return fetch(W + '/subscribe', { method: 'POST', body: JSON.stringify(b) }); }
   function can() { return W && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 
   function build() {
-    var host = document.getElementById('tab-team-set'); if (!host || box() || !isBeta()) return;
+    var host = document.getElementById('tab-team-set'); if (!host || box()) return;
     var d = document.createElement('div'); d.id = 'lld-notif-box';
     d.style.cssText = 'margin:0 0 14px;padding:12px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.04)';
     d.innerHTML = '<div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;margin-bottom:6px">Notifications</div>' +
@@ -22,7 +26,7 @@
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" id="lld-nf-on" class="lld-nf-b">Turn on</button><button type="button" id="lld-nf-test" class="lld-nf-b">Send test notification</button></div>' +
       '<div id="lld-nf-pf" style="display:none;flex-direction:column;gap:6px">' + KINDS.map(function (k) { return '<label style="display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;color:#fff"><input type="checkbox" data-k="' + k[0] + '" checked> ' + k[1] + '</label>'; }).join('') + '</div>';
     host.insertBefore(d, host.firstChild);
-    try { var t = window.LLD_BOOT || {}; document.getElementById('lld-nf-boot').textContent = 'Last launch: version check ' + (t.version || '?') + ' ms, files ' + (t.files || '?') + ' ms, dashboard loaded at ' + (t.dashboard || '?') + ' ms'; } catch (e) { }
+    try { var t = window.LLD_BOOT || {}; if (isBeta()) document.getElementById('lld-nf-boot').textContent = 'Last launch: version check ' + (t.version || '?') + ' ms, files ' + (t.files || '?') + ' ms, dashboard loaded at ' + (t.dashboard || '?') + ' ms'; } catch (e) { }
     d.querySelectorAll('.lld-nf-b').forEach(function (b) { b.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:900;font-size:11px;text-transform:uppercase'; });
     status();
   }
@@ -37,7 +41,7 @@
     idOf(sub).then(function (id) {
       return fetch(W + '/prefs?id=' + id).then(function (r) { return r.json(); }).then(function (j) {
         var p = j.prefs || {}, pf = document.getElementById('lld-nf-pf'); if (!pf) return;
-        pf.querySelectorAll('input').forEach(function (i) { i.checked = p[i.dataset.k] !== false; i.onchange = function () { var o = {}; pf.querySelectorAll('input').forEach(function (x) { o[x.dataset.k] = x.checked; }); fetch(W + '/prefs?id=' + id, { method: 'POST', body: JSON.stringify(o) }).catch(function () { say('Could not save your choices.'); }); }; });
+        pf.querySelectorAll('input').forEach(function (i) { i.checked = p[i.dataset.k] !== undefined ? p[i.dataset.k] !== false : !(!isBeta() && (i.dataset.k === 'tx' || i.dataset.k === 'tb')); i.onchange = function () { var o = {}; pf.querySelectorAll('input').forEach(function (x) { o[x.dataset.k] = x.checked; }); fetch(W + '/prefs?id=' + id, { method: 'POST', body: JSON.stringify(o) }).catch(function () { say('Could not save your choices.'); }); }; });
         pf.style.display = 'flex';
       });
     }).catch(function () { });
@@ -55,7 +59,7 @@
             return r.pushManager.getSubscription().then(function (s) { return s || r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(v.key) }); });
           });
         });
-      }).then(function (s) { return fetch(W + '/subscribe', { method: 'POST', body: JSON.stringify(s.toJSON()) }).then(function () { say('Notifications are ON for this phone.'); prefsLoad(s); }); })
+      }).then(function (s) { return sendSub(s).then(function () { say('Notifications are ON for this phone.'); prefsLoad(s); }); })
         .catch(function (err) { say('Could not turn on: ' + err.message); });
     } else {
       say('Sending test…');
@@ -69,6 +73,8 @@
       }); }).catch(function (err) { say('Test failed: ' + err.message); });
     }
   });
+  // every launch: if this phone already has alerts on, tell the Worker which team is signed in (so alerts follow the right owner)
+  try { if (can() && Notification.permission === 'granted') reg().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) { if (s) return sendSub(s); }).catch(function () { }); } catch (e) { }
   // build the panel whenever Settings opens
   document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('.open-settings-btn')) { setTimeout(build, 350); setTimeout(build, 1200); } }, true);
   document.addEventListener('touchend', function (e) { if (e.target && e.target.closest && e.target.closest('.open-settings-btn')) { setTimeout(build, 350); setTimeout(build, 1200); } }, true);

@@ -108,17 +108,40 @@ async function ping(env, id, endpoint) {
     if (r.status === 404 || r.status === 410) { await env.STATE.delete('sub:' + id); await env.STATE.delete('q:' + id); }
     return r.status;
 }
-async function broadcast(env, msgs) {
-    try { const fd = (await env.STATE.get('feed', { type: 'json' })) || [], now = Date.now(); msgs.filter(m => m.type).forEach(m => fd.push({ type: m.type, title: m.title, body: m.body || '', fid: m.fid || '', pids: m.pids || [], ts: now })); await env.STATE.put('feed', JSON.stringify(fd.slice(-40))); } catch (e) { }
+// Every phone that turned on alerts belongs to one franchise (checked against MFL when it subscribed). Old subscriptions with no franchise saved belong to the owner of this Worker (FRANCHISE_ID).
+const myFidOf = env => String(env.FRANCHISE_ID || '').padStart(4, '0');
+const subFidOf = (env, v) => v && v.fid !== undefined ? String(v.fid || '') : myFidOf(env);
+const OWN_SKIP = ['board', 'tb', 'tx'];   // no alert for your own post, trade block update or pickup
+const NONDEV_OFF = ['tx', 'tb'];          // other owners start with these two off and can switch them on
+const wants = (env, pf, type, fid) => pf[type] !== undefined ? pf[type] !== false : !(NONDEV_OFF.includes(type) && fid !== myFidOf(env) && fid !== '0000');
+async function broadcast(env, msgs, opt) {
+    try { const fd = (await env.STATE.get('feed', { type: 'json' })) || [], now = Date.now(); msgs.filter(m => m.type).forEach(m => fd.push({ type: m.type, title: m.title, body: m.body || '', fid: m.fid || '', to: m.to || '', pids: m.pids || [], ts: now })); await env.STATE.put('feed', JSON.stringify(fd.slice(-40))); } catch (e) { }
     const subs = await env.STATE.list({ prefix: 'sub:' }); let n = 0;
     for (const s of subs.keys) {
         const id = s.name.slice(4), v = await env.STATE.get(s.name, { type: 'json' }); if (!v) continue;
-        const pf = (await env.STATE.get('pref:' + id, { type: 'json' })) || {}, mine = msgs.filter(m => !m.type || pf[m.type] !== false); if (!mine.length) continue;
+        const mf = subFidOf(env, v); if (opt && opt.only !== undefined && mf !== opt.only) continue;
+        const pf = (await env.STATE.get('pref:' + id, { type: 'json' })) || {};
+        const mine = msgs.filter(m => (!m.to || m.to === mf) && !(OWN_SKIP.includes(m.type) && m.fid && m.fid === mf) && (!m.type || wants(env, pf, m.type, mf))); if (!mine.length) continue;
         const q = (await env.STATE.get('q:' + id, { type: 'json' })) || [];
         await env.STATE.put('q:' + id, JSON.stringify(q.concat(mine).slice(-10)), { expirationTtl: 86400 });
         try { await ping(env, id, v.endpoint); n++; } catch (e) { }
     }
     return n;
+}
+// The set of franchises that have at least one phone subscribed (the commissioner account 0000 has no team of its own)
+async function subFids(env) {
+    const subs = await env.STATE.list({ prefix: 'sub:' }), set = new Set();
+    for (const s of subs.keys) { const v = await env.STATE.get(s.name, { type: 'json' }); if (!v) continue; const f = subFidOf(env, v); if (f && f !== '0000') set.add(f); }
+    return [...set];
+}
+// Asks MFL which franchise this login owns in your league. The login cookie is used for this one request and never saved.
+async function verifyFid(env, cookie) {
+    try {
+        const y = env.YEAR || new Date().getFullYear();
+        const r = await fetch(`https://api.myfantasyleague.com/${y}/export?TYPE=myleagues&YEAR=${y}&JSON=1`, { headers: { Cookie: String(cookie).slice(0, 800), 'User-Agent': 'lld-alerts' } });
+        const j = await r.json(); let L = (j.leagues && j.leagues.league) || []; if (!Array.isArray(L)) L = [L];
+        const mine = L.find(x => String(x.league_id) === String(env.LEAGUE_ID)); return mine ? String(mine.franchise_id || '').padStart(4, '0') : null;
+    } catch (e) { return null; }
 }
 
 async function mfl(env, type, extra) {
@@ -163,7 +186,7 @@ async function pollBoard(env, st, nameOf, out) {
         const base = seen[id] != null ? seen[id] : (first ? Infinity : 0);
         for (const p of posts.sort((a, b) => a.timestamp - b.timestamp)) {
             const ts = Number(p.timestamp || 0); if (!ts || ts <= base) continue;
-            const f = String(p.franchise || p.franchise_id || '').padStart(4, '0'); if (f === me) continue;
+            const f = String(p.franchise || p.franchise_id || '').padStart(4, '0');
             if (isTb) {
                 const o = tbDec(p.body || p.message); if (!o) continue; const v = Object.values(o.p || {}).map(x => String(x)[0]);
                 const c = k => v.filter(x => x === k).length, parts = []; if (c('S')) parts.push(c('S') + ' seeking'); if (c('W')) parts.push(c('W') + ' willing'); if (c('U')) parts.push(c('U') + ' unlikely'); if (c('N')) parts.push(c('N') + ' unavailable');
@@ -181,30 +204,29 @@ async function pollTimed(env, st, out) {
     if (day === 'Thu' && st.tm.pv !== key) { st.tm.pv = key; out.push({ type: 'preview', title: 'Matchup preview', body: SHORT ? 'Ready in your dashboard.' : 'This week\u2019s preview is ready in your dashboard.', url: LEAGUE_URL(env) }); }
     if (day === 'Tue' && st.tm.rc !== key) { st.tm.rc = key; out.push({ type: 'recap', title: 'Weekly recap', body: SHORT ? 'Ready in your dashboard.' : 'Last week\u2019s recap is ready in your dashboard.', url: LEAGUE_URL(env) }); }
 }
-// Lineup check for your own team: Thursday ~6 PM and Sunday ~10:30 AM Eastern, once each. Empty starter spots and starters who are Out / IR.
-// force = true (from /lineupnow) skips the Thursday / Sunday time window and the once-per-day rule, and returns what it saw so you can test it any time
-async function pollLineup(env, st, nameOf, out, force) {
+// Lineup check for every owner with alerts on: Thursday ~6 PM and Sunday ~10:30 AM Eastern, once each per owner. Empty starter spots and starters who are Out / IR.
+// force = true (from /lineupnow) skips the time window and the once-per-day rule, and returns what it saw so you can test it any time
+async function pollLineup(env, st, nameOf, out, force, fidList) {
     const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date()), g = k => (f.find(x => x.type === k) || {}).value;
     const hr = +g('hour') % 24, mn = +g('minute'), day = g('weekday'), t = hr * 60 + mn, key = g('year') + '-' + g('month') + '-' + g('day');
     const slot = (day === 'Thu' && t >= 1080 && t <= 1170) ? 'thu' : (day === 'Sun' && t >= 630 && t <= 720) ? 'sun' : '';
     st.lu = st.lu || {};
-    if (!force) { if (!slot) return; if (st.lu[slot] === key) return; }
-    const fid = String(env.FRANCHISE_ID || '').padStart(4, '0');
+    if (!force && !slot) return {};
+    const todo = (fidList || []).filter(x => force || st.lu[x + ':' + slot] !== key), res = {}; if (!todo.length) return res;
     const lg = (await mfl(env, 'league')).league || {}, need = parseInt((lg.starters && lg.starters.count) || '0', 10) || 0;
-    const fr = arr(((await mfl(env, 'liveScoring')).liveScoring || {}).franchise).find(x => String(x.id).padStart(4, '0') === fid);
-    if (!fr) return force ? { note: 'MFL has no live scoring for franchise ' + fid + ' right now (normal on a bye week or off-season)', need } : undefined;
-    const starters = arr(fr.players && fr.players.player).filter(p => String(p.status).toLowerCase() === 'starter');
-    if (!force) st.lu[slot] = key; const problems = []; let count = 0;
-    if (need && starters.length < need) count += need - starters.length;
-    if (need && starters.length < need) problems.push((need - starters.length) + ' empty starting spot' + (need - starters.length > 1 ? 's' : ''));
-    try {
-        const inj = {}; arr(((await mfl(env, 'injuries')).injuries || {}).injury).forEach(i => { inj[String(i.id)] = String(i.status || ''); });
-        const bad = starters.filter(p => /^(out|ir|injured reserve|suspended|pup)/i.test(inj[String(p.id)] || '')).map(p => p.id);
-        count += bad.length;
-        if (bad.length) problems.push((await assets(env, bad.join(','))) + (bad.length > 1 ? ' are' : ' is') + ' ruled out');
-    } catch (e) { }
-    if (problems.length) out.push({ type: 'lineup', fid, title: 'Check your lineup', body: SHORT ? count + ' problem' + (count > 1 ? 's' : '') : problems.join(' \u2022 '), url: LEAGUE_URL(env) });
-    return { franchise: fid, startersNeeded: need, startersSet: starters.length, problems };
+    const frs = arr(((await mfl(env, 'liveScoring')).liveScoring || {}).franchise);
+    let inj = null; try { inj = {}; arr(((await mfl(env, 'injuries')).injuries || {}).injury).forEach(i => { inj[String(i.id)] = String(i.status || ''); }); } catch (e) { inj = null; }
+    for (const fid of todo) {
+        const fr = frs.find(x => String(x.id).padStart(4, '0') === fid);
+        if (!fr) { res[fid] = { note: 'MFL has no live scoring for franchise ' + fid + ' right now (normal on a bye week or off-season)', need }; continue; }
+        const starters = arr(fr.players && fr.players.player).filter(p => String(p.status).toLowerCase() === 'starter');
+        if (!force) st.lu[fid + ':' + slot] = key; const problems = []; let count = 0;
+        if (need && starters.length < need) { count += need - starters.length; problems.push((need - starters.length) + ' empty starting spot' + (need - starters.length > 1 ? 's' : '')); }
+        if (inj) { const bad = starters.filter(p => /^(out|ir|injured reserve|suspended|pup)/i.test(inj[String(p.id)] || '')).map(p => p.id); count += bad.length; if (bad.length) problems.push((await assets(env, bad.join(','))) + (bad.length > 1 ? ' are' : ' is') + ' ruled out'); }
+        if (problems.length) out.push({ type: 'lineup', to: fid, fid, title: 'Check your lineup', body: SHORT ? count + ' problem' + (count > 1 ? 's' : '') : problems.join(' \u2022 '), url: LEAGUE_URL(env) });
+        res[fid] = { startersNeeded: need, startersSet: starters.length, problems };
+    }
+    return res;
 }
 // Turns MFL's raw transaction text (player ids) into a readable alert
 async function fmtTx(env, t, nameOf) {
@@ -221,17 +243,24 @@ async function fmtTx(env, t, nameOf) {
 }
 async function poll(env) {
     const st = (await env.STATE.get('seen', { type: 'json' })) || { init: false, trades: [], tx: 0 }, out = [], teams = await teamNames(env);
-    const nameOf = f => teamLabel(teams[f] || ('Team ' + f)), fid = String(env.FRANCHISE_ID || '').padStart(4, '0');
-    try {
-        const pt = arr(((await mfl(env, 'pendingTrades', '&FRANCHISE_ID=' + fid)).pendingTrades || {}).pendingTrade);
-        for (const t of pt) {
-            if (st.trades.includes(t.trade_id)) continue; st.trades.push(t.trade_id);
-            // Only offers made TO your team: skip ones you sent yourself and ones between other teams
-            const toRaw = String(t.offeredto || t.offered_to || ''), to = toRaw ? toRaw.padStart(4, '0') : '', from = String(t.offeringteam || '').padStart(4, '0');
-            if (to ? to !== fid : from === fid) continue;
-            if (st.init) out.push({ type: 'offer', fid: t.offeringteam, pids: ids(t.will_give_up).slice(0, 3), title: 'Trade offer from ' + nameOf(t.offeringteam), body: SHORT ? `${await assets(env, t.will_give_up)} for ${await assets(env, t.will_receive)}` : `They give: ${await assets(env, t.will_give_up)} • You give: ${await assets(env, t.will_receive)}`, url: LEAGUE_URL(env) }); }
-        st.trades = st.trades.slice(-60);
-    } catch (e) { }
+    const nameOf = f => teamLabel(teams[f] || ('Team ' + f)), me = myFidOf(env), targets = await subFids(env);
+    st.fi = st.fi || {}; if (st.init && me && st.fi[me] === undefined) st.fi[me] = true; // the owner of this Worker was already being watched
+    // Trade offers: each owner only hears about offers made TO their team
+    for (const fid of targets) {
+        const first = !st.fi[fid];
+        try {
+            const pt = arr(((await mfl(env, 'pendingTrades', '&FRANCHISE_ID=' + fid)).pendingTrades || {}).pendingTrade);
+            for (const t of pt) {
+                const key = fid + ':' + t.trade_id; if (st.trades.includes(key) || (fid === me && st.trades.includes(t.trade_id))) continue; st.trades.push(key);
+                const toRaw = String(t.offeredto || t.offered_to || ''), to = toRaw ? toRaw.padStart(4, '0') : '', from = String(t.offeringteam || '').padStart(4, '0');
+                if (to ? to !== fid : from === fid) continue;
+                if (first || !st.init) continue; // first look at this owner: don't announce offers that were already waiting
+                out.push({ type: 'offer', to: fid, fid: t.offeringteam, pids: ids(t.will_give_up).slice(0, 3), title: 'Trade offer from ' + nameOf(t.offeringteam), body: SHORT ? `${await assets(env, t.will_give_up)} for ${await assets(env, t.will_receive)}` : `They give: ${await assets(env, t.will_give_up)} • You give: ${await assets(env, t.will_receive)}`, url: LEAGUE_URL(env) });
+            }
+            st.fi[fid] = true;
+        } catch (e) { }
+    }
+    st.trades = st.trades.slice(-300);
     try {
         const types = String(env.TX_TYPES || 'TRADE,FREE_AGENT,WAIVER,BBID_WAIVER,AUCTION_WON').split(',').map(x => x.trim()), tx = arr(((await mfl(env, 'transactions', '&COUNT=30')).transactions || {}).transaction);
         let mx = st.tx;
@@ -244,7 +273,7 @@ async function poll(env) {
     } catch (e) { }
     try { await pollBoard(env, st, nameOf, out); } catch (e) { }
     if (st.init) { try { await pollTimed(env, st, out); } catch (e) { } }
-    if (st.init) { try { await pollLineup(env, st, nameOf, out); } catch (e) { } }
+    if (st.init) { try { await pollLineup(env, st, nameOf, out, false, targets); } catch (e) { } }
     st.init = true; await env.STATE.put('seen', JSON.stringify(st));
     if (out.length) await broadcast(env, out);
     return out.length;
@@ -291,13 +320,19 @@ export default {
         if (!env.STATE) return J({ error: 'The STATE KV binding is missing on this Worker.' }, 500);
         const u = url;
         if (p === '/vapid') return J({ key: (await keys(env)).pub });
-        if (p === '/subscribe' && req.method === 'POST') { const s = await req.json(); if (!s || !s.endpoint) return J({ error: 'bad subscription' }, 400); const id = await sid(s.endpoint); await env.STATE.put('sub:' + id, JSON.stringify({ endpoint: s.endpoint, t: Date.now() })); return J({ ok: true, id }); }
+        if (p === '/subscribe' && req.method === 'POST') {
+          const s = await req.json(); if (!s || !s.endpoint) return J({ error: 'bad subscription' }, 400); const id = await sid(s.endpoint);
+          const old = await env.STATE.get('sub:' + id, { type: 'json' }); let fid = old && old.fid !== undefined ? old.fid : (old ? undefined : '');
+          if (s.cookie) { const v = await verifyFid(env, s.cookie); if (v !== null) fid = v === '0000' ? myFidOf(env) : v; } // the commissioner login (0000) is you, so it gets your team's alerts
+          const rec = { endpoint: s.endpoint, t: Date.now() }; if (fid !== undefined) rec.fid = fid;
+          await env.STATE.put('sub:' + id, JSON.stringify(rec)); return J({ ok: true, id, fid: fid === undefined ? myFidOf(env) : fid });
+        }
         if (p === '/prefs') { const id = (u.searchParams.get('id') || '').replace(/[^a-f0-9]/g, ''); if (!id) return J({ error: 'no id' }, 400); if (req.method === 'POST') { const b = await req.json(); const keys = ['offer', 'trade', 'tx', 'board', 'tb', 'preview', 'recap', 'lineup'], o = {}; keys.forEach(k => { if (b && k in b) o[k] = !!b[k]; }); await env.STATE.put('pref:' + id, JSON.stringify(o)); return J({ ok: true }); } return J({ prefs: (await env.STATE.get('pref:' + id, { type: 'json' })) || {} }); }
-        if (p === '/feed') { const items = ((await env.STATE.get('feed', { type: 'json' })) || []).slice(-30).reverse(), logos = (await env.STATE.get('logos', { type: 'json' })) || {}; return J({ items, logos }); }
+        if (p === '/feed') { const items = ((await env.STATE.get('feed', { type: 'json' })) || []).filter(i => !i.to).slice(-30).reverse(), logos = (await env.STATE.get('logos', { type: 'json' })) || {}; return J({ items, logos }); }
         if (p === '/latest') { const id = u.searchParams.get('id') || ''; const q = (await env.STATE.get('q:' + id, { type: 'json' })) || []; await env.STATE.delete('q:' + id); return J({ msgs: q }); }
         if (p === '/testme') { const id = (u.searchParams.get('id') || '').replace(/[^a-f0-9]/g, ''); const v = id && await env.STATE.get('sub:' + id, { type: 'json' }); if (!v) return J({ error: 'not subscribed' }, 404); const q = (await env.STATE.get('q:' + id, { type: 'json' })) || []; await env.STATE.put('q:' + id, JSON.stringify(q.concat([{ title: 'LLD Alerts', body: 'Test notification. It works!', url: '' }]).slice(-10)), { expirationTtl: 3600 }); const st = await ping(env, id, v.endpoint); return J({ ok: st >= 200 && st < 300, status: st }); } // sends one test push to the device that asks, nobody else
-        if (p === '/test') { if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403); const n = await broadcast(env, [{ title: 'LLD Alerts', body: 'Test notification. It works!', url: '' }]); return J({ sent: n }); }
-        if (p === '/faketrade') { if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403); const n = await broadcast(env, [{ type: 'offer', fid: '0002', title: 'Trade offer from Gotham Rogues (test)', body: 'They give: Bijan Robinson, 2027 round 2 pick \u2022 You give: Josh Allen', url: LEAGUE_URL(env) }]); return J({ sent: n }); }
+        if (p === '/test') { if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403); const n = await broadcast(env, [{ title: 'LLD Alerts', body: 'Test notification. It works!', url: '' }], { only: myFidOf(env) }); return J({ sent: n }); }
+        if (p === '/faketrade') { if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403); const n = await broadcast(env, [{ type: 'offer', fid: '0002', title: 'Trade offer from Gotham Rogues (test)', body: 'They give: Bijan Robinson, 2027 round 2 pick \u2022 You give: Josh Allen', url: LEAGUE_URL(env) }], { only: myFidOf(env) }); return J({ sent: n }); }
         if (p === '/probe') { if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403); return J(await probe(env, u.searchParams.get('only'))); }
         if (p === '/check') { if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403); return J({ found: await poll(env) }); }
         // /sample?k=KEY&type=lineup  sends one made-up alert of that type (offer, trade, tx, lineup, preview, recap, board, tb); leave type off to send all eight.
@@ -315,13 +350,13 @@ export default {
             tb: { type: 'tb', title: 'Best Budz updated their trade block', body: 'Status changed', url: LEAGUE_URL(env) }
           };
           const want = u.searchParams.get('type'); if (want && !S[want]) return J({ error: 'type must be one of: ' + Object.keys(S).join(', ') }, 400);
-          const n = await broadcast(env, want ? [S[want]] : Object.values(S)); return J({ sent: n, type: want || 'all' });
+          const n = await broadcast(env, want ? [S[want]] : Object.values(S), { only: myFidOf(env) }); return J({ sent: n, type: want || 'all' });
         }
-        // /lineupnow?k=KEY  runs the real lineup check on your team right now (any day or time) and sends the alert if it finds a problem. Add &send=0 to look without sending.
+        // /lineupnow?k=KEY  runs the real lineup check on your team (add &fid=0003 for another owner's) right now (any day or time) and sends the alert if it finds a problem. Add &send=0 to look without sending.
         if (p === '/lineupnow') {
           if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403);
-          const out = [], teams = await teamNames(env), seen = await pollLineup(env, {}, f => teamLabel(teams[f] || ('Team ' + f)), out, true);
-          const sent = out.length && u.searchParams.get('send') !== '0' ? await broadcast(env, out) : 0; return J({ result: seen, alerts: out.length, sent });
+          const out = [], teams = await teamNames(env), fid = String(u.searchParams.get('fid') || myFidOf(env)).padStart(4, '0'), seen = await pollLineup(env, {}, f => teamLabel(teams[f] || ('Team ' + f)), out, true, [fid]);
+          const sent = out.length && u.searchParams.get('send') !== '0' ? await broadcast(env, out) : 0; return J({ result: seen[fid], alerts: out.length, sent });
         }
         return J({ error: 'not found' }, 404);
       } catch (e) { return J({ error: 'alerts error' }, 500); }
