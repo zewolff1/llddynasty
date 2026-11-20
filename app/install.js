@@ -21,8 +21,7 @@
   function leagueIcon() { return fetch('icon-180.png').then(function (r) { return r.blob(); }).then(blobToUrl); }
   function blobToUrl(b) { return new Promise(function (res) { var f = new FileReader(); f.onload = function () { res(f.result); }; f.readAsDataURL(b); }); }
   // a team logo from MFL (through the Worker) drawn onto a square white icon
-  function teamIcon(fid) {
-    var y = C.year, u = C.worker + '/mfl/fflnetdynamic' + y + '/' + C.leagueId + '_franchise_logo' + fid + '.png';
+  function logoIcon(u) {
     return fetch(u).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) {
       return new Promise(function (res, rej) {
         var img = new Image(), o = URL.createObjectURL(b);
@@ -36,11 +35,17 @@
       });
     });
   }
-  function applyChoice(choice) { // 'league' or a franchise id
-    if (!choice || choice === 'league') return leagueIcon().then(setIcon);
-    return teamIcon(choice).then(setIcon).catch(function () { return leagueIcon().then(setIcon).then(function () { return 'nologo'; }); });
+  function mflBase() { return C.worker + '/mfl/fflnetdynamic' + C.year + '/' + C.leagueId; }
+  function teamIcon(fid) { return logoIcon(mflBase() + '_franchise_logo' + fid + '.png'); }
+  function leagueLogoIcon() { return logoIcon(mflBase() + '_league_logo.png').catch(function () { return logoIcon(mflBase() + '_league_logo.jpg'); }); }
+  // choice: 'mfl' (the MFL logo bundled with the app), 'league' (your league logo from MFL, the default) or a franchise id (that team's MFL logo)
+  // a logo MFL does not have falls back to the MFL logo and the promise resolves 'nologo'
+  function applyChoice(choice) {
+    if (choice === 'mfl') return leagueIcon().then(setIcon);
+    var get = (!choice || choice === 'league') ? leagueLogoIcon() : teamIcon(choice);
+    return get.then(setIcon).catch(function () { return leagueIcon().then(setIcon).then(function () { return 'nologo'; }); });
   }
-  var saved = sget(KEY); if (saved && saved !== 'league') applyChoice(saved);
+  var saved = sget(KEY); if (saved && saved !== 'league') applyChoice(saved); else applyChoice('league');
 
   var ua = navigator.userAgent || '', q = /[?&]install=1\b/.test(location.search);
   var standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
@@ -81,7 +86,7 @@
     '#lld-inst .po{display:flex;gap:8px}#lld-inst .po button{flex:1;width:auto;padding:10px 6px;border-radius:10px;border:2px solid #243049;background:#16203a;color:#e5e7eb;font-size:13px;font-weight:700}#lld-inst .po button[aria-pressed=true]{border-color:#14b8a6}' +
     '#lld-pk-s{width:100%;margin-bottom:8px;padding:11px;border-radius:10px;border:1px solid #243049;background:#16203a;color:#fff;font-size:16px}#lld-pk-m{min-height:0;margin:0 0 10px;font-size:12px;color:#94a3b8}' +
     '#lld-inst-go{display:none;background:#14b8a6;color:#04201d;margin-bottom:8px}#lld-inst-skip{background:transparent;color:#94a3b8;font-weight:600 !important}';
-  var PICK = '<div class="pk"><div class="big" id="lld-pk-big"></div><div style="flex:1"><div class="po"><button type="button" id="lld-pk-l" aria-pressed="true">League logo</button><button type="button" id="lld-pk-t" aria-pressed="false">My team</button></div></div></div><select id="lld-pk-s" style="display:none"><option value="">Pick your team…</option></select><div id="lld-pk-m"></div>';
+  var PICK = '<div class="pk"><div class="big" id="lld-pk-big"></div><div style="flex:1"><div class="po"><button type="button" id="lld-pk-l" aria-pressed="true">League</button><button type="button" id="lld-pk-t" aria-pressed="false">My team</button><button type="button" id="lld-pk-m2" aria-pressed="false">MFL</button></div></div></div><select id="lld-pk-s" style="display:none"><option value="">Pick your team…</option></select><div id="lld-pk-m"></div>';
   var teams = null;
   function loadTeams() {
     if (teams) return Promise.resolve(teams);
@@ -93,20 +98,22 @@
   function wirePicker() {
     var big = document.getElementById('lld-pk-big'), bl = document.getElementById('lld-pk-l'), bt = document.getElementById('lld-pk-t'), sel = document.getElementById('lld-pk-s'), msg = document.getElementById('lld-pk-m');
     function show(url) { big.innerHTML = url ? '<img alt="" src="' + url + '">' : ''; }
-    function press(t) { bl.setAttribute('aria-pressed', t === 'l'); bt.setAttribute('aria-pressed', t === 't'); sel.style.display = t === 't' ? 'block' : 'none'; msg.textContent = ''; }
-    function league() { press('l'); sset(KEY, 'league'); applyChoice('league').then(function () { show(ICON); }); }
-    bl.onclick = league;
+    var bm = document.getElementById('lld-pk-m2');
+    function press(t) { bl.setAttribute('aria-pressed', t === 'l'); bt.setAttribute('aria-pressed', t === 't'); bm.setAttribute('aria-pressed', t === 'm'); sel.style.display = t === 't' ? 'block' : 'none'; msg.textContent = ''; }
+    function pickSimple(t, key) { press(t); sset(KEY, key); msg.textContent = 'Loading logo…'; applyChoice(key).then(function (r) { show(ICON); msg.textContent = r === 'nologo' ? 'MFL does not have that logo, so the MFL logo will be used.' : ''; }); }
+    bl.onclick = function () { pickSimple('l', 'league'); };
+    bm.onclick = function () { pickSimple('m', 'mfl'); };
     bt.onclick = function () {
       press('t'); msg.textContent = 'Loading teams…';
-      loadTeams().then(function (t) { sel.innerHTML = '<option value="">Pick your team…</option>' + t.map(function (x) { return '<option value="' + x.id + '">' + String(x.name).replace(/</g, '&lt;') + '</option>'; }).join(''); msg.textContent = ''; var sv = sget(KEY); if (sv && sv !== 'league') { sel.value = sv; if (sel.value) sel.onchange(); } })
+      loadTeams().then(function (t) { sel.innerHTML = '<option value="">Pick your team…</option>' + t.map(function (x) { return '<option value="' + x.id + '">' + String(x.name).replace(/</g, '&lt;') + '</option>'; }).join(''); msg.textContent = ''; var sv = sget(KEY); if (sv && sv !== 'league' && sv !== 'mfl') { sel.value = sv; if (sel.value) sel.onchange(); } })
         .catch(function () { msg.textContent = 'Could not load the team list. The league logo will be used.'; });
     };
     sel.onchange = function () {
       if (!sel.value) return; msg.textContent = 'Loading logo…';
       sset(KEY, sel.value);
-      applyChoice(sel.value).then(function (r) { show(ICON); msg.textContent = r === 'nologo' ? 'That team has no logo on MFL yet, so the league logo will be used.' : 'This icon will be saved when you add the app.'; });
+      applyChoice(sel.value).then(function (r) { show(ICON); msg.textContent = r === 'nologo' ? 'That team has no logo on MFL yet, so the MFL logo will be used.' : 'This icon will be saved when you add the app.'; });
     };
-    var sv = sget(KEY); if (sv && sv !== 'league') bt.onclick(); else (ICON ? Promise.resolve() : applyChoice('league')).then(function () { show(ICON); });
+    var sv = sget(KEY); if (sv === 'mfl') bm.onclick(); else if (sv && sv !== 'league') bt.onclick(); else bl.onclick();
   }
   function show() {
     if (document.getElementById('lld-inst')) return;
