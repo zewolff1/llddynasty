@@ -44,6 +44,8 @@ const LLD = Object.assign({
     irSlots: 4,
     taxiSlots: 5,
     usesSalaries: true,
+    resignOpen: null, // true / false = set the Player Re-Signing window here in your config (the Open/Locked button is hidden); leave out to use the button
+    faMode: null,     // true = Offseason, false = In Season, set in your config (the Free Agency Mode button is hidden); leave out to use the button
     features: { rules: true }
 }, window.LLD_CONFIG || {});
 const MFL_ORIGIN = LLD.origin;
@@ -1626,7 +1628,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-19 cond-15"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 cfg-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -1675,6 +1677,9 @@ let playerFilters = { years: [1, 5], salary: [0, 200], guar: [0, 100], capHit: [
 let playerFiltersActive = false;
 let playerFilterPanelOpen = false;
     let lineupSortBy = 'proj';  
+// Re-sign window and Free Agency Mode can be set in the league config (resignOpen / faMode). When set there, the config wins everywhere, so everything below that reads the saved values sees the config's answer.
+function lldCfgBool(k) { return typeof LLD[k] === 'boolean' ? LLD[k] : null; }
+try { if (lldCfgBool('resignOpen') !== null) localStorage.setItem('resign_open_' + lid, LLD.resignOpen); if (lldCfgBool('faMode') !== null) localStorage.setItem('fa_mode_' + lid, LLD.faMode); } catch (e) { }
 window.offseasonMode = (function () { try { return localStorage.getItem('fa_mode_' + lid) !== 'false'; } catch (e) { return true; } })(); // start from the last saved mode so the tab is right on the first paint
 window.applyDraftTabVisibility = function() {
     // Draft tab only exists in the offseason; hide it while in-season mode is on
@@ -3925,6 +3930,8 @@ html += `
         return html;
     }
 async function loadResignState() {
+    if (lldCfgBool('faMode') !== null) { window.offseasonMode = LLD.faMode; applyDraftTabVisibility(); }
+    if (lldCfgBool('resignOpen') !== null) { window._resignOpen = LLD.resignOpen; return; } // set in the config: no need to read MFL
     try {
         // Check page HTML first — works for everyone since IN_HEADER:Yes injects it
         const pageText = document.documentElement.innerHTML;
@@ -5147,7 +5154,9 @@ $(document).on('click touchend', '.open-settings-btn', function() {
 
     // League controls (re-signing on/off, offseason/in-season) for the commissioner
     const _isCommish = LLD.adminFids.includes(myFid) || myFid === '0000' || myFid === '0001';
-    $('#league-controls-block').toggle(_isCommish);
+    $('#league-controls-block').toggle(_isCommish && (lldCfgBool('resignOpen') === null || lldCfgBool('faMode') === null));
+    $('#toggle-resign-btn').parent().toggle(lldCfgBool('resignOpen') === null); // set in the config instead of by button
+    $('#toggle-fa-mode-btn').parent().toggle(lldCfgBool('faMode') === null);
     if (_isCommish) {
         const resignOpen = localStorage.getItem(`resign_open_${lid}`) !== 'false';
         updateResignToggleUI(resignOpen);
@@ -7796,6 +7805,7 @@ $(document).on('click', '#edit-team-name-save', async function() {
 });
 $(document).on('click', '#toggle-fa-mode-btn', async function() {
     if (myFid !== '0000' && myFid !== '0001') return;
+    if (lldCfgBool('faMode') !== null) return; // set in the config
     const current = localStorage.getItem(`fa_mode_${lid}`) !== 'false';
     const newState = !current;
     try {
@@ -10651,6 +10661,7 @@ function updateResignToggleUI(isOpen) {
 
 $(document).on('click', '#toggle-resign-btn', async function() {
     if (myFid !== '0000' && myFid !== '0001') return;
+    if (lldCfgBool('resignOpen') !== null) return; // set in the config
     const current = localStorage.getItem(`resign_open_${lid}`) !== 'false';
     const newState = !current;
     

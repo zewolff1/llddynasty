@@ -125,6 +125,14 @@
     if ((m = s.match(/<!--TEAMSTYLES:([\s\S]*?)-->/))) o.TEAMSTYLES = m[1];
     return o;
   }
+  /* The re-sign window and Free Agency Mode can be set in the league config in the MFL footer (resignOpen / faMode).
+     The app reads those two lines from the same footer so they only need to be changed in one place. */
+  function cfgParse(s) {
+    var o = {}, m;
+    if ((m = s.match(/["']?resignOpen["']?\s*:\s*(true|false)\b/))) o.resignOpen = m[1] === 'true';
+    if ((m = s.match(/["']?faMode["']?\s*:\s*(true|false)\b/))) o.faMode = m[1] === 'true';
+    return o;
+  }
   function trackMsg(body) {            // the dashboard just saved a message slot: keep the app's copy in step
     try { var o = msgParse(new URLSearchParams(body).get('MSG') || ''); Object.keys(o).forEach(function (k) { msgs.v[k] = o[k]; }); msgs.t = Date.now(); msgSave(); msgPaint(); } catch (e) { }
   }
@@ -133,8 +141,10 @@
     if (Date.now() - msgs.t < 60000) return Promise.resolve();      // fetched in the last minute
     var wait = Object.keys(msgs.v).length ? 1200 : 3000;            // with saved values launch barely waits; the first time it waits a little longer
     var go = window.fetch('https://' + C.host + '/' + msgYear() + '/home/' + C.leagueId).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
-      var o = msgParse(html); if (!Object.keys(o).length) return;
-      Object.keys(o).forEach(function (k) { msgs.v[k] = o[k]; }); msgs.t = Date.now(); msgSave(); msgPaint();
+      if (!html) return;
+      var o = msgParse(html);
+      Object.keys(o).forEach(function (k) { msgs.v[k] = o[k]; });
+      msgs.cfg = cfgParse(html); msgs.t = Date.now(); msgSave(); msgPaint();
     }).catch(function () { });
     return Promise.race([go, sleep(wait)]);
   }
@@ -179,7 +189,7 @@
         loadMsgs()
       ]).then(function (res) {
         mark('files');
-        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], { origin: C.worker + '/mfl' });
+        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, msgs.cfg || {}, res[0], { origin: C.worker + '/mfl' });
         var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = cssUrl; document.head.appendChild(css);
         document.body.insertAdjacentHTML('afterbegin', res[1]);
         var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
