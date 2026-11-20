@@ -1630,7 +1630,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 logos-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 subtabs-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -24925,6 +24925,9 @@ $(document).on('click', '#lld-td .td-go', function () {
 });
 // ---- sub-tab rows (Standings / Transactions / Stats / Trades / Recaps…) shrink to fit instead of scrolling ----
 function lldFitSubTabs() {
+    if (!document.getElementById('lld-subtab-fit-css')) { const st = document.createElement('style'); st.id = 'lld-subtab-fit-css'; st.textContent = '.sub-tabs-group .sub-tab-btn{flex:1 1 auto !important;text-overflow:clip !important}'; document.head.appendChild(st); } // size each tab to its own label instead of equal slices
+    // the league Stats sub-tab is retired (stats live elsewhere now)
+    document.querySelectorAll('#subtabs-league .sub-tab-btn').forEach(b => { if (!b.classList.contains('lld-nav-sub') && /league-stats/.test(b.getAttribute('onclick') || '')) b.remove(); });
     document.querySelectorAll('.sub-tabs-group').forEach(g => {
         if (!g.offsetParent) return;
         const bs = Array.prototype.slice.call(g.querySelectorAll('.sub-tab-btn')); if (!bs.length) return;
@@ -24936,7 +24939,7 @@ function lldFitSubTabs() {
         if (cut()) {
             const f0 = parseFloat(getComputedStyle(bs[0]).fontSize) || 11;
             let k = 1;
-            while (cut() && k > 0.7) { k -= 0.05; bs.forEach(b => { b.style.setProperty('font-size', (f0 * k).toFixed(1) + 'px', 'important'); b.style.setProperty('letter-spacing', '0', 'important'); b.style.setProperty('padding-left', (12 * k).toFixed(1) + 'px', 'important'); b.style.setProperty('padding-right', (12 * k).toFixed(1) + 'px', 'important'); }); }
+            while (cut() && k > 0.5) { k -= 0.05; bs.forEach(b => { b.style.setProperty('font-size', (f0 * k).toFixed(1) + 'px', 'important'); b.style.setProperty('letter-spacing', '0', 'important'); b.style.setProperty('padding-left', (12 * k).toFixed(1) + 'px', 'important'); b.style.setProperty('padding-right', (12 * k).toFixed(1) + 'px', 'important'); }); }
         }
         g.dataset.fit = g.clientWidth + '|' + bs.map(b => b.textContent.trim()).join(',') + '|' + (document.body.className.match(/lld-ts\S*/) || '');
     });
