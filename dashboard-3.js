@@ -1630,7 +1630,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 logos-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 logos-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -1870,14 +1870,16 @@ let contractsStatsData = {};
     let taxiPlayers = [];
     let injuryMap = {}; 
 // Logo styles. Modern comes from MFL; the others are images in the repo at content/team/<style>/<TEAM>.png.
-// A team with no image yet in the chosen style quietly falls back to the modern MFL logo (see the error listener below).
+// A team with no image in the chosen style falls back (see the error listener below): Leatherhead -> Throwback -> Modern, others -> Modern.
 const LLD_LOGO_STYLES = [['modern', 'Modern'], ['throwback', 'Throwback'], ['leatherhead', 'Leatherhead'], ['alternate', 'Alternate'], ['helmet', 'Helmet']];
 const LLD_LOGO_REPO = 'https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/team/';
 const lldModernLogo = abbr => `https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/${abbr}.svg`;
+// Missing image fallback: Leatherhead -> Throwback -> Modern; Alternate and Helmet -> Modern.
 document.addEventListener('error', function (e) {
-    const t = e.target; if (!t || t.tagName !== 'IMG' || t.dataset.lldLogoFb) return;
-    const m = String(t.src || '').match(/\/content\/team\/(?:throwback|leatherhead|alternate|helmet)\/([A-Z]{2,3})\.png/);
-    if (m) { t.dataset.lldLogoFb = '1'; t.src = lldModernLogo(m[1]); }
+    const t = e.target; if (!t || t.tagName !== 'IMG') return;
+    const m = String(t.src || '').match(/\/content\/team\/(throwback|leatherhead|alternate|helmet)\/([A-Z]{2,3})\.png/);
+    if (!m) return;
+    t.src = m[1] === 'leatherhead' ? LLD_LOGO_REPO + 'throwback/' + m[2] + '.png' : lldModernLogo(m[2]);
 }, true);
 
 // logo style: the per-theme choice wins, then the theme's own default (90s Sports Desk = throwback), then the general choice
