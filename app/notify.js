@@ -46,21 +46,59 @@
       });
     }).catch(function () { });
   }
+  // ask for permission (must come from a tap), subscribe this phone and tell the Worker. `report` shows progress; resolves true when on.
+  function turnOn(report) {
+    if (!can()) { report && report(!W ? 'Notifications are not configured.' : 'This browser cannot do push. On iPhone, open the app from the Home Screen icon.'); return Promise.resolve(false); }
+    report && report('Turning on…');
+    return reg().then(function (r) {
+      return Notification.requestPermission().then(function (perm) {
+        if (perm !== 'granted') throw new Error('permission was not granted (allow notifications for this app in iPhone Settings)');
+        return fetch(W + '/vapid').then(function (x) { return x.json(); }).then(function (v) {
+          if (!v.key) throw new Error('the alerts Worker gave no key');
+          return r.pushManager.getSubscription().then(function (s) { return s || r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(v.key) }); });
+        });
+      });
+    }).then(function (s) { return sendSub(s).then(function () { report && report('Notifications are ON for this phone.'); try { prefsLoad(s); } catch (e) { } return true; }); })
+      .catch(function (err) { report && report('Could not turn on: ' + err.message); return false; });
+  }
+
+  // ---- ask once the app is open from the Home Screen and alerts are not on yet ----
+  var SNOOZE = 'lld_notif_snooze', DAY = 864e5;
+  function standalone() { return navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches); }
+  function ask() {
+    if (document.getElementById('lld-nf-ask')) return;
+    var d = document.createElement('div'); d.id = 'lld-nf-ask';
+    d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147482000;display:flex;justify-content:center;padding:0 12px calc(12px + env(safe-area-inset-bottom,0px));font-family:-apple-system,system-ui,sans-serif';
+    d.innerHTML = '<div style="width:100%;max-width:460px;box-sizing:border-box;padding:16px;border-radius:16px;background:#0f1626;border:1px solid #243049;box-shadow:0 10px 40px rgba(0,0,0,.6);color:#e5e7eb">' +
+      '<div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">Turn on alerts?</div>' +
+      '<div id="lld-nf-ask-t" style="font-size:13px;line-height:1.45;color:#94a3b8;margin-bottom:12px">Get a notification for trade offers, lineup problems, matchup previews and more. You can pick which ones in Settings.</div>' +
+      '<div style="display:flex;gap:8px"><button type="button" id="lld-nf-ask-on" style="flex:1;padding:12px;border-radius:10px;border:0;background:#14b8a6;color:#04201d;font-weight:800;font-size:15px">Turn on</button>' +
+      '<button type="button" id="lld-nf-ask-no" style="flex:none;padding:12px 14px;border-radius:10px;border:0;background:transparent;color:#94a3b8;font-weight:600;font-size:14px">Not now</button></div></div>';
+    document.body.appendChild(d);
+    document.getElementById('lld-nf-ask-no').onclick = function () { try { localStorage.setItem(SNOOZE, String(Date.now() + 3 * DAY)); } catch (e) { } d.remove(); };
+    document.getElementById('lld-nf-ask-on').onclick = function () {
+      var t = document.getElementById('lld-nf-ask-t');
+      turnOn(function (m) { t.textContent = m; }).then(function (ok) { if (ok) setTimeout(function () { d.remove(); }, 1500); });
+    };
+  }
+  function maybeAsk() {
+    try {
+      if (!can() || !standalone() || !cookie()) return;
+      if (Notification.permission === 'denied') return;
+      var until = +localStorage.getItem(SNOOZE) || 0; if (until > Date.now()) return;
+      reg().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) {
+        if (s) return;
+        if (Notification.permission === 'granted') { turnOn(); return; }   // allowed before but the subscription is gone: restore it quietly
+        ask();
+      }).catch(function () { });
+    } catch (e) { }
+  }
+  setTimeout(maybeAsk, 3500);
+
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest ? e.target.closest('#lld-nf-on, #lld-nf-test') : null; if (!t) return;
     if (t.id === 'lld-nf-on') {
-      if (!can()) return status();
-      say('Turning on…');
-      reg().then(function (r) {
-        return Notification.requestPermission().then(function (perm) {
-          if (perm !== 'granted') throw new Error('permission was not granted (allow notifications for this app in iPhone Settings)');
-          return fetch(W + '/vapid').then(function (x) { return x.json(); }).then(function (v) {
-            if (!v.key) throw new Error('the alerts Worker gave no key');
-            return r.pushManager.getSubscription().then(function (s) { return s || r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(v.key) }); });
-          });
-        });
-      }).then(function (s) { return sendSub(s).then(function () { say('Notifications are ON for this phone.'); prefsLoad(s); }); })
-        .catch(function (err) { say('Could not turn on: ' + err.message); });
+      turnOn(say);
     } else {
       say('Sending test…');
       reg().then(function (r) { return r.pushManager.getSubscription().then(function (s) {
