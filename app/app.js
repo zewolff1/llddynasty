@@ -86,7 +86,13 @@
     var isGet = !init.method || String(init.method).toUpperCase() === 'GET', kind = isGet ? kindOf(url) : '', key = kind ? to + '|' + (session ? session.fid : '') : '';
     if (!isGet) { saved = {}; inflight = {}; }
     var finish = function (res) { remember(res); return res; };
-    if (!key) return send(to, init, 0).then(finish);
+    if (!key) {
+      var msgBody = (!isGet && /\/\d{4}\/message(\?|$)/.test(url) && typeof init.body === 'string') ? init.body : null;
+      return send(to, init, 0).then(finish).then(function (res) {
+        if (msgBody) { var st = +(res.headers.get('X-MFL-Status') || res.status); if (res.ok && st < 400) trackMsg(msgBody); else console.warn('LLD app: MFL did not accept the message save (status ' + st + ')'); }
+        return res;
+      });
+    }
     var hit = saved[key];
     if (hit && Date.now() - hit.t < (TTL[kind] || DEFAULT_TTL)) return Promise.resolve(new Response(hit.body, { status: 200, headers: { 'Content-Type': hit.ct } }));
     if (inflight[key]) return inflight[key].then(function (r) { return r.clone(); });
@@ -97,6 +103,41 @@
     inflight[key] = p; var done = function () { delete inflight[key]; }; p.then(done, done);
     return p.then(function (r) { return r.clone(); });
   };
+  /* ---- MFL message slots ----
+     The dashboard keeps three shared settings in MFL message slots (team styles, Free Agent mode, re-sign window).
+     On the MFL site those messages are part of the page, so the dashboard reads them off the page. The app's page is
+     its own shell, so the app reads them from MFL's home page here and puts them in a hidden box the dashboard already looks at.
+     The last values are kept on the phone so launch never waits on this. */
+  var MSG_KEY = 'lld_app_msgs_v1', MSG_NAMES = ['FAMODE', 'RESIGNSTATE', 'TEAMSTYLES'], msgs = { v: {}, t: 0 };
+  try { var m0 = JSON.parse(localStorage.getItem(MSG_KEY) || 'null'); if (m0 && m0.v) msgs = m0; } catch (e) { }
+  function msgYear() { return String(window.LLD_YEAR || C.year); }
+  function msgSave() { try { localStorage.setItem(MSG_KEY + '_' + msgYear(), JSON.stringify(msgs)); } catch (e) { } }
+  function msgLoad() { msgs = { v: {}, t: 0 }; try { var m = JSON.parse(localStorage.getItem(MSG_KEY + '_' + msgYear()) || 'null'); if (m && m.v) msgs = m; } catch (e) { } }
+  function msgPaint() {
+    var d = document.getElementById('lld-mfl-msgs');
+    if (!d) { d = document.createElement('div'); d.id = 'lld-mfl-msgs'; d.style.display = 'none'; document.body.appendChild(d); }
+    d.innerHTML = MSG_NAMES.filter(function (k) { return msgs.v[k] !== undefined; }).map(function (k) { return '<!--' + k + ':' + msgs.v[k] + '-->'; }).join('');
+  }
+  function msgParse(s) {
+    var o = {}, m;
+    if ((m = s.match(/<!--FAMODE:(true|false)-->/))) o.FAMODE = m[1];
+    if ((m = s.match(/<!--RESIGNSTATE:(true|false)-->/))) o.RESIGNSTATE = m[1];
+    if ((m = s.match(/<!--TEAMSTYLES:([\s\S]*?)-->/))) o.TEAMSTYLES = m[1];
+    return o;
+  }
+  function trackMsg(body) {            // the dashboard just saved a message slot: keep the app's copy in step
+    try { var o = msgParse(new URLSearchParams(body).get('MSG') || ''); Object.keys(o).forEach(function (k) { msgs.v[k] = o[k]; }); msgs.t = Date.now(); msgSave(); msgPaint(); } catch (e) { }
+  }
+  function loadMsgs() {
+    msgLoad(); msgPaint();
+    if (Date.now() - msgs.t < 60000) return Promise.resolve();      // fetched in the last minute
+    var wait = Object.keys(msgs.v).length ? 1200 : 3000;            // with saved values launch barely waits; the first time it waits a little longer
+    var go = window.fetch('https://' + C.host + '/' + msgYear() + '/home/' + C.leagueId).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
+      var o = msgParse(html); if (!Object.keys(o).length) return;
+      Object.keys(o).forEach(function (k) { msgs.v[k] = o[k]; }); msgs.t = Date.now(); msgSave(); msgPaint();
+    }).catch(function () { });
+    return Promise.race([go, sleep(wait)]);
+  }
   function patchJquery() {
     if (!window.jQuery || window.jQuery.__lldPatched) return;
     window.jQuery.__lldPatched = true;
@@ -134,7 +175,8 @@
       return Promise.all([
         realFetch(C.base + 'leagues/' + C.leagueId + '.json' + q).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }),
         realFetch(C.base + 'shell.html' + q).then(function (r) { if (!r.ok) throw new Error('shell.html ' + r.status); return r.text(); }),
-        jq
+        jq,
+        loadMsgs()
       ]).then(function (res) {
         mark('files');
         window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], { origin: C.worker + '/mfl' });
