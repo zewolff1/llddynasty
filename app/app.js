@@ -39,7 +39,7 @@
         if (!j.ok) { $('#lld-app-err').textContent = j.error || 'Sign-in failed.'; return; }
         if (!j.franchiseId) { $('#lld-app-err').textContent = 'Signed in, but you do not have a team in league ' + C.leagueId + '.'; return; }
         session = { cookie: j.cookie, fid: j.franchiseId, at: Date.now() };
-        save(session); f.password.value = ''; start();
+        save(session); f.password.value = ''; start(); if (window.lldInstallShow) setTimeout(window.lldInstallShow, 600);
       }).catch(function () { btn.disabled = false; $('#lld-app-err').textContent = 'Could not reach the proxy worker.'; });
   });
 

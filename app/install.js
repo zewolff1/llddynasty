@@ -45,7 +45,10 @@
     var get = (!choice || choice === 'league') ? leagueLogoIcon() : teamIcon(choice);
     return get.then(setIcon).catch(function () { return leagueIcon().then(setIcon).then(function () { return 'nologo'; }); });
   }
-  var saved = sget(KEY); if (saved && saved !== 'league') applyChoice(saved); else applyChoice('league');
+  // signed in already? then their own team is the natural pick, unless they chose something else
+  function sessFid() { try { return (JSON.parse(localStorage.getItem('lld_app_session_v1') || '{}') || {}).fid || ''; } catch (e) { return ''; } }
+  function startChoice() { return sget(KEY) || sessFid() || 'league'; }
+  applyChoice(startChoice());
 
   var ua = navigator.userAgent || '', q = /[?&]install=1\b/.test(location.search);
   var standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
@@ -53,7 +56,7 @@
   var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var android = /Android/i.test(ua);
   if (!ios && !android && !q) return;                       // desktop browsers: nothing to install
-  if (!q) { try { if (sessionStorage.getItem('lld_install_skip')) return; } catch (e) { } }
+  var skipped = false; if (!q) { try { skipped = !!sessionStorage.getItem('lld_install_skip'); } catch (e) { } }
   var safari = ios && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
   var deferred = null;
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; var b = document.getElementById('lld-inst-go'); if (b) b.style.display = 'block'; });
@@ -105,7 +108,7 @@
     bm.onclick = function () { pickSimple('m', 'mfl'); };
     bt.onclick = function () {
       press('t'); msg.textContent = 'Loading teams…';
-      loadTeams().then(function (t) { sel.innerHTML = '<option value="">Pick your team…</option>' + t.map(function (x) { return '<option value="' + x.id + '">' + String(x.name).replace(/</g, '&lt;') + '</option>'; }).join(''); msg.textContent = ''; var sv = sget(KEY); if (sv && sv !== 'league' && sv !== 'mfl') { sel.value = sv; if (sel.value) sel.onchange(); } })
+      loadTeams().then(function (t) { sel.innerHTML = '<option value="">Pick your team…</option>' + t.map(function (x) { return '<option value="' + x.id + '">' + String(x.name).replace(/</g, '&lt;') + '</option>'; }).join(''); msg.textContent = ''; var sv = startChoice(); if (sv && sv !== 'league' && sv !== 'mfl') { sel.value = sv; if (sel.value) sel.onchange(); } })
         .catch(function () { msg.textContent = 'Could not load the team list. The league logo will be used.'; });
     };
     sel.onchange = function () {
@@ -113,7 +116,7 @@
       sset(KEY, sel.value);
       applyChoice(sel.value).then(function (r) { show(ICON); msg.textContent = r === 'nologo' ? 'That team has no logo on MFL yet, so the MFL logo will be used.' : 'This icon will be saved when you add the app.'; });
     };
-    var sv = sget(KEY); if (sv === 'mfl') bm.onclick(); else if (sv && sv !== 'league') bt.onclick(); else bl.onclick();
+    var sv = startChoice(); if (sv === 'mfl') bm.onclick(); else if (sv && sv !== 'league') bt.onclick(); else bl.onclick();
   }
   function show() {
     if (document.getElementById('lld-inst')) return;
@@ -126,5 +129,7 @@
     document.getElementById('lld-inst-skip').onclick = function () { try { sessionStorage.setItem('lld_install_skip', '1'); } catch (e) { } d.remove(); };
     document.getElementById('lld-inst-go').onclick = function () { if (deferred) { deferred.prompt(); deferred = null; d.remove(); } };
   }
-  if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+  // the app calls this right after someone signs in from the browser, so the walkthrough comes back with their team already picked
+  window.lldInstallShow = function () { try { sessionStorage.removeItem('lld_install_skip'); } catch (e) { } show(); };
+  if (!skipped) { if (document.body) show(); else document.addEventListener('DOMContentLoaded', show); }
 })();
