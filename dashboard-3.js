@@ -32,6 +32,7 @@ const LLD_TUNE = [
 // ===== LLD CONFIG (per-league values come from window.LLD_CONFIG, set by loader.js) =====
 const LLD = Object.assign({
     leagueId: '',
+    siteOrigin: '',
     origin: (/^https:\/\/([a-z0-9-]+\.)?myfantasyleague\.com$/.test(location.origin) ? location.origin : 'https://www45.myfantasyleague.com'),
     salaryCap: 200,
     adminFids: ['0000'],
@@ -49,6 +50,7 @@ const LLD = Object.assign({
     features: { rules: true }
 }, window.LLD_CONFIG || {});
 const MFL_ORIGIN = LLD.origin;
+const MFL_SITE = LLD.siteOrigin || MFL_ORIGIN; // real MFL website, used only for links people tap (in the app, MFL_ORIGIN is the proxy)
 // ===== STYLE ENGINE: base dashboard.css + optional small theme files (themes/<name>.css) + header mode =====
 const LLD_SCRIPT_BASE = (() => {
     try {
@@ -181,7 +183,7 @@ const LLD_TK_SRC = {
 };
 const LLD_TK_ORDER = ['standings', 'matchups', 'last', 'tx', 'proj', 'projt', 'draft', 'block', 'streak', 'pf', 'board'];
 function lldTkName(id) {
-    if (id === 'draft') return ((parseInt((location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear(), 10) || new Date().getFullYear()) + 1) + ' Draft Order';
+    if (id === 'draft') return ((parseInt((window.LLD_YEAR ? String(window.LLD_YEAR) : (location.href.match(/\/(\d{4})\//) || [])[1]) || new Date().getFullYear(), 10) || new Date().getFullYear()) + 1) + ' Draft Order';
     return (LLD_TK_SRC[id] || {}).n || id;
 }
 function lldTkCfg() {
@@ -208,7 +210,7 @@ function lldSetTicker(items, secs) {
     if (!sp || !items || !items.length) return;
     const sep = '   ' + (LLD_TICK_SEP[lldEffStyle()] || '\u2605') + '   ';
     const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const yr0 = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg0 = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
+    const yr0 = (window.LLD_YEAR ? String(window.LLD_YEAR) : (location.href.match(/\/(\d{4})\//) || [])[1]) || new Date().getFullYear().toString(), lg0 = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
     // [[L:id|NAME]] shows just the team logo, [[T:id|NAME]] shows the logo and the name
     const tok = s => esc(s).replace(/\[\[([LT]):(\d+)\|([^\]]*)\]\]/g, (m, k, id, nmx) => `<img class="tk-lg" src="${MFL_ORIGIN}/fflnetdynamic${yr0}/${lg0}_franchise_logo${id}.png" onerror="this.style.display='none'">` + (k === 'T' ? `<b class="tk-nm">${nmx}</b>` : ''));
     // scrolling ticker: every section runs past the left edge in turn, then it loops (the label on the left names the section passing by)
@@ -397,7 +399,7 @@ const LLD_TK_GET = {
 };
 // fetches the chosen sections one by one (MFL throttles) and keeps what it got in window._lldTickData
 async function lldTkLoad(ids) {
-    const yr = (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear().toString(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
+    const yr = (window.LLD_YEAR ? String(window.LLD_YEAR) : (location.href.match(/\/(\d{4})\//) || [])[1]) || new Date().getFullYear().toString(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || LLD.leagueId;
     const c = { yr, lg, memo: {} };
     c.J = (k, u) => c.memo[k] || (c.memo[k] = lldTickJson(u));
     const pad = id => String(id).padStart(4, '0');
@@ -1536,7 +1538,7 @@ const LLD_READY = (async function lldAutoConfig() {
         const cfg = window.LLD_CONFIG || {};
         const href = window.location.href;
         const lidA = href.match(/\/home\/(\d+)/)?.[1] || href.match(/[?&]L=(\d+)/)?.[1] || cfg.leagueId || LLD.leagueId;
-        const yrA = href.match(/\/(\d{4})\//)?.[1] || new Date().getFullYear().toString();
+        const yrA = (window.LLD_YEAR ? String(window.LLD_YEAR) : '') || href.match(/\/(\d{4})\//)?.[1] || new Date().getFullYear().toString();
         if (!lidA) return;
         if (!cfg.leagueId) LLD.leagueId = lidA;
         // commissioner detection from MFL's own "name: Commissioner (Logout ...)" line
@@ -1628,7 +1630,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 cfg-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 app-url-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -4142,7 +4144,7 @@ if ($('#open-dev-tools-btn').length === 0) {
                             <a href="${baseUrl}&SEQNO=6" target="_blank" class="dev-link-btn">Mobile Styling</a>
                             <a href="${baseUrl}&SEQNO=10" target="_blank" class="dev-link-btn">Popup HTML</a>
                             <a href="${baseUrl}&SEQNO=11" target="_blank" class="dev-link-btn">Hide Native UI</a>
-                            <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=66" target="_blank" class="dev-link-btn" style="grid-column: span 2; border-color: rgba(59, 130, 246, 0.4); color: #fff;">📝 Edit Weekly Newsletter</a>
+                            <a href="${MFL_SITE}/${year}/options?L=${lid}&O=66" target="_blank" class="dev-link-btn" style="grid-column: span 2; border-color: rgba(59, 130, 246, 0.4); color: #fff;">📝 Edit Weekly Newsletter</a>
                         </div>
                     </div>
                 </div>
@@ -4982,12 +4984,12 @@ function renderMflMenu() {
     const el = document.getElementById('mflm-list');
     if (!el) return;
     // use MFL's own Setup link if its (hidden) menu has one, otherwise the standard setup URL
-    let href = `${MFL_ORIGIN}/${year}/csetup?L=${lid}`;
+    let href = `${MFL_SITE}/${year}/csetup?L=${lid}`;
     try {
         const a = [...document.querySelectorAll('.myfantasyleague_menu a, #hsubmenu a, .main_tabmenu a')].find(x => /^(commissioner )?setup$/i.test((x.textContent || '').trim()) && x.href && !/^javascript:/i.test(x.getAttribute('href')));
         if (a) href = a.href;
     } catch (e) {}
-    el.innerHTML = `<a class="mflm-setup-btn" href="${href}">Open MFL Setup <i>›</i></a><button type="button" class="mflm-setup-btn mflm-menu-btn" id="lld-open-mfl-menu">Open MFL Menu <i>▾</i></button>`;
+    el.innerHTML = `<a class="mflm-setup-btn" href="${href}">Open MFL Setup <i>›</i></a>${window.LLD_STANDALONE ? '' : '<button type="button" class="mflm-setup-btn mflm-menu-btn" id="lld-open-mfl-menu">Open MFL Menu <i>▾</i></button>'}`;
 }
 // Opens MFL's own top menu (the real elements, so its dropdowns keep working) in a panel over the dashboard
 // beta (0000 / 0001): the MFL menu as its own screen: sections as tiles, tap one to see its links
@@ -8569,7 +8571,7 @@ $('body').append(`
                 <div style="font-size:calc(14px * var(--ts,1)); font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px;">League Chat</div>
                 <div id="chat-online-count" style="font-size:calc(10px * var(--ts,1)); color:var(--accent-teal); margin-top:2px;">Loading...</div>
             </div>
-            <a href="${MFL_ORIGIN}/${year}/chat?L=${lid}&COUNT=40" target="_blank"
+            <a href="${MFL_SITE}/${year}/chat?L=${lid}&COUNT=40" target="_blank"
                style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-decoration:none; text-transform:uppercase; border:1px solid var(--card-border); border-radius:6px; padding:4px 8px;">
                 Open Full ↗
             </a>
@@ -10385,8 +10387,8 @@ $('body').append(`
         <div class="settings-header">
             <div style="position:absolute; top:8px; right:8px; display:flex; gap:6px; align-items:center;">
                 <button id="settings-commish-toggle" style="display:none; padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">👑 Commish</button>
-                ${(myFid === '0000') ? `<a href="${MFL_ORIGIN}/${year}/csetup?L=${lid}&C=HMPGMSG&SEQNO=10" style="padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">📝 Msg 10</a>` : ''}
-                <a href="${MFL_ORIGIN}/${year}/logout?L=${lid}" style="padding:4px 10px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">Sign Out</a>
+                ${(myFid === '0000') ? `<a href="${MFL_SITE}/${year}/csetup?L=${lid}&C=HMPGMSG&SEQNO=10" style="padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">📝 Msg 10</a>` : ''}
+                <a href="${window.LLD_STANDALONE ? '#' : `${MFL_SITE}/${year}/logout?L=${lid}`}" ${window.LLD_STANDALONE ? 'onclick="window.lldAppLogout&&window.lldAppLogout();return false"' : ''} style="padding:4px 10px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">Sign Out</a>
             </div>
 
             <div style="position:relative; width:56px; height:56px; background:#222; border-radius:50%; border:2px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 15px rgba(0,0,0,0.5);">
@@ -10618,12 +10620,12 @@ $('body').append(`
             <div id="tab-dev" class="settings-tab-content" style="display:none;">
                 <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Developer Tools</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                    <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=07&F=0000" target="_blank" class="dev-link-btn">Roster Mgmt</a>
-                    <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=17" target="_blank" class="dev-link-btn">Draft Order</a>
-                    <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=43" target="_blank" class="dev-link-btn">Auctions</a>
-                    <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=05" target="_blank" class="dev-link-btn">Pending Trades</a>
-                    <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=142" target="_blank" class="dev-link-btn">Salary Adj</a>
-                    <a href="${MFL_ORIGIN}/${year}/options?L=${lid}&O=44" target="_blank" class="dev-link-btn">Auction Results</a>
+                    <a href="${MFL_SITE}/${year}/options?L=${lid}&O=07&F=0000" target="_blank" class="dev-link-btn">Roster Mgmt</a>
+                    <a href="${MFL_SITE}/${year}/options?L=${lid}&O=17" target="_blank" class="dev-link-btn">Draft Order</a>
+                    <a href="${MFL_SITE}/${year}/options?L=${lid}&O=43" target="_blank" class="dev-link-btn">Auctions</a>
+                    <a href="${MFL_SITE}/${year}/options?L=${lid}&O=05" target="_blank" class="dev-link-btn">Pending Trades</a>
+                    <a href="${MFL_SITE}/${year}/options?L=${lid}&O=142" target="_blank" class="dev-link-btn">Salary Adj</a>
+                    <a href="${MFL_SITE}/${year}/options?L=${lid}&O=44" target="_blank" class="dev-link-btn">Auction Results</a>
                 </div>
             </div>
 

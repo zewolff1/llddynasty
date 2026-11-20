@@ -129,8 +129,23 @@
      The app reads those two lines from the same footer so they only need to be changed in one place. */
   function cfgParse(s) {
     var o = {}, m;
-    if ((m = s.match(/["']?resignOpen["']?\s*:\s*(true|false)\b/))) o.resignOpen = m[1] === 'true';
-    if ((m = s.match(/["']?faMode["']?\s*:\s*(true|false)\b/))) o.faMode = m[1] === 'true';
+    // read the whole window.LLD_CONFIG = {...} block from the MFL footer (the footer wins over leagues/<id>.json)
+    try {
+      var i = s.search(/window\.LLD_CONFIG\s*=\s*\{/);
+      if (i >= 0) {
+        var st = s.indexOf('{', i), d = 0, q = '', k;
+        for (k = st; k < s.length; k++) {
+          var c = s[k];
+          if (q) { if (c === '\\') k++; else if (c === q) q = ''; continue; }
+          if (c === '"' || c === "'" || c === '`') q = c; else if (c === '{') d++; else if (c === '}' && --d === 0) break;
+        }
+        var txt = s.slice(st, k + 1).replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, '&');
+        var v = (new Function('return (' + txt + ')'))();
+        if (v && typeof v === 'object') Object.keys(v).forEach(function (n) { if (typeof v[n] !== 'function') o[n] = v[n]; });
+      }
+    } catch (e) { }
+    if (o.resignOpen === undefined && (m = s.match(/["']?resignOpen["']?\s*:\s*(true|false)\b/))) o.resignOpen = m[1] === 'true';
+    if (o.faMode === undefined && (m = s.match(/["']?faMode["']?\s*:\s*(true|false)\b/))) o.faMode = m[1] === 'true';
     return o;
   }
   function trackMsg(body) {            // the dashboard just saved a message slot: keep the app's copy in step
@@ -189,7 +204,7 @@
         loadMsgs()
       ]).then(function (res) {
         mark('files');
-        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, msgs.cfg || {}, res[0], { origin: C.worker + '/mfl' });
+        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], msgs.cfg || {}, { origin: C.worker + '/mfl', siteOrigin: 'https://' + C.host });
         var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = cssUrl; document.head.appendChild(css);
         document.body.insertAdjacentHTML('afterbegin', res[1]);
         var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
