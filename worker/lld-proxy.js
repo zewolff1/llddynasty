@@ -216,7 +216,12 @@ async function poll(env) {
     const nameOf = f => teams[f] || ('Team ' + f), fid = String(env.FRANCHISE_ID || '').padStart(4, '0');
     try {
         const pt = arr(((await mfl(env, 'pendingTrades', '&FRANCHISE_ID=' + fid)).pendingTrades || {}).pendingTrade);
-        for (const t of pt) { if (st.trades.includes(t.trade_id)) continue; st.trades.push(t.trade_id); if (st.init) out.push({ type: 'offer', fid: t.offeringteam, pids: ids(t.will_give_up).slice(0, 3), title: 'Trade offer from ' + nameOf(t.offeringteam), body: `They give: ${await assets(env, t.will_give_up)} • You give: ${await assets(env, t.will_receive)}`, url: LEAGUE_URL(env) }); }
+        for (const t of pt) {
+            if (st.trades.includes(t.trade_id)) continue; st.trades.push(t.trade_id);
+            // Only offers made TO your team: skip ones you sent yourself and ones between other teams
+            const toRaw = String(t.offeredto || t.offered_to || ''), to = toRaw ? toRaw.padStart(4, '0') : '', from = String(t.offeringteam || '').padStart(4, '0');
+            if (to ? to !== fid : from === fid) continue;
+            if (st.init) out.push({ type: 'offer', fid: t.offeringteam, pids: ids(t.will_give_up).slice(0, 3), title: 'Trade offer from ' + nameOf(t.offeringteam), body: `They give: ${await assets(env, t.will_give_up)} • You give: ${await assets(env, t.will_receive)}`, url: LEAGUE_URL(env) }); }
         st.trades = st.trades.slice(-60);
     } catch (e) { }
     try {
