@@ -1630,7 +1630,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 app-url-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 logos-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -1869,12 +1869,16 @@ let contractsStatsData = {};
     let irPlayers = [];
     let taxiPlayers = [];
     let injuryMap = {}; 
-const NFL_THROWBACK_LOGOS = {};
-['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GBP',
- 'HOU','IND','JAC','KCC','LVR','LAC','LAR','MIA','MIN','NEP','NOS','NYG',
- 'NYJ','PHI','PIT','SFO','SEA','TBB','TEN','WAS'].forEach(t => {
-    NFL_THROWBACK_LOGOS[t] = `https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/team/throwback/${t}.png`;
-});
+// Logo styles. Modern comes from MFL; the others are images in the repo at content/team/<style>/<TEAM>.png.
+// A team with no image yet in the chosen style quietly falls back to the modern MFL logo (see the error listener below).
+const LLD_LOGO_STYLES = [['modern', 'Modern'], ['throwback', 'Throwback'], ['leatherhead', 'Leatherhead'], ['alternate', 'Alternate'], ['helmet', 'Helmet']];
+const LLD_LOGO_REPO = 'https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/team/';
+const lldModernLogo = abbr => `https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/${abbr}.svg`;
+document.addEventListener('error', function (e) {
+    const t = e.target; if (!t || t.tagName !== 'IMG' || t.dataset.lldLogoFb) return;
+    const m = String(t.src || '').match(/\/content\/team\/(?:throwback|leatherhead|alternate|helmet)\/([A-Z]{2,3})\.png/);
+    if (m) { t.dataset.lldLogoFb = '1'; t.src = lldModernLogo(m[1]); }
+}, true);
 
 // logo style: the per-theme choice wins, then the theme's own default (90s Sports Desk = throwback), then the general choice
 function lldLogoStyle() {
@@ -1884,10 +1888,8 @@ function lldLogoStyle() {
 function getNFLLogoUrl(teamAbbr) {
     const style = lldLogoStyle();
     const abbr = (teamAbbr || 'NFL').toUpperCase();
-    if (style === 'throwback' && NFL_THROWBACK_LOGOS[abbr]) {
-        return NFL_THROWBACK_LOGOS[abbr];
-    }
-    return `https://www.mflscripts.com/ImageDirectory/script-images/nflTeamsvg_2/${abbr}.svg`;
+    if (style !== 'modern' && /^[A-Z]{2,3}$/.test(abbr) && LLD_LOGO_STYLES.some(x => x[0] === style)) return LLD_LOGO_REPO + style + '/' + abbr + '.png';
+    return lldModernLogo(abbr);
 }
 const NFL_TEAM_COLORS = {
     'ARI': ['#97233F', '#000000'], 'ATL': ['#A71930', '#000000'], 'BAL': ['#241773', '#9E7C0C'],
@@ -10575,10 +10577,13 @@ $('body').append(`
                 <div style="margin-top:6px;">
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">NFL Team Logos</div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">Modern or Throwback</div>
-                        <div style="display:flex; gap:6px;">
-                            <button class="logo-style-btn" data-style="modern" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--accent-blue); background:var(--accent-blue); color:#fff;">Modern</button>
+                        <div style="font-size:calc(12px * var(--ts,1)); font-weight:800; color:#fff;">Logo style</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                            <button class="logo-style-btn" data-style="modern" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Modern</button>
                             <button class="logo-style-btn" data-style="throwback" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Throwback</button>
+                            <button class="logo-style-btn" data-style="leatherhead" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Leatherhead</button>
+                            <button class="logo-style-btn" data-style="alternate" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Alternate</button>
+                            <button class="logo-style-btn" data-style="helmet" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Helmet</button>
                         </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -24756,7 +24761,7 @@ function lldQtHtml() {
         + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
         + (cur === 'classic' ? lab('Holiday themes') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-auto-btn ${lldAutoOn() ? 'on' : ''}" data-v="on">Auto</button><button type="button" class="lld-hdr-btn lld-auto-btn ${lldAutoOn() ? '' : 'on'}" data-v="off">Off</button></div>` : '')
         + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
-        + lab('NFL logos') + `<div class="qt-row"><button type="button" class="logo-style-btn" data-style="modern">Modern</button><button type="button" class="logo-style-btn" data-style="throwback">Throwback</button></div>`
+        + lab('NFL logos') + `<div class="qt-row">${LLD_LOGO_STYLES.map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join("")}</div>`
         + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
 }
 function lldQtOpen() {
@@ -24789,7 +24794,7 @@ function lldTdItems() {
     const set = [];
     if (!lldGet('lld_style', '') && !lldGet('lld_theme', '')) set.push({ k: 'th', g: 'set', t: 'blue', ic: '1', h: 'Pick a theme', p: 'Choose how your whole dashboard looks.', b: 'Choose theme', a: 'theme', skip: true });
     let lg = false; try { for (let i = 0; i < localStorage.length; i++) if (/^nfl_logo_style/.test(localStorage.key(i))) lg = true; } catch (x) { }
-    if (!lg) set.push({ k: 'lg', g: 'set', t: 'blue', ic: '2', h: 'Modern or Throwback logos', p: 'Pick the logo style for the NFL teams.', b: 'Choose logos', a: 'theme', skip: true });
+    if (!lg) set.push({ k: 'lg', g: 'set', t: 'blue', ic: '2', h: 'Team logo style', p: 'Pick the logo style for the NFL teams.', b: 'Choose logos', a: 'theme', skip: true });
     if (A.loaded && !A.stadium) set.push({ k: 'st', g: 'set', t: 'blue', ic: '3', h: 'Name your stadium', p: 'Your home field shows up on your team card and in matchups.', b: 'Name it', a: 'stadium', skip: true });
     if (A.loaded && !A.block) set.push({ k: 'tb', g: 'set', t: 'blue', ic: '4', h: 'Edit your trade block', p: 'Tell the league who you’re shopping.', b: 'Edit block', a: 'trades-mine', skip: true });
     set.forEach(x => out.push(x));
