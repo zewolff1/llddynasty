@@ -128,6 +128,12 @@ async function mfl(env, type, extra) {
 }
 const ids = x => String(x || '').split(',').map(z => z.trim()).filter(z => /^\d+$/.test(z));
 const arr = x => x == null ? [] : Array.isArray(x) ? x : [x];
+// How alerts read (chosen in the notification preview).  team: 'full' (Jacksonville Juicebox) | 'nick' (Juicebox)
+// player: 'full' (Jaylen Warren) | 'short' (J. Warren)   detail: 'full' | 'short'
+const STYLE = { team: 'nick', player: 'short', detail: 'short' };
+const NICKS = ['Taylor Hams', 'Pork Rolls', 'Best Budz', 'Discovery', 'Bandits', 'Juicebox', 'Wilson', 'Oceans', 'Ghosts', 'Pioneers'];
+const teamLabel = full => { full = String(full || ''); if (STYLE.team !== 'nick') return full; const n = NICKS.find(k => full.toLowerCase().endsWith(k.toLowerCase())); return n || full; };
+const SHORT = STYLE.detail === 'short';
 async function teamNames(env) {
     let t = await env.STATE.get('teams', { type: 'json' }); if (t) return t;
     t = {}; const lo = {}; try { const lg = (await mfl(env, 'league')).league || {}; arr(lg.franchises && lg.franchises.franchise).forEach(f => { t[f.id] = f.name; const u = f.logo || f.icon; if (u) lo[f.id] = u; }); } catch (e) { } await env.STATE.put('logos', JSON.stringify(lo), { expirationTtl: 86400 });
@@ -135,7 +141,7 @@ async function teamNames(env) {
 }
 async function assets(env, list) {
     const ids = String(list || '').split(',').map(x => x.trim()).filter(Boolean), pl = ids.filter(x => !/^(FP|DP|BB)_/.test(x)), nm = {};
-    if (pl.length) { try { arr(((await mfl(env, 'players', '&DETAILS=0&PLAYERS=' + pl.join(','))).players || {}).player).forEach(p => { const n = String(p.name || '').split(','); nm[p.id] = n.length > 1 ? n[1].trim() + ' ' + n[0].trim() : n[0]; }); } catch (e) { } }
+    if (pl.length) { try { arr(((await mfl(env, 'players', '&DETAILS=0&PLAYERS=' + pl.join(','))).players || {}).player).forEach(p => { const n = String(p.name || '').split(','); nm[p.id] = n.length > 1 ? ((STYLE.player === 'short' && /^(QB|RB|WR|TE|PK|K|DL|DE|DT|LB|DB|CB|S|P|PN)$/.test(String(p.position || '')) && n[1].trim()) ? n[1].trim()[0] + '. ' : n[1].trim() + ' ') + n[0].trim() : n[0]; }); } catch (e) { } }
     return ids.map(x => { let m; if ((m = x.match(/^FP_\d+_(\d{4})_(\d+)$/))) return `${m[1]} round ${m[2]} pick`; if ((m = x.match(/^DP_(\d+)_(\d+)$/))) return `pick ${+m[1] + 1}.${String(+m[2] + 1).padStart(2, '0')}`; if (/^BB_/.test(x)) return 'blind bid $'; return nm[x] || 'player ' + x; }).join(', ') || 'nothing';
 }
 
@@ -161,8 +167,8 @@ async function pollBoard(env, st, nameOf, out) {
             if (isTb) {
                 const o = tbDec(p.body || p.message); if (!o) continue; const v = Object.values(o.p || {}).map(x => String(x)[0]);
                 const c = k => v.filter(x => x === k).length, parts = []; if (c('S')) parts.push(c('S') + ' seeking'); if (c('W')) parts.push(c('W') + ' willing'); if (c('U')) parts.push(c('U') + ' unlikely'); if (c('N')) parts.push(c('N') + ' unavailable');
-                out.push({ type: 'tb', fid: f, title: nameOf(f) + ' updated their trade block', body: [TB_MODE[o.m] || '', parts.join(' \u2022 ')].filter(Boolean).join(' \u2022 ') || 'Status changed', url: LEAGUE_URL(env) });
-            } else out.push({ type: 'board', fid: f, title: (f && f !== '0000' ? nameOf(f) : 'Commissioner') + ' posted' + (subj ? ': ' + subj : ''), body: strip(p.body || p.message).slice(0, 140) || 'New message board post', url: LEAGUE_URL(env) });
+                out.push({ type: 'tb', fid: f, title: nameOf(f) + ' updated their trade block', body: SHORT ? 'Status changed' : ([TB_MODE[o.m] || '', parts.join(' \u2022 ')].filter(Boolean).join(' \u2022 ') || 'Status changed'), url: LEAGUE_URL(env) });
+            } else out.push({ type: 'board', fid: f, title: (f && f !== '0000' ? nameOf(f) : 'Commissioner') + ' posted' + (subj ? ': ' + subj : ''), body: SHORT ? 'New message board post' : (strip(p.body || p.message).slice(0, 140) || 'New message board post'), url: LEAGUE_URL(env) });
         }
     }
     st.bd = next; st.bdInit = true;
@@ -172,8 +178,8 @@ async function pollTimed(env, st, out) {
     const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', hour12: false, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date()), g = k => (f.find(x => x.type === k) || {}).value, hr = +g('hour') % 24, day = g('weekday');
     if (hr < 9 || hr > 11) return; const key = g('year') + '-' + g('month') + '-' + g('day');
     st.tm = st.tm || {};
-    if (day === 'Thu' && st.tm.pv !== key) { st.tm.pv = key; out.push({ type: 'preview', title: 'Matchup preview', body: 'This week\u2019s preview is ready in your dashboard.', url: LEAGUE_URL(env) }); }
-    if (day === 'Tue' && st.tm.rc !== key) { st.tm.rc = key; out.push({ type: 'recap', title: 'Weekly recap', body: 'Last week\u2019s recap is ready in your dashboard.', url: LEAGUE_URL(env) }); }
+    if (day === 'Thu' && st.tm.pv !== key) { st.tm.pv = key; out.push({ type: 'preview', title: 'Matchup preview', body: SHORT ? 'Ready in your dashboard.' : 'This week\u2019s preview is ready in your dashboard.', url: LEAGUE_URL(env) }); }
+    if (day === 'Tue' && st.tm.rc !== key) { st.tm.rc = key; out.push({ type: 'recap', title: 'Weekly recap', body: SHORT ? 'Ready in your dashboard.' : 'Last week\u2019s recap is ready in your dashboard.', url: LEAGUE_URL(env) }); }
 }
 // Lineup check for your own team: Thursday ~6 PM and Sunday ~10:30 AM Eastern, once each. Empty starter spots and starters who are Out / IR.
 // force = true (from /lineupnow) skips the Thursday / Sunday time window and the once-per-day rule, and returns what it saw so you can test it any time
@@ -188,14 +194,16 @@ async function pollLineup(env, st, nameOf, out, force) {
     const fr = arr(((await mfl(env, 'liveScoring')).liveScoring || {}).franchise).find(x => String(x.id).padStart(4, '0') === fid);
     if (!fr) return force ? { note: 'MFL has no live scoring for franchise ' + fid + ' right now (normal on a bye week or off-season)', need } : undefined;
     const starters = arr(fr.players && fr.players.player).filter(p => String(p.status).toLowerCase() === 'starter');
-    if (!force) st.lu[slot] = key; const problems = [];
+    if (!force) st.lu[slot] = key; const problems = []; let count = 0;
+    if (need && starters.length < need) count += need - starters.length;
     if (need && starters.length < need) problems.push((need - starters.length) + ' empty starting spot' + (need - starters.length > 1 ? 's' : ''));
     try {
         const inj = {}; arr(((await mfl(env, 'injuries')).injuries || {}).injury).forEach(i => { inj[String(i.id)] = String(i.status || ''); });
         const bad = starters.filter(p => /^(out|ir|injured reserve|suspended|pup)/i.test(inj[String(p.id)] || '')).map(p => p.id);
+        count += bad.length;
         if (bad.length) problems.push((await assets(env, bad.join(','))) + (bad.length > 1 ? ' are' : ' is') + ' ruled out');
     } catch (e) { }
-    if (problems.length) out.push({ type: 'lineup', fid, title: 'Check your lineup', body: problems.join(' \u2022 '), url: LEAGUE_URL(env) });
+    if (problems.length) out.push({ type: 'lineup', fid, title: 'Check your lineup', body: SHORT ? count + ' problem' + (count > 1 ? 's' : '') : problems.join(' \u2022 '), url: LEAGUE_URL(env) });
     return { franchise: fid, startersNeeded: need, startersSet: starters.length, problems };
 }
 // Turns MFL's raw transaction text (player ids) into a readable alert
@@ -206,14 +214,14 @@ async function fmtTx(env, t, nameOf) {
     const an = L(add) ? await assets(env, add) : '', dn = L(drop) ? await assets(env, drop) : '', money = bid && +bid ? ' for $' + (+bid) : '';
     const verb = ty === 'WAIVER' || ty === 'BBID_WAIVER' ? 'won on waivers' : ty === 'AUCTION_WON' ? 'won at auction' : 'added';
     const pids = ids(add).concat(ids(drop)).slice(0, 2);
-    if (an && dn) return { pids, title: who + ' ' + verb + ' ' + an, body: 'Dropped ' + dn + money };
+    if (an && dn) return { pids, title: who + ' ' + verb + ' ' + an, body: SHORT ? (money ? money.slice(1) : 'Free agent pickup') : 'Dropped ' + dn + money };
     if (an) return { pids, title: who + ' ' + verb + ' ' + an, body: money ? money.slice(1) : 'Free agent pickup' };
     if (dn) return { pids, title: who + ' dropped ' + dn, body: 'Back to free agency' };
     return { title: ty.replace(/_/g, ' ').toLowerCase(), body: who + ': ' + String(t.transaction || '').slice(0, 100) };
 }
 async function poll(env) {
     const st = (await env.STATE.get('seen', { type: 'json' })) || { init: false, trades: [], tx: 0 }, out = [], teams = await teamNames(env);
-    const nameOf = f => teams[f] || ('Team ' + f), fid = String(env.FRANCHISE_ID || '').padStart(4, '0');
+    const nameOf = f => teamLabel(teams[f] || ('Team ' + f)), fid = String(env.FRANCHISE_ID || '').padStart(4, '0');
     try {
         const pt = arr(((await mfl(env, 'pendingTrades', '&FRANCHISE_ID=' + fid)).pendingTrades || {}).pendingTrade);
         for (const t of pt) {
@@ -221,7 +229,7 @@ async function poll(env) {
             // Only offers made TO your team: skip ones you sent yourself and ones between other teams
             const toRaw = String(t.offeredto || t.offered_to || ''), to = toRaw ? toRaw.padStart(4, '0') : '', from = String(t.offeringteam || '').padStart(4, '0');
             if (to ? to !== fid : from === fid) continue;
-            if (st.init) out.push({ type: 'offer', fid: t.offeringteam, pids: ids(t.will_give_up).slice(0, 3), title: 'Trade offer from ' + nameOf(t.offeringteam), body: `They give: ${await assets(env, t.will_give_up)} • You give: ${await assets(env, t.will_receive)}`, url: LEAGUE_URL(env) }); }
+            if (st.init) out.push({ type: 'offer', fid: t.offeringteam, pids: ids(t.will_give_up).slice(0, 3), title: 'Trade offer from ' + nameOf(t.offeringteam), body: SHORT ? `${await assets(env, t.will_give_up)} for ${await assets(env, t.will_receive)}` : `They give: ${await assets(env, t.will_give_up)} • You give: ${await assets(env, t.will_receive)}`, url: LEAGUE_URL(env) }); }
         st.trades = st.trades.slice(-60);
     } catch (e) { }
     try {
@@ -229,7 +237,7 @@ async function poll(env) {
         let mx = st.tx;
         for (const t of tx.sort((a, b) => a.timestamp - b.timestamp)) {
             const ts = +t.timestamp || 0; if (ts <= st.tx) continue; mx = Math.max(mx, ts); if (!st.init || !types.includes(t.type)) continue;
-            if (t.type === 'TRADE') out.push({ type: 'trade', fid: t.franchise, pids: ids(t.franchise1_gave_up).concat(ids(t.franchise2_gave_up)).slice(0, 3), title: 'Trade completed', body: `${nameOf(t.franchise)} ⇄ ${nameOf(t.franchise2)}: ${await assets(env, t.franchise1_gave_up)} for ${await assets(env, t.franchise2_gave_up)}`, url: LEAGUE_URL(env) });
+            if (t.type === 'TRADE') out.push({ type: 'trade', fid: t.franchise, pids: ids(t.franchise1_gave_up).concat(ids(t.franchise2_gave_up)).slice(0, 3), title: 'Trade completed', body: SHORT ? `${nameOf(t.franchise)} ⇄ ${nameOf(t.franchise2)}` : `${nameOf(t.franchise)} ⇄ ${nameOf(t.franchise2)}: ${await assets(env, t.franchise1_gave_up)} for ${await assets(env, t.franchise2_gave_up)}`, url: LEAGUE_URL(env) });
             else out.push(Object.assign({ type: 'tx', fid: t.franchise, pids: ids(t.transaction).slice(0, 2), url: LEAGUE_URL(env) }, await fmtTx(env, t, nameOf)));
         }
         st.tx = mx;
@@ -297,14 +305,14 @@ export default {
         if (p === '/sample') {
           if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403);
           const S = {
-            offer: { type: 'offer', fid: '0002', title: 'Trade offer from Pork Rolls (sample)', body: 'They give: 2027 round 2 pick • You give: a starter', url: LEAGUE_URL(env) },
-            trade: { type: 'trade', title: 'Trade completed (sample)', body: 'Team A ⇄ Team B: a player for a 2027 round 1 pick', url: LEAGUE_URL(env) },
-            tx: { type: 'tx', title: 'Juicebox added a player (sample)', body: 'Dropped a bench player', url: LEAGUE_URL(env) },
-            lineup: { type: 'lineup', title: 'Check your lineup (sample)', body: '1 empty starting spot • a starter is ruled out', url: LEAGUE_URL(env) },
-            preview: { type: 'preview', title: 'Matchup preview (sample)', body: 'This week’s preview is ready in your dashboard.', url: LEAGUE_URL(env) },
-            recap: { type: 'recap', title: 'Weekly recap (sample)', body: 'Last week’s recap is ready in your dashboard.', url: LEAGUE_URL(env) },
-            board: { type: 'board', title: 'Commissioner posted: Trade deadline (sample)', body: 'A new message board post.', url: LEAGUE_URL(env) },
-            tb: { type: 'tb', title: 'Best Budz updated their trade block (sample)', body: 'Status changed', url: LEAGUE_URL(env) }
+            offer: { type: 'offer', fid: '0002', title: 'Trade offer from Pork Rolls', body: SHORT ? 'B. Robinson for J. Allen' : 'They give: Bijan Robinson \u2022 You give: Josh Allen', url: LEAGUE_URL(env) },
+            trade: { type: 'trade', title: 'Trade completed', body: SHORT ? 'Taylor Hams \u21C4 Pork Rolls' : 'Taylor Hams \u21C4 Pork Rolls: Bijan Robinson for Josh Allen + 2027 R2', url: LEAGUE_URL(env) },
+            tx: { type: 'tx', title: 'Juicebox added J. Warren', body: SHORT ? 'Free agent pickup' : 'Dropped T. Dell', url: LEAGUE_URL(env) },
+            lineup: { type: 'lineup', title: 'Check your lineup', body: SHORT ? '2 problems' : '1 empty starting spot \u2022 C. Olave is ruled out', url: LEAGUE_URL(env) },
+            preview: { type: 'preview', title: 'Matchup preview', body: SHORT ? 'Ready in your dashboard.' : 'This week\u2019s preview is ready in your dashboard.', url: LEAGUE_URL(env) },
+            recap: { type: 'recap', title: 'Weekly recap', body: SHORT ? 'Ready in your dashboard.' : 'Last week\u2019s recap is ready in your dashboard.', url: LEAGUE_URL(env) },
+            board: { type: 'board', title: 'Commissioner posted: Trade deadline', body: SHORT ? 'New message board post' : 'The deadline is Wednesday at 8 PM.', url: LEAGUE_URL(env) },
+            tb: { type: 'tb', title: 'Best Budz updated their trade block', body: 'Status changed', url: LEAGUE_URL(env) }
           };
           const want = u.searchParams.get('type'); if (want && !S[want]) return J({ error: 'type must be one of: ' + Object.keys(S).join(', ') }, 400);
           const n = await broadcast(env, want ? [S[want]] : Object.values(S)); return J({ sent: n, type: want || 'all' });
@@ -312,7 +320,7 @@ export default {
         // /lineupnow?k=KEY  runs the real lineup check on your team right now (any day or time) and sends the alert if it finds a problem. Add &send=0 to look without sending.
         if (p === '/lineupnow') {
           if (!env.ADMIN_KEY || u.searchParams.get('k') !== env.ADMIN_KEY) return J({ error: 'wrong key' }, 403);
-          const out = [], teams = await teamNames(env), seen = await pollLineup(env, {}, f => teams[f] || ('Team ' + f), out, true);
+          const out = [], teams = await teamNames(env), seen = await pollLineup(env, {}, f => teamLabel(teams[f] || ('Team ' + f)), out, true);
           const sent = out.length && u.searchParams.get('send') !== '0' ? await broadcast(env, out) : 0; return J({ result: seen, alerts: out.length, sent });
         }
         return J({ error: 'not found' }, 404);
