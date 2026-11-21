@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 rowlogo-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 rowlogo-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -3026,6 +3026,36 @@ function lldClrFoot(p) {
     }
     return (rk.length || bb) ? `<div class="lld-clr-f"><div class="lld-clr-rk">${rk.join('')}</div>${bb}</div>` : '';
 }
+// Same compact Sleeper rows for the Manage and Players lists: the boxed boom / bust bar under each row moves into a slim line inside the row.
+function lldClrListPass() {
+    try {
+        if (!lldClrOn() || !window._apv) return;
+        document.querySelectorAll('.roster-grid.apv-rows .apv-yc:not([data-clr])').forEach(w => {
+            const row = w.querySelector(':scope > .player-row[data-pid]'); if (!row) return;
+            const pid = String(row.dataset.pid), p = (window._apvSlP || {})[pid]; if (!p) return;
+            w.dataset.clr = '1';
+            const O = window._apv.on, t = (p._tr && !p._tr.mine) ? p._tr : null, fa = window._apvFA;
+            const sl = w.querySelector(':scope > .apv-sl'); if (sl) sl.remove();
+            const tmp = document.createElement('div'); tmp.innerHTML = lldClrFoot(p) || '';
+            let f = tmp.firstElementChild;
+            const extra = [];
+            if (t && O.yu && t.you != null) extra.push(`<span class="apv-bbc"><b class="apv-tq">${t.you}/${t.yn}</b> ${fa ? 'would start' : 'start'}</span>`);
+            if (t && !fa && O.th && t.th != null) extra.push(`<span class="apv-bbc"><b class="apv-tq">${t.th}/${t.thn}</b> them</span>`);
+            if (t && O.tp && t.tp != null) extra.push(`<span class="apv-bbc"><b class="apv-tq">${t.tp}%</b> of teams</span>`);
+            if (!f && extra.length) { tmp.innerHTML = '<div class="lld-clr-f"><div class="lld-clr-rk"></div></div>'; f = tmp.firstElementChild; }
+            if (f && extra.length) {
+                let s2 = f.querySelector('.apv-sl.in'); if (!s2) { f.insertAdjacentHTML('beforeend', `<div class="apv-sl in" data-pid="${pid}"></div>`); s2 = f.querySelector('.apv-sl.in'); }
+                s2.insertAdjacentHTML('afterbegin', extra.join(''));
+            }
+            if (!f) return;
+            f.classList.add('ls');
+            row.querySelectorAll('.apv-r3:not(.apv-cr)').forEach(r => { if (r.querySelector('u')) r.outerHTML = `<div class="apv-r3 lld-clr-avw">${lldClrAvg(p)}</div>`; });
+            row.classList.add('apv-lu-c'); row.insertAdjacentElement('beforeend', f);
+            w.classList.add('apv-yc-c');
+        });
+    } catch (e) { }
+}
+;(function () { let t = null; try { new MutationObserver(() => { clearTimeout(t); t = setTimeout(lldClrListPass, 120); }).observe(document.body, { childList: true, subtree: true }); } catch (e) { } })();
 function lldApvLuRow(el, p) {
     const O = window._apv.on, $r = $(el), pi = $r.find('.lld-pi, .player-info').first(), sv = playerSortBy; playerSortBy = '';
     try {

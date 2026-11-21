@@ -5954,3 +5954,10 @@ body.lld-clr .apv-sl.in em { font-style: normal; font-weight: 800; }
 body.lld-wml .lld-pos-logo{display:inline-block;width:17px;height:17px;object-fit:contain;vertical-align:middle;margin-left:5px;flex:none}
 body.lld-wml .player-row.lld-tpl > .row-wm, body.lld-wml.lld-tpl .player-row.lld-tpl > .row-wm{display:none !important}
 body.lld-wml .player-row.lld-tpl .lld-tl-logo{display:none !important}
+/* compact Sleeper rows in Manage / Players (beta) */
+body.lld-clr .apv-yc.apv-yc-c .player-row.lld-tpl { margin-bottom: 6px !important; }
+body.lld-clr .lld-clr-f.ls { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
+body.lld-clr .lld-clr-f.ls .apv-sl.in { flex-wrap: wrap; justify-content: flex-end; }
+body.lld-clr .lld-clr-f.ls .apv-bbc { white-space: nowrap; }
+body.lld-clr .apv-lu-c .lld-clr-avw { text-align: right; }
+body.lld-wml .apv-nfl { display: none !important; }
