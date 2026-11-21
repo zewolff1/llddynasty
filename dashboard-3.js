@@ -666,7 +666,12 @@ function lldChatTxHtml(it, ctx) {
         ? `<div class="cm-tl2">${logos.map(f => `<span class="cm-tm"><img class="cm-av s" src="${lldChatEsc(ctx.av(f))}" alt=""><b>${lldChatEsc(ctx.nm(f))}</b></span>`).join('<span class="cm-sw">⇄</span>')}</div><span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`
         : `<div class="cm-tm1"><img class="cm-av m" src="${lldChatEsc(ctx.av(it.fid))}" alt=""><div><b>${lldChatEsc(ctx.nm(it.fid))}</b>${/^(add\/drop|waiver|blind bid)/i.test(it.label) ? '' : `<span class="cm-tg" style="color:${it.color}">${lldChatEsc(it.label)}</span>`}</div></div>`;
     const cols = it.cols.filter(c => c.ents.length).map(c => `<div class="cm-col"><em style="color:${c.color}">${lldChatEsc(c.label)}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color)).join('')}</div></div>`);
-    return `<div class="cm-tx" style="--cm-c:${it.color || '#64748b'}"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}${it.offer && it.tid && (it.incoming || it.mine) ? `<div class="cm-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}</div>`;
+    return `<div class="cm-tx" style="--cm-c:${it.color || '#64748b'}"><div class="cm-th"><div class="cm-thl">${head}</div><i>${lldChatClock(it.ms)}</i></div><div class="cm-cols">${cols.join('<span class="cm-vr"></span>')}</div>${it.note ? `<div class="cm-note">“${lldChatEsc(it.note)}”</div>` : ''}${it.offer && it.tid && (it.incoming || it.mine) ? `<div class="cm-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : ''}${lldChatVdBtn(it, ctx)}</div>`;
+}
+function lldChatVdBtn(it, ctx) {
+    if (!it || !it.offer) return '';
+    const L = window._lldVdItems = window._lldVdItems || [], i = L.push({ it, ctx }) - 1;
+    return `<div class="cm-vdw"><button type="button" class="cm-vd" data-i="${i}">View details</button></div>`;
 }
 function lldChatPostHtml(it, ctx) {
     const who = it.fid ? ctx.nm(it.fid) : '';
@@ -24247,7 +24252,7 @@ function lldChatTweetHtml(it, ctx) {
     if (it.offer) {
         const r = lldTwRep('trade');
         const acts = it.tid && (it.incoming || it.mine) ? `<div class="cm-acts tw-acts" data-tid="${lldChatEsc(it.tid)}" data-fid="${lldChatEsc(it.fid)}" data-give="${lldChatEsc((it.giveIds || []).join(','))}" data-recv="${lldChatEsc((it.recvIds || []).join(','))}">${it.incoming ? '<button type="button" class="cm-act ok" data-act="accept">Accept</button><button type="button" class="cm-act no" data-act="reject">Deny</button><button type="button" class="cm-act ct" data-act="counter">Counter</button>' : '<button type="button" class="cm-act no" data-act="revoke">Revoke offer</button>'}</div>` : '';
-        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">Trade offer on the table: ${A} would send ${lldChatEsc(lldTwEnts(it.cols[0].ents))} to ${B} for ${lldChatEsc(lldTwEnts(it.cols[1].ents))}.</div>` + chips(sides) + (it.note ? `<div class="tw-q">“${lldChatEsc(it.note)}”</div>` : '') + acts);
+        return lldTwPost(r.av, r.name, r.handle, it.ms, `<div class="tw-txt">Trade offer on the table: ${A} would send ${lldChatEsc(lldTwEnts(it.cols[0].ents))} to ${B} for ${lldChatEsc(lldTwEnts(it.cols[1].ents))}.</div>` + chips(sides) + (it.note ? `<div class="tw-q">“${lldChatEsc(it.note)}”</div>` : '') + acts + lldChatVdBtn(it, ctx));
     }
     if (it.label === 'Team outlook') {
         const r = lldTwRep('block');
@@ -24444,6 +24449,14 @@ $(document).on('click', '#lld-chat .cm-act', async function () {
         box.html('<span class="cm-done">' + { accept: 'Accepted ✓', reject: 'Denied', revoke: 'Revoked' }[act] + '</span>');
         setTimeout(act === 'reject' ? lldChatClose : lldChatShowList, act === 'reject' ? 700 : 1200);
     } catch (e) { alert('MFL: ' + (e.message || 'could not complete that')); box.find('.cm-act').prop('disabled', false).css('opacity', 1); btn.text(word); }
+});
+$(document).on('click', '#lld-chat .cm-vd', function () {
+    const o = (window._lldVdItems || [])[+this.dataset.i]; if (!o) return; const it = o.it, ctx = o.ctx;
+    const A = lldChatEsc(ctx.nm(it.fid)), B = lldChatEsc(ctx.nm(it.fid2));
+    const col = (c, who) => `<div class="vd-col"><em style="color:${c.color || '#94a3b8'}">${lldChatEsc(who + ' sends')}</em><div class="cm-chips">${c.ents.map(e => lldChatEntHtml(e, ctx, c.color)).join('') || '<span class="vd-none">Nothing</span>'}</div></div>`;
+    const cs = it.cols || [];
+    $('#tp-pop').remove();
+    $('body').append(`<div id="tp-pop"><div class="tp-sh2"><button type="button" class="tp-cx" aria-label="Close">\u2715</button><div class="vd-h">Trade offer</div><div class="vd-w">${A} \u21C4 ${B}</div><div class="vd-cols">${cs[0] ? col(cs[0], ctx.nm(it.fid)) : ''}${cs[1] ? col(cs[1], ctx.nm(it.fid2)) : ''}</div>${it.note ? `<div class="vd-n">\u201C${lldChatEsc(it.note)}\u201D</div>` : ''}<div class="vd-t">${lldChatClock(it.ms)}</div></div></div>`);
 });
 $(document).on('click', '#lld-chat-btn', function () { lldChatShowList(); });
 $(document).on('click', '#lld-chat .cm-x', lldChatClose);

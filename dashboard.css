@@ -6092,3 +6092,10 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 .sty-pv i{font-style:normal;font-size:9px;opacity:.85;white-space:nowrap;font-weight:600}
 .sty-pv .sty-d{position:absolute;left:0;right:0;bottom:0;height:5px;display:flex}.sty-pv .sty-d u{flex:1}
 .sty-pv .sty-g{position:absolute;right:5px;top:3px;font-size:14px}
+
+.cm-vdw{margin-top:8px}.cm-vd{width:100%;padding:9px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--text-main,#fff);font-weight:800;font-size:12px;cursor:pointer}
+#tp-pop .vd-h{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b}
+#tp-pop .vd-w{font-weight:900;font-size:16px;margin:4px 0 10px}
+#tp-pop .vd-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#tp-pop .vd-col em{display:block;font-style:normal;font-weight:900;font-size:11px;margin-bottom:6px}
+#tp-pop .vd-n{margin-top:10px;font-style:italic;opacity:.85}#tp-pop .vd-t{margin-top:8px;font-size:11px;opacity:.6}
