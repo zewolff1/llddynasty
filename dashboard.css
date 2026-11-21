@@ -6164,3 +6164,4 @@ body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left){grid-column:auto !impo
 body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > *{grid-column:auto !important;text-align:left !important;justify-self:start}
 body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{margin:0 0 1px !important}
 body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{align-self:flex-start !important}
+#lld-sh-pop .pr.st[data-f],#stt td.tm[data-t]{cursor:pointer}

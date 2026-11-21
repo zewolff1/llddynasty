@@ -15866,7 +15866,7 @@ async function lldStRecSheet() {
         const S = await lldStatsLoad(), D = S.D; if (!S.W) { lldStSheet('<div class="hd"><div><h4>Standings</h4><p>No completed weeks yet</p></div><button class="x" id="lld-sh-x">✕</button></div><button type="button" class="seeall" id="stt-all">See full standings ›</button>'); return; }
         const vf = String(fid).padStart(4, '0'), rows = lldStRows(S).sort((a, b) => a.o - b.o), me = rows.find(x => x.f === vf), PT = D.playoffTeams || 6, po = me && S.base && S.base[me.i] ? S.base[me.i].po : null, wk = Math.max(1, S.W);
         const sub = `${(typeof selectedYear !== 'undefined' ? selectedYear : year)} · ${me ? 'you are ' + lldStOrd(me.o) + ' of ' + S.N : ''}${po != null ? ' · ' + po + '% to make playoffs' : ''}`;
-        lldStSheet(`<div class="hd"><div><h4>Standings</h4><p>${sub}</p></div><button class="x" id="lld-sh-x">✕</button></div>` + rows.map((t, i) => `<div class="pr st${t.f === vf ? ' me' : ''}" style="--pc:${i < PT ? 'var(--accent-blue)' : 'var(--card-border)'}"><div class="wm"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></div><div class="av"><span class="rk">${i + 1}</span><div class="im lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></div></div><div class="nm"><b>${lldChatEsc(t.n)}</b><i>PF ${(t.pf / wk).toFixed(1)}/wk · PA ${(t.pa / wk).toFixed(1)}/wk</i></div><div class="vl">${t.w}-${t.l}${t.tie ? '-' + t.tie : ''}</div></div>` + (i === PT - 1 && PT < rows.length ? '<div class="cut">Playoff line</div>' : '')).join('') + '<button type="button" class="seeall" id="stt-all">See full standings ›</button>');
+        lldStSheet(`<div class="hd"><div><h4>Standings</h4><p>${sub}</p></div><button class="x" id="lld-sh-x">✕</button></div>` + rows.map((t, i) => `<div class="pr st${t.f === vf ? ' me' : ''}" data-f="${t.f}" style="--pc:${i < PT ? 'var(--accent-blue)' : 'var(--card-border)'}"><div class="wm"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></div><div class="av"><span class="rk">${i + 1}</span><div class="im lg"><img src="${getFranchiseLogoUrl(t.f)}" onerror="this.style.display='none'"></div></div><div class="nm"><b>${lldChatEsc(t.n)}</b><i>PF ${(t.pf / wk).toFixed(1)}/wk · PA ${(t.pa / wk).toFixed(1)}/wk</i></div><div class="vl">${t.w}-${t.l}${t.tie ? '-' + t.tie : ''}</div></div>` + (i === PT - 1 && PT < rows.length ? '<div class="cut">Playoff line</div>' : '')).join('') + '<button type="button" class="seeall" id="stt-all">See full standings ›</button>');
     } catch (e) { console.warn('rec sheet', e); lldStSheet('<div class="hd"><div><h4>Standings</h4><p>Could not load</p></div><button class="x" id="lld-sh-x">✕</button></div><button type="button" class="seeall" id="stt-all">See full standings ›</button>'); }
 }
 $(document).on('click', '#stt-all', function () { $('#lld-sh-pop').removeClass('on'); lldGoLeagueSub('Standings'); });
@@ -15925,11 +15925,16 @@ async function lldTmSheet() {
     lldBsOpen('tm', lldShHd('Switch team', 'Viewing ' + lldChatEsc(leagueFranchises[cur] || '')) + `<div class="bsb"><div class="leg"><span><b style="background:var(--accent-teal)"></b>You</span>${opp ? `<span><b style="background:#f59e0b"></b>Week ${cw} opponent</span>` : ''}<span><b style="background:var(--accent-blue)"></b>Viewing</span></div><div class="seg"><button type="button" data-l="g" class="${lay === 'g' ? 'on' : ''}">Grid</button><button type="button" data-l="l" class="${lay === 'l' ? 'on' : ''}">List</button></div>${lay === 'g' ? '<div class="tmg">' + list + '</div>' : list}</div>`);
 }
 $(document).on('click', '#lld-sh-pop .seg button', function () { lldSet('lld_tm_lay', this.getAttribute('data-l')); lldTmSheet(); });
+function lldGoTeam(f) { // switch to that team and show the Team tab
+    f = lldBsF(f);
+    if (f !== lldBsF(fid)) { const it = $('.team-selector-item[data-fid="' + f + '"], .team-selector-item[data-fid="' + parseInt(f, 10) + '"]').first(); if (it.length) it.trigger('click'); }
+    try { if (!/tab-team/.test($('.tab-btn.active').attr('onclick') || '')) $('.tab-btn[onclick*="tab-team"]').first().trigger('click'); } catch (e) { }
+}
 $(document).on('click', '#lld-sh-pop [data-f]', function () {
     const f = this.getAttribute('data-f'); $('#lld-sh-pop').removeClass('on');
-    if (f === lldBsF(fid)) return;
-    const it = $('.team-selector-item[data-fid="' + f + '"], .team-selector-item[data-fid="' + parseInt(f, 10) + '"]').first(); if (it.length) it.trigger('click');
+    lldGoTeam(f);
 });
+$(document).on('click', '#stt td.tm[data-t]', function (e) { e.stopImmediatePropagation(); lldGoTeam(this.getAttribute('data-t')); });
 document.addEventListener('click', function (e) {
     if (!lldBetaOn() || !e.target.closest) return;
     if (e.target.closest('#lld-wkbar .lld-wk-t')) { e.stopImmediatePropagation(); e.preventDefault(); lldWkSheet(); return; }
