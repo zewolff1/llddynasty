@@ -6133,3 +6133,20 @@ body.lld-hdl #lld-sh .bk.left .pb{grid-column:2 / -1;grid-row:2;width:auto;margi
 div:has(> .logo-style-btn){flex-wrap:wrap!important}
 div:has(> .logo-style-btn) > :not(.logo-style-btn){flex:0 0 100%!important;margin:0 0 4px!important}
 div:has(> .logo-style-btn) > .logo-style-btn{flex:1 1 0!important;min-width:0!important;overflow:hidden;text-overflow:clip;padding:8px 1px!important;font-size:calc(9px*var(--ts,1))!important;letter-spacing:0!important}
+/* switcher: owner name */
+#lld-sh-pop .tmc .ow{display:block;font-size:9px;font-weight:700;color:var(--text-dim);margin:1px 0 2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* compact header v3: two rows on the right, logo with no circle */
+body.lld-hdl #lld-sh .lg{border-radius:0 !important;background:none !important;border:0 !important;object-fit:contain}
+body.lld-hdl #lld-sh .bk{grid-template-columns:54px minmax(0,1fr);grid-auto-flow:row;align-items:center}
+body.lld-hdl #lld-sh .bk>i{grid-row:1;align-self:center;margin:0}
+body.lld-hdl #lld-sh .bk>.m,body.lld-hdl #lld-sh .bk>.top{grid-column:2;grid-row:1}
+body.lld-hdl #lld-sh .bk[data-b="rec"]{display:flex;flex-wrap:nowrap;align-items:baseline;gap:6px}
+body.lld-hdl #lld-sh .bk[data-b="rec"]>i{flex:0 0 54px}
+body.lld-hdl #lld-sh .bk[data-b="rec"] .s2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+body.lld-hdl #lld-sh .bk[data-b="wk"]{display:flex;flex-wrap:nowrap;align-items:center;gap:6px}
+body.lld-hdl #lld-sh .bk[data-b="wk"]>i{flex:0 0 54px}
+body.lld-hdl #lld-sh .bk[data-b="wk"] .top{flex:1 1 auto;min-width:0}
+body.lld-hdl #lld-sh .bk[data-b="wk"] .top .m{font-size:calc(12px*var(--ts,1))}
+body.lld-hdl #lld-sh .bk[data-b="wk"] .pv{flex:none;padding:1px 5px;font-size:calc(8px*var(--ts,1))}
+body.lld-hdl #lld-sh .bk[data-b="wk"] .s2{flex:none;white-space:nowrap}
+body.lld-hdl #lld-sh .bk[data-b="wk"] .s2 u{display:none}
