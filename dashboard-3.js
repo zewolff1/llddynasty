@@ -18713,6 +18713,15 @@ function stMusicStart(fid, kind) {
     a.play().catch(e => console.warn('music', e));
     $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
 }
+// game previews and recaps inside a matchup: phones only start music from a tap, so the player is set up and the first tap on the story starts it
+function lldEmbMusic(kind) {
+    const pick = lldMusPick(kind); if (!pick) return;
+    const yt = lldYtId(pick);
+    if (!yt) { stMusicStart('', kind); return; } // an audio file: the browser may still wait for a tap, the circle button starts it
+    window._stPick = pick; window._stYtPrep = yt.id;
+    lldYtPlay(yt, false, true).then(() => { setTimeout(() => { if (window._stYtPrep) $('#lld-yt .yt-pp').addClass('need'); }, 300); }).catch(() => { });
+    $('#lld-story').off('.embmus').one('pointerdown.embmus touchend.embmus click.embmus', function () { if (window._stYtPrep) { try { localStorage.setItem('lld_st_mute', '0'); } catch (e) { } stMusicStart('', kind); } });
+}
 function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop(); }
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup; LLD_ST.embed = false; try { if (lldMusCfg()) lldYtLoad(); } catch (e) { } // load the YouTube player early
@@ -19378,7 +19387,7 @@ async function lldEmbedStory(host, kind, wk, idx, mref) {
         if (!slides) { slides = kind === 'mrecap' ? await lldMatchRecapSlides(mref, wk) : await lldStorySlides(kind, wk, idx); slides = slides.filter(x => !/st-cta/.test(x.html)); window._lldEmbCache[key] = slides; }
         if (!$('#lld-story.emb').length) return;
         LLD_ST.slides = slides; LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; LLD_ST.embed = true; stShow(0);
-        if (kind !== 'mrecap') { try { if (lldMusCfg()) stMusicStart('', kind); } catch (e) { } } // each game preview plays a preview song (tap the small circle if the browser waits for a tap)
+        if (kind !== 'mrecap') { try { if (lldMusCfg()) lldEmbMusic(kind); } catch (e) { } } // each game preview plays a preview song (tap the small circle if the browser waits for a tap)
     } catch (e) { console.warn('embed story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-sub">Could not load this ${kind === 'mrecap' ? 'recap' : 'preview'}</div></div>`); }
 }
 $(document).on('click', '#lld-story .emb-replay', function (e) { e.stopPropagation(); if (LLD_ST.slides.length) stShow(0); });
