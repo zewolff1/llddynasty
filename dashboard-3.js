@@ -1632,7 +1632,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-21 todo-board-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-21 logofb-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -1881,7 +1881,8 @@ document.addEventListener('error', function (e) {
     const t = e.target; if (!t || t.tagName !== 'IMG') return;
     const m = String(t.src || '').match(/\/content\/team\/(throwback|leatherhead|alternate|helmet)\/([A-Z]{2,3})\.png/);
     if (!m) return;
-    t.src = m[1] === 'leatherhead' ? LLD_LOGO_REPO + 'throwback/' + m[2] + '.png' : lldModernLogo(m[2]);
+    t.style.display = ''; t.src = m[1] === 'leatherhead' ? LLD_LOGO_REPO + 'throwback/' + m[2] + '.png' : lldModernLogo(m[2]);
+    e.stopPropagation(); // keeps the image's own onerror (which hides it) from running after we swapped in the fallback
 }, true);
 
 // logo style: the per-theme choice wins, then the theme's own default (90s Sports Desk = throwback), then the general choice
