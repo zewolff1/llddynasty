@@ -6124,3 +6124,6 @@ body.lld-hdl #lld-sh .bk img.tl{width:15px;height:15px}
 body.lld-hdl #lld-sh .bk.left{display:flex}
 body.lld-hdl #lld-sh .kv{display:inline-flex;gap:4px;padding:0;font-size:calc(11px * var(--ts,1))}
 body.lld-hdl #lld-sh .bk .pb{width:100%;margin-top:2px}
+/* logo style buttons: one row, six buttons incl. Custom */
+div:has(> .logo-style-btn){display:flex!important;flex-wrap:nowrap!important;gap:4px!important}
+div:has(> .logo-style-btn) > .logo-style-btn{flex:1 1 0!important;min-width:0;padding:8px 2px!important;font-size:calc(9.5px*var(--ts,1))!important;text-align:center;white-space:nowrap}

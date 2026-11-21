@@ -1920,14 +1920,15 @@ document.addEventListener('error', function (e) {
 }, true);
 
 // logo style: the per-theme choice wins, then the theme's own default (90s Sports Desk = throwback), then the general choice
-function lldLogoStyle() {
+function lldLogoRaw() {
     let th = 'classic'; try { th = (typeof lldEffStyle === 'function') ? lldEffStyle() : 'classic'; } catch (e) { }
     return localStorage.getItem('nfl_logo_style_' + th) || (th === 'sportscenter' ? 'throwback' : '') || localStorage.getItem('nfl_logo_style') || 'modern';
 }
+function lldLogoStyle() { const r = lldLogoRaw(); return r === 'custom' ? 'modern' : r; }
 function lldLogoOv() { try { return JSON.parse(localStorage.getItem('lld_logo_team') || '{}') || {}; } catch (e) { return {}; } }
 function getNFLLogoUrl(teamAbbr) {
     const abbr = (teamAbbr || 'NFL').toUpperCase();
-    const ov = lldLogoOv()[abbr], style = (ov && (ov === 'modern' || LLD_LOGO_STYLES.some(x => x[0] === ov))) ? ov : lldLogoStyle();
+    const ov = lldLogoRaw() === 'custom' ? lldLogoOv()[abbr] : '', style = (ov && (ov === 'modern' || LLD_LOGO_STYLES.some(x => x[0] === ov))) ? ov : lldLogoStyle();
     if (style !== 'modern' && /^[A-Z]{2,3}$/.test(abbr) && LLD_LOGO_STYLES.some(x => x[0] === style)) return LLD_LOGO_REPO + style + '/' + abbr + '.png';
     return lldModernLogo(abbr);
 }
@@ -10669,7 +10670,7 @@ $('body').append(`
                             <button class="logo-style-btn" data-style="throwback" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Throwback</button>
                             <button class="logo-style-btn" data-style="leatherhead" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Leatherhead</button>
                             <button class="logo-style-btn" data-style="alternate" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Alternate</button>
-                            <button class="logo-style-btn" data-style="helmet" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Helmet</button>
+                            <button class="logo-style-btn" data-style="helmet" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Helmet</button><button class="logo-style-btn" data-style="custom" style="padding:6px 12px; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:var(--text-dim);">Custom</button>
                         </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -16651,7 +16652,7 @@ window.lldPvRow = function () {
 const LLD_NFL_NAMES = { ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills', CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns', DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GBP: 'Green Bay Packers', HOU: 'Houston Texans', IND: 'Indianapolis Colts', JAC: 'Jacksonville Jaguars', KCC: 'Kansas City Chiefs', LVR: 'Las Vegas Raiders', LAC: 'Los Angeles Chargers', LAR: 'Los Angeles Rams', MIA: 'Miami Dolphins', MIN: 'Minnesota Vikings', NEP: 'New England Patriots', NOS: 'New Orleans Saints', NYG: 'New York Giants', NYJ: 'New York Jets', PHI: 'Philadelphia Eagles', PIT: 'Pittsburgh Steelers', SFO: 'San Francisco 49ers', SEA: 'Seattle Seahawks', TBB: 'Tampa Bay Buccaneers', TEN: 'Tennessee Titans', WAS: 'Washington Commanders' };
 window.lldLogoTeamUi = function () {
     const ov = lldLogoOv(), url = (st, t) => st === 'modern' ? lldModernLogo(t) : LLD_LOGO_REPO + st + '/' + t + '.png';
-    return Object.keys(LLD_NFL_NAMES).map(t => `<div class="sh2-lt" data-t="${t}"><div class="sh2-ltn">${LLD_NFL_NAMES[t]}</div><div class="sh2-ltb"><button type="button" class="sh2-lb sh2-lbd ${!ov[t] ? 'on' : ''}" data-s="">Default</button>${LLD_LOGO_STYLES.map(([k, l]) => `<button type="button" class="sh2-lb ${ov[t] === k ? 'on' : ''}" data-s="${k}" title="${l}"><img src="${url(k, t)}" onerror="this.closest('button').classList.add('miss');this.style.display='none'"><small>${l}</small></button>`).join('')}</div></div>`).join('');
+    return Object.keys(LLD_NFL_NAMES).map(t => `<div class="sh2-lt" data-t="${t}"><div class="sh2-ltn">${LLD_NFL_NAMES[t]}</div><div class="sh2-ltb">${LLD_LOGO_STYLES.map(([k, l]) => `<button type="button" class="sh2-lb ${ov[t] === k ? 'on' : ''}" data-s="${k}" title="${l}"><img src="${url(k, t)}" onerror="this.closest('button').classList.add('miss');this.style.display='none'"><small>${l}</small></button>`).join('')}</div></div>`).join('');
 };
 $(document).on('click', '.sh2-lb', function () {
     if (this.classList.contains('miss')) return;
@@ -23452,7 +23453,7 @@ $(document).off('click touchend', '.tx-filter-btn').on('click', '.tx-filter-btn'
         }
     });
 function updateLogoStyleButtons() {
-    const current = lldLogoStyle();
+    const current = lldLogoRaw();
     $('.logo-style-btn').each(function() {
         const isActive = $(this).data('style') === current;
         $(this).css({
@@ -23650,6 +23651,7 @@ $(document).on('click', '#notif-panel-close, #notif-backdrop', function() {
 $(document).on('click', '.logo-style-btn', function() {
     localStorage.setItem('nfl_logo_style', $(this).data('style')); localStorage.setItem('nfl_logo_style_' + lldEffStyle(), $(this).data('style'));
     updateLogoStyleButtons();
+    try { $('.sh2-lgb').toggle($(this).data('style') === 'custom'); } catch (e) { }
     $('#display-save-status').text('✓ Saved').css('color', 'var(--accent-blue)');
     setTimeout(() => $('#display-save-status').text(''), 2000);
     // Re-render current view to apply new logos
@@ -25089,7 +25091,7 @@ function lldQtHtml() {
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
         + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
-        + lab('NFL logos') + `<div class="qt-row">${LLD_LOGO_STYLES.map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join("")}</div>`
+        + lab('NFL logos') + `<div class="qt-row">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join("")}</div>`
         + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
 }
 function lldQtOpen() {
@@ -25680,7 +25682,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         try {
             if (k === 'theme') { const s = lldGet('lld_style', 'classic'); return (LLD_STYLES[s] && LLD_STYLES[s].name) || (s === 'seasonal' ? 'Seasonal' : s === 'random' ? 'Random' : s); }
             if (k === 'text') { const n = parseFloat(lldGet('lld_text_scale', '1')); return n < 1 ? 'Small' : n === 1 ? 'Normal' : n < 1.2 ? 'Large' : 'X-Large'; }
-            if (k === 'logo') return String(lldLogoStyle()).replace(/^./, c => c.toUpperCase());
+            if (k === 'logo') return String(lldLogoRaw()).replace(/^./, c => c.toUpperCase());
             if (k === 'wml') return window.lldBv('wml') === 'logo' ? 'By position' : 'Watermark';
             if (k === 'rv') return window.lldBv('rv') === '1' ? 'On' : 'Off';
             if (k === 'tk') return lldTickOn(lldEffStyle()) ? 'On' : 'Off';
@@ -25791,7 +25793,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         const wmBtns = pg.find('.lld-b-btn[data-k="wml"]').first().parent();
         wmBtns.after(`<div class="sh2-pvs">${pv('wm', 'Watermark')}${pv('logo', 'Logo by position')}</div>`);
         pg.find('.sh2-lgt').remove();
-        pg.append(`<div class="sh2-lgt"><button type="button" class="sh2-lgtb" aria-expanded="false"><span>Customize by team</span><i>▾</i></button><div class="sh2-lgb" style="display:none"><p>Tap a logo to use that style for one team. Default follows the style chosen above. A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div></div>`);
+        pg.append(`<div class="sh2-lgt"><div class="sh2-lgb" style="display:${window.lldLogoRaw && window.lldLogoRaw() === 'custom' ? 'block' : 'none'}"><p>Custom: tap a logo to use that style for one team. Teams you skip use Modern. Choosing any other style above applies to every team (your custom picks are kept). A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div></div>`);
     }
     // ---- position colors (Text & layout page) ----
     const PC = [['qb', 'QB'], ['rb', 'RB'], ['wr', 'WR'], ['te', 'TE'], ['pk', 'K'], ['def', 'DEF'], ['dl', 'DL'], ['lb', 'LB'], ['db', 'DB']];
@@ -25898,3 +25900,5 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     }
     $(function () { setTimeout(offers, 2500); setInterval(offers, 120000); setInterval(window.lldTabIcons, 4000); });
 })();
+
+window.lldLogoRaw = lldLogoRaw;
