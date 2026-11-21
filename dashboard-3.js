@@ -6715,7 +6715,7 @@ $('#roster-dashboard-inject').html(dashboardHtml);
             const optimalProj = calculateSuggestedProjections();
             const needsOptimization = parseFloat(optimalProj) > parseFloat(currentProj) || $('.player-row.empty-slot').length > 0;
 
-            const isCommish = true; // 🔑 YOUR MASTER KEY
+            const isCommish = (typeof myFid !== 'undefined') && myFid === '0000'; // only the commissioner login can set other teams' lineups
             const isMyTeam = (typeof myFid !== 'undefined') ? (fid === myFid) : true;
             const canEdit = isMyTeam || isCommish; // Unlocks if it's your team OR you are commish
             const stBad = stats.filter(s => s.c < s.r), isRo = activeSub === 'roster';
@@ -6728,7 +6728,9 @@ $('#roster-dashboard-inject').html(dashboardHtml);
             } else {
                 optimizeBtnHtml = `<div class="lu-vo">VIEW ONLY</div>`;
             }
-            const boxes = one
+            const boxes = !canEdit
+                ? `<div class="lu-bx one"><div><span class="l">Projected</span><span class="v">${currentProj}</span></div></div>`
+                : one
                 ? `<div class="lu-bx one"><div><span class="l t">Optimal</span><span class="v t">${optimalProj}</span></div></div>`
                 : `<div class="lu-bx"><div><span class="l">Current</span><span class="v">${currentProj}</span></div><div><span class="l t">Optimal</span><span class="v t">${optimalProj}</span></div></div>`;
 dashboardHtml = `<div class="roster-dashboard">
@@ -7664,6 +7666,7 @@ function getBestBenchOption(slot) {
     }
     function updateLineupNotifications() {
         const container = document.getElementById('lineup-notifications'); if (!container) return;
+        if (typeof myFid !== 'undefined' && fid !== myFid && myFid !== '0000') { container.innerHTML = ''; return; } // looking at another team: nothing for you to fix there
         container.innerHTML = ''; const empty = document.querySelectorAll('.player-row.empty-slot').length;
         if (empty > 0 && !window._lldLineupBlock) $(container).append(`<div class="lineup-alert alert-error">⚠️ Incomplete: ${empty} Remaining</div>`);
         // starters projected for 0 (bye, out, inactive…)
@@ -8531,7 +8534,7 @@ let isConfirming = false;
         if (removed.length > 0) message += `🪑 Benching ${removed.length} player(s)\n`;
 
         if (confirm(message)) {
-            const isCommish = true; // 🔑 YOUR MASTER KEY
+            const isCommish = (typeof myFid !== 'undefined') && myFid === '0000'; // only the commissioner login can set other teams' lineups
             const isOverride = (fid !== myFid && isCommish && window.commishDoc);
             
             let submitTargetURL;
