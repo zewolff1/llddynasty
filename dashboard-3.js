@@ -3046,7 +3046,7 @@ setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).lengt
 
 // ===== BETA (0000 / 0001): compact Sleeper-density Lineup rows (switch "clr") =====
 // One slim row per player: ranks + boom / bust (+ Steady / Volatile word) run along the bottom of the row instead of a second box under it.
-function lldClrOn() { try { return lldDev() && lldBv('clr') === '1'; } catch (e) { return false; } }
+function lldClrOn() { return true; } // compact lineup rows are always on
 function lldClrAvg(p) { const O = window._apv.on, a = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1); return O.now ? `<span class="lld-clr-av">${a} avg</span>` : ''; }
 function lldClrFoot(p) {
     const A = window._apv, O = A.on, x = p._ap, cur = lldApvNow(p.pid), lb = r => r ? p.pos + '#' + r : '\u2013';
@@ -14280,7 +14280,8 @@ function classifyGameStatusText(text) {
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
 function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
-function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
+function lldAdmin() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // the two testing teams: Gotham test and commissioner tools only
+function lldDev() { return true; } // former beta features are now on for everyone; // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 
 // ===== CHARACTERS CARD (beta): Coach = Leader, Def = Sidekicks, read straight from the roster =====
@@ -14379,7 +14380,7 @@ function lldCharsRender() {
         host.insertAdjacentHTML('afterbegin', html);
     } catch (e) { console.warn('chars', e); }
 }
-function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_)$/.test(k)) return '1'; /* graduated: Sleeper tab, new Scores layout, game replay slide */ if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
+function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_)$/.test(k)) return '1'; /* graduated: Sleeper tab, new Scores layout, game replay slide */ if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv|clr)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 window.lldBv = lldBv;
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
@@ -16342,7 +16343,7 @@ function lldGthInfo(row) {
     const r = $(row); let played = r.hasClass('lld-played');
     let sc = parseFloat(r.find('.lld-pscore b').text()), pj = parseFloat(r.find('.proj-popup-trigger').attr('data-proj'));
     const pid = String(r.attr('data-pid')), pos = (r.find('.pos-open-menu').first().text() || '').trim().toUpperCase();
-    if (lldDev() && lldBv('gtp') === '1' && (!(pj > 0) || r.attr('data-gtp'))) { // test mode: made-up projections (and scores for about half the players) so points can be tested with no projections
+    if (lldAdmin() && lldBv('gtp') === '1' && (!(pj > 0) || r.attr('data-gtp'))) { // test mode: made-up projections (and scores for about half the players) so points can be tested with no projections
         let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) % 997;
         pj = ({ QB: 18, RB: 12, WR: 11, TE: 8 }[pos] || 9) + (h % 7); played = h % 2 === 0; sc = played ? Math.round(pj * (0.55 + (h % 10) / 10) * 10) / 10 : NaN;
         r.attr('data-gtp', '1'); r.find('.proj-popup-trigger').attr('data-proj', pj.toFixed(1)).find('.lld-pj-n').text(pj.toFixed(1)); // show it in the row too
@@ -16360,7 +16361,7 @@ function lldGthFit(caps, rs) {
 }
 // Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
 // the characters you can pick are the ones on your roster (Coach + Defense slots), not a fixed list
-function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); if (lldDev() && lldBv('gtp') === '1') Object.keys(LLD_GTH_ABD).forEach(n => { if (!a.some(c => lldChSlug(c.nm) === lldChSlug(n))) a.push({ nm: n, pid: '', on: false }); }); // test mode: every character can be picked, even if not on your roster
+function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); if (lldAdmin() && lldBv('gtp') === '1') Object.keys(LLD_GTH_ABD).forEach(n => { if (!a.some(c => lldChSlug(c.nm) === lldChSlug(n))) a.push({ nm: n, pid: '', on: false }); }); // test mode: every character can be picked, even if not on your roster
         return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
 const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
@@ -16627,7 +16628,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact Lineup rows: Sleeper-style slim rows with ranks and boom / bust along the bottom')}${onoff('clr')}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldGthOn() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -25685,8 +25686,8 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             ['Scores', 'Hide scores', 'Spoiler protection for live games', val('rv'), 'scores'],
             ['Scores', 'Ticker', 'The scrolling line under the header', val('tk'), 'scores'],
             ['My team', 'Team info & name style', 'Owner, email, location, team name, font and colors', '', 'team'],
-            ['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']
         ];
+        if (lldAdmin() || (LLD.adminFids || []).indexOf(String(window._lldMyFid || '')) >= 0) R.push(['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']);
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
         if (window.LLD_STANDALONE && !(window.LLD_APP && window.LLD_APP.other)) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Notifications', 'Pick which alerts this phone gets', '', 'notif']);
         R.push(['Labs', 'Labs', 'Early features and the row tuner', '', 'labs']);
@@ -25800,7 +25801,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('.settings-content-area').scrollTop(0);
     }
     $(document).on('click touchend', '.open-settings-btn', function () {
-        let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); if (f !== '0000' && f !== '0001') return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
+        let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
     $(document).on('click', '#lld-sh2 .sh2-row', function () { try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
