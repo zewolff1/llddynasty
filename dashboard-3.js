@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-3"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-4"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -2925,6 +2925,7 @@ function lldCondRefresh() {
     const S = lldCondState(), c = A.c, yr = parseInt(year, 10), seasons = [yr, yr + 1, yr + 2].map(String), tn = { mine: leagueFranchises[c.myFid] || 'You', theirs: leagueFranchises[c.theirFid] || 'Them' };
     const gone = x => !A.picks.some(p => p.v === x);
     S.list = S.list.filter(cd => !cd.a || !gone(cd.a));
+    try { if (window._lldTv2 && typeof lldTv2CondHtml === 'function') { $('#tv2-conds-h').html(lldTv2CondHtml(true)); if (document.getElementById('lld-tv2-sheet')) lldTv2Sheet(); } } catch (e) { }
     const listHtml = () => S.list.map((cd, i) => `<div class="lc-c"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div><button type="button" class="lc-x" data-i="${i}">\u2715</button></div>`).join('');
     host.classList.remove('lc-sheet'); host.innerHTML = `<div class="lc-h">Conditions (${S.list.length})</div>${listHtml() || '<div class="lc-m">None. Tap IF on a pick in \u201CSelected to Give\u201D, or add one here. Picks named in a condition stay with their team and are locked until the date.</div>'}<div class="lc-r"><button type="button" class="lc-b" id="lc-open">+ Add condition</button></div>`;
     let sh = document.getElementById('lld-cond-sheet');
@@ -13264,6 +13265,13 @@ function lldTv2Css() {
 #lld-tv2 .tv2-selcol h4{margin:0 0 6px;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 #lld-tv2 .tv2-selbody{height:96px;overflow-y:auto}
 #lld-tv2 .tv2-mini{display:flex;align-items:center;gap:5px;height:24px;min-width:0}
+#lld-tv2 .tv2-conds,#lld-tv2-sheet .tv2-conds{margin:0 0 8px;border:1px solid rgba(245,197,66,.45);background:rgba(245,197,66,.07);border-radius:10px;padding:6px 8px}
+.tv2-conds .ch{font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#f5c542;margin-bottom:3px}
+.tv2-conds .cr{display:flex;align-items:flex-start;gap:6px;padding:4px 0;border-top:1px solid rgba(245,197,66,.18);font-size:11px;color:#fff;line-height:1.3}.tv2-conds .cr:first-of-type{border-top:0}
+.tv2-conds .cr>div{flex:1;min-width:0;word-break:break-word}.tv2-conds .cr b{color:#f5c542}.tv2-conds .cr i{color:#f5c542;font-style:normal;font-weight:900}
+.tv2-conds .cr small{display:block;color:var(--text-dim,#9aa6c0);font-size:10px;font-weight:700}
+.tv2-conds .cr button{flex:none;width:20px;height:20px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:#cbd5e1;font-size:11px;cursor:pointer}
+#lld-tv2 .tv2-mini .lc-pk{width:auto;height:auto;border-radius:12px;margin:0;padding:2px 6px;font-size:9px}
 #lld-tv2 .tv2-mini .p{width:17px;font-size:calc(9px * var(--ts,1));font-weight:900;flex:none}
 #lld-tv2 .tv2-mini .nm{flex:1;min-width:0;font-size:calc(11px * var(--ts,1));font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #lld-tv2 .tv2-mini .s{font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);flex:none}
@@ -13306,6 +13314,13 @@ function lldTv2Row(p, isSelected, side) {
     const pos = p.isPick ? 'PK' : p.pos, cls = 'pos-text-' + String(pos).toLowerCase();
     return `<button type="button" class="trade-add-btn tv2-row ${side}${isSelected ? ' on' : ''}" data-pid="${p.pid}" data-side="${side}"><span class="p ${cls}">${pos}</span><span class="nm">${lldTv2Name(p)}</span>${p.salary ? `<span class="s">${p.salary}</span>` : ''}</button>`;
 }
+function lldTv2CondHtml(editable) {
+    let L = []; try { L = lldCondState().list || []; } catch (e) { }
+    if (!L.length) return '';
+    const st = window._lldTv2State || { mine: [], theirs: [] };
+    const nameOf = a => { const m = String(a || '').match(/^(mine|theirs):(.+)$/); if (!m) return ''; const p = (m[1] === 'mine' ? st.mine : st.theirs).find(x => String(x.pid) === m[2]); return p ? lldTv2Name(p) : ''; };
+    return `<div class="tv2-conds"><div class="ch">\uD83D\uDD12 Conditions (${L.length})</div>${L.map((cd, i) => { const pk = nameOf(cd.a); return `<div class="cr"><div><b>IF</b> ${lldCondEsc(cd.i)} <i>THEN</i> ${lldCondEsc(cd.t)}<small>${pk ? 'Pick ' + lldCondEsc(pk.replace(/^Pick /, '')) + ' \u00B7 ' : ''}Locked until ${lldCondEsc(lldCondFmt(cd.u))}</small></div>${editable ? `<button type="button" class="tv2-cx" data-i="${i}" aria-label="Remove condition">\u2715</button>` : ''}</div>`; }).join('')}</div>`;
+}
 function lldTv2Html(o) {
     lldTv2Css();
     const hdMine = `<div class="tv2-head"><div style="display:flex;align-items:center;gap:6px;min-width:0">${buildLogoWithTrophy(myFid, 22)}<div style="flex:1;min-width:0;font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.myTeamName}</div></div>
@@ -13320,7 +13335,7 @@ function lldTv2Html(o) {
             <div class="tv2-selcol"><h4 style="color:#ef4444">You give</h4><div class="tv2-selbody" id="trade-summary-mine"><span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on your team</span></div><div class="tv2-delta"><span style="color:var(--text-dim)">Your cap</span><span id="tv2-dm"></span></div></div>
             <div class="tv2-selcol"><h4 style="color:#22c55e">You get</h4><div class="tv2-selbody" id="trade-summary-theirs"><span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on their team</span></div><div class="tv2-delta"><span style="color:var(--text-dim)">Their cap</span><span id="tv2-dt"></span></div></div>
         </div>
-        <button type="button" class="tv2-vd" id="tv2-vd" disabled>View details</button>
+        <div id="tv2-conds-h">${lldTv2CondHtml(true)}</div><button type="button" class="tv2-vd" id="tv2-vd" disabled>View details</button>
         <div class="tv2-cols"><div class="tv2-col">${hdMine}<div class="tv2-list" id="my-roster-list">${o.myPlayers.map(p => buildPlayerChip(p, o.mySelected, 'mine')).join('')}</div></div>
         <div class="tv2-col">${hdTheirs}<div class="tv2-list" id="their-roster-list">${o.theirPlayers.map(p => buildPlayerChip(p, o.theirSelected, 'theirs')).join('')}</div></div></div>
         ${lldCondPanelHtml()}
@@ -13355,7 +13370,7 @@ function lldTv2SheetBody() {
         const cells = [0, 1, 2].map(i => { const d = by(st.theirs, y0 + i) - by(st.mine, y0 + i); return `<td style="color:${d > 0 ? '#f59e0b' : d < 0 ? '#22c55e' : '#fff'}">${lldTv2Fmt(d)}</td>`; }).join('');
         imp = `<div class="imp"><table><tr><th>Your cap by year</th><th>${year}</th><th>${y0 + 1}</th><th>${y0 + 2}</th></tr><tr><td>Change</td>${cells}</tr></table></div>`;
     }
-    return `<div class="g2${view === 'over' ? ' one' : ''}"><div class="gc"><h4 style="color:#ef4444">You give</h4>${side(st.mine, 'mine', myFid)}</div><div class="gc"><h4 style="color:#22c55e">You get</h4>${side(st.theirs, 'theirs', activeFid)}</div></div>${imp}`;
+    return lldTv2CondHtml(false) + `<div class="g2${view === 'over' ? ' one' : ''}"><div class="gc"><h4 style="color:#ef4444">You give</h4>${side(st.mine, 'mine', myFid)}</div><div class="gc"><h4 style="color:#22c55e">You get</h4>${side(st.theirs, 'theirs', activeFid)}</div></div>${imp}`;
 }
 function lldTv2Sheet(open) {
     let sh = document.getElementById('lld-tv2-sheet');
@@ -13374,6 +13389,7 @@ function lldTv2Sheet(open) {
     document.getElementById('tv2-body').innerHTML = lldTv2SheetBody();
     if (window._lldTv2View === 'dyn') { try { hydrateDynRanks(); } catch (e) { } }
 }
+lldCondTap('.tv2-cx', function () { lldCondState().list.splice(+this.dataset.i, 1); try { lldCondRefresh(); } catch (e) { } try { const c = lldCondCtx(); c && c.rows && c.rows(); } catch (e) { } $('#tv2-conds-h').html(lldTv2CondHtml(true)); try { lldTv2Sheet(); } catch (e) { } });
 $(document).off('click', '#tv2-vd').on('click', '#tv2-vd', function () { lldTv2Sheet(true); });
 function buildProposeSection(theirCapUsed = 0) {
     const teamOptions = Object.keys(leagueFranchises).filter(id => id !== myFid).map(id =>
@@ -13887,8 +13903,9 @@ $(document).off('click', '#trade-their-switcher').on('click', '#trade-their-swit
                 try { lldCondRefresh(); } catch (e) { }
                 if (window._lldTv2) {
                     const gv = [...mySelected].map(pid => myPlayers.find(p => String(p.pid) === pid)).filter(Boolean), gt = [...theirSelected].map(pid => theirPlayers.find(p => String(p.pid) === pid)).filter(Boolean);
-                    window._lldTv2State = { mine: gv, theirs: gt };
-                    const mini = (p, sd) => `<div class="tv2-mini"><span class="p pos-text-${String(p.isPick ? 'pk' : p.pos).toLowerCase()}">${p.isPick ? 'PK' : p.pos}</span><span class="nm">${lldTv2Name(p)}</span>${p.salary ? `<span class="s">${p.salary}</span>` : ''}<button type="button" class="trade-add-btn" data-pid="${p.pid}" data-side="${sd}" aria-label="Remove">\u00D7</button></div>`;
+                    window._lldTv2State = { mine: gv, theirs: gt }; $('#tv2-conds-h').html(lldTv2CondHtml(true));
+                    const hasC = (p, sd) => { try { return lldCondState().list.some(c => c.a === sd + ':' + p.pid); } catch (e) { return false; } };
+                    const mini = (p, sd) => `<div class="tv2-mini"><span class="p pos-text-${String(p.isPick ? 'pk' : p.pos).toLowerCase()}">${p.isPick ? 'PK' : p.pos}</span><span class="nm">${hasC(p, sd) ? '\uD83D\uDD12 ' : ''}${lldTv2Name(p)}</span>${p.isPick ? `<button type="button" class="lc-pk${hasC(p, sd) ? ' on' : ''}" data-pid="${p.pid}" data-side="${sd}" title="Add a condition to this pick">IF</button>` : ''}${p.salary ? `<span class="s">${p.salary}</span>` : ''}<button type="button" class="trade-add-btn" data-pid="${p.pid}" data-side="${sd}" aria-label="Remove">\u00D7</button></div>`;
                     $('#trade-summary-mine').html(gv.length ? gv.map(p => mini(p, 'mine')).join('') : '<span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on your team</span>');
                     $('#trade-summary-theirs').html(gt.length ? gt.map(p => mini(p, 'theirs')).join('') : '<span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on their team</span>');
                     const give = gv.reduce((t, p) => t + lldTv2Sal(p), 0), get = gt.reduce((t, p) => t + lldTv2Sal(p), 0), cap = window.leagueSalaryCap || LLD.salaryCap;
