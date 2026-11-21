@@ -6057,8 +6057,13 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 .sh2-lgt{margin-top:22px;padding-top:14px;border-top:1px solid var(--card-border)}
 .sh2-lgh{font-size:calc(11px*var(--ts,1));font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--accent-blue);margin-bottom:6px}
 .sh2-lgt p{font-size:calc(11px*var(--ts,1));color:var(--text-dim);margin:0 0 10px;line-height:1.45}
-.sh2-lt{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--card-border)}
+.sh2-lt{padding:10px 0;border-top:1px solid var(--card-border)}
 .sh2-lt:first-child{border-top:0}
-.sh2-lt img{width:30px;height:30px;object-fit:contain;flex:none}
-.sh2-lt span{flex:1;min-width:0;font-size:calc(13px*var(--ts,1));font-weight:700}
-.sh2-lt select{flex:none;max-width:130px;background:rgba(255,255,255,.06);color:var(--text-main,#fff);border:1px solid var(--card-border);border-radius:8px;padding:7px 8px;font-size:max(16px,calc(12px*var(--ts,1)));font-weight:700}
+.sh2-ltn{font-size:calc(13px*var(--ts,1));font-weight:800;margin-bottom:8px}
+.sh2-ltb{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.sh2-lb{flex:none;min-width:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 6px 5px;border:1px solid var(--card-border);background:rgba(255,255,255,.04);border-radius:10px;color:var(--text-main,#fff);cursor:pointer}
+.sh2-lb img{width:34px;height:34px;object-fit:contain}
+.sh2-lb small{font-size:calc(8px*var(--ts,1));font-weight:800;letter-spacing:.02em;color:var(--text-dim)}
+.sh2-lbd{font-size:calc(10px*var(--ts,1));font-weight:900}
+.sh2-lb.on{border-color:var(--accent-blue);box-shadow:0 0 0 1px var(--accent-blue) inset;background:rgba(255,255,255,.08)}
+.sh2-lb.miss{opacity:.3;cursor:default}

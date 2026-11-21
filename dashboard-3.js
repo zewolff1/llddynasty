@@ -16603,13 +16603,15 @@ window.lldPvRow = function () {
 };
 const LLD_NFL_NAMES = { ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills', CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns', DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GBP: 'Green Bay Packers', HOU: 'Houston Texans', IND: 'Indianapolis Colts', JAC: 'Jacksonville Jaguars', KCC: 'Kansas City Chiefs', LVR: 'Las Vegas Raiders', LAC: 'Los Angeles Chargers', LAR: 'Los Angeles Rams', MIA: 'Miami Dolphins', MIN: 'Minnesota Vikings', NEP: 'New England Patriots', NOS: 'New Orleans Saints', NYG: 'New York Giants', NYJ: 'New York Jets', PHI: 'Philadelphia Eagles', PIT: 'Pittsburgh Steelers', SFO: 'San Francisco 49ers', SEA: 'Seattle Seahawks', TBB: 'Tampa Bay Buccaneers', TEN: 'Tennessee Titans', WAS: 'Washington Commanders' };
 window.lldLogoTeamUi = function () {
-    const ov = lldLogoOv();
-    return Object.keys(LLD_NFL_NAMES).map(t => `<div class="sh2-lt"><img src="${getNFLLogoUrl(t)}" data-t="${t}" onerror="this.style.visibility='hidden'"><span>${LLD_NFL_NAMES[t]}</span><select data-t="${t}"><option value="">Default</option>${[['modern', 'Modern']].concat(LLD_LOGO_STYLES.filter(x => x[0] !== 'modern')).map(([k, l]) => `<option value="${k}" ${ov[t] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`).join('');
+    const ov = lldLogoOv(), url = (st, t) => st === 'modern' ? lldModernLogo(t) : LLD_LOGO_REPO + st + '/' + t + '.png';
+    return Object.keys(LLD_NFL_NAMES).map(t => `<div class="sh2-lt" data-t="${t}"><div class="sh2-ltn">${LLD_NFL_NAMES[t]}</div><div class="sh2-ltb"><button type="button" class="sh2-lb sh2-lbd ${!ov[t] ? 'on' : ''}" data-s="">Default</button>${LLD_LOGO_STYLES.map(([k, l]) => `<button type="button" class="sh2-lb ${ov[t] === k ? 'on' : ''}" data-s="${k}" title="${l}"><img src="${url(k, t)}" onerror="this.closest('button').classList.add('miss');this.style.display='none'"><small>${l}</small></button>`).join('')}</div></div>`).join('');
 };
-$(document).on('change', '.sh2-lt select', function () {
-    const t = this.dataset.t, o = lldLogoOv(); if (this.value) o[t] = this.value; else delete o[t];
+$(document).on('click', '.sh2-lb', function () {
+    if (this.classList.contains('miss')) return;
+    const row = $(this).closest('.sh2-lt'), t = row.data('t'), o = lldLogoOv(), v = this.dataset.s;
+    if (v) o[t] = v; else delete o[t];
     try { localStorage.setItem('lld_logo_team', JSON.stringify(o)); } catch (e) { }
-    $(this).closest('.sh2-lt').find('img').css('visibility', '').attr('src', getNFLLogoUrl(t));
+    row.find('.sh2-lb').removeClass('on'); $(this).addClass('on');
     try {
         const activeTab = $('.tab-btn.active').attr('onclick') || '';
         if (activeTab.includes('tab-team')) renderActiveTab();
@@ -25697,7 +25699,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         const wmBtns = pg.find('.lld-b-btn[data-k="wml"]').first().parent();
         wmBtns.after(`<div class="sh2-pvs">${pv('wm', 'Watermark')}${pv('logo', 'Logo by position')}</div>`);
         pg.find('.sh2-lgt').remove();
-        pg.append(`<div class="sh2-lgt"><div class="sh2-lgh">Logo by team</div><p>Pick a different logo style for any one team. Teams left on Default use the style chosen above.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div>`);
+        pg.append(`<div class="sh2-lgt"><div class="sh2-lgh">Logo by team</div><p>Tap a logo to use that style for one team. Default follows the style chosen above. A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div>`);
     }
     $(document).on('click', '.sh2-pvb', function () {
         $('.sh2-pvb').removeClass('on'); $(this).addClass('on');
