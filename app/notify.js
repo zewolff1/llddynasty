@@ -17,7 +17,7 @@
   function can() { return W && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 
   function build() {
-    var host = document.getElementById('tab-team-set'); if (!host || box()) return;
+    var host = document.getElementById('tab-notif') || document.getElementById('tab-team-set'); if (!host || box()) return;
     var d = document.createElement('div'); d.id = 'lld-notif-box';
     d.style.cssText = 'margin:0 0 14px;padding:12px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.04)';
     d.innerHTML = '<div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;margin-bottom:6px">Notifications</div>' +

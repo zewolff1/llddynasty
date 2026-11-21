@@ -91,7 +91,7 @@ function lldHolidayNow(d) {
     if (md >= 1220 || md <= 102) return 'season_christmas';
     return null;
 }
-function lldAutoOn() { return lldGet('lld_auto', '1') !== '0'; }
+function lldAutoOn() { return true; } // holiday looks are always automatic now (a popup offers a different theme when one switches on)
 function lldRandomStyle() {
     try { const v = sessionStorage.getItem('lld_rand'); if (v && LLD_STYLES[v]) return v; } catch (e) { }
     const pool = Object.keys(LLD_STYLES).filter(k => !/^season_/.test(k)), pick = pool[Math.floor(Math.random() * pool.length)];
@@ -101,7 +101,7 @@ function lldRandomStyle() {
 function lldEffStyle() {
     const raw = lldGet('lld_style', 'classic');
     if (raw === 'random') return lldRandomStyle();
-    if (raw === 'classic' && lldAutoOn()) { const h = lldHolidayNow(); if (h) return h; }
+    if (raw === 'classic') { const h = lldHolidayNow(); if (h && lldGet('lld_hol_skip', '') !== h + new Date().getFullYear()) return h; }
     if (raw !== 'seasonal') return LLD_STYLES[raw] ? raw : 'classic';
     const s = lldSeasonNow();
     if (s) return s;
@@ -5062,7 +5062,7 @@ function lldNfMaybe(tries) {
     } catch (e) { console.warn('new feature popup', e); }
 }
 $(document).on('click', '#lld-nf [data-nf]', function () { $('#lld-nf').removeClass('on'); if (this.dataset.nf === 'go') { try { lldMyBlockGo(); } catch (e) { } } });
-$(document).ready(function () { setTimeout(function () { lldNfMaybe(0); }, 3500); });
+// (trade block new-feature popup retired)
 function lldMmOpen(show) {
     let el = $('#lld-mm2'); if (!el.length) { el = $('<div id="lld-mm2"></div>'); $('body').append(el); }
     if (show) { let g = []; try { g = lldCollectMflMenu(); } catch (err) { console.warn('mfl menu', err); } window._lldMm = { tab: 'gen', sec: null, groups: g }; lldMmDraw(); }
@@ -23783,6 +23783,29 @@ lldApplyHdrMode(lldBeta() && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'm
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 $(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
+// When a holiday look switches on by itself, ask once whether to keep it or pick another theme
+function lldHolidayPrompt() {
+    try {
+        const h = lldHolidayNow(); if (!h || lldGet('lld_style', 'classic') !== 'classic') return;
+        const key = h + new Date().getFullYear(); if (lldGet('lld_hol_seen', '') === key) return;
+        if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
+        lldSet('lld_hol_seen', key);
+        const nm = k => (LLD_STYLES[k] && LLD_STYLES[k].name) || k;
+        const opts = Object.keys(LLD_STYLES).filter(k => !/^season_/.test(k));
+        $('#lld-hol').remove();
+        $('body').append(`<div id="lld-hol"><div class="hol-card"><div class="hol-t">${nm(h)} theme is on</div><p>The dashboard switched to its ${nm(h)} look automatically. Keep it, or pick a different theme.</p><button type="button" class="hol-keep" data-k="keep">Keep ${nm(h)}</button><div class="hol-l">Or switch to</div><div class="hol-g">${opts.map(k => `<button type="button" data-k="${k}">${nm(k)}</button>`).join('')}</div></div></div>`);
+    } catch (e) { console.warn('holiday prompt', e); }
+}
+$(document).on('click', '#lld-hol [data-k]', function () {
+    const k = this.dataset.k; $('#lld-hol').remove(); if (k === 'keep') return;
+    try {
+        const h = lldHolidayNow(); if (k === 'classic' && h) lldSet('lld_hol_skip', h + new Date().getFullYear());
+        lldSet('lld_style', k); lldApplyStyle(k); applyTeamTheme(myFid, true);
+    } catch (e) { console.warn(e); }
+});
+$(document).on('click', '#lld-hol', function (e) { if (e.target.id === 'lld-hol') $(this).remove(); });
+setTimeout(lldHolidayPrompt, 4500);
+
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
@@ -24974,7 +24997,6 @@ function lldQtHtml() {
     const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
-        + (cur === 'classic' ? lab('Holiday themes') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-auto-btn ${lldAutoOn() ? 'on' : ''}" data-v="on">Auto</button><button type="button" class="lld-hdr-btn lld-auto-btn ${lldAutoOn() ? '' : 'on'}" data-v="off">Off</button></div>` : '')
         + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
         + lab('NFL logos') + `<div class="qt-row">${LLD_LOGO_STYLES.map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join("")}</div>`
         + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
@@ -25545,7 +25567,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 (function () {
     const PG = {
         theme: 'Theme', text: 'Text & layout', logos: 'Logos', scores: 'Scores & ticker',
-        team: 'Team name style', comm: 'Commissioner tools', sleeper: 'Sleeper', labs: 'Labs'
+        team: 'Team name style', notif: 'Notifications', comm: 'Commissioner tools', sleeper: 'Sleeper', labs: 'Labs'
     };
     function split() {
         const d = document.getElementById('tab-display'); if (!d || d.dataset.sh2) return; d.dataset.sh2 = '1';
@@ -25584,9 +25606,10 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             ['Scores', 'Hide scores', 'Spoiler protection for live games', val('rv'), 'scores'],
             ['Scores', 'Ticker', 'The scrolling line under the header', val('tk'), 'scores'],
             ['My team', 'Team name style', 'Owner, font, glow and outline', '', 'team'],
-            ['League', 'MFL setup', 'Opens on MFL’s own site', '', 'league']
+            ['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']
         ];
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
+        if (window.LLD_STANDALONE && !(window.LLD_APP && window.LLD_APP.other)) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Notifications', 'Pick which alerts this phone gets', '', 'notif']);
         R.push(['Labs', 'Labs', 'Early features and the row tuner', '', 'labs']);
         return R;
     }
@@ -25602,6 +25625,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     }
     function setup() {
         const area = document.querySelector('#team-settings-modal .settings-content-area'); if (!area || document.getElementById('lld-sh2')) return;
+        if (!document.getElementById('tab-notif')) { const n = document.createElement('div'); n.id = 'tab-notif'; n.className = 'settings-tab-content'; n.style.display = 'none'; area.appendChild(n); }
         split();
         const w = document.createElement('div'); w.id = 'lld-sh2';
         w.innerHTML = `<div id="sh2-home"><label class="sh2-search"><span>⌕</span><input id="sh2-q" type="search" placeholder="Search settings" autocomplete="off"></label><div id="sh2-list"></div></div><div id="sh2-bar" style="display:none;"><button type="button" id="sh2-back">‹</button><b id="sh2-title"></b></div>`;
@@ -25621,15 +25645,17 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (window._commishToggleUrl || appCommish) h += `<button type="button" class="am-i" data-a="role">${f === '0000' ? 'Switch to Owner (0001)' : 'Switch to Commish (0000)'}</button>`;
         try { const L = (window.LLD_STANDALONE && window.lldAppLeagues) ? window.lldAppLeagues() : []; if (L.length > 1) { h += '<div class="am-h">League</div>'; L.forEach(l => { h += `<button type="button" class="am-i" data-a="lg" data-id="${l.id}">${l.active ? '\u2713 ' : ''}${String(l.name).replace(/</g, '&lt;')}</button>`; }); } } catch (e) { }
         const m10 = hdr.find('a').filter(function () { return /Msg 10/.test(this.textContent); }); if (m10.length && !window.LLD_STANDALONE) h += `<a class="am-i" href="${m10.attr('href')}">Message 10</a>`;
-        try { h += '<div class="am-h">Season</div><div class="am-yrs">' + window._lldSeasonChips() + '</div>'; } catch (e) { }
+        try { h += `<button type="button" class="am-i" data-a="seasons">Previous seasons <span class="am-ar">\u25BE</span><small class="am-cur"></small></button><div class="am-yrs" style="display:none;">` + window._lldSeasonChips() + '</div>'; } catch (e) { }
         h += '<button type="button" class="am-i am-out" data-a="out">Sign out</button>';
         return h;
     }
-    $(document).on('click', '#lld-acct-b', function (e) { e.stopPropagation(); const m = $('#lld-acct-m'); if (m.is(':visible')) { m.hide(); return; } m.html(acctMenu()).show(); });
+    $(document).on('click', '#lld-acct-b', function (e) { e.stopPropagation(); const m = $('#lld-acct-m'); if (m.is(':visible')) { m.hide(); return; } m.html(acctMenu()).show(); try { m.find('.am-cur').text('Viewing ' + (m.find('.lld-yrb.on').first().text() || '')); } catch (x) { } });
     $(document).on('click', '#team-settings-modal', function (e) { if (!$(e.target).closest('#lld-acct').length) $('#lld-acct-m').hide(); });
     $(document).on('click', '#lld-acct-m', function (e) { if (!$(e.target).closest('.lld-yrb').length) return; });
     $(document).on('click', '#lld-acct-m .am-i[data-a]', function () {
-        const a = this.dataset.a; $('#lld-acct-m').hide();
+        const a = this.dataset.a;
+        if (a === 'seasons') { const y = $(this).next('.am-yrs'); y.toggle(); $(this).find('.am-ar').text(y.is(':visible') ? '\u25B4' : '\u25BE'); return; }
+        $('#lld-acct-m').hide();
         if (a === 'role') $('#settings-commish-toggle').trigger('click');
         else if (a === 'lg') { try { window.lldAppSwitch && window.lldAppSwitch(this.dataset.id); } catch (e) { } }
         else if (a === 'out') { const o = $('#team-settings-modal .settings-header > div').first().find('a').filter(function () { return /Sign Out/i.test(this.textContent); })[0]; if (o) o.click(); }
@@ -25640,9 +25666,9 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
     }
     function page(k) {
-        const tab = { theme: 'tab-display', text: 'tab-display', logos: 'tab-display', scores: 'tab-display', labs: 'tab-display', team: 'tab-team-set', comm: 'tab-mflmenu', sleeper: 'tab-sleeper' }[k];
+        const tab = { theme: 'tab-display', text: 'tab-display', logos: 'tab-display', scores: 'tab-display', labs: 'tab-display', team: 'tab-team-set', notif: 'tab-notif', comm: 'tab-mflmenu', sleeper: 'tab-sleeper' }[k];
         $('#sh2-home').hide();
-        $('.settings-tab-btn[data-target="' + tab + '"]').show().trigger('click'); // runs the original tab code (renders MFL menu, fonts, logo buttons, row tuner)
+        if (tab !== 'tab-notif') $('.settings-tab-btn[data-target="' + tab + '"]').show().trigger('click'); // runs the original tab code (renders MFL menu, fonts, logo buttons, row tuner)
         $('#team-settings-modal .settings-tab-content').hide();
         $('#sh2-title').text(PG[k] || ''); $('#sh2-bar').css('display', 'flex');
         $('#tab-display .lld-sp').hide();
