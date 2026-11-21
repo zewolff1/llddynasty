@@ -25605,7 +25605,9 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         w.innerHTML = `<div id="sh2-home"><label class="sh2-search"><span>⌕</span><input id="sh2-q" type="search" placeholder="Search settings" autocomplete="off"></label><div id="sh2-list"></div></div><div id="sh2-bar" style="display:none;"><button type="button" id="sh2-back">‹</button><b id="sh2-title"></b></div>`;
         area.insertBefore(w, area.firstChild);
     }
-    function home() {
+    function fallback(e) { try { console.warn('settings home', e); document.body.classList.remove('lld-sh2-on'); $('#lld-sh2').remove(); $('#tab-display .lld-sp').each(function () { $(this).css('display', ''); }); $('#team-settings-modal .settings-tab-content').hide(); $('#tab-display').show(); $('.settings-tab-btn').removeClass('active').filter('[data-target="tab-display"]').addClass('active'); } catch (x) { } }
+    function home() { try { home0(); } catch (e) { fallback(e); } }
+    function home0() {
         setup(); document.body.classList.add('lld-sh2-on');
         $('#team-settings-modal .settings-tab-content').hide(); $('#sh2-bar').hide(); $('#sh2-home').show();
         $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
@@ -25627,7 +25629,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('click touchend', '.open-settings-btn', function () {
         if (!lldDev()) return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
-    $(document).on('click', '#lld-sh2 .sh2-row', function () { page(this.dataset.go); });
+    $(document).on('click', '#lld-sh2 .sh2-row', function () { try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
     $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
     // keep the row values fresh after a change on a page
