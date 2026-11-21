@@ -25712,7 +25712,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         const W = host.querySelector(':scope > div:not(#lld-notif-box)'); if (!W) return;
         if (!document.getElementById('sh2-tt')) {
             const t = document.createElement('div'); t.id = 'sh2-tt'; t.className = 'sh2-seg';
-            t.innerHTML = '<button type="button" data-v="info" class="on">Team info</button><button type="button" data-v="style">Name style</button>';
+            t.innerHTML = '<button type="button" data-v="info" class="on">Team info</button><button type="button" data-v="style">Name style</button><button type="button" data-v="notif">Notifications</button>';
             host.insertBefore(t, host.firstChild);
             const tn = document.getElementById('ts-teamname');
             if (tn && tn.parentElement) { const h = document.createElement('div'); h.id = 'sh2-full'; h.className = 'sh2-hint'; tn.parentElement.appendChild(h); }
@@ -25723,6 +25723,9 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     function teamShow(v) {
         const host = document.getElementById('tab-team-set'), W = host && host.querySelector(':scope > div:not(#lld-notif-box):not(#sh2-tt)'); if (!W) return;
         $('#sh2-tt button').removeClass('on').filter('[data-v="' + v + '"]').addClass('on');
+        const nb = document.getElementById('lld-notif-box');
+        if (v === 'notif') { if (nb && nb.parentNode !== host) host.appendChild(nb); if (nb) nb.style.display = ''; W.style.display = 'none'; return; }
+        W.style.display = ''; if (nb) nb.style.display = 'none';
         Array.from(W.children).forEach(el => { el.style.display = (v === 'style') === (el.id === 'tab-style') ? '' : 'none'; });
         fullHint();
     }
@@ -25753,6 +25756,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('#tab-display .lld-sp').hide();
         if (tab === 'tab-display') { $('#tab-display').show(); $(`#tab-display .lld-sp[data-sp="${k}"]`).show(); }
         else $('#' + tab).show();
+        if (k === 'notif') { const nb = document.getElementById('lld-notif-box'), nt = document.getElementById('tab-notif'); if (nb && nt && nb.parentNode !== nt) nt.insertBefore(nb, nt.firstChild); if (nb) nb.style.display = ''; }
         if (k === 'comm') $('#tab-dev').show();
         if (k === 'team') { try { teamTabs(); } catch (e) { console.warn('team tabs', e); } }
         if (k === 'logos') { try { logosExtras(); } catch (e) { console.warn('logos page', e); } }
