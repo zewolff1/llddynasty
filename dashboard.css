@@ -6175,3 +6175,10 @@ body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{align-self:flex-st
 .lld-style-btn.on .sty-chip { box-shadow: 0 0 0 2px #fff; }
 
 .sty-grp { flex: 0 0 100%; width: 100%; margin: 8px 0 -2px; font-size: calc(11px * var(--ts,1)); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); }
+
+.sty-sec { flex: 0 0 100%; width: 100%; border: 1px solid var(--card-border); border-radius: 12px; padding: 0 10px; background: color-mix(in srgb, var(--card-bg) 70%, transparent); }
+.sty-sec > summary { list-style: none; cursor: pointer; padding: 11px 2px; font-weight: 800; font-size: calc(13px * var(--ts,1)); letter-spacing: .06em; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+.sty-sec > summary::-webkit-details-marker { display: none; }
+.sty-sec > summary::after { content: "\25B8"; transition: transform .15s; }
+.sty-sec[open] > summary::after { transform: rotate(90deg); }
+.sty-sec[open] > .qt-row { padding-bottom: 10px; }

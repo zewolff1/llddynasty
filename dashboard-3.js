@@ -25133,8 +25133,15 @@ function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
 function lldQtHtml() {
     const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
-    let _lg = ''; const styles = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => { const g = LLD_CHIP[k] ? v.group : ''; const h = (g && g !== _lg) ? `<div class="sty-grp">${g}</div>` : ''; _lg = g; return h + `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, v.name)}</button>`; }).join('')
-        + `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">${lldStylePv('seasonal', 'Seasonal' + (sea ? ' (' + LLD_STYLES[sea].name + ')' : ''))}</button>`
+    const btn = (k, v) => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, v.name)}</button>`;
+    const ent = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k));
+    const seaBtn = `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">${lldStylePv('seasonal', 'Seasonal' + (sea ? ' (' + LLD_STYLES[sea].name + ')' : ''))}</button>`;
+    const grp = (title, keys, extra, first) => { const own = keys.some(k => k === cur) || (first && cur === 'seasonal'); return `<details class="sty-sec" ${own ? 'open' : ''}><summary>${title}</summary><div class="qt-row">${(first || '') + keys.map(k => btn(k, LLD_STYLES[k])).join('')}</div></details>`; };
+    const main = ent.filter(([k]) => !LLD_CHIP[k]).map(([k, v]) => btn(k, v)).join('');
+    const styles = main
+        + grp('NFL Teams', ent.filter(([k]) => /^team_/.test(k)).map(x => x[0]))
+        + grp('Colors', ent.filter(([k]) => /^col_/.test(k)).map(x => x[0]))
+        + grp('Seasonal', ['tundra'], '', seaBtn)
         + `<button type="button" class="lld-style-btn ${cur === 'random' ? 'on' : ''}" data-style="random">${lldStylePv('random', '\uD83C\uDFB2 Random')}</button>`;
     const lab = t => `<div class="qt-l">${t}</div>`;
     const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
