@@ -1715,6 +1715,7 @@ let rookiePids = new Set();
     }
 // NEW: Save your actual franchise ID and prepare a dictionary for the league
     const myFid = (typeof franchise_id !== 'undefined' && franchise_id !== '') ? String(franchise_id).trim().padStart(4, '0') : fid;
+    window._lldMyFid = myFid;
     let leagueFranchises = {};
 
     // ---- DEFAULT IMAGES / NAMES / EMPTY STATES (new leagues with nothing uploaded yet) ----
@@ -25627,7 +25628,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('.settings-content-area').scrollTop(0);
     }
     $(document).on('click touchend', '.open-settings-btn', function () {
-        let f = ''; try { f = String(myFid || '').padStart(4, '0'); } catch (e) { } if (f !== '0000' && f !== '0001') return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
+        let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); if (f !== '0000' && f !== '0001') return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
     $(document).on('click', '#lld-sh2 .sh2-row', function () { try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
