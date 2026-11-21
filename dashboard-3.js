@@ -1717,6 +1717,7 @@ let rookiePids = new Set();
     const myFid = (typeof franchise_id !== 'undefined' && franchise_id !== '') ? String(franchise_id).trim().padStart(4, '0') : fid;
     window._lldMyFid = myFid;
     let leagueFranchises = {};
+    window.lldFr = () => leagueFranchises;
 
     // ---- DEFAULT IMAGES / NAMES / EMPTY STATES (new leagues with nothing uploaded yet) ----
     function lldInitials(name, fallback) {
@@ -25685,4 +25686,39 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
     // keep the row values fresh after a change on a page
     $(document).on('click', '#tab-display .lld-sp button', function () { setTimeout(() => { if ($('#sh2-home').is(':hidden')) return; $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 60); });
+})();
+
+// ===== Team name fonts everywhere: any element whose whole text is a team's name gets that team's custom style =====
+(function () {
+    const SKIP = /^(SCRIPT|STYLE|TEXTAREA|OPTION|SELECT|INPUT|TITLE|NOSCRIPT)$/;
+    let map = null, mapN = -1;
+    function build() {
+        const fr = (window.lldFr && window.lldFr()) || {}, ks = Object.keys(fr);
+        if (map && mapN === ks.length) return map;
+        map = {}; mapN = ks.length; const dup = {};
+        ks.forEach(f => { const n = String(fr[f] || '').replace(/\s+/g, ' ').trim().toLowerCase(); if (n.length < 3) return; if (map[n] && map[n] !== f) dup[n] = 1; map[n] = f; });
+        Object.keys(dup).forEach(n => delete map[n]);
+        return map;
+    }
+    function scan(root) {
+        const m = build(); if (!Object.keys(m).length || !root || !root.isConnected) return;
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null); let n;
+        while ((n = w.nextNode())) {
+            const t = n.nodeValue; if (!t || t.length < 3 || t.length > 70) continue;
+            const f = m[t.replace(/\s+/g, ' ').trim().toLowerCase()]; if (!f) continue;
+            const el = n.parentElement; if (!el || SKIP.test(el.tagName) || el.hasAttribute('data-team-style') || el.childNodes.length !== 1) continue;
+            if (el.closest('#edit-team-name-form, [contenteditable], .lld-no-ts')) continue;
+            el.setAttribute('data-team-style', f);
+        }
+    }
+    let q = new Set(), t = 0;
+    function flush() { t = 0; const l = Array.from(q); q = new Set(); l.forEach(r => { try { scan(r); } catch (e) { } }); }
+    try {
+        new MutationObserver(ms => {
+            ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) q.add(n); else if (n.nodeType === 3 && n.parentElement) q.add(n.parentElement); }));
+            if (!t && q.size) t = setTimeout(flush, 200);
+        }).observe(document.body, { childList: true, subtree: true });
+    } catch (e) { }
+    setTimeout(function () { try { scan(document.body); } catch (e) { } }, 1500);
+    setInterval(function () { try { scan(document.body); } catch (e) { } }, 6000);
 })();
