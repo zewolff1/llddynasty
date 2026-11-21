@@ -1892,9 +1892,10 @@ function lldLogoStyle() {
     let th = 'classic'; try { th = (typeof lldEffStyle === 'function') ? lldEffStyle() : 'classic'; } catch (e) { }
     return localStorage.getItem('nfl_logo_style_' + th) || (th === 'sportscenter' ? 'throwback' : '') || localStorage.getItem('nfl_logo_style') || 'modern';
 }
+function lldLogoOv() { try { return JSON.parse(localStorage.getItem('lld_logo_team') || '{}') || {}; } catch (e) { return {}; } }
 function getNFLLogoUrl(teamAbbr) {
-    const style = lldLogoStyle();
     const abbr = (teamAbbr || 'NFL').toUpperCase();
+    const ov = lldLogoOv()[abbr], style = (ov && (ov === 'modern' || LLD_LOGO_STYLES.some(x => x[0] === ov))) ? ov : lldLogoStyle();
     if (style !== 'modern' && /^[A-Z]{2,3}$/.test(abbr) && LLD_LOGO_STYLES.some(x => x[0] === style)) return LLD_LOGO_REPO + style + '/' + abbr + '.png';
     return lldModernLogo(abbr);
 }
@@ -14335,6 +14336,7 @@ function lldCharsRender() {
     } catch (e) { console.warn('chars', e); }
 }
 function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_)$/.test(k)) return '1'; /* graduated: Sleeper tab, new Scores layout, game replay slide */ if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
+window.lldBv = lldBv;
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
@@ -16594,6 +16596,30 @@ function lldFtFill() {
     } catch (e) { console.warn('tune preview', e); }
     box.innerHTML = `<div class="lld-ft-note">Live preview (your real row)</div><div style="pointer-events:none;">${html}</div>`;
 }
+window.lldPvRow = function () {
+    let html = '';
+    try {
+        const r = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #player-rows-container .player-row[data-pid]:not(.empty-slot)').first();
+        if (r.length) { const c = r.clone(); c.find('[id]').removeAttr('id'); c.removeClass('lld-pchk status-changed'); html = c[0].outerHTML; }
+        else html = buildCompactUniversalRow({ pid: '15268', name: "Ja'Marr Chase", shortName: 'J. Chase', pos: 'WR', team: 'CIN' }, { pill: '@BAL \u00B7 Sun 1 PM', topRight: projTopHtml('16.4'), bottomRight: rankAvgHtml('15268', 'WR') });
+    } catch (e) { console.warn('row preview', e); }
+    return html;
+};
+const LLD_NFL_NAMES = { ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills', CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns', DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GBP: 'Green Bay Packers', HOU: 'Houston Texans', IND: 'Indianapolis Colts', JAC: 'Jacksonville Jaguars', KCC: 'Kansas City Chiefs', LVR: 'Las Vegas Raiders', LAC: 'Los Angeles Chargers', LAR: 'Los Angeles Rams', MIA: 'Miami Dolphins', MIN: 'Minnesota Vikings', NEP: 'New England Patriots', NOS: 'New Orleans Saints', NYG: 'New York Giants', NYJ: 'New York Jets', PHI: 'Philadelphia Eagles', PIT: 'Pittsburgh Steelers', SFO: 'San Francisco 49ers', SEA: 'Seattle Seahawks', TBB: 'Tampa Bay Buccaneers', TEN: 'Tennessee Titans', WAS: 'Washington Commanders' };
+window.lldLogoTeamUi = function () {
+    const ov = lldLogoOv();
+    return Object.keys(LLD_NFL_NAMES).map(t => `<div class="sh2-lt"><img src="${getNFLLogoUrl(t)}" data-t="${t}" onerror="this.style.visibility='hidden'"><span>${LLD_NFL_NAMES[t]}</span><select data-t="${t}"><option value="">Default</option>${[['modern', 'Modern']].concat(LLD_LOGO_STYLES.filter(x => x[0] !== 'modern')).map(([k, l]) => `<option value="${k}" ${ov[t] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`).join('');
+};
+$(document).on('change', '.sh2-lt select', function () {
+    const t = this.dataset.t, o = lldLogoOv(); if (this.value) o[t] = this.value; else delete o[t];
+    try { localStorage.setItem('lld_logo_team', JSON.stringify(o)); } catch (e) { }
+    $(this).closest('.sh2-lt').find('img').css('visibility', '').attr('src', getNFLLogoUrl(t));
+    try {
+        const activeTab = $('.tab-btn.active').attr('onclick') || '';
+        if (activeTab.includes('tab-team')) renderActiveTab();
+        else if (activeTab.includes('tab-players')) { const subId = $('#subtabs-players .sub-tab-btn.active').text().trim().toLowerCase().replace('manage', 'contracts').replace(' ', '-'); loadPlayersData(subId); }
+    } catch (e) { }
+});
 $(document).on('click', '.lld-ft-tab', function () {
     window._lldFt = +this.dataset.i;
     $('.lld-ft-tab').removeClass('on'); $(this).addClass('on');
@@ -25591,8 +25617,8 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             if (k === 'theme') { const s = lldGet('lld_style', 'classic'); return (LLD_STYLES[s] && LLD_STYLES[s].name) || (s === 'seasonal' ? 'Seasonal' : s === 'random' ? 'Random' : s); }
             if (k === 'text') { const n = parseFloat(lldGet('lld_text_scale', '1')); return n < 1 ? 'Small' : n === 1 ? 'Normal' : n < 1.2 ? 'Large' : 'X-Large'; }
             if (k === 'logo') return String(lldLogoStyle()).replace(/^./, c => c.toUpperCase());
-            if (k === 'wml') return lldBv('wml') === 'logo' ? 'By position' : 'Watermark';
-            if (k === 'rv') return lldBv('rv') === '1' ? 'On' : 'Off';
+            if (k === 'wml') return window.lldBv('wml') === 'logo' ? 'By position' : 'Watermark';
+            if (k === 'rv') return window.lldBv('rv') === '1' ? 'On' : 'Off';
             if (k === 'tk') return lldTickOn(lldEffStyle()) ? 'On' : 'Off';
         } catch (e) { }
         return '';
@@ -25666,6 +25692,21 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('#team-settings-modal .settings-tab-content').hide(); $('#sh2-bar').hide(); $('#sh2-home').show();
         $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
     }
+    function logosExtras() {
+        const pg = $('#tab-display .lld-sp[data-sp="logos"]'); if (!pg.length) return;
+        const cur = window.lldBv('wml') === 'logo' ? 'logo' : 'wm', row = window.lldPvRow ? window.lldPvRow() : '';
+        pg.find('.lld-b-btn[data-k="wml"]').parent().hide();
+        pg.find('.sh2-pvs').remove();
+        const pv = (v, l) => `<button type="button" class="sh2-pvb ${cur === v ? 'on' : ''}" data-v="${v}"><b>${l}</b><div class="sh2-pv pv-${v}">${row}</div></button>`;
+        const wmBtns = pg.find('.lld-b-btn[data-k="wml"]').first().parent();
+        wmBtns.after(`<div class="sh2-pvs">${pv('wm', 'Watermark')}${pv('logo', 'Logo by position')}</div>`);
+        pg.find('.sh2-lgt').remove();
+        pg.append(`<div class="sh2-lgt"><div class="sh2-lgh">Logo by team</div><p>Pick a different logo style for any one team. Teams left on Default use the style chosen above.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div>`);
+    }
+    $(document).on('click', '.sh2-pvb', function () {
+        $('.sh2-pvb').removeClass('on'); $(this).addClass('on');
+        $('.lld-b-btn[data-k="wml"][data-v="' + this.dataset.v + '"]').first().trigger('click');
+    });
     function page(k) {
         const tab = { theme: 'tab-display', text: 'tab-display', logos: 'tab-display', scores: 'tab-display', labs: 'tab-display', team: 'tab-team-set', notif: 'tab-notif', comm: 'tab-mflmenu', sleeper: 'tab-sleeper' }[k];
         $('#sh2-home').hide();
@@ -25676,6 +25717,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (tab === 'tab-display') { $('#tab-display').show(); $(`#tab-display .lld-sp[data-sp="${k}"]`).show(); }
         else $('#' + tab).show();
         if (k === 'comm') $('#tab-dev').show();
+        if (k === 'logos') { try { logosExtras(); } catch (e) { console.warn('logos page', e); } }
         $('.settings-content-area').scrollTop(0);
     }
     $(document).on('click touchend', '.open-settings-btn', function () {
