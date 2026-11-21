@@ -25545,7 +25545,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 (function () {
     const PG = {
         theme: 'Theme', text: 'Text & layout', logos: 'Logos', scores: 'Scores & ticker',
-        team: 'Team name style', league: 'MFL setup', sleeper: 'Sleeper', labs: 'Labs'
+        team: 'Team name style', comm: 'Commissioner tools', sleeper: 'Sleeper', labs: 'Labs'
     };
     function split() {
         const d = document.getElementById('tab-display'); if (!d || d.dataset.sh2) return; d.dataset.sh2 = '1';
@@ -25587,7 +25587,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             ['League', 'MFL setup', 'Opens on MFL’s own site', '', 'league']
         ];
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
-        R.push(['Labs', 'Labs & developer tools', 'Early features, row tuner, commissioner links', '', 'labs']);
+        R.push(['Labs', 'Labs', 'Early features and the row tuner', '', 'labs']);
         return R;
     }
     function homeHtml(f) {
@@ -25640,17 +25640,15 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
     }
     function page(k) {
-        $('#sh2-home').hide(); $('#team-settings-modal .settings-tab-content').hide();
+        const tab = { theme: 'tab-display', text: 'tab-display', logos: 'tab-display', scores: 'tab-display', labs: 'tab-display', team: 'tab-team-set', comm: 'tab-mflmenu', sleeper: 'tab-sleeper' }[k];
+        $('#sh2-home').hide();
+        $('.settings-tab-btn[data-target="' + tab + '"]').show().trigger('click'); // runs the original tab code (renders MFL menu, fonts, logo buttons, row tuner)
+        $('#team-settings-modal .settings-tab-content').hide();
         $('#sh2-title').text(PG[k] || ''); $('#sh2-bar').css('display', 'flex');
-        const map = { theme: 'display', text: 'display', logos: 'display', scores: 'display', labs: 'display', team: 'team-set', league: 'mflmenu', sleeper: 'sleeper' };
         $('#tab-display .lld-sp').hide();
-        if (map[k] === 'display') { $('#tab-display').show(); $(`#tab-display .lld-sp[data-sp="${k}"]`).show(); }
-        else $('#tab-' + map[k]).show();
-        if (k === 'league') { try { renderMflMenu(); } catch (e) { } }
-        if (k === 'sleeper') { try { lldSltSetRender(); } catch (e) { } }
-        if (k === 'team') { try { renderFontGrid(currentFontCategory); setTimeout(applyStylePreview, 100); } catch (e) { } }
-        if (k === 'logos') { try { updateLogoStyleButtons(); } catch (e) { } }
-        if (k === 'labs') setTimeout(lldFtFill, 50);
+        if (tab === 'tab-display') { $('#tab-display').show(); $(`#tab-display .lld-sp[data-sp="${k}"]`).show(); }
+        else $('#' + tab).show();
+        if (k === 'comm') $('#tab-dev').show();
         $('.settings-content-area').scrollTop(0);
     }
     $(document).on('click touchend', '.open-settings-btn', function () {
