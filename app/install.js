@@ -68,9 +68,9 @@
   var steps;
   if (ios) {
     steps = (safari ? '' : step('!', '', 'Open this page in <b>Safari</b> first (tap the compass icon, or copy the link into Safari). Other browsers may not show the option.')) +
-      step(1, SHARE, 'Tap the <b>Share</b> button' + (safari ? ' at the bottom of Safari' : '')) +
-      step(2, PLUS, 'Scroll down and tap <b>Add to Home Screen</b>') +
-      step(3, '', 'Tap <b>Add</b>, then open <b>LLD</b> from your Home Screen');
+      step(1, DOTS, 'Tap the <b>\u2022\u2022\u2022</b> menu in Safari\u2019s address bar (or the small icon at its left edge), then tap <b>Share</b>') +
+      step(2, PLUS, 'Scroll the share sheet and tap <b>Add to Home Screen</b> (tap <b>View More</b> first if you don\u2019t see it)') +
+      step(3, '', 'Leave <b>Open as Web App</b> on, tap <b>Add</b>, then open <b>LLD</b> from your Home Screen');
   } else {
     steps = step(1, DOTS, 'Tap the <b>menu</b> (three dots) in your browser') +
       step(2, PLUS, 'Tap <b>Install app</b> or <b>Add to Home screen</b>') +
