@@ -2518,6 +2518,9 @@ async function lldApvWeekData() {
         jobs.push((async () => { try { d.sched[w] = await fetchNflScheduleForWeek(w); } catch (e) { d.sched[w] = {}; } })());
     }
     await Promise.all(jobs);
+    // Playoff weeks have no scheduled league games, so MFL gives no projections for them. Carry the latest real projection forward (marked as an estimate) so the weekly view still fills in.
+    d.est = {};
+    { let last = null; for (let w = cw; w <= 18; w++) { const m = d.pj[w]; if (m && Object.keys(m).length) last = m; else if (last) { d.pj[w] = last; d.est[w] = true; } } }
     try { // the lineup engine's league results are the reliable source (the Stats tab uses them); they overwrite the plain export
         const S1 = await lldStatsLoad();
         S1.D.weeks.forEach(x => { if (x.wk >= cw) return; const m = d.sc[x.wk] = d.sc[x.wk] || {}; Object.keys(x.teams || {}).forEach(f => ((x.teams[f] || {}).roster || []).forEach(r => { if (r && r.pid != null && r.score != null && r.score !== '') m[String(r.pid)] = parseFloat(r.score) || 0; })); });
@@ -3214,7 +3217,7 @@ function lldApvWeekTable(players) {
         const tl = (own && L.ft && SX && !mine && SX.cur[own]) ? SX.cur[own] : null;
         const cells = W.map(w => {
             const o = opp(p, w), bye = o === 'BYE', past = w < cw, v = past ? (d.sc[w] || {})[p.pid] : (d.pj[w] || {})[p.pid];
-            const body = bye ? '<span class="by">BYE</span>' : (v != null && (past || v > 0)) ? `<span class="${past ? 'sc' : 'pj'}">${(+v).toFixed(1)}</span>` : '<span class="by">\u2013</span>';
+            const body = bye ? '<span class="by">BYE</span>' : (v != null && (past || v > 0)) ? `<span class="${past ? 'sc' : 'pj'}${(!past && d.est && d.est[w]) ? ' est' : ''}"${(!past && d.est && d.est[w]) ? ' title="Estimate: MFL has no projections for playoff weeks, so this uses the latest projection"' : ''}>${(+v).toFixed(1)}</span>` : '<span class="by">\u2013</span>';
             let wd = '', sr = '';
             if (!bye) {
                 if (past && v != null) {

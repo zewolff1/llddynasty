@@ -6081,3 +6081,5 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 
 #lld-yt .yt-pp.need{animation:lldNeed 1s ease-in-out infinite;box-shadow:0 0 0 3px #f59e0b}
 @keyframes lldNeed{50%{transform:scale(1.18)}}
+
+.apv-wk .pj.est{opacity:.65;font-style:italic}
