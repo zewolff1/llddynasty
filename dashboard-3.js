@@ -18675,7 +18675,11 @@ function lldMusTeam(C, fid) {
 }
 function lldMusPick(kind) {
     const C = lldMusCfg(); if (!C) return '';
-    if (kind === 'preview' || kind === 'matchup') return lldMusChoose(C.preview, 'pv') || lldMusChoose(C.generic);
+    if (kind === 'preview' || kind === 'matchup') {
+        let v = lldMusChoose(C.preview, 'pv') || lldMusChoose(C.generic) || lldMusChoose(C.win);
+        if (!v) { const all = []; Object.keys(C.teams || {}).forEach(k => { const t = C.teams[k]; if (typeof t === 'string' || Array.isArray(t)) all.push(...lldMusList(t)); else if (t) all.push(...lldMusList(t.generic), ...lldMusList(t.win)); }); v = lldMusChoose(all, 'pv'); } // no preview song set: borrow any song you have
+        return v;
+    }
     const S = LLD_ST, me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     // The weekly league recap plays the song of the team with the highest score that week (its "win" song). Other recaps use your own team and result.
     // Monthly recap: that month's own songs (recapMusic.months["2026-09"]), then the month's top team's win song.
