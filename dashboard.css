@@ -6130,3 +6130,6 @@ body.lld-hdl #lld-sh .bk.left .kv{grid-column:auto;grid-row:1;display:flex;flex-
 body.lld-hdl #lld-sh .bk.left .kv i{font-size:calc(8px * var(--ts,1));opacity:.75}
 body.lld-hdl #lld-sh .bk.left .kv b{font-size:calc(12px * var(--ts,1))}
 body.lld-hdl #lld-sh .bk.left .pb{grid-column:2 / -1;grid-row:2;width:auto;margin-top:3px}
+div:has(> .logo-style-btn){flex-wrap:wrap!important}
+div:has(> .logo-style-btn) > :not(.logo-style-btn){flex:0 0 100%!important;margin:0 0 4px!important}
+div:has(> .logo-style-btn) > .logo-style-btn{flex:1 1 0!important;min-width:0!important;overflow:hidden;text-overflow:clip;padding:8px 1px!important;font-size:calc(9px*var(--ts,1))!important;letter-spacing:0!important}
