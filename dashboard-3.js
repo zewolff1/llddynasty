@@ -18120,7 +18120,7 @@ $(document).on('click touchend', '#lld-hdr-pv', async function (e) {
         const all = await fetchAllWeekScores(), weeks = Object.keys(all).map(Number).sort((a, b) => a - b), latest = weeks.length ? weeks[weeks.length - 1] : 0;
         const hw = parseInt($('.th-op').first().attr('data-wk'), 10), ew = await lldCurWeek(), vwk = (String(fid).padStart(4, '0') === String(myFid).padStart(4, '0')) ? (parseInt(window._lldViewWeek, 10) || 0) : 0; // vwk: a past week open on your lineup page
         const wk = Math.max(1, Math.min(18, vwk || hw || ew || parseInt(window._liveScoreCurrentWeek, 10) || (latest + 1)));
-        if (vwk || (ew && wk < ew) || /Recap/.test(old)) { btn.textContent = old; window._hdrPvBusy = false; lldOpenStory('recap', wk, 0, false); return; }
+        if (vwk || (ew && wk < ew) || /Recap/.test(old)) { btn.textContent = old; window._hdrPvBusy = false; lldOpenStory(String(fid).padStart(4, '0') === String(myFid).padStart(4, '0') || vwk ? 'mrecap' : 'recap', wk, 0, false); return; }
         const P = (window._pvCache && window._pvCache[wk]) || await lldBuildPreview(wk);
         const f = String(fid).padStart(4, '0'), i = P.games.findIndex(g => String(g.t1.fid).padStart(4, '0') === f || String(g.t2.fid).padStart(4, '0') === f);
         if (i < 0) alert('No matchup found for week ' + wk + ' yet.'); else lldOpenStory('matchup', wk, i, false);
@@ -18492,6 +18492,12 @@ async function lldMonthSlides(key) {
 }
 async function lldStorySlides(kind, wk, idx) {
     if (kind === 'month') return lldMonthSlides(idx);
+    if (kind === 'mrecap') { // just your own matchup for that week
+        const f0 = String(fid).padStart(4, '0'), ms0 = await fetchRecapWeek(wk, wk < (parseInt(window._lldServedWeek, 10) || 99)), m0 = ms0.find(x => x.t1.fid === f0 || x.t2.fid === f0);
+        if (!m0) return [stSlide('#334155', '#0b0f19', `<div class="st-k st-a">WEEK ${wk}</div><div class="st-h st-a" style="--d:.2s">No game found</div>`)];
+        LLD_ST.myRes = (m0.t1.fid === f0 ? m0.t1.score >= m0.t2.score : m0.t2.score >= m0.t1.score) ? 'win' : 'loss';
+        return lldMatchRecapSlides(m0, wk);
+    }
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
     const out = [];
     const outro = (label) => out.push(stSlide('#1e293b', '#020617', `<div class="st-k st-a">THAT'S A WRAP</div><div class="st-h st-a" style="--d:.15s">Week ${wk} ${label}</div><button type="button" class="st-cta st-a" style="--d:.5s" data-kind="${kind === 'matchup' ? 'preview' : kind}" data-wk="${wk}">${LLD_ST.popup ? 'See full preview' : 'Open the full ' + label}</button>`));
