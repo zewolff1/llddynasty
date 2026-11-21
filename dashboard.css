@@ -6078,3 +6078,6 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 /* tab icons (trade offer / lineup problem) */
 .sub-tab-btn.lld-ti::after{content:attr(data-ti);display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:#22c55e;color:#fff;font-size:10px;font-weight:900;line-height:1;vertical-align:1px}
 .sub-tab-btn.lld-ti-err::after{background:#ef4444}
+
+#lld-yt .yt-pp.need{animation:lldNeed 1s ease-in-out infinite;box-shadow:0 0 0 3px #f59e0b}
+@keyframes lldNeed{50%{transform:scale(1.18)}}

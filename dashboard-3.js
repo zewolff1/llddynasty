@@ -18649,12 +18649,12 @@ function lldMusPick(kind) {
 function lldYtSecs(v) { v = String(v || '').trim(); if (!v) return 0; if (/^\d+:\d+(:\d+)?$/.test(v)) return v.split(':').reduce((a, b) => a * 60 + (+b), 0); const m = v.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/i); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0; }
 function lldYtId(u) { try { const x = new URL(String(u).trim()); if (!/youtu/.test(x.hostname)) return null; const m = x.hostname.indexOf('youtu.be') >= 0 ? x.pathname.slice(1) : (x.searchParams.get('v') || ((x.pathname.match(/\/(shorts|embed|live)\/([\w-]{11})/) || [])[2])); return m && /^[\w-]{11}$/.test(m) ? { id: m, t: lldYtSecs(x.searchParams.get('t') || x.searchParams.get('start') || (x.hash.match(/t=([^&]+)/) || [])[1]) } : null; } catch (e) { return null; } }
 function lldYtLoad() { return window._lldYtP || (window._lldYtP = new Promise(res => { if (window.YT && window.YT.Player) return res(); const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { try { prev && prev(); } catch (e) { } res(); }; sc.onerror = () => res(); document.head.appendChild(sc); })); }
-async function lldYtPlay(v, muted) {
+async function lldYtPlay(v, muted, prep) {
     if (!(window.YT && window.YT.Player)) await lldYtLoad(); // already loaded: no waiting, so the tap that chose "With music" still counts as the start
     if (!(window.YT && window.YT.Player) || !$('#lld-story').length) return false;
     $('#lld-yt').remove(); $('#lld-story').append('<div id="lld-yt" class="col"><button type="button" class="yt-x" aria-label="Hide player">✕</button><button type="button" class="yt-o" aria-label="Show player">🎵</button><button type="button" class="yt-pp" aria-label="Play or pause the music">▶</button><div id="lld-yt-p"></div></div>');
-    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); lldYtIcon(); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (muted) e.target.mute(); else e.target.unMute(); e.target.playVideo(); } catch (x) { } } } });
-    $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
+    window._stYt = new YT.Player('lld-yt-p', { width: 160, height: 160, videoId: v.id, playerVars: { autoplay: prep ? 0 : 1, start: v.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onStateChange: e => { try { $('#lld-yt .yt-pp').text(e.data === 1 ? '❚❚' : '▶').toggleClass('on', e.data === 1); lldYtIcon(); if (e.data === 0) e.target.playVideo(); } catch (x) { } }, onReady: e => { try { e.target.setVolume(55); if (prep) { window._stYtReady = true; return; } if (muted) e.target.mute(); else e.target.unMute(); e.target.playVideo(); setTimeout(() => { try { if (e.target.getPlayerState() !== 1) $('#lld-yt .yt-pp').addClass('need'); } catch (x) { } }, 1800); } catch (x) { } } } });
+    if (!prep) $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); return true;
 }
 $(document).on('click', '#lld-yt .yt-pp', function (e) { e.stopPropagation(); const y = window._stYt; if (!y || !y.getPlayerState) return; try { if (y.getPlayerState() === 1) y.pauseVideo(); else { if (!(localStorage.getItem('lld_st_mute') === '1')) y.unMute(); y.playVideo(); } } catch (x) { } });
 // The player stays a small circle over the story. Tapping it starts the music or mutes / unmutes it (same as the speaker button at the top).
@@ -18666,9 +18666,11 @@ function stMusicStop() {
     const a = window._stAudio; window._stAudio = null; if (!a) return; let v = a.volume; const f = setInterval(() => { v -= .1; if (v <= .02) { clearInterval(f); try { a.pause(); } catch (e) { } } else a.volume = v; }, 60);
 }
 function stMusicStart(fid, kind) {
-    stMusicStop();
     let muted = false; try { muted = localStorage.getItem('lld_st_mute') === '1'; } catch (e) { }
-    const pick = lldMusPick(kind);
+    // a player was set up ahead of time while the "Play with music?" question was showing: start it right inside the tap (phones only allow that)
+    if (window._stYt && window._stYtPrep && window._stYt.playVideo) { try { const y = window._stYt; window._stYtPrep = null; y.setVolume(55); if (muted) y.mute(); else y.unMute(); y.playVideo(); $('#lld-story .st-mu').show().text(muted ? '🔇' : '🔊'); setTimeout(() => { try { if (y.getPlayerState() !== 1) $('#lld-yt .yt-pp').addClass('need'); } catch (x) { } }, 1800); return true; } catch (e) { } }
+    stMusicStop();
+    const pick = window._stPick || lldMusPick(kind); window._stPick = null;
     if (pick) {
         const yt = lldYtId(pick);
         if (yt) { lldYtPlay(yt, muted).catch(e => console.warn('yt', e)); return true; }
@@ -18686,9 +18688,9 @@ async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup; LLD_ST.embed = false; try { if (lldMusCfg()) lldYtLoad(); } catch (e) { } // load the YouTube player early
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
     try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.myRes = null; LLD_ST.winFid = ''; LLD_ST.monthStt = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if (kind === 'month') { LLD_ST.stt = LLD_ST.monthStt || ''; $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); } LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false;
-        const go = withMus => { if (!$('#lld-story').length) return; $('#lld-story .st-mc').remove(); if (withMus) { try { localStorage.setItem('lld_st_mute', '0'); } catch (e) { } stMusicStart(LLD_ST.topFid, kind); } stShow(0); };
+        const go = withMus => { if (!$('#lld-story').length) return; $('#lld-story .st-mc').remove(); if (!withMus) { window._stPick = null; window._stYtPrep = null; try { stMusicStop(); } catch (e) { } } if (withMus) { try { localStorage.setItem('lld_st_mute', '0'); } catch (e) { } stMusicStart(LLD_ST.topFid, kind); } stShow(0); };
         let hasMus = false; try { hasMus = !!(lldMusPick(kind) || lldMusicUrl(LLD_ST.topFid)); } catch (e) { }
-        if (hasMus && $('#lld-story').length) { window._stGo = go; $('#lld-story').append('<div class="st-mc"><div class="st-mc-t">Play with music?</div><button type="button" class="st-mc-y">🎵 With music</button><button type="button" class="st-mc-n">🔇 Without music</button></div>'); }
+        if (hasMus && $('#lld-story').length) { window._stGo = go; try { window._stPick = lldMusPick(kind); const yt0 = lldYtId(window._stPick || ''); if (yt0) { window._stYtPrep = yt0.id; lldYtPlay(yt0, false, true).catch(() => { }); } } catch (e) { } $('#lld-story').append('<div class="st-mc"><div class="st-mc-t">Play with music?</div><button type="button" class="st-mc-y">🎵 With music</button><button type="button" class="st-mc-n">🔇 Without music</button></div>'); }
         else go(true); }
     catch (e) { console.warn('story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-h">Could not load this ${kind}</div><div class="st-sub">${lldChatEsc((e && e.message) || '')}</div></div>`); }
 }
