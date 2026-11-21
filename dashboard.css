@@ -5961,3 +5961,11 @@ body.lld-clr .lld-clr-f.ls .apv-sl.in { flex-wrap: wrap; justify-content: flex-e
 body.lld-clr .lld-clr-f.ls .apv-bbc { white-space: nowrap; }
 body.lld-clr .apv-lu-c .lld-clr-avw { text-align: right; }
 body.lld-wml .apv-nfl { display: none !important; }
+
+/* Manage / Players footer: one line, never wraps */
+body.lld-clr .lld-clr-f.ls { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 5px; font-size: calc(9.5px * var(--ts,1)); overflow: hidden; }
+body.lld-clr .lld-clr-f.ls .lld-clr-rk { gap: 5px; flex: 0 1 auto; }
+body.lld-clr .lld-clr-f.ls .apv-sl.in { flex-wrap: nowrap; gap: 5px; justify-content: flex-end; min-width: 0; flex: 0 1 auto; }
+body.lld-clr .lld-clr-f.ls .lld-clr-u { text-decoration: none; font-size: calc(7.5px * var(--ts,1)); letter-spacing: .06em; color: var(--text-dim); }
+body.lld-clr .lld-clr-f.ls .lld-clr-rk s { display: none; }
+body.lld-clr .lld-clr-f.ls .lld-clr-rk { min-width: 0; overflow: hidden; }

@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 rowlogo-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 rowlogo-3"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -3039,9 +3039,8 @@ function lldClrListPass() {
             const tmp = document.createElement('div'); tmp.innerHTML = lldClrFoot(p) || '';
             let f = tmp.firstElementChild;
             const extra = [];
-            if (t && O.yu && t.you != null) extra.push(`<span class="apv-bbc"><b class="apv-tq">${t.you}/${t.yn}</b> ${fa ? 'would start' : 'start'}</span>`);
-            if (t && !fa && O.th && t.th != null) extra.push(`<span class="apv-bbc"><b class="apv-tq">${t.th}/${t.thn}</b> them</span>`);
-            if (t && O.tp && t.tp != null) extra.push(`<span class="apv-bbc"><b class="apv-tq">${t.tp}%</b> of teams</span>`);
+            if (t && O.yu && t.you != null) extra.push(`<span class="apv-bbc" title="${fa ? 'Would start for you' : 'Start for you'}"><u class="lld-clr-u">YOU</u> <b class="apv-tq">${t.you}/${t.yn}</b></span>`);
+            // the "them" and "% of teams" numbers are left out of the one-line footer so it never wraps
             if (!f && extra.length) { tmp.innerHTML = '<div class="lld-clr-f"><div class="lld-clr-rk"></div></div>'; f = tmp.firstElementChild; }
             if (f && extra.length) {
                 let s2 = f.querySelector('.apv-sl.in'); if (!s2) { f.insertAdjacentHTML('beforeend', `<div class="apv-sl in" data-pid="${pid}"></div>`); s2 = f.querySelector('.apv-sl.in'); }
