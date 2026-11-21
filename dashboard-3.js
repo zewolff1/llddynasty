@@ -25627,7 +25627,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('.settings-content-area').scrollTop(0);
     }
     $(document).on('click touchend', '.open-settings-btn', function () {
-        if (!lldDev()) return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
+        let f = ''; try { f = String(myFid || '').padStart(4, '0'); } catch (e) { } if (f !== '0000' && f !== '0001') return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
     $(document).on('click', '#lld-sh2 .sh2-row', function () { try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
