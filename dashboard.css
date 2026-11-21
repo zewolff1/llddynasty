@@ -6182,3 +6182,10 @@ body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{align-self:flex-st
 .sty-sec > summary::after { content: "\25B8"; transition: transform .15s; }
 .sty-sec[open] > summary::after { transform: rotate(90deg); }
 .sty-sec[open] > .qt-row { padding-bottom: 10px; }
+
+/* theme sheet: four top-level choices with a sub-picker */
+.sty-top { flex: 0 0 100%; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lld-style-btn.lld-top { padding: 12px 8px !important; border-radius: 12px; }
+.lld-style-btn.lld-top .sty-l { display: block; font-weight: 900; }
+.lld-style-btn.lld-top .sty-s { display: block; margin-top: 2px; font-size: calc(11px * var(--ts,1)); font-weight: 600; color: var(--text-dim); }
+.sty-sub { flex: 0 0 100%; width: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

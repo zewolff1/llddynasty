@@ -115,6 +115,7 @@ function lldSeasonNow(d) {
     if (md >= 1115 && md <= 1201) return 'season_thanksgiving';
     if (md >= 1202 && md <= 1231) return 'season_christmas';
     if (md >= 901 && md <= 1114) return 'season_fall';
+    if (md >= 101 && md <= 228) return 'tundra';
     return null;
 }
 // Default theme only: Halloween week and the Christmas / New Year's stretch switch the look automatically (can be turned off)
@@ -25133,11 +25134,21 @@ function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
 function lldQtHtml() {
     const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
-    const btn = (k, v) => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, v.name)}</button>`;
-    const grp = (title, keys) => `<details class="sty-sec" ${keys.includes(cur) ? 'open' : ''}><summary>${title}</summary><div class="qt-row">${keys.filter(k => LLD_STYLES[k]).map(k => btn(k, LLD_STYLES[k])).join('')}</div></details>`;
-    const styles = grp('Colors', ['col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean', 'sleeper'])
-        + grp('Seasonal', ['season_thanksgiving', 'season_fall', 'tundra'])
-        + grp('NFL Teams', ['team_gb', 'team_dal', 'team_car', 'team_tb', 'team_nyg', 'team_nyj', 'team_phi']);
+    const isTeam = /^team_/.test(cur), isCol = cur === 'classic' || /^col_/.test(cur);
+    try { if (isTeam) localStorage.setItem('lld_last_team', cur); if (isCol) localStorage.setItem('lld_last_col', cur); } catch (e) { }
+    const last = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+    const top = (key, label, on, sub) => `<button type="button" class="lld-style-btn lld-top ${on ? 'on' : ''}" data-style="${key}"><span class="sty-l">${label}</span>${sub ? `<span class="sty-s">${sub}</span>` : ''}</button>`;
+    const chip = k => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, k === 'classic' ? 'Midnight' : LLD_STYLES[k].name)}</button>`;
+    LLD_CHIP.classic = ['#141a2b', '#3f77c4', '#d8e4ff'];
+    const seaName = sea ? LLD_STYLES[sea].name : 'Off season';
+    const styles = `<div class="sty-top">`
+        + top(last('lld_last_col', 'classic'), 'Default theme', isCol, 'Pick a color')
+        + top('seasonal', 'Seasonal', cur === 'seasonal', seaName)
+        + top('sleeper', 'Sleeper', cur === 'sleeper', 'League hub look')
+        + top(last('lld_last_team', 'team_gb'), 'NFL Theme', isTeam, 'Pick a team')
+        + `</div>`
+        + (isCol ? `<div class="sty-sub"><div class="sty-grp">Color</div>${['classic', 'col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean'].map(chip).join('')}</div>` : '')
+        + (isTeam ? `<div class="sty-sub"><div class="sty-grp">Team</div>${['team_gb', 'team_dal', 'team_car', 'team_tb', 'team_nyg', 'team_nyj', 'team_phi'].map(chip).join('')}</div>` : '');
     const lab = t => `<div class="qt-l">${t}</div>`;
     const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
