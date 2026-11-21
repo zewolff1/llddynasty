@@ -62,8 +62,19 @@ const LLD_SCRIPT_BASE = (() => {
 const LLD_STYLES = {
     "classic": { name: "Default", group: "Base", file: "", fonts: "", scene: null },
     "sleeper": { name: "Sleeper", group: "Full themes", file: "sleeper", fonts: "", scene: {"title": "LEAGUE", "sub": "Week hub", "bg": "linear-gradient(180deg, #11161f 0%, #0b0e14 100%)", "font": "\"Inter\", sans-serif", "fw": 800, "none": true} },
-    "sportscenter": { name: "90s Sports Desk", group: "Full themes", file: "sportscenter", fonts: "family=Anton&family=Oswald:wght@500;600;700", scene: {"title": "DYNASTY TONIGHT", "sub": "Scores and moves", "stripes": ["#e31837", "#ffffff"], "live": true, "tickBg": "#e31837", "tickFg": "#ffffff", "bg": "linear-gradient(180deg, #1d44c4 0%, #0a1330 100%)", "font": "\"Oswald\", sans-serif", "fw": 700, "italic": true} },
-    "leather": { name: "Leatherheads", group: "Full themes", file: "more", fonts: "family=Playfair+Display:ital,wght@0,700;0,900;1,700", scene: {"title": "THE GAZETTE", "sub": "Vol. V", "tick": ["WIRE: LEAGUE WEEK UNDER WAY", "LINEUPS LOCK AT KICKOFF", "FRANCHISE NEWS TO FOLLOW"], "tickBg": "#120d0a", "tickFg": "#d9b25f", "bg": "linear-gradient(180deg, #3a2b1f 0%, #1c1612 100%)", "font": "\"Playfair Display\", Georgia, serif", "fw": 900} },
+    "tundra": { name: "Frozen Tundra", group: "Full themes", file: "teams", fonts: "family=Barlow+Condensed:wght@600;700;800", scene: {"title": "FROZEN TUNDRA", "sub": "Below zero · kickoff at 1", "bg": "linear-gradient(180deg,#06101a 0%,#0e2a40 100%)", "font": "\"Barlow Condensed\", sans-serif", "fw": 700, "count": 16, "glyphs": ["❄", "❅", "❆", "•"], "g": "❄"} },
+    "team_gb": { name: "Packers", group: "NFL teams", file: "teams", fonts: "family=Oswald:wght@500;600;700", scene: {"title": "PACKERS", "sub": "Titletown edition", "bg": "linear-gradient(90deg,#203731,#2c4a40 60%,#203731)", "font": "\"Oswald\", sans-serif", "fw": 600} },
+    "team_dal": { name: "Cowboys", group: "NFL teams", file: "teams", fonts: "family=Teko:wght@500;600;700", scene: {"title": "COWBOYS", "sub": "Dynasty edition", "bg": "linear-gradient(90deg,#041e42,#0b2f6b 60%,#041e42)", "font": "\"Teko\", sans-serif", "fw": 600} },
+    "team_car": { name: "Panthers", group: "NFL teams", file: "teams", fonts: "family=Rajdhani:wght@500;600;700", scene: {"title": "PANTHERS", "sub": "Dynasty edition", "bg": "linear-gradient(90deg,#101820,#0a2a3c 60%,#101820)", "font": "\"Rajdhani\", sans-serif", "fw": 700} },
+    "team_tb": { name: "Buccaneers", group: "NFL teams", file: "teams", fonts: "family=Saira+Condensed:wght@500;600;700;800", scene: {"title": "BUCCANEERS", "sub": "Dynasty edition", "bg": "linear-gradient(90deg,#322f2b,#4a1a14 60%,#322f2b)", "font": "\"Saira Condensed\", sans-serif", "fw": 700} },
+    "team_nyg": { name: "Giants", group: "NFL teams", file: "teams", fonts: "family=Barlow+Condensed:wght@600;700;800", scene: {"title": "GIANTS", "sub": "Dynasty edition", "bg": "linear-gradient(90deg,#0b2265,#13307f 60%,#0b2265)", "font": "\"Barlow Condensed\", sans-serif", "fw": 800} },
+    "team_nyj": { name: "Jets", group: "NFL teams", file: "teams", fonts: "family=Bebas+Neue", scene: {"title": "JETS", "sub": "Dynasty edition", "bg": "linear-gradient(90deg,#125740,#1a7a58 60%,#125740)", "font": "\"Bebas Neue\", sans-serif", "fw": 400} },
+    "team_phi": { name: "Eagles", group: "NFL teams", file: "teams", fonts: "family=Anton", scene: {"title": "EAGLES", "sub": "Dynasty edition", "bg": "linear-gradient(90deg,#004c54,#00656f 60%,#004c54)", "font": "\"Anton\", sans-serif", "fw": 400} },
+    "col_indigo": { name: "Color: Indigo", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "INDIGO", "sub": "Color option", "bg": "linear-gradient(180deg,#1d2050,#0a0b1a)", "font": "\"Inter\", sans-serif", "fw": 800} },
+    "col_amber": { name: "Color: Amber", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "AMBER", "sub": "Color option", "bg": "linear-gradient(180deg,#2a2417,#101216)", "font": "\"Inter\", sans-serif", "fw": 800} },
+    "col_forest": { name: "Color: Forest", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "FOREST", "sub": "Color option", "bg": "linear-gradient(180deg,#16301f,#0a110e)", "font": "\"Inter\", sans-serif", "fw": 800} },
+    "col_graphite": { name: "Color: Graphite", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "GRAPHITE", "sub": "Color option", "bg": "linear-gradient(180deg,#2b1417,#0e0e10)", "font": "\"Inter\", sans-serif", "fw": 800} },
+    "col_ocean": { name: "Color: Ocean", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "OCEAN", "sub": "Color option", "bg": "linear-gradient(180deg,#0f3350,#08111a)", "font": "\"Inter\", sans-serif", "fw": 800} },
     "season_fall": { name: "Fall", group: "Seasonal", file: "more", fonts: "family=Bitter:wght@600;800", scene: {"title": "FALL FOOTBALL", "sub": "Sweater weather", "bg": "linear-gradient(180deg, #8a4214 0%, #4a230c 100%)", "font": "\"Bitter\", Georgia, serif", "fw": 800, "g": "🍁"} },
     "season_halloween": { name: "Halloween", group: "Seasonal", file: "more", fonts: "family=Metamorphous", scene: {"title": "HAPPY HALLOWEEN", "sub": "Spooky season", "moon": true, "bg": "linear-gradient(180deg, #3a1d5e 0%, #1a0f2b 100%)", "font": "\"Metamorphous\", Georgia, serif", "fw": 400, "g": "👻"} },
     "season_thanksgiving": { name: "Thanksgiving", group: "Seasonal", file: "more", fonts: "family=Libre+Baskerville:wght@700", scene: {"title": "THANKSGIVING WEEK", "sub": "Football, family, leftovers", "bg": "linear-gradient(180deg, #7a2f2f 0%, #46211f 100%)", "font": "\"Libre Baskerville\", Georgia, serif", "fw": 700, "g": "🍂"} },
@@ -1278,7 +1289,7 @@ function lldMflError(t) {
 }
 // ===== TICKER BAR (under the header, every style) =====
 const LLD_TICK_SEP = { lego: '\u25A0', leather: '\u25C6', arcade: '\u25CF', stadium: '\u2022', night: '\u2022', sleeper: '\u00B7' };
-const LLD_TICK_WORD = { classic: 'LIVE', sleeper: 'FEED', lego: 'BRICKS', sportscenter: 'SCORES', arcade: 'HI-SCORE', leather: 'DISPATCH', madden: 'FRANCHISE', stadium: 'LIVE', night: 'ALERT' };
+const LLD_TICK_WORD = { tundra: 'SNOW', team_gb: 'TITLETOWN', team_dal: 'AMERICA', team_car: 'PROWL', team_tb: 'ARRR', team_nyg: 'BIG BLUE', team_nyj: 'GANG GREEN', team_phi: 'FLY', classic: 'LIVE', sleeper: 'FEED', lego: 'BRICKS', sportscenter: 'SCORES', arcade: 'HI-SCORE', leather: 'DISPATCH', madden: 'FRANCHISE', stadium: 'LIVE', night: 'ALERT' };
 function lldTickOn(name) { const v = lldGet('lld_tick', ''); return v ? v === 'on' : name !== 'classic'; }
 function lldBuildTicker(name) {
     const old = document.getElementById('lld-ticker'); if (old) old.remove();
@@ -1324,7 +1335,7 @@ setInterval(() => { try { lldStadScene(); } catch (e) { } }, 500);
 $(document).on('click', '.tab-btn, .sub-tab-btn', function () { setTimeout(lldStadScene, 30); setTimeout(lldStadScene, 400); });
 //LLDFX-PURE-START
 // Subtle seasonal background animation (pure CSS/DOM, no images). kind: fall | halloween | thanksgiving | christmas
-const LLD_FX_MAP = { season_fall: 'fall', season_halloween: 'halloween', season_thanksgiving: 'thanksgiving', season_christmas: 'christmas' };
+const LLD_FX_MAP = { tundra: 'tundra', season_fall: 'fall', season_halloween: 'halloween', season_thanksgiving: 'thanksgiving', season_christmas: 'christmas' };
 function lldFxSvg(s) { return "url(\"data:image/svg+xml," + encodeURIComponent(s) + "\")"; }
 function lldFxLeaf(c) { return lldFxSvg(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M20 2c6 6 14 8 16 18-4 0-7-1-9-3 1 4 0 9-3 12l-1 7h-6l-1-7c-3-3-4-8-3-12-2 2-5 3-9 3 2-10 10-12 16-18z' fill='${c}'/><path d='M20 8v28' stroke='rgba(0,0,0,.25)' stroke-width='1.4'/></svg>`); }
 function lldFxFeather(c) { return lldFxSvg(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 56'><path d='M12 1C3 12 2 30 12 48c10-18 9-36 0-47z' fill='${c}'/><path d='M12 4v52' stroke='rgba(0,0,0,.3)' stroke-width='1.3'/><path d='M12 18l-5-4M12 26l-6-4M12 34l-5-4M12 18l5-4M12 26l6-4M12 34l5-4' stroke='rgba(255,255,255,.35)' stroke-width='1'/></svg>`); }
@@ -1345,6 +1356,10 @@ function lldFxBuild(kind, host) {
             const d = kind === 'fall' ? r(9, 17) : r(14, 24), sz = kind === 'fall' ? r(12, 20) : r(12, 20);
             add('fx-p ' + (kind === 'fall' ? 'leaf' : 'feather'), { '--x': r(-2, 98).toFixed(1) + '%', '--sz': sz.toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--dx': r(-90, 90).toFixed(0) + 'px', '--rot': r(-360, 360).toFixed(0) + 'deg' }, kind === 'fall' ? lldFxLeaf(cols[k % cols.length]) : lldFxFeather(cols[k % cols.length]));
         }
+    } else if (kind === 'tundra') { // snow falls over the page, behind the cards
+        const g = ['\u2744', '\u2745', '\u2746', '\u2022', '\u2022'];
+        for (let k = 0; k < (small ? 18 : 30); k++) { const d = r(9, 18); const s = add('fx-p flake', { '--x': r(-2, 98).toFixed(1) + '%', '--sz': r(8, 20).toFixed(0) + 'px', '--d': d.toFixed(1) + 's', '--delay': (-r(0, d)).toFixed(1) + 's', '--dx': r(-70, 70).toFixed(0) + 'px', '--rot': r(-200, 200).toFixed(0) + 'deg' }); s.textContent = g[k % g.length]; }
+        host = document.body;
     } else if (kind === 'halloween') {
         add('fx-fog a', {}); add('fx-fog b', {});
         const n = small ? 3 : 5;
