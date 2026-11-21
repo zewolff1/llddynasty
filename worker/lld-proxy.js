@@ -112,7 +112,7 @@ async function ping(env, id, endpoint) {
 const myFidOf = env => String(env.FRANCHISE_ID || '').padStart(4, '0');
 const subFidOf = (env, v) => v && v.fid !== undefined ? String(v.fid || '') : myFidOf(env);
 const OWN_SKIP = ['board', 'tb', 'tx'];   // no alert for your own post, trade block update or pickup
-const NONDEV_OFF = ['tx', 'tb'];          // other owners start with these two off and can switch them on
+const NONDEV_OFF = [];          // every alert type starts on for everyone; owners can switch any off
 const wants = (env, pf, type, fid) => pf[type] !== undefined ? pf[type] !== false : !(NONDEV_OFF.includes(type) && fid !== myFidOf(env) && fid !== '0000');
 async function broadcast(env, msgs, opt) {
     try { const fd = (await env.STATE.get('feed', { type: 'json' })) || [], now = Date.now(); msgs.filter(m => m.type).forEach(m => fd.push({ type: m.type, title: m.title, body: m.body || '', fid: m.fid || '', to: m.to || '', pids: m.pids || [], ts: now })); await env.STATE.put('feed', JSON.stringify(fd.slice(-40))); } catch (e) { }

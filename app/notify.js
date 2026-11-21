@@ -41,7 +41,7 @@
     idOf(sub).then(function (id) {
       return fetch(W + '/prefs?id=' + id).then(function (r) { return r.json(); }).then(function (j) {
         var p = j.prefs || {}, pf = document.getElementById('lld-nf-pf'); if (!pf) return;
-        pf.querySelectorAll('input').forEach(function (i) { i.checked = p[i.dataset.k] !== undefined ? p[i.dataset.k] !== false : !(!isBeta() && (i.dataset.k === 'tx' || i.dataset.k === 'tb')); i.onchange = function () { var o = {}; pf.querySelectorAll('input').forEach(function (x) { o[x.dataset.k] = x.checked; }); fetch(W + '/prefs?id=' + id, { method: 'POST', body: JSON.stringify(o) }).catch(function () { say('Could not save your choices.'); }); }; });
+        pf.querySelectorAll('input').forEach(function (i) { i.checked = p[i.dataset.k] !== undefined ? p[i.dataset.k] !== false : true; i.onchange = function () { var o = {}; pf.querySelectorAll('input').forEach(function (x) { o[x.dataset.k] = x.checked; }); fetch(W + '/prefs?id=' + id, { method: 'POST', body: JSON.stringify(o) }).catch(function () { say('Could not save your choices.'); }); }; });
         pf.style.display = 'flex';
       });
     }).catch(function () { });
