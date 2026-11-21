@@ -10,13 +10,43 @@
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
   function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { } }
   var session = load();
+  /* ---- other leagues (beta: only the primary league's 0000 / 0001) ----
+     C.leagues in config.js lists extra leagues. The chosen one is kept in lld_app_league. The league's host, name and this
+     owner's team come from MFL's "myleagues" list, so only the league number has to be typed in config.js. */
+  var HOME = { id: C.leagueId, host: C.host }, FID = session ? session.fid : '', LGKEY = 'lld_app_league', LGINFO = 'lld_app_lginfo_';
+  function lgBeta() { return !!(session && /^000[01]$/.test(String(session.fid)) && (C.leagues || []).length); }
+  function lgPick() { var v = ''; try { v = localStorage.getItem(LGKEY) || ''; } catch (e) { } return lgBeta() && (C.leagues || []).some(function (x) { return String(x.id) === v; }) ? v : ''; }
+  window.lldAppLeagues = function () {
+    if (!lgBeta()) return [];
+    var cur = lgPick() || HOME.id, out = [{ id: HOME.id, name: 'LLD Dynasty', active: cur === HOME.id }];
+    (C.leagues || []).forEach(function (x) { var inf = {}; try { inf = JSON.parse(localStorage.getItem(LGINFO + x.id) || '{}'); } catch (e) { } out.push({ id: String(x.id), name: x.name || inf.name || ('League ' + x.id), active: cur === String(x.id) }); });
+    return out;
+  };
+  window.lldAppSwitch = function (id) { try { if (String(id) === HOME.id) localStorage.removeItem(LGKEY); else localStorage.setItem(LGKEY, String(id)); } catch (e) { } location.reload(); };
+  /* point the app at the chosen league before booting (fills C.leagueId, C.host and the active team) */
+  function useLeague() {
+    var id = lgPick(); FID = session ? session.fid : ''; C.leagueId = HOME.id; C.host = HOME.host; C.other = false;
+    if (!id) return Promise.resolve();
+    var inf = {}; try { inf = JSON.parse(localStorage.getItem(LGINFO + id) || '{}'); } catch (e) { }
+    var apply = function (i) { C.leagueId = id; C.other = true; C.host = i.host || HOME.host; FID = i.fid || FID; C.leagueName = i.name || ''; };
+    if (inf.fid && inf.host && Date.now() - (inf.at || 0) < 86400000) { apply(inf); return Promise.resolve(); }
+    return fetch(C.worker + '/mflapi/' + C.year + '/export?TYPE=myleagues&YEAR=' + C.year + '&JSON=1', { headers: { 'X-MFL-Cookie': session.cookie } })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        var L = (j.leagues && j.leagues.league) || []; if (!Array.isArray(L)) L = [L];
+        var m = L.find(function (x) { return String(x.league_id) === id; });
+        if (!m) { try { localStorage.removeItem(LGKEY); } catch (e) { } return; }
+        var h = (String(m.url || '').match(/\/\/(www\d+\.myfantasyleague\.com)/) || [])[1] || HOME.host;
+        var i = { host: h, fid: String(m.franchise_id || ''), name: m.name || '', at: Date.now() }; try { localStorage.setItem(LGINFO + id, JSON.stringify(i)); } catch (e) { }
+        apply(i);
+      }).catch(function () { });
+  }
   /* past seasons: the season picker in Settings stores a year; the dashboard then uses it in every MFL address */
   (function () { var y = ''; try { y = localStorage.getItem('lld_app_year') || ''; } catch (e) { } var now = new Date().getFullYear(); if (/^\d{4}$/.test(y) && +y !== now) { window.LLD_YEAR = y; } window.LLD_SEASONS_READY = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017]; try { if (+y === now) localStorage.removeItem('lld_app_year'); } catch (e) { } })();
 
   /* commissioner <-> owner switch (MFL's own BECOME link), used by the Settings button */
   window.lldAppBecome = function (target) {
     var u = 'https://' + C.host + '/' + C.year + '/home/' + C.leagueId + '?BECOME=' + target;
-    fetch(u).catch(function () { }).then(function () { if (session) { session.fid = target; save(session); } location.reload(); });
+    fetch(u).catch(function () { }).then(function () { if (C.other) { try { var q = JSON.parse(localStorage.getItem(LGINFO + C.leagueId) || '{}'); q.fid = target; localStorage.setItem(LGINFO + C.leagueId, JSON.stringify(q)); } catch (e) { } } else if (session) { session.fid = target; save(session); } location.reload(); });
   };
   window.lldAppLogout = function () { try { localStorage.removeItem(KEY); } catch (e) { } location.reload(); };
 
@@ -83,7 +113,7 @@
     if (session) h.set('X-MFL-Cookie', session.cookie);
     h.set('X-MFL-Host', C.host);
     init.headers = h;
-    var isGet = !init.method || String(init.method).toUpperCase() === 'GET', kind = isGet ? kindOf(url) : '', key = kind ? to + '|' + (session ? session.fid : '') : '';
+    var isGet = !init.method || String(init.method).toUpperCase() === 'GET', kind = isGet ? kindOf(url) : '', key = kind ? to + '|' + C.leagueId + '|' + FID : '';
     if (!isGet) { saved = {}; inflight = {}; }
     var finish = function (res) { remember(res); return res; };
     if (!key) {
@@ -111,8 +141,9 @@
   var MSG_KEY = 'lld_app_msgs_v1', MSG_NAMES = ['FAMODE', 'RESIGNSTATE', 'TEAMSTYLES'], msgs = { v: {}, t: 0 };
   try { var m0 = JSON.parse(localStorage.getItem(MSG_KEY) || 'null'); if (m0 && m0.v) msgs = m0; } catch (e) { }
   function msgYear() { return String(window.LLD_YEAR || C.year); }
-  function msgSave() { try { localStorage.setItem(MSG_KEY + '_' + msgYear(), JSON.stringify(msgs)); } catch (e) { } }
-  function msgLoad() { msgs = { v: {}, t: 0 }; try { var m = JSON.parse(localStorage.getItem(MSG_KEY + '_' + msgYear()) || 'null'); if (m && m.v) msgs = m; } catch (e) { } }
+  function msgKey() { return MSG_KEY + (C.other ? '_' + C.leagueId : '') + '_' + msgYear(); }
+  function msgSave() { try { localStorage.setItem(msgKey(), JSON.stringify(msgs)); } catch (e) { } }
+  function msgLoad() { msgs = { v: {}, t: 0 }; try { var m = JSON.parse(localStorage.getItem(msgKey()) || 'null'); if (m && m.v) msgs = m; } catch (e) { } }
   function msgPaint() {
     var d = document.getElementById('lld-mfl-msgs');
     if (!d) { d = document.createElement('div'); d.id = 'lld-mfl-msgs'; d.style.display = 'none'; document.body.appendChild(d); }
@@ -191,8 +222,8 @@
     if (!session) return showLogin();
     $('#lld-app-login').style.display = 'none';
     $('#lld-app-boot').style.display = 'flex';
-    window.franchise_id = session.fid;
-    getVersion().then(function (v) {
+    window.franchise_id = FID;
+    useLeague().then(function () { window.franchise_id = FID; return getVersion(); }).then(function (v) {
       mark('version');
       var q = '?v=' + encodeURIComponent(v), js = C.base + C.script + q, cssUrl = C.base + C.css + q;
       preload(js, 'script'); preload(cssUrl, 'style');
@@ -204,12 +235,12 @@
         loadMsgs()
       ]).then(function (res) {
         mark('files');
-        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, res[0], msgs.cfg || {}, { origin: C.worker + '/mfl', siteOrigin: 'https://' + C.host });
+        window.LLD_CONFIG = Object.assign({ leagueId: C.leagueId }, C.other && C.leagueName ? { leagueName: C.leagueName } : {}, res[0], msgs.cfg || {}, { origin: C.worker + '/mfl', siteOrigin: 'https://' + C.host });
         var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = cssUrl; document.head.appendChild(css);
         document.body.insertAdjacentHTML('afterbegin', res[1]);
         var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
         patchJquery();
-        script(js, function () { mark('dashboard'); $('#lld-app-boot').style.display = 'none'; script('notify.js' + q, function () { }); });
+        script(js, function () { mark('dashboard'); $('#lld-app-boot').style.display = 'none'; if (!C.other) script('notify.js' + q, function () { }); });
       });
     }).catch(function (e) { showLogin('Could not start: ' + e.message); });
   }

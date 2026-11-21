@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 rowlogo-3"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-21 leagues-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -10426,6 +10426,7 @@ $('body').append(`
             <div style="position:absolute; top:8px; right:8px; display:flex; gap:6px; align-items:center;">
                 <button id="settings-commish-toggle" style="display:none; padding:4px 8px; background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer;">👑 Commish</button>
                 ${(myFid === '0000') ? `<a href="${MFL_SITE}/${year}/csetup?L=${lid}&C=HMPGMSG&SEQNO=10" style="padding:4px 8px; background:rgba(59,130,246,0.1); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">📝 Msg 10</a>` : ''}
+                ${(window.LLD_STANDALONE && window.lldAppLeagues && window.lldAppLeagues().length > 1) ? `<select id="lld-lg-sel" onchange="window.lldAppSwitch&&window.lldAppSwitch(this.value)" style="padding:4px 6px; max-width:120px; background:rgba(34,197,94,0.1); color:#22c55e; border:1px solid rgba(34,197,94,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase;">${window.lldAppLeagues().map(l => `<option value="${l.id}" ${l.active ? 'selected' : ''}>${String(l.name).replace(/</g, '&lt;')}</option>`).join('')}</select>` : ''}
                 <a href="${window.LLD_STANDALONE ? '#' : `${MFL_SITE}/${year}/logout?L=${lid}`}" ${window.LLD_STANDALONE ? 'onclick="window.lldAppLogout&&window.lldAppLogout();return false"' : ''} style="padding:4px 10px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:calc(9px * var(--ts,1)); font-weight:900; text-transform:uppercase; text-decoration:none;">Sign Out</a>
             </div>
 

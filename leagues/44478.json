@@ -1,0 +1,14 @@
+{
+  "leagueId": "44478",
+  "usesSalaries": false,
+  "salaryCap": 0,
+  "irSlots": 0,
+  "taxiSlots": 0,
+  "adminFids": [
+    "0000",
+    "0001"
+  ],
+  "features": {
+    "rules": true
+  }
+}
