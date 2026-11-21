@@ -15387,12 +15387,18 @@ function lldShBlocks(vf, sub) {
         const nx = window._nextOpp?.[vf], tw = window._tickWeek;
         let opp = null, wk = '';
         if (nx && nx.opps && nx.opps.length) { opp = nx.opps[0]; wk = nx.week; } else if (tw && tw.pairs && tw.pairs[vf]) { opp = tw.pairs[vf][0]; wk = tw.week; }
+        let isRec = false;
+        try { // viewing one of your past weeks: that week's recap instead of the preview
+            const vw = parseInt(window._lldViewWeek, 10), sw = parseInt(window._lldServedWeek, 10) || 0;
+            if (vw && (!sw || vw < sw) && String(vf) === String(myFid)) { const g = (window._lldGames || []).find(x => x.wk === vw && (x.a === vf || x.b === vf)); wk = vw; opp = g ? (g.a === vf ? g.b : g.a) : opp; isRec = true; }
+        } catch (e) { }
         if (opp) {
             let pj = '';
             const P = window._pvCache && window._pvCache[wk];
-            if (P) { const g = P.games.find(x => String(x.t1.fid).padStart(4, '0') === vf || String(x.t2.fid).padStart(4, '0') === vf); if (g) { const one = String(g.t1.fid).padStart(4, '0') === vf; window._lldShBar = Math.round((one ? g.p1 : 1 - g.p1) * 100); pj = `<b>${(one ? g.m1 : g.m2).toFixed(1)}</b> proj · <b>${Math.round((one ? g.p1 : 1 - g.p1) * 100)}%</b> win`; } }
+            if (isRec) pj = 'Final';
+            else if (P) { const g = P.games.find(x => String(x.t1.fid).padStart(4, '0') === vf || String(x.t2.fid).padStart(4, '0') === vf); if (g) { const one = String(g.t1.fid).padStart(4, '0') === vf; window._lldShBar = Math.round((one ? g.p1 : 1 - g.p1) * 100); pj = `<b>${(one ? g.m1 : g.m2).toFixed(1)}</b> proj · <b>${Math.round((one ? g.p1 : 1 - g.p1) * 100)}%</b> win`; } }
             else if (wk && !(window._lldShPv || {})[wk]) { (window._lldShPv = window._lldShPv || {})[wk] = 1; lldBuildPreview(parseInt(wk, 10)).then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { }); }
-            A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m" data-team-style="${opp}">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ PREVIEW</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
+            A.push(`<div class="bk" data-b="wk"><i>Week ${wk} vs</i><div class="top"><img class="tl" src="${getFranchiseLogoUrl(opp)}" onerror="this.style.display='none'"><div class="m" data-team-style="${opp}">${lldShEsc(leagueFranchises[opp] || opp)}</div><span class="pv">▶ ${isRec ? 'RECAP' : 'PREVIEW'}</span></div>${pj ? `<div class="s2">${pj}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[1]);
         }
         if (lldSh2On()) { // beta (0000 / 0001): trade block count as a third cell
             const tbc = (window._tradeBlockCounts || {})[vf], n = tbc != null ? tbc : (typeof tradeBlockPids !== 'undefined' && tradeBlockPids && tradeBlockPids.size != null ? tradeBlockPids.size : null);
