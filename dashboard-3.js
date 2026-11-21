@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -13260,13 +13260,14 @@ function lldTv2Css() {
 #lld-tv2 .tv2-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 #lld-tv2 .tv2-selcol{background:rgba(0,0,0,.25);border:1px solid var(--card-border);border-radius:10px;padding:8px;min-width:0}
 #lld-tv2 .tv2-selcol h4{margin:0 0 6px;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-#lld-tv2 .tv2-selbody{height:112px;overflow-y:auto}
+#lld-tv2 .tv2-selbody{height:96px;overflow-y:auto}
 #lld-tv2 .tv2-mini{display:flex;align-items:center;gap:5px;height:24px;min-width:0}
 #lld-tv2 .tv2-mini .p{width:17px;font-size:calc(9px * var(--ts,1));font-weight:900;flex:none}
 #lld-tv2 .tv2-mini .nm{flex:1;min-width:0;font-size:calc(11px * var(--ts,1));font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #lld-tv2 .tv2-mini .s{font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);flex:none}
 #lld-tv2 .tv2-mini button{width:18px;height:18px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--text-dim);font-size:12px;line-height:1;flex:none;cursor:pointer}
-#lld-tv2 .tv2-delta{display:flex;justify-content:space-between;align-items:center;font-size:calc(10px * var(--ts,1));font-weight:900;margin-top:6px;padding-top:6px;border-top:1px solid var(--card-border)}
+#lld-tv2 .tv2-delta{display:flex;flex-direction:column;align-items:flex-start;gap:1px;font-size:calc(10px * var(--ts,1));font-weight:900;margin-top:6px;padding-top:6px;border-top:1px solid var(--card-border)}
+#lld-tv2 .tv2-delta span:last-child{white-space:nowrap;font-size:calc(11px * var(--ts,1))}
 #lld-tv2 .tv2-vd{width:100%;margin-bottom:10px;padding:9px;border-radius:8px;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--accent-blue);font-weight:900;font-size:calc(11px * var(--ts,1));letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
 #lld-tv2 .tv2-vd:disabled{opacity:.4;cursor:default}
 #lld-tv2-sheet{position:fixed;inset:0;z-index:100000;background:rgba(2,6,14,.8);display:none;align-items:flex-end;justify-content:center}
@@ -13278,6 +13279,7 @@ function lldTv2Css() {
 #lld-tv2-sheet .tabs button{flex:1;border:0;border-radius:7px;padding:7px 2px;background:transparent;color:var(--text-dim);font-weight:800;font-size:11px;cursor:pointer}
 #lld-tv2-sheet .tabs button.on{background:var(--accent-blue);color:#fff}
 #lld-tv2-sheet .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#lld-tv2-sheet .g2.one{grid-template-columns:1fr;gap:12px}
 #lld-tv2-sheet .gc{min-width:0}
 #lld-tv2-sheet .gc h4{margin:0 0 6px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 #lld-tv2-sheet .pr{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;background:rgba(0,0,0,.2);border:1px solid var(--card-border);margin-bottom:5px;min-width:0}
@@ -13351,7 +13353,7 @@ function lldTv2SheetBody() {
         const cells = [0, 1, 2].map(i => { const d = by(st.theirs, y0 + i) - by(st.mine, y0 + i); return `<td style="color:${d > 0 ? '#f59e0b' : d < 0 ? '#22c55e' : '#fff'}">${lldTv2Fmt(d)}</td>`; }).join('');
         imp = `<div class="imp"><table><tr><th>Your cap by year</th><th>${year}</th><th>${y0 + 1}</th><th>${y0 + 2}</th></tr><tr><td>Change</td>${cells}</tr></table></div>`;
     }
-    return `<div class="g2"><div class="gc"><h4 style="color:#ef4444">You give</h4>${side(st.mine, 'mine', myFid)}</div><div class="gc"><h4 style="color:#22c55e">You get</h4>${side(st.theirs, 'theirs', activeFid)}</div></div>${imp}`;
+    return `<div class="g2${view === 'over' ? ' one' : ''}"><div class="gc"><h4 style="color:#ef4444">You give</h4>${side(st.mine, 'mine', myFid)}</div><div class="gc"><h4 style="color:#22c55e">You get</h4>${side(st.theirs, 'theirs', activeFid)}</div></div>${imp}`;
 }
 function lldTv2Sheet(open) {
     let sh = document.getElementById('lld-tv2-sheet');
@@ -13368,6 +13370,7 @@ function lldTv2Sheet(open) {
     if (!sh.classList.contains('open')) return;
     document.getElementById('tv2-tabs').innerHTML = [['over', 'Overview'], ['con', 'Contracts'], ['dyn', 'Dynasty'], ['prod', 'Production']].map(t => `<button type="button" data-v="${t[0]}" class="${window._lldTv2View === t[0] ? 'on' : ''}">${t[1]}</button>`).join('');
     document.getElementById('tv2-body').innerHTML = lldTv2SheetBody();
+    if (window._lldTv2View === 'dyn') { try { hydrateDynRanks(); } catch (e) { } }
 }
 $(document).off('click', '#tv2-vd').on('click', '#tv2-vd', function () { lldTv2Sheet(true); });
 function buildProposeSection(theirCapUsed = 0) {
