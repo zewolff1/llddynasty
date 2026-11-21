@@ -14281,7 +14281,8 @@ function lldSubComment() { return 'Submitted through dashboard' + (window._lldOp
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
 function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldAdmin() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // the two testing teams: Gotham test and commissioner tools only
-function lldDev() { return true; } // former beta features are now on for everyone; // row tuner sliders stay with the commissioner franchises
+function lldDev() { return true; } // former beta features are now on for everyone;
+window.lldAdmin = lldAdmin; window.lldDev = lldDev; // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 
 // ===== CHARACTERS CARD (beta): Coach = Leader, Def = Sidekicks, read straight from the roster =====
@@ -25687,7 +25688,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             ['Scores', 'Ticker', 'The scrolling line under the header', val('tk'), 'scores'],
             ['My team', 'Team info & name style', 'Owner, email, location, team name, font and colors', '', 'team'],
         ];
-        if (lldAdmin() || (LLD.adminFids || []).indexOf(String(window._lldMyFid || '')) >= 0) R.push(['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']);
+        if ((window.lldAdmin && window.lldAdmin()) || ((window.LLD && window.LLD.adminFids) || []).indexOf(String(window._lldMyFid || '')) >= 0) R.push(['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']);
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
         if (window.LLD_STANDALONE && !(window.LLD_APP && window.LLD_APP.other)) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Notifications', 'Pick which alerts this phone gets', '', 'notif']);
         if (window.LLD_STANDALONE && typeof window.lldInstallShow === 'function') R.push(['My team', 'Home Screen icon', 'Change the app icon, then add the app again', '', 'icon']);
