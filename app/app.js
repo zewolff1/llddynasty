@@ -31,14 +31,18 @@
     var apply = function (i) { C.leagueId = id; C.other = true; C.host = i.host || HOME.host; FID = i.fid || FID; C.leagueName = i.name || ''; };
     if (inf.fid && inf.host && Date.now() - (inf.at || 0) < 86400000) { apply(inf); return Promise.resolve(); }
     return fetch(C.worker + '/mflapi/' + C.year + '/export?TYPE=myleagues&YEAR=' + C.year + '&JSON=1', { headers: { 'X-MFL-Cookie': session.cookie } })
-      .then(function (r) { return r.json(); }).then(function (j) {
+      .then(function (r) { return r.text().then(function (t) { try { return JSON.parse(t); } catch (e) { throw new Error('MFL answered with something unreadable (' + r.status + ')'); } }); }).then(function (j) {
         var L = (j.leagues && j.leagues.league) || []; if (!Array.isArray(L)) L = [L];
         var m = L.find(function (x) { return String(x.league_id) === id; });
-        if (!m) { try { localStorage.removeItem(LGKEY); } catch (e) { } return; }
+        if (!m) { C.lgErr = 'MFL\u2019s list for this sign-in has no league ' + id + (L.length ? ' (it lists ' + L.map(function (x) { return x.league_id; }).join(', ') + ')' : ' (the list came back empty)') + '. Sign out and in with the MFL login that owns it.'; try { localStorage.removeItem(LGKEY); } catch (e) { } return; }
         var h = (String(m.url || '').match(/\/\/(www\d+\.myfantasyleague\.com)/) || [])[1] || HOME.host;
         var i = { host: h, fid: String(m.franchise_id || ''), name: m.name || '', at: Date.now() }; try { localStorage.setItem(LGINFO + id, JSON.stringify(i)); } catch (e) { }
         apply(i);
-      }).catch(function () { });
+      }).catch(function (e) { C.lgErr = 'Could not load league ' + id + ': ' + (e && e.message || e); try { localStorage.removeItem(LGKEY); } catch (x) { } });
+  }
+  function lgToast() {
+    if (!C.lgErr) return; var d = document.createElement('div'); d.textContent = C.lgErr; d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:99999;background:#7f1d1d;color:#fff;padding:12px 14px;border-radius:12px;font:600 13px/1.35 -apple-system,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5)';
+    d.onclick = function () { d.remove(); }; document.body.appendChild(d); setTimeout(function () { d.remove(); }, 20000);
   }
   /* past seasons: the season picker in Settings stores a year; the dashboard then uses it in every MFL address */
   (function () { var y = ''; try { y = localStorage.getItem('lld_app_year') || ''; } catch (e) { } var now = new Date().getFullYear(); if (/^\d{4}$/.test(y) && +y !== now) { window.LLD_YEAR = y; } window.LLD_SEASONS_READY = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017]; try { if (+y === now) localStorage.removeItem('lld_app_year'); } catch (e) { } })();
@@ -240,7 +244,7 @@
         document.body.insertAdjacentHTML('afterbegin', res[1]);
         var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
         patchJquery();
-        script(js, function () { mark('dashboard'); $('#lld-app-boot').style.display = 'none'; if (!C.other) script('notify.js' + q, function () { }); });
+        script(js, function () { mark('dashboard'); lgToast(); $('#lld-app-boot').style.display = 'none'; if (!C.other) script('notify.js' + q, function () { }); });
       });
     }).catch(function (e) { showLogin('Could not start: ' + e.message); });
   }
