@@ -2631,10 +2631,10 @@ function lldApvRight(p) {
     lldGthNorm();
     const A = window._apv, O = A.on, hl = k => (playerSortBy === 'apv' && A.sort === k) ? ' apv-hl' : '';
     const cur = lldApvNow(p.pid), avg = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1);
-    const lb = r => r ? p.pos + '#' + r : '–';
+    const lb = r => r ? '#' + r : '–';
     const df = r => { if (!cur || !r) return '<s></s>'; const d = cur - r; return d === 0 ? '<s class="eq">–</s>' : d > 0 ? `<s class="up">▲${d}</s>` : `<s class="dn">▼${-d}</s>`; };
     const r = [];
-    if (O.now) r.push(`<u>NOW</u><b class="now${hl('now')}">${cur ? p.pos + '#' + cur : 'NR'}</b><span class="av">${avg} avg</span>`);
+    if (O.now) r.push(`<u>NOW</u><b class="now${hl('now')}">${cur ? '#' + cur : 'NR'}</b><span class="av">${avg} avg</span>`);
     if (O.ros) r.push(`<u>ROS</u><b class="${hl('ros').trim()}">${lb(p._rROS)}</b>${df(p._rROS)}`);
     if (O.dyn) r.push(`<u>DYN</u><b class="${hl('dyn').trim()}">${lb(p._rDYN)}</b>${df(p._rDYN)}`);
     return r.length ? `<div class="apv-r3">${r.join('')}</div>` : '';
@@ -2769,7 +2769,7 @@ async function lldApvCtRender() {
         if (!list.length) body = '<div class="apv-ctl">No players match.</div>';
         else if (A.cg) {
             const ORD = ['QB', 'RB', 'WR', 'TE', 'PK', 'DL', 'LB', 'DB'];
-            body = ORD.map(g => { const a = list.filter(p => p.pos === g); return a.length ? `<div class="apv-ct-gh"><b>${g}</b><span>${a.length}</span></div><div class="roster-grid apv-rows" style="padding:0 5px;">${a.map(row).join('')}</div>` : ''; }).join('');
+            body = ORD.map(g => { const a = list.filter(p => p.pos === g); return a.length ? `<div class="roster-grid apv-rows" style="padding:0 5px;">${a.map(row).join('')}</div>` : ''; }).join('');
             const rest = list.filter(p => ORD.indexOf(p.pos) < 0); if (rest.length) body += `<div class="roster-grid apv-rows" style="padding:0 5px;">${rest.map(row).join('')}</div>`;
         } else body = `<div class="roster-grid apv-rows" style="padding:0 5px;">${list.map(row).join('')}</div>`;
         if (window._apvD && window._apvD.fail && window._apvD.fail.length) body += `<div class="apv-ctl">Couldn't load scores for week${window._apvD.fail.length > 1 ? 's' : ''} ${window._apvD.fail.join(', ')} from MFL. Those weeks are left out.</div>`;
