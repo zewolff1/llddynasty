@@ -6021,3 +6021,11 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 #lld-acct-m .am-i:active{background:rgba(255,255,255,.07)}
 #lld-acct-m .am-h{padding:10px 14px 4px;font-size:calc(9px*var(--ts,1));font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);border-top:1px solid var(--card-border)}
 #lld-acct-m .am-out{color:#ef4444}
+#lld-acct-m .am-yrs{padding:4px 12px 12px}
+#lld-acct-m .am-yrs .yrs{display:flex;flex-wrap:wrap;gap:6px}
+#lld-acct-m .am-yrs .lld-yrb{width:auto;padding:7px 12px;border:1px solid var(--card-border);border-radius:999px;background:rgba(255,255,255,.04);color:var(--text-main,#fff);font-size:calc(12px*var(--ts,1));font-weight:800;cursor:pointer}
+#lld-acct-m .am-yrs .lld-yrb.on{background:var(--accent-blue);border-color:var(--accent-blue);color:#04201c}
+#lld-acct-m .am-yrs .lld-yrb.soon{opacity:.4}
+#lld-acct-m .am-yrs small{display:block;font-size:8px;font-weight:700}
+#lld-acct-m .yr-note{font-size:calc(10px*var(--ts,1));color:var(--text-dim);margin-top:8px}
+#lld-acct-m .am-yrs .scn-ms{display:block;width:100%;margin-top:8px;border-radius:10px;text-align:left}

@@ -17071,6 +17071,7 @@ function lldSeasonChips() {
     if (ys.some(y => !ok(y))) h += `<div class="yr-note">Earlier seasons are coming soon.</div>`;
     return h;
 }
+window._lldSeasonChips = lldSeasonChips;
 $(document).on('click', '.lld-yrb[data-yr]', function (e) { e.stopPropagation(); const y = this.dataset.yr; if (String(y) === String(year)) return; if (window.LLD_STANDALONE) { try { localStorage.setItem('lld_app_year', String(y)); } catch (x) { } location.reload(); return; } window.location.href = window.location.href.replace(/\/(\d{4})\//, '/' + y + '/'); });
 $(document).on('click', '#scn-lgb', async function (e) {
     e.stopPropagation(); const m = document.getElementById('scn-menu'); if (!m) return; m.hidden = !m.hidden; if (m.hidden) return;
@@ -25553,14 +25554,14 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         Array.from(d.children).forEach(el => {
             const st = el.getAttribute('style') || '', t = (el.textContent || '').trim();
             if (/accent-blue/.test(st) && /uppercase/.test(st) && /calc\(11px/.test(st) && el.children.length === 0) {
-                if (/^(Season|Theme)$/i.test(t)) cur = 'theme'; else if (/^NFL Logos$/i.test(t)) cur = 'logos';
+                if (/^Season$/i.test(t)) cur = 'season'; else if (/^Theme$/i.test(t)) cur = 'theme'; else if (/^NFL Logos$/i.test(t)) cur = 'logos';
                 else if (/^Hide scores$/i.test(t)) cur = 'scores'; else if (/^Text Size$/i.test(t) || /^More$/i.test(t)) cur = 'text';
             } else if (/^Ticker/i.test(t)) cur = 'scores';
             else if (el.querySelector('.lld-ft') || /Beta features/.test(t)) cur = 'labs';
             else if (/^Owner name/i.test(t)) cur = 'text';
             mk(cur).appendChild(el);
         });
-        ['theme', 'text', 'logos', 'scores', 'labs'].forEach(k => { const p = mk(k); p.dataset.sp = k; p.style.display = 'none'; d.appendChild(p); });
+        if (pages.season) pages.season.remove(); ['theme', 'text', 'logos', 'scores', 'labs'].forEach(k => { const p = mk(k); p.dataset.sp = k; p.style.display = 'none'; d.appendChild(p); });
     }
     function val(k) {
         try {
@@ -25576,7 +25577,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     function rows() {
         const sl = typeof lldSltOn === 'function' && lldSltOn();
         const R = [
-            ['Look and feel', 'Theme', 'Style, season, holiday animation, page width', val('theme'), 'theme'],
+            ['Look and feel', 'Theme', 'Style, holiday animation, page width', val('theme'), 'theme'],
             ['Look and feel', 'Text & layout', 'Text size, owner name in header', val('text'), 'text'],
             ['Logos', 'NFL team logos', 'Modern, Throwback, Leatherhead, Alternate, Helmet', val('logo'), 'logos'],
             ['Logos', 'Logo on player rows', 'Watermark or logo by position', val('wml'), 'logos'],
@@ -25620,11 +25621,13 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (window._commishToggleUrl || appCommish) h += `<button type="button" class="am-i" data-a="role">${f === '0000' ? 'Switch to Owner (0001)' : 'Switch to Commish (0000)'}</button>`;
         try { const L = (window.LLD_STANDALONE && window.lldAppLeagues) ? window.lldAppLeagues() : []; if (L.length > 1) { h += '<div class="am-h">League</div>'; L.forEach(l => { h += `<button type="button" class="am-i" data-a="lg" data-id="${l.id}">${l.active ? '\u2713 ' : ''}${String(l.name).replace(/</g, '&lt;')}</button>`; }); } } catch (e) { }
         const m10 = hdr.find('a').filter(function () { return /Msg 10/.test(this.textContent); }); if (m10.length && !window.LLD_STANDALONE) h += `<a class="am-i" href="${m10.attr('href')}">Message 10</a>`;
+        try { h += '<div class="am-h">Season</div><div class="am-yrs">' + window._lldSeasonChips() + '</div>'; } catch (e) { }
         h += '<button type="button" class="am-i am-out" data-a="out">Sign out</button>';
         return h;
     }
     $(document).on('click', '#lld-acct-b', function (e) { e.stopPropagation(); const m = $('#lld-acct-m'); if (m.is(':visible')) { m.hide(); return; } m.html(acctMenu()).show(); });
     $(document).on('click', '#team-settings-modal', function (e) { if (!$(e.target).closest('#lld-acct').length) $('#lld-acct-m').hide(); });
+    $(document).on('click', '#lld-acct-m', function (e) { if (!$(e.target).closest('.lld-yrb').length) return; });
     $(document).on('click', '#lld-acct-m .am-i[data-a]', function () {
         const a = this.dataset.a; $('#lld-acct-m').hide();
         if (a === 'role') $('#settings-commish-toggle').trigger('click');
