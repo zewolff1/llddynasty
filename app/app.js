@@ -217,3 +217,9 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?w=' + encodeURIComponent(C.alerts || '')).catch(function () { });
   if (session) start(); else showLogin();
 })();
+
+// Clear the Home Screen badge (and the delivered alerts) whenever the app is opened or brought forward
+(function () {
+  const clear = () => { try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch (e) { } try { if (navigator.serviceWorker) navigator.serviceWorker.getRegistration().then(r => r && r.getNotifications().then(l => l.forEach(n => n.close()))); } catch (e) { } };
+  clear(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') clear(); });
+})();

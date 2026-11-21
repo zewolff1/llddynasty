@@ -10,9 +10,12 @@ self.addEventListener('push', e => e.waitUntil((async () => {
   try { if (WORKER) { const r = await fetch(WORKER + '/latest?id=' + await myId()); msgs = (await r.json()).msgs || []; } } catch (x) { }
   if (!msgs.length) msgs = [{ title: 'LLD Dynasty', body: 'Something new happened in the league.', url: '' }];
   for (const m of msgs) await self.registration.showNotification(m.title, { body: m.body, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: m.url || '' } });
+  // red number on the Home Screen icon = alerts waiting (cleared when the app is opened)
+  try { const n = (await self.registration.getNotifications()).length; if (self.navigator.setAppBadge) await self.navigator.setAppBadge(n || msgs.length); } catch (x) { }
 })()));
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  try { self.registration.getNotifications().then(l => { if (!l.length && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); else if (self.navigator.setAppBadge) self.navigator.setAppBadge(l.length); }); } catch (x) { }
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     for (const c of list) { if ('focus' in c) return c.focus(); }   // already open: just bring it forward
     return clients.openWindow(self.registration.scope);
