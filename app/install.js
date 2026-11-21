@@ -27,7 +27,7 @@
         var img = new Image(), o = URL.createObjectURL(b);
         img.onload = function () {
           var c = document.createElement('canvas'); c.width = c.height = 180; var x = c.getContext('2d');
-          x.fillStyle = '#fff'; x.fillRect(0, 0, 180, 180);
+          x.fillStyle = '#000'; x.fillRect(0, 0, 180, 180);
           var k = Math.min(148 / img.width, 148 / img.height), w = img.width * k, h = img.height * k;
           x.drawImage(img, (180 - w) / 2, (180 - h) / 2, w, h); URL.revokeObjectURL(o); res(c.toDataURL('image/png'));
         };

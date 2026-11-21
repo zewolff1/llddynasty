@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 icons-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -10014,6 +10014,7 @@ currentDoc = new DOMParser().parseFromString(await freshRes.text(), 'text/html')
         }
     };
 function goToStep(step) {
+                if (window._lldTv2) { $('#my-roster-list, #their-roster-list').show(); $('#trade-next-btn, #trade-back-btn').hide(); $('#trade-hub-submit').show(); return; }
                 if (step === 'mine') {
                     $('#my-roster-list').show();
                     $('#their-roster-list').hide();
@@ -13108,6 +13109,7 @@ function buildTradePlayerRow(p, isSelected, side) {
 }
 function buildPlayerChip(p, selected, side) {
     const isSelected = selected.has(String(p.pid));
+    if (window._lldTv2) return lldTv2Row(p, isSelected, side);
     if (!p.isPick) return buildTradePlayerRow(p, isSelected, side);
     try { return lldTpBuilderPick(p, isSelected, side, false, side === 'mine' ? myFid : activeFid); } catch (e) { console.warn('trade pick row', e); }
     const injHtml = p.isPick ? '' : getInjuryHtml(p.pid);
@@ -13236,6 +13238,138 @@ async function fetchTargetPicks(tFid) {
     } catch(e) { console.warn('Could not fetch target picks', e); }
     return picks;
 }
+
+// ===== Trade builder v2 (beta: franchises 0000 / 0001): both teams side by side, one-line rows, short "selected" list, View details sheet =====
+function lldTv2On() { return !!window._lldTv2; }
+function lldTv2Css() {
+    if (document.getElementById('lld-tv2-css')) return;
+    const st = document.createElement('style'); st.id = 'lld-tv2-css';
+    st.textContent = `
+#lld-tv2 .tv2-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#lld-tv2 .tv2-col{min-width:0}
+#lld-tv2 .tv2-head{padding:8px;background:rgba(0,0,0,.25);border:1px solid var(--card-border);border-radius:10px;margin-bottom:6px;display:flex;flex-direction:column;gap:4px}
+#lld-tv2 .tv2-list{max-height:420px;overflow-y:auto}
+#lld-tv2 .tv2-grp{font-size:calc(8px * var(--ts,1));font-weight:900;letter-spacing:.1em;color:var(--text-dim);margin:6px 0 3px;text-transform:uppercase}
+#lld-tv2 .tv2-row,#lld-tv2-sheet .tv2-x{font:inherit;color:inherit}
+#lld-tv2 .tv2-row{display:flex;align-items:center;gap:5px;height:32px;width:100%;padding:0 6px;border-radius:7px;border:1px solid transparent;margin-bottom:2px;background:rgba(0,0,0,.2);cursor:pointer;min-width:0;text-align:left}
+#lld-tv2 .tv2-row .p{width:17px;font-size:calc(9px * var(--ts,1));font-weight:900;flex:none}
+#lld-tv2 .tv2-row .nm{flex:1;min-width:0;font-size:calc(11.5px * var(--ts,1));font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lld-tv2 .tv2-row .s{font-size:calc(10px * var(--ts,1));font-weight:900;color:#22c55e;flex:none}
+#lld-tv2 .tv2-row.on.mine{border-color:#ef4444;background:rgba(239,68,68,.12)}
+#lld-tv2 .tv2-row.on.theirs{border-color:#22c55e;background:rgba(34,197,94,.12)}
+#lld-tv2 .tv2-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+#lld-tv2 .tv2-selcol{background:rgba(0,0,0,.25);border:1px solid var(--card-border);border-radius:10px;padding:8px;min-width:0}
+#lld-tv2 .tv2-selcol h4{margin:0 0 6px;font-size:calc(9px * var(--ts,1));font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+#lld-tv2 .tv2-selbody{height:112px;overflow-y:auto}
+#lld-tv2 .tv2-mini{display:flex;align-items:center;gap:5px;height:24px;min-width:0}
+#lld-tv2 .tv2-mini .p{width:17px;font-size:calc(9px * var(--ts,1));font-weight:900;flex:none}
+#lld-tv2 .tv2-mini .nm{flex:1;min-width:0;font-size:calc(11px * var(--ts,1));font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lld-tv2 .tv2-mini .s{font-size:calc(10px * var(--ts,1));font-weight:900;color:var(--text-dim);flex:none}
+#lld-tv2 .tv2-mini button{width:18px;height:18px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--text-dim);font-size:12px;line-height:1;flex:none;cursor:pointer}
+#lld-tv2 .tv2-delta{display:flex;justify-content:space-between;align-items:center;font-size:calc(10px * var(--ts,1));font-weight:900;margin-top:6px;padding-top:6px;border-top:1px solid var(--card-border)}
+#lld-tv2 .tv2-vd{width:100%;margin-bottom:10px;padding:9px;border-radius:8px;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--accent-blue);font-weight:900;font-size:calc(11px * var(--ts,1));letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+#lld-tv2 .tv2-vd:disabled{opacity:.4;cursor:default}
+#lld-tv2-sheet{position:fixed;inset:0;z-index:100000;background:rgba(2,6,14,.8);display:none;align-items:flex-end;justify-content:center}
+#lld-tv2-sheet.open{display:flex}
+#lld-tv2-sheet .in{width:100%;max-width:520px;max-height:82%;overflow-y:auto;background:#0f1626;border:1px solid var(--card-border);border-radius:18px 18px 0 0;padding:14px 12px calc(14px + env(safe-area-inset-bottom,0px))}
+#lld-tv2-sheet .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:900;font-size:14px;color:#fff}
+#lld-tv2-sheet .hd button{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer}
+#lld-tv2-sheet .tabs{display:flex;gap:4px;margin-bottom:10px;background:rgba(0,0,0,.3);padding:3px;border-radius:9px}
+#lld-tv2-sheet .tabs button{flex:1;border:0;border-radius:7px;padding:7px 2px;background:transparent;color:var(--text-dim);font-weight:800;font-size:11px;cursor:pointer}
+#lld-tv2-sheet .tabs button.on{background:var(--accent-blue);color:#fff}
+#lld-tv2-sheet .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#lld-tv2-sheet .gc{min-width:0}
+#lld-tv2-sheet .gc h4{margin:0 0 6px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+#lld-tv2-sheet .pr{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;background:rgba(0,0,0,.2);border:1px solid var(--card-border);margin-bottom:5px;min-width:0}
+#lld-tv2-sheet .av{width:34px;height:34px;border-radius:50%;overflow:hidden;background:#1e293b;border:1px solid rgba(255,255,255,.08);flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#cbd5e1}
+#lld-tv2-sheet .av img{width:100%;height:100%;object-fit:cover}
+#lld-tv2-sheet .pb{flex:1;min-width:0}
+#lld-tv2-sheet .l1{display:flex;align-items:center;gap:5px;min-width:0}
+#lld-tv2-sheet .pn{font-size:12.5px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#lld-tv2-sheet .pp{font-size:9px;font-weight:900;flex:none}
+#lld-tv2-sheet .l2{display:flex;flex-wrap:wrap;gap:2px 7px;margin-top:2px}
+#lld-tv2-sheet .ch{font-size:10px;font-weight:800;color:var(--text-dim)}
+#lld-tv2-sheet .imp{margin-top:10px;border:1px solid var(--card-border);border-radius:10px;overflow:hidden;font-size:11px}
+#lld-tv2-sheet .imp table{width:100%;border-collapse:collapse}
+#lld-tv2-sheet .imp th,#lld-tv2-sheet .imp td{padding:6px 8px;text-align:right;font-weight:800;color:#fff}
+#lld-tv2-sheet .imp th:first-child,#lld-tv2-sheet .imp td:first-child{text-align:left}
+#lld-tv2-sheet .imp th{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);background:rgba(0,0,0,.25)}
+#lld-tv2-sheet .empty{font-size:11px;color:var(--text-dim)}`;
+    document.head.appendChild(st);
+}
+function lldTv2Name(p) { return p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name); }
+function lldTv2Row(p, isSelected, side) {
+    const pos = p.isPick ? 'PK' : p.pos, cls = 'pos-text-' + String(pos).toLowerCase();
+    return `<button type="button" class="trade-add-btn tv2-row ${side}${isSelected ? ' on' : ''}" data-pid="${p.pid}" data-side="${side}"><span class="p ${cls}">${pos}</span><span class="nm">${lldTv2Name(p)}</span>${p.salary ? `<span class="s">${p.salary}</span>` : ''}</button>`;
+}
+function lldTv2Html(o) {
+    lldTv2Css();
+    const hdMine = `<div class="tv2-head"><div style="display:flex;align-items:center;gap:6px;min-width:0">${buildLogoWithTrophy(myFid, 22)}<div style="flex:1;min-width:0;font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.myTeamName}</div></div>
+        <span id="my-cap-label" data-base="${o.myCapUsed}" style="font-size:calc(8px * var(--ts,1));font-weight:900;color:${o.myCapColor}">$${o.myCapUsed.toFixed(1)}m / $${o.salaryCap}m</span>
+        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div id="my-cap-bar" style="height:100%;width:${o.myCapPct}%;background:${o.myCapColor};border-radius:2px;transition:width .3s"></div></div></div>`;
+    const hdTheirs = `<div class="tv2-head"><div style="display:flex;align-items:center;gap:6px;min-width:0"><div id="trade-their-switcher" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;cursor:pointer"><div id="their-team-logo-wrapper">${buildLogoWithTrophy(activeFid, 22)}</div><div id="their-team-name" style="flex:1;min-width:0;font-size:calc(10px * var(--ts,1));font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.theirTeamName}</div></div><button id="trade-switch-team-btn" aria-label="Switch team" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:var(--text-dim);font-size:12px;cursor:pointer">⇄</button></div>
+        <span id="their-cap-bar-label" data-base="${o.theirCapUsed}" style="font-size:calc(8px * var(--ts,1));font-weight:900;color:${o.theirCapColor}">$${o.theirCapUsed.toFixed(1)}m / $${o.salaryCap}m</span>
+        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div id="their-cap-bar" style="height:100%;width:${o.theirCapPct}%;background:${o.theirCapColor};border-radius:2px;transition:width .3s"></div></div></div>`;
+    return `<div id="lld-tv2" style="margin-bottom:16px">
+        <select id="trade-target-select" style="display:none">${o.teamOptions}</select>
+        <div id="trade-summary-bar" class="tv2-sel">
+            <div class="tv2-selcol"><h4 style="color:#ef4444">You give</h4><div class="tv2-selbody" id="trade-summary-mine"><span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on your team</span></div><div class="tv2-delta"><span style="color:var(--text-dim)">Your cap</span><span id="tv2-dm"></span></div></div>
+            <div class="tv2-selcol"><h4 style="color:#22c55e">You get</h4><div class="tv2-selbody" id="trade-summary-theirs"><span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on their team</span></div><div class="tv2-delta"><span style="color:var(--text-dim)">Their cap</span><span id="tv2-dt"></span></div></div>
+        </div>
+        <button type="button" class="tv2-vd" id="tv2-vd" disabled>View details</button>
+        <div class="tv2-cols"><div class="tv2-col">${hdMine}<div class="tv2-list" id="my-roster-list">${o.myPlayers.map(p => buildPlayerChip(p, o.mySelected, 'mine')).join('')}</div></div>
+        <div class="tv2-col">${hdTheirs}<div class="tv2-list" id="their-roster-list">${o.theirPlayers.map(p => buildPlayerChip(p, o.theirSelected, 'theirs')).join('')}</div></div></div>
+        ${lldCondPanelHtml()}
+        <div id="trade-action-bar" style="display:flex;gap:8px;margin-top:10px"><button id="trade-hub-submit" style="flex:1;padding:12px;background:#22c55e;color:#000;border:none;border-radius:8px;font-size:calc(12px * var(--ts,1));font-weight:900;text-transform:uppercase;cursor:pointer">Send Proposal</button></div>
+    </div>`;
+}
+window._lldTv2View = window._lldTv2View || 'over';
+function lldTv2Fmt(d) { return (d > 0 ? '+' : d < 0 ? '−' : '') + '$' + Math.abs(d).toFixed(1).replace(/\.0$/, '') + 'm'; }
+function lldTv2Sal(p) { return parseFloat(String(p.salary || '0').replace(/[^0-9.]/g, '')) || 0; }
+function lldTv2Chips(p, view) {
+    const ch = (t, c) => `<span class="ch"${c ? ` style="color:${c}"` : ''}>${t}</span>`;
+    if (p.isPick) return ch(p.desc || 'Draft pick');
+    const sal = lldTv2Sal(p), yrs = parseInt(p.years) || 1, gp = parseFloat(String(p.guar || '0').replace(/[^0-9.]/g, '')) || 0;
+    if (view === 'con') return ch(p.salary || '–', '#22c55e') + ch(yrs + 'yr', '#3b82f6') + ch((p.guar || '0%') + ' guar.', '#22c55e') + ch('thru ' + (parseInt(year, 10) + yrs - 1)) + ch('dead $' + (sal * gp / 100).toFixed(1) + 'm') + (yrs <= 1 ? ch('re-sign due', '#f59e0b') : '');
+    if (view === 'dyn') { let cur = 0; try { cur = lldApvNow(p.pid); } catch (e) { } return ch(cur ? p.pos + '#' + cur + ' now' : 'No rank', '#3b82f6') + (p.salary ? rankLineHtml(p.pid, p.pos, sal) : ''); }
+    if (view === 'prod') { const a = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1); return ch(a + ' avg', '#fff') + ch(p.team || ''); }
+    return '';
+}
+function lldTv2Card(p, view) {
+    const pos = p.isPick ? 'PK' : p.pos;
+    return `<div class="pr"><div class="av">${p.isPick ? 'PK' : `<img alt="" src="https://www.mflscripts.com/playerImages_80x107/mfl_${p.pid}.png" onerror="this.style.display='none'">`}</div><div class="pb"><div class="l1"><span class="pn">${lldTv2Name(p)}</span><span class="pp pos-text-${String(pos).toLowerCase()}">${pos}</span></div><div class="l2">${lldTv2Chips(p, view)}</div></div></div>`;
+}
+function lldTv2SheetBody() {
+    const st = window._lldTv2State || { mine: [], theirs: [] }, view = window._lldTv2View;
+    const side = (arr, sd, owner) => arr.length ? arr.map(p => {
+        if (view === 'over') { try { if (p.isPick) return lldTpBuilderPick(p, false, sd, true, owner); if (p._a && p._a._ready) return lldApvTrRow(p, false, sd, '', true); } catch (e) { } }
+        return lldTv2Card(p, view === 'over' ? 'con' : view);
+    }).join('') : '<div class="empty">Nothing selected</div>';
+    let imp = '';
+    if (view === 'con') {
+        const y0 = parseInt(year, 10), by = (arr, y) => arr.reduce((t, p) => t + (p.isPick ? 0 : ((parseInt(p.years) || 1) > y - y0 ? lldTv2Sal(p) : 0)), 0);
+        const cells = [0, 1, 2].map(i => { const d = by(st.theirs, y0 + i) - by(st.mine, y0 + i); return `<td style="color:${d > 0 ? '#f59e0b' : d < 0 ? '#22c55e' : '#fff'}">${lldTv2Fmt(d)}</td>`; }).join('');
+        imp = `<div class="imp"><table><tr><th>Your cap by year</th><th>${year}</th><th>${y0 + 1}</th><th>${y0 + 2}</th></tr><tr><td>Change</td>${cells}</tr></table></div>`;
+    }
+    return `<div class="g2"><div class="gc"><h4 style="color:#ef4444">You give</h4>${side(st.mine, 'mine', myFid)}</div><div class="gc"><h4 style="color:#22c55e">You get</h4>${side(st.theirs, 'theirs', activeFid)}</div></div>${imp}`;
+}
+function lldTv2Sheet(open) {
+    let sh = document.getElementById('lld-tv2-sheet');
+    if (!sh) {
+        sh = document.createElement('div'); sh.id = 'lld-tv2-sheet';
+        sh.innerHTML = '<div class="in"><div class="hd"><span>Trade details</span><button type="button" id="tv2-cl">Close</button></div><div class="tabs" id="tv2-tabs"></div><div id="tv2-body"></div></div>';
+        document.body.appendChild(sh);
+        sh.addEventListener('click', e => {
+            if (e.target === sh || e.target.id === 'tv2-cl') { sh.classList.remove('open'); return; }
+            const b = e.target.closest('#tv2-tabs button'); if (b) { window._lldTv2View = b.dataset.v; lldTv2Sheet(); }
+        });
+    }
+    if (open) sh.classList.add('open');
+    if (!sh.classList.contains('open')) return;
+    document.getElementById('tv2-tabs').innerHTML = [['over', 'Overview'], ['con', 'Contracts'], ['dyn', 'Dynasty'], ['prod', 'Production']].map(t => `<button type="button" data-v="${t[0]}" class="${window._lldTv2View === t[0] ? 'on' : ''}">${t[1]}</button>`).join('');
+    document.getElementById('tv2-body').innerHTML = lldTv2SheetBody();
+}
+$(document).off('click', '#tv2-vd').on('click', '#tv2-vd', function () { lldTv2Sheet(true); });
 function buildProposeSection(theirCapUsed = 0) {
     const teamOptions = Object.keys(leagueFranchises).filter(id => id !== myFid).map(id =>
         `<option value="${id}" ${id === activeFid ? 'selected' : ''}>${leagueFranchises[id]}</option>`
@@ -13261,6 +13395,8 @@ const salaryCap = window.leagueSalaryCap || LLD.salaryCap;
     const theirCapPct = Math.min(100, (theirCapUsed / salaryCap) * 100).toFixed(1);
     const theirCapColor = theirCapUsed > salaryCap ? '#ef4444' : theirCapPct > 90 ? '#f59e0b' : '#22c55e';
 
+    window._lldTv2 = false;
+    try { if (lldDev()) { window._lldTv2 = true; return lldTv2Html({ teamOptions, myTeamName, theirTeamName, myCapUsed, theirCapUsed, salaryCap, myCapPct, myCapColor, theirCapPct, theirCapColor, myPlayers, theirPlayers, mySelected, theirSelected }); } } catch (e) { console.warn('trade v2', e); window._lldTv2 = false; }
     return `
         <div style="margin-bottom:16px;">
             
@@ -13729,7 +13865,7 @@ $(document).off('click', '#trade-their-switcher').on('click', '#trade-their-swit
 
             // Add button click → toggle selection
             $(document).off('click touchend', '.trade-add-btn').on('click touchend', '.trade-add-btn', function(e) {
-                if (e.type === 'touchend') e.preventDefault();
+                if (e.type === 'touchend') { if ($(this).closest('#lld-tv2').length) return; e.preventDefault(); } // beta rows are full-width: a scroll must not toggle them, the tap's click does
                 e.stopPropagation();
                 const pid = String($(this).data('pid'));
                 const side = $(this).data('side');
@@ -13744,6 +13880,20 @@ $(document).off('click', '#trade-their-switcher').on('click', '#trade-their-swit
             // Rebuilds the "Selected to Give / Get" box: full rows for each team, with that team's cap before and after.
             function updateTradeSummary() {
                 try { lldCondRefresh(); } catch (e) { }
+                if (window._lldTv2) {
+                    const gv = [...mySelected].map(pid => myPlayers.find(p => String(p.pid) === pid)).filter(Boolean), gt = [...theirSelected].map(pid => theirPlayers.find(p => String(p.pid) === pid)).filter(Boolean);
+                    window._lldTv2State = { mine: gv, theirs: gt };
+                    const mini = (p, sd) => `<div class="tv2-mini"><span class="p pos-text-${String(p.isPick ? 'pk' : p.pos).toLowerCase()}">${p.isPick ? 'PK' : p.pos}</span><span class="nm">${lldTv2Name(p)}</span>${p.salary ? `<span class="s">${p.salary}</span>` : ''}<button type="button" class="trade-add-btn" data-pid="${p.pid}" data-side="${sd}" aria-label="Remove">\u00D7</button></div>`;
+                    $('#trade-summary-mine').html(gv.length ? gv.map(p => mini(p, 'mine')).join('') : '<span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on your team</span>');
+                    $('#trade-summary-theirs').html(gt.length ? gt.map(p => mini(p, 'theirs')).join('') : '<span style="font-size:calc(11px * var(--ts,1));color:var(--text-dim)">Tap players on their team</span>');
+                    const give = gv.reduce((t, p) => t + lldTv2Sal(p), 0), get = gt.reduce((t, p) => t + lldTv2Sal(p), 0), cap = window.leagueSalaryCap || LLD.salaryCap;
+                    const mb = parseFloat($('#my-cap-label').data('base')) || 0, tb = parseFloat($('#their-cap-bar-label').data('base')) || 0;
+                    const paint = (id, d, nv) => $(id).text(lldTv2Fmt(d) + ' \u2192 $' + nv.toFixed(1) + 'm').css('color', nv > cap ? '#ef4444' : d > 0 ? '#f59e0b' : '#22c55e');
+                    paint('#tv2-dm', get - give, Math.max(0, mb - give + get)); paint('#tv2-dt', give - get, Math.max(0, tb - get + give));
+                    $('#tv2-vd').prop('disabled', !(gv.length || gt.length));
+                    try { lldTv2Sheet(); } catch (e) { }
+                    return;
+                }
 const playerChipHtml = (p) => {
                     if (!p) return '';
                     const name = p.isPick ? (p.pickStr ? `Pick ${p.pickStr}` : `${p.pickYear} R${p.pickRound}`) : (p.shortName || p.name);
