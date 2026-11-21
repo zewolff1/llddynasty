@@ -6099,3 +6099,21 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 #tp-pop .vd-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 #tp-pop .vd-col em{display:block;font-style:normal;font-weight:900;font-size:11px;margin-bottom:6px}
 #tp-pop .vd-n{margin-top:10px;font-style:italic;opacity:.85}#tp-pop .vd-t{margin-top:8px;font-size:11px;opacity:.6}
+
+.sh2-pc{margin-top:18px}.sh2-pc p{font-size:12px;color:var(--text-dim);margin:2px 0 10px}
+.sh2-pcg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sh2-pcr{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border-radius:12px;border:1px solid var(--card-border);background:rgba(255,255,255,.03)}
+.sh2-pcc{width:100%;text-align:center;font-weight:900;font-size:13px;padding:6px 0;border-radius:8px;border:2px solid var(--c);color:var(--c)}
+.sh2-pcr input[type=color]{width:100%;height:34px;border:0;border-radius:8px;background:none;padding:0}
+.sh2-pcreset{margin-top:10px;padding:9px 12px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.04);color:var(--text-main,#fff);font-weight:800;font-size:12px}
+
+/* beta: team header with the logo on the left, name and blocks on the right */
+body.lld-hdl #lld-sh .th.blk{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-items:center}
+body.lld-hdl #lld-sh .nrow,body.lld-hdl #lld-sh .sh-sw{display:contents}
+body.lld-hdl #lld-sh .lg{grid-column:1;grid-row:1 / span 2;width:calc(var(--lg) * 2.3);height:calc(var(--lg) * 2.3);align-self:center}
+body.lld-hdl #lld-sh .nm{grid-column:2;grid-row:1;text-align:left;justify-self:start;max-width:100%}
+body.lld-hdl #lld-sh .th.blk:has(.yr) .nm{max-width:calc(100% - 66px)}
+body.lld-hdl #lld-sh .yr{grid-column:2;grid-row:1;justify-self:end}
+body.lld-hdl #lld-sh .blks{grid-column:2;grid-row:2;margin-top:6px;gap:5px}
+body.lld-hdl #lld-sh .bk{padding:4px 6px}
+body.lld-hdl #lld-sh .bk .m{font-size:calc(var(--mn) * .88 * var(--ts,1))}

@@ -14279,7 +14279,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldAdmin() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // the two testing teams: Gotham test and commissioner tools only
 function lldDev() { return true; } // former beta features are now on for everyone;
 window.lldAdmin = lldAdmin; window.lldDev = lldDev; // row tuner sliders stay with the commissioner franchises
@@ -14396,6 +14396,7 @@ function lldApplyBeta() {
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
     c.toggle('lld-clr', lldClrOn());
+    c.toggle('lld-hdl', lldAdmin() && lldBv('hdl') === '1');
     try { lldNavApply(); } catch (e) { }
     try { if (window.lldTdSync) window.lldTdSync(); } catch (e) { }
     try { if (window.lldAwSync) window.lldAwSync(); } catch (e) { }
@@ -16629,7 +16630,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -25783,6 +25784,24 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         pg.find('.sh2-lgt').remove();
         pg.append(`<div class="sh2-lgt"><div class="sh2-lgh">Logo by team</div><p>Tap a logo to use that style for one team. Default follows the style chosen above. A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div>`);
     }
+    // ---- position colors (Text & layout page) ----
+    const PC = [['qb', 'QB'], ['rb', 'RB'], ['wr', 'WR'], ['te', 'TE'], ['pk', 'K'], ['def', 'DEF'], ['dl', 'DL'], ['lb', 'LB'], ['db', 'DB']];
+    function pcGet() { try { return JSON.parse(localStorage.getItem('lld_poscol') || '{}') || {}; } catch (e) { return {}; } }
+    function pcApply() {
+        const c = pcGet(), css = PC.filter(x => /^#[0-9a-f]{6}$/i.test(c[x[0]] || '')).map(x => `--pos-${x[0]}:${c[x[0]]} !important;`).join('');
+        let st = document.getElementById('lld-poscol'); if (!st) { st = document.createElement('style'); st.id = 'lld-poscol'; document.head.appendChild(st); }
+        st.textContent = css ? `html body, body[class], body{${css}}` : '';
+    }
+    window.lldPosColApply = pcApply; pcApply();
+    function textExtras() {
+        const pg = $('#tab-display .lld-sp[data-sp="text"]'); if (!pg.length) return;
+        pg.find('.sh2-pc').remove();
+        const cur = pcGet(), cs = getComputedStyle(document.body);
+        const rows = PC.map(x => { const v = (cur[x[0]] || (cs.getPropertyValue('--pos-' + x[0]) || '').trim() || '#888888'); const hex = /^#[0-9a-f]{6}$/i.test(v) ? v : '#888888'; return `<label class="sh2-pcr"><span class="sh2-pcc" style="--c:${hex}">${x[1]}</span><input type="color" data-k="${x[0]}" value="${hex}"></label>`; }).join('');
+        pg.append(`<div class="sh2-pc"><div class="sh2-lgh">Position colors</div><p>Pick the color for each position. It shows on player rows, badges and borders everywhere.</p><div class="sh2-pcg">${rows}</div><button type="button" class="sh2-pcreset">Reset to theme colors</button></div>`);
+    }
+    $(document).on('input change', '.sh2-pcr input', function () { const c = pcGet(); c[this.dataset.k] = this.value; try { localStorage.setItem('lld_poscol', JSON.stringify(c)); } catch (e) { } $(this).prev('.sh2-pcc').css('--c', this.value); pcApply(); });
+    $(document).on('click', '.sh2-pcreset', function () { try { localStorage.removeItem('lld_poscol'); } catch (e) { } pcApply(); textExtras(); });
     $(document).on('click', '.sh2-pvb', function () {
         $('.sh2-pvb').removeClass('on'); $(this).addClass('on');
         $('.lld-b-btn[data-k="wml"][data-v="' + this.dataset.v + '"]').first().trigger('click');
@@ -25799,6 +25818,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (k === 'notif') { const nb = document.getElementById('lld-notif-box'), nt = document.getElementById('tab-notif'); if (nb && nt && nb.parentNode !== nt) nt.insertBefore(nb, nt.firstChild); if (nb) nb.style.display = ''; }
         if (k === 'comm') $('#tab-dev').show();
         if (k === 'team') { try { teamTabs(); } catch (e) { console.warn('team tabs', e); } }
+        if (k === 'text') { try { textExtras(); } catch (e) { console.warn('text page', e); } }
         if (k === 'logos') { try { logosExtras(); } catch (e) { console.warn('logos page', e); } }
         $('.settings-content-area').scrollTop(0);
     }
