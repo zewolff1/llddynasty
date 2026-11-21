@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-3"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -12982,6 +12982,8 @@ try {
 
         try { await lldApvTrEnrich(myPlayers, myFid); await lldApvTrEnrich(theirPlayers, activeFid); } catch (e) { }
         try { let cm = await fetchTeamContractMap(myFid); if (!cm.__totalSalary) { delete window._contractMapCache[myFid]; cm = await fetchTeamContractMap(myFid); } window._tpMyCap = cm.__totalSalary || 0; } catch (e) { window._tpMyCap = 0; }
+        // MFL's contract page can come back empty for your own team: fall back to adding up the salaries on your roster
+        if (!window._tpMyCap) window._tpMyCap = parseFloat(myPlayers.reduce((t, p) => t + (p.isPick ? 0 : (parseFloat(String(p.salary || '0').replace(/[^0-9.]/g, '')) || 0)), 0).toFixed(1));
         // Track selected assets
         let mySelected = new Set([...(targetPid ? [String(targetPid)] : []), ...presetGive.map(String)]);
         let theirSelected = new Set(presetReceive.map(String));
