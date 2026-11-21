@@ -1632,7 +1632,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-21 leagues-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-21 todo-board-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -24094,7 +24094,7 @@ function lldChatBadgeSet(n) {
 }
 function lldChatOfferSeenGet() { try { return JSON.parse(localStorage.getItem('lld_chat_offers_' + lid + '_' + myFid) || '[]'); } catch (e) { return []; } }
 function lldChatOfferSeenSet(ids) { try { localStorage.setItem('lld_chat_offers_' + lid + '_' + myFid, JSON.stringify(ids.slice(-50))); } catch (e) { } }
-function lldChatBadgeUpdate() { lldChatBadgeSet((window._lldChatNewOther || 0) + (window._lldChatOffers || 0)); }
+function lldChatBadgeUpdate() { let td = 0; try { td = lldTdOn() ? lldTdItems().length : 0; } catch (e) { } lldChatBadgeSet((window._lldChatNewOther || 0) + td); } // unread posts + your to-dos (trade offers are one of the to-dos)
 // trade offers waiting on you always count until you accept or decline them (one small request, checked often)
 async function lldChatCheckOffers() {
     if (!$('#lld-chat-btn').length) return;
@@ -24289,6 +24289,7 @@ async function lldChatShowListInner() {
     const cv = lldChatView(), feedV = cv !== 'classic';
     box.html(lldChatShellHtml('League Chat', false, note || (cv === 'paper' ? lldChatPaperHtml(a.items, a.block, lldChatCtx()) : cv === 'feed' ? lldChatTweetsHtml(a.items, a.block, lldChatCtx()) : lldChatViewBar() + lldChatFeedHtml(a.items, a.block, lldChatCtx())), lldChatOpenUrl()));
     try { const $bd = box.find('.cm-body'), $bar = $bd.find('.tw-vw').first(); if ($bar.length) $bar.insertBefore($bd); } catch (e) {}
+    try { lldTdInline(); lldTdLoadAsync(true); } catch (e) { }
     const fresh = lldWnUnseen();
     if (lldWnOn()) { try { box.find('.cm-body').first().prepend(lldWnHtml(fresh)); lldWnMark(); } catch (e) { } }
     const b = box.find('.cm-body')[0]; if (b) b.scrollTop = (feedV || fresh) ? 0 : b.scrollHeight;
@@ -25012,16 +25013,16 @@ function lldTdItems() {
     return out.filter(x => !(x.skip && lldTdSkipped(x.k)));
 }
 function lldTdSync() {
-    const on = lldTdOn(), have = document.getElementById('lld-td-btn');
+    const on = lldTdOn(), have = document.getElementById('lld-td-btn'); if (have) have.remove(); // the to-do list is part of the message board now
     if (!on) { if (have) have.remove(); $('#lld-td').remove(); return; }
-    if (!have) { const s = document.querySelector('.open-settings-btn'), b = `<button id="lld-td-btn" aria-label="To-do list" style="position:relative; background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_TD_ICON}<span class="td-bd"></span></button>`; if (s) s.insertAdjacentHTML('beforebegin', b); else $('.header-right-controls').prepend(b); setTimeout(lldTdLoadAsync, 25000); }
+    if (false) { const s = document.querySelector('.open-settings-btn'), b = `<button id="lld-td-btn" aria-label="To-do list" style="position:relative; background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">${LLD_TD_ICON}<span class="td-bd"></span></button>`; if (s) s.insertAdjacentHTML('beforebegin', b); else $('.header-right-controls').prepend(b); setTimeout(lldTdLoadAsync, 25000); }
     lldTdRefresh();
 }
 function lldTdRefresh() {
     if (!lldTdOn()) return;
-    const n = lldTdItems().length, bd = document.querySelector('#lld-td-btn .td-bd');
-    if (bd) { bd.textContent = n ? String(n) : ''; bd.style.display = n ? 'flex' : 'none'; }
     if (document.getElementById('lld-td')) lldTdDraw();
+    try { lldTdInline(); } catch (e) { }
+    try { lldChatBadgeUpdate(); } catch (e) { }
 }
 // ===== award rings (beta switch awd): gold ring around the headshot of the current players of the week and month =====
 function lldAwOn() { return true; } // for everyone
@@ -25112,11 +25113,29 @@ async function lldTdLoadAsync(force) {
     } catch (e) { A.stadium = 'unknown'; }
     window._lldTdA = A; window._lldTdBusy = false; lldTdRefresh();
 }
-function lldTdDraw() {
-    const it = lldTdItems(), e = lldChatEsc, grp = (g, t) => { const a = it.filter(x => x.g === g); return a.length ? `<div class="td-sl"><span>${t}</span><span>${a.length}</span></div>` + a.map(x => `<div class="td-it ${x.t}"><div class="td-dot">${e(x.ic)}</div><div class="td-tx"><b>${e(x.h)}</b><p>${e(x.p)}</p>${x.skip ? `<button type="button" class="td-skip" data-k="${x.k}">Not for me</button>` : ''}</div><button type="button" class="td-go" data-a="${x.a}">${e(x.b)}</button></div>`).join('') : ''; };
-    const body = it.length ? grp('now', 'Needs attention now') + grp('tr', 'Trades') + grp('set', 'One-time setup') : '<div class="td-ok"><b>You’re all set ✅</b><span>Nothing needs your attention right now.</span></div>';
-    $('#lld-td .td-card').html(`<div class="td-hd"><b>To-do list</b><span>${it.length ? it.length + ' to do' : 'All caught up'}</span><button type="button" class="td-x" aria-label="Close">✕</button></div><div class="td-body">${body}</div>`);
+function lldTdBodyHtml(it) {
+    const e = lldChatEsc, grp = (g, t) => { const a = it.filter(x => x.g === g); return a.length ? `<div class="td-sl"><span>${t}</span><span>${a.length}</span></div>` + a.map(x => `<div class="td-it ${x.t}"><div class="td-dot">${e(x.ic)}</div><div class="td-tx"><b>${e(x.h)}</b><p>${e(x.p)}</p>${x.skip ? `<button type="button" class="td-skip" data-k="${x.k}">Not for me</button>` : ''}</div><button type="button" class="td-go" data-a="${x.a}">${e(x.b)}</button></div>`).join('') : ''; };
+    return it.length ? grp('now', 'Needs attention now') + grp('tr', 'Trades') + grp('set', 'One-time setup') : '<div class="td-ok"><b>You’re all set ✅</b><span>Nothing needs your attention right now.</span></div>';
 }
+function lldTdDraw() {
+    const it = lldTdItems();
+    $('#lld-td .td-card').html(`<div class="td-hd"><b>To-do list</b><span>${it.length ? it.length + ' to do' : 'All caught up'}</span><button type="button" class="td-x" aria-label="Close">✕</button></div><div class="td-body">${lldTdBodyHtml(it)}</div>`);
+    lldTdInline();
+}
+// the to-do list now lives at the top of the message board, only showing what applies to the signed-in owner
+function lldTdInlineHtml() {
+    const it = lldTdItems(); if (!it.length) return '';
+    return `<div id="cm-td"><div class="td-hd"><b>To-do</b><span>${it.length} for you</span></div><div class="td-body">${lldTdBodyHtml(it)}</div></div>`;
+}
+function lldTdInline() {
+    try {
+        const bd = document.querySelector('#lld-chat.open .cm-body'); if (!bd) return;
+        const old = document.getElementById('cm-td'), h = lldTdInlineHtml();
+        if (old) old.remove();
+        const ttl = document.querySelector('#lld-chat .cm-title'); if (h && ttl && ttl.textContent.trim() === 'League Chat') bd.insertAdjacentHTML('afterbegin', h);
+    } catch (e) { }
+}
+window.lldTdInline = lldTdInline;
 function lldTdOpen() {
     if (document.getElementById('lld-td')) { $('#lld-td').remove(); return; }
     $('body').append('<div id="lld-td"><div class="td-card"></div></div>'); lldTdDraw(); lldTdLoadAsync(true);
@@ -25124,9 +25143,9 @@ function lldTdOpen() {
 $(document).on('click', '#lld-td-btn', lldTdOpen);
 $(document).on('click', '#lld-td .td-x', () => $('#lld-td').remove());
 $(document).on('click', '#lld-td', function (ev) { if (ev.target === this) $('#lld-td').remove(); });
-$(document).on('click', '#lld-td .td-skip', function () { lldSet(lldTdSkipKey(this.dataset.k), '1'); lldTdRefresh(); });
-$(document).on('click', '#lld-td .td-go', function () {
-    const a = this.dataset.a; $('#lld-td').remove();
+$(document).on('click', '#lld-td .td-skip, #cm-td .td-skip', function () { lldSet(lldTdSkipKey(this.dataset.k), '1'); lldTdRefresh(); });
+$(document).on('click', '#lld-td .td-go, #cm-td .td-go', function () {
+    const a = this.dataset.a; $('#lld-td').remove(); try { if ($('#lld-chat').hasClass('open')) lldChatClose(); } catch (e) { }
     if (a === 'lineup') { $('.tab-btn').filter(function () { return /tab-team/.test($(this).attr('onclick') || ''); }).first().trigger('click'); setTimeout(() => $('#subtabs-team .sub-tab-btn').filter(function () { return $(this).text().trim().toLowerCase() === 'lineup'; }).first().trigger('click'), 150); setTimeout(() => { const n = document.getElementById('lineup-notifications'); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 900); }
     else if (a === 'theme') { if (!document.getElementById('lld-qt')) lldQtOpen(); }
     else if (a === 'stadium') { $('.open-settings-btn').first().trigger('click'); setTimeout(() => { const el = document.getElementById('ts-stadium'); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }, 1500); }
