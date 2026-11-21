@@ -16598,11 +16598,7 @@ function lldFtFill() {
 }
 window.lldPvRow = function () {
     let html = '';
-    try {
-        const r = $('#slots-starters .player-row[data-pid]:not(.empty-slot), #player-rows-container .player-row[data-pid]:not(.empty-slot)').first();
-        if (r.length) { const c = r.clone(); c.find('[id]').removeAttr('id'); c.removeClass('lld-pchk status-changed'); html = c[0].outerHTML; }
-        else html = buildCompactUniversalRow({ pid: '15268', name: "Ja'Marr Chase", shortName: 'J. Chase', pos: 'WR', team: 'CIN' }, { pill: '@BAL \u00B7 Sun 1 PM', topRight: projTopHtml('16.4'), bottomRight: rankAvgHtml('15268', 'WR') });
-    } catch (e) { console.warn('row preview', e); }
+    try { html = buildCompactUniversalRow({ pid: '15268', name: "Ja'Marr Chase", shortName: 'J. Chase', pos: 'WR', team: 'CIN' }, { pill: '@BAL \u00B7 Sun 1 PM', topRight: projTopHtml('16.4'), bottomRight: rankAvgHtml('15268', 'WR') }); } catch (e) { console.warn('row preview', e); }
     return html;
 };
 const LLD_NFL_NAMES = { ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills', CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns', DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GBP: 'Green Bay Packers', HOU: 'Houston Texans', IND: 'Indianapolis Colts', JAC: 'Jacksonville Jaguars', KCC: 'Kansas City Chiefs', LVR: 'Las Vegas Raiders', LAC: 'Los Angeles Chargers', LAR: 'Los Angeles Rams', MIA: 'Miami Dolphins', MIN: 'Minnesota Vikings', NEP: 'New England Patriots', NOS: 'New Orleans Saints', NYG: 'New York Giants', NYJ: 'New York Jets', PHI: 'Philadelphia Eagles', PIT: 'Pittsburgh Steelers', SFO: 'San Francisco 49ers', SEA: 'Seattle Seahawks', TBB: 'Tampa Bay Buccaneers', TEN: 'Tennessee Titans', WAS: 'Washington Commanders' };
