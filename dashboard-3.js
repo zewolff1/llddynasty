@@ -91,7 +91,7 @@ function lldStylePv(k, label) {
     const ch = LLD_CHIP[key];
     if (ch && k !== 'random' && k !== 'seasonal') {
         try { if (v && v.fonts && !document.getElementById('lld-pvf-' + key)) { const l = document.createElement('link'); l.id = 'lld-pvf-' + key; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?' + v.fonts + '&display=swap'; document.head.appendChild(l); } } catch (e) { }
-        return `<span class="sty-chip" style="background:${ch[0]};color:${ch[2]};border-color:${ch[1]};font-family:${v.scene && v.scene.font ? v.scene.font : 'inherit'}">${label.replace(/^Color: /, '')}</span>`;
+        return `<span class="sty-chip" style="background:${ch[0]};color:${ch[2]};border-color:${ch[1]};font-family:${v.scene && v.scene.font ? v.scene.font.replace(/"/g, "'") : 'inherit'}">${label.replace(/^Color: /, '')}</span>`;
     }
     if (k === 'random') pv = '<div class="sty-pv" style="background:linear-gradient(90deg,#3f77c4,#e31837,#d9b25f,#14452b,#7a2f2f)"><b>?</b><i>Surprise me</i></div>';
     else {
@@ -25133,7 +25133,7 @@ function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
 function lldQtHtml() {
     const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
-    const styles = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, v.name)}</button>`).join('')
+    let _lg = ''; const styles = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k)).map(([k, v]) => { const g = LLD_CHIP[k] ? v.group : ''; const h = (g && g !== _lg) ? `<div class="sty-grp">${g}</div>` : ''; _lg = g; return h + `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, v.name)}</button>`; }).join('')
         + `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">${lldStylePv('seasonal', 'Seasonal' + (sea ? ' (' + LLD_STYLES[sea].name + ')' : ''))}</button>`
         + `<button type="button" class="lld-style-btn ${cur === 'random' ? 'on' : ''}" data-style="random">${lldStylePv('random', '\uD83C\uDFB2 Random')}</button>`;
     const lab = t => `<div class="qt-l">${t}</div>`;
