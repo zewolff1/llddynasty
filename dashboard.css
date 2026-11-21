@@ -6011,3 +6011,13 @@ body.lld-sh2-on #team-settings-modal .settings-tabs{display:none}
 #sh2-bar{align-items:center;gap:10px;position:sticky;top:-16px;z-index:5;background:var(--card-bg);margin:-16px -16px 12px;padding:10px 16px;border-bottom:1px solid var(--card-border)}
 #sh2-bar button{width:34px;height:34px;border-radius:50%;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--text-main,#fff);font-size:18px;line-height:1;cursor:pointer}
 #sh2-bar b{font-size:calc(15px*var(--ts,1));font-weight:800}
+
+body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:absolute"] > *:not(#lld-acct){display:none!important}
+#lld-acct{position:relative}
+#lld-acct-b{padding:6px 12px;background:rgba(255,255,255,.06);color:var(--text-main,#fff);border:1px solid var(--card-border);border-radius:8px;font-size:calc(10px*var(--ts,1));font-weight:900;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+#lld-acct-m{position:absolute;right:0;top:100%;margin-top:6px;min-width:210px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.6);z-index:50;overflow:hidden}
+#lld-acct-m .am-i{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--card-border);padding:13px 14px;color:var(--text-main,#fff);font-size:calc(13px*var(--ts,1));font-weight:700;text-decoration:none;cursor:pointer}
+#lld-acct-m .am-i:first-child{border-top:0}
+#lld-acct-m .am-i:active{background:rgba(255,255,255,.07)}
+#lld-acct-m .am-h{padding:10px 14px 4px;font-size:calc(9px*var(--ts,1));font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);border-top:1px solid var(--card-border)}
+#lld-acct-m .am-out{color:#ef4444}

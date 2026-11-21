@@ -25608,8 +25608,31 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     }
     function fallback(e) { try { console.warn('settings home', e); document.body.classList.remove('lld-sh2-on'); $('#lld-sh2').remove(); $('#tab-display .lld-sp').each(function () { $(this).css('display', ''); }); $('#team-settings-modal .settings-tab-content').hide(); $('#tab-display').show(); $('.settings-tab-btn').removeClass('active').filter('[data-target="tab-display"]').addClass('active'); } catch (x) { } }
     function home() { try { home0(); } catch (e) { fallback(e); } }
+    function acct() {
+        const bar = document.querySelector('#team-settings-modal .settings-header > div'); if (!bar || document.getElementById('lld-acct')) return;
+        const w = document.createElement('div'); w.id = 'lld-acct'; w.innerHTML = '<button type="button" id="lld-acct-b">Account \u25BE</button><div id="lld-acct-m" style="display:none;"></div>';
+        bar.appendChild(w);
+    }
+    function acctMenu() {
+        const hdr = $('#team-settings-modal .settings-header > div').first(); let h = '';
+        const f = String(window._lldMyFid || '').padStart(4, '0');
+        const appCommish = !!(window.LLD_STANDALONE && typeof window.lldAppBecome === 'function');
+        if (window._commishToggleUrl || appCommish) h += `<button type="button" class="am-i" data-a="role">${f === '0000' ? 'Switch to Owner (0001)' : 'Switch to Commish (0000)'}</button>`;
+        try { const L = (window.LLD_STANDALONE && window.lldAppLeagues) ? window.lldAppLeagues() : []; if (L.length > 1) { h += '<div class="am-h">League</div>'; L.forEach(l => { h += `<button type="button" class="am-i" data-a="lg" data-id="${l.id}">${l.active ? '\u2713 ' : ''}${String(l.name).replace(/</g, '&lt;')}</button>`; }); } } catch (e) { }
+        const m10 = hdr.find('a').filter(function () { return /Msg 10/.test(this.textContent); }); if (m10.length && !window.LLD_STANDALONE) h += `<a class="am-i" href="${m10.attr('href')}">Message 10</a>`;
+        h += '<button type="button" class="am-i am-out" data-a="out">Sign out</button>';
+        return h;
+    }
+    $(document).on('click', '#lld-acct-b', function (e) { e.stopPropagation(); const m = $('#lld-acct-m'); if (m.is(':visible')) { m.hide(); return; } m.html(acctMenu()).show(); });
+    $(document).on('click', '#team-settings-modal', function (e) { if (!$(e.target).closest('#lld-acct').length) $('#lld-acct-m').hide(); });
+    $(document).on('click', '#lld-acct-m .am-i[data-a]', function () {
+        const a = this.dataset.a; $('#lld-acct-m').hide();
+        if (a === 'role') $('#settings-commish-toggle').trigger('click');
+        else if (a === 'lg') { try { window.lldAppSwitch && window.lldAppSwitch(this.dataset.id); } catch (e) { } }
+        else if (a === 'out') { const o = $('#team-settings-modal .settings-header > div').first().find('a').filter(function () { return /Sign Out/i.test(this.textContent); })[0]; if (o) o.click(); }
+    });
     function home0() {
-        setup(); document.body.classList.add('lld-sh2-on');
+        acct(); setup(); document.body.classList.add('lld-sh2-on');
         $('#team-settings-modal .settings-tab-content').hide(); $('#sh2-bar').hide(); $('#sh2-home').show();
         $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
     }
