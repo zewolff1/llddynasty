@@ -23,7 +23,7 @@
     d.innerHTML = '<div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;margin-bottom:6px">Notifications</div>' +
       '<div id="lld-nf-boot" style="font-size:11px;color:var(--text-dim);margin-bottom:6px"></div>' +
       '<div id="lld-nf-st" style="font-size:12px;color:var(--text-dim);margin-bottom:8px"></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" id="lld-nf-on" class="lld-nf-b">Turn on</button><button type="button" id="lld-nf-test" class="lld-nf-b">Send test notification</button></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" id="lld-nf-on" class="lld-nf-b">Turn on</button><button type="button" id="lld-nf-test" class="lld-nf-b">Send test notification</button></div><select id="lld-nf-kind" class="lld-nf-b" style="margin-bottom:8px;width:100%"><option value="basic">Test type: Basic message</option><option value="offer">Trade offer to me</option><option value="trade">Completed trade</option><option value="tx">Add / drop / waiver</option><option value="lineup">Lineup problem</option><option value="preview">Matchup preview</option><option value="recap">Weekly recap</option><option value="board">Message board post</option><option value="tb">Trade block update</option></select>' +
       '<div id="lld-nf-pf" style="display:none;flex-direction:column;gap:6px">' + KINDS.map(function (k) { return '<label style="display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;color:#fff"><input type="checkbox" data-k="' + k[0] + '" checked> ' + k[1] + '</label>'; }).join('') + '</div>';
     host.insertBefore(d, host.firstChild);
     try { var t = window.LLD_BOOT || {}; if (isBeta()) document.getElementById('lld-nf-boot').textContent = 'Last launch: version check ' + (t.version || '?') + ' ms, files ' + (t.files || '?') + ' ms, dashboard loaded at ' + (t.dashboard || '?') + ' ms'; } catch (e) { }
@@ -103,7 +103,7 @@
       say('Sending test…');
       reg().then(function (r) { return r.pushManager.getSubscription().then(function (s) {
         if (!s) throw new Error('turn notifications on first');
-        return idOf(s).then(function (id) { return fetch(W + '/testme?id=' + id).then(function (x) { return x.json().catch(function () { return {}; }); }).then(function (j) {
+        return idOf(s).then(function (id) { return fetch(W + '/testme?id=' + id + '&kind=' + encodeURIComponent((document.getElementById('lld-nf-kind') || {}).value || 'basic')).then(function (x) { return x.json().catch(function () { return {}; }); }).then(function (j) {
           if (j && j.ok) { say('Test sent. It should arrive in a few seconds.'); return; }
           // alerts Worker is older than this app (no /testme yet): still prove this phone can show notifications
           return r.showNotification('LLD Alerts', { body: 'Local test: this phone can show notifications. (Update the alerts Worker for a full end-to-end test.)', icon: 'icon-192.png' }).then(function () { say('Showed a local test. The alerts Worker needs the new version for a full test.'); });

@@ -6074,3 +6074,7 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 .sh2-seg button.on{background:var(--accent-blue);color:#04201c}
 .sh2-hint{font-size:calc(10px*var(--ts,1));color:var(--text-dim);line-height:1.4;margin-top:2px}
 #tab-style .ts-style-block, #tab-team-set #tab-style{border-top:0}
+
+/* tab icons (trade offer / lineup problem) */
+.sub-tab-btn.lld-ti::after{content:attr(data-ti);display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:#22c55e;color:#fff;font-size:10px;font-weight:900;line-height:1;vertical-align:1px}
+.sub-tab-btn.lld-ti-err::after{background:#ef4444}

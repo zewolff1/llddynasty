@@ -177,12 +177,13 @@ const LLD_TK_SRC = {
     proj: { n: 'Top Projections', d: 'Highest projected players this week', max: 10, def: 5, on: 1 },
     projt: { n: 'Team Projections', d: 'Lineups projected to score the most this week', max: 8, def: 3, on: 0 },
     draft: { n: 'Draft Order', d: 'Projected round 1 order (lowest Max PF picks first, champion last)', max: 12, def: 12, on: 1 },
+    deadline: { n: 'Trade Deadline', d: 'Days left until the trade deadline (hidden once it passes)', max: 1, def: 1, on: 1 },
     block: { n: 'Trade Block', d: 'Players owners marked Seeking Trades', max: 10, def: 6, on: 1 },
     streak: { n: 'Streaks', d: 'Teams on a run of wins or losses', max: 8, def: 3, on: 0 },
     pf: { n: 'Points Leaders', d: 'Top scorers on the season so far', max: 12, def: 5, on: 0 },
     board: { n: 'Message Board', d: 'Newest topics from the league board', max: 8, def: 4, on: 0 }
 };
-const LLD_TK_ORDER = ['standings', 'matchups', 'last', 'tx', 'proj', 'projt', 'draft', 'block', 'streak', 'pf', 'board'];
+const LLD_TK_ORDER = ['deadline', 'standings', 'matchups', 'last', 'tx', 'proj', 'projt', 'draft', 'block', 'streak', 'pf', 'board'];
 function lldTkName(id) {
     if (id === 'draft') return ((parseInt((window.LLD_YEAR ? String(window.LLD_YEAR) : (location.href.match(/\/(\d{4})\//) || [])[1]) || new Date().getFullYear(), 10) || new Date().getFullYear()) + 1) + ' Draft Order';
     return (LLD_TK_SRC[id] || {}).n || id;
@@ -283,6 +284,13 @@ async function lldTkPlayers(yr, lg, ids) {
     return id => window._lldTickPl[id] || { name: '#' + id, pos: '' };
 }
 const LLD_TK_GET = {
+    deadline: async () => {
+        const dl = await lldTbDeadline(); if (!dl || !dl.date) return [];
+        const end = dl.at ? new Date(dl.at) : new Date(dl.date.getFullYear(), dl.date.getMonth(), dl.date.getDate(), 23, 59, 59);
+        const ms = end - new Date(); if (ms <= 0) return [];
+        const d = Math.ceil(ms / 864e5);
+        return [d <= 1 ? '\u23F3 TRADE DEADLINE IS TODAY' : '\u23F3 ' + d + ' DAYS UNTIL THE TRADE DEADLINE'];
+    },
     standings: async c => c.rows.map((r, i) => `${i + 1}. ${c.lt(r.id)} ${r.w}-${r.l}${r.t ? '-' + r.t : ''}`),
     matchups: async c => {
         if (!c.wkS) return [];
@@ -1632,7 +1640,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-21 sh2-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-21 tk-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -7698,6 +7706,7 @@ function getBestBenchOption(slot) {
         try { // numbers for the to-do list
             const bad0 = lldIrIneligible();
             window._lldTdLu = { fid: fid, week: window._lldLineupWeek || window._lldServedWeek || '', empty: empty, noRep: noRep.slice(), irNames: bad0.names.slice(), irMsg: bad0.msg || '', block: window._lldLineupBlock || '' };
+            window._lldLuErr = !!(empty > 0 || zero.length || bad0.names.length || bad0.msg || window._lldLineupBlock); if (window.lldTabIcons) window.lldTabIcons();
             if (window.lldTdRefresh) window.lldTdRefresh();
         } catch (e) { }
         if (window._lldLineupBlock) $(container).append(`<div class="lineup-alert alert-error">⛔ ${$('<i>').text(window._lldLineupBlock).html()} Fix your IR below, then your lineup will open.</div>`);
@@ -25792,4 +25801,26 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     } catch (e) { }
     setTimeout(function () { try { scan(document.body); } catch (e) { } }, 1500);
     setInterval(function () { try { scan(document.body); } catch (e) { } }, 6000);
+})();
+
+// tab icons: on Trade when an offer is waiting for you, on Lineup when your lineup has a problem
+(function () {
+    function btn(label) { return $('#subtabs-team .sub-tab-btn').filter(function () { return $(this).text().replace(/[^A-Za-z]/g, '') === label; }); }
+    window.lldTabIcons = function () {
+        try {
+            btn('Trade').toggleClass('lld-ti', !!window._lldTradeOffer).attr('data-ti', '\u21C4');
+            btn('Lineup').toggleClass('lld-ti lld-ti-err', !!window._lldLuErr).attr('data-ti', '!');
+        } catch (e) { }
+    };
+    async function offers() {
+        try {
+            const me = String(window._lldMyFid || '').padStart(4, '0'); if (!/^\d{4}$/.test(me)) return;
+            const yr = window.LLD_YEAR || (location.href.match(/\/(\d{4})\//) || [])[1] || new Date().getFullYear(), lg = (location.href.match(/\/home\/(\d+)/) || [])[1] || (window.LLD && LLD.leagueId);
+            const r = await fetch(`${location.origin}/${yr}/export?TYPE=pendingTrades&L=${lg}&JSON=1`, { credentials: 'include' }); const j = await r.json();
+            let a = (j && j.pendingTrades && j.pendingTrades.pendingTrade) || []; if (!Array.isArray(a)) a = [a];
+            window._lldTradeOffer = a.some(o => o && String(o.offeredto || o.offeredTo || '').padStart(4, '0') === me);
+            window.lldTabIcons();
+        } catch (e) { }
+    }
+    $(function () { setTimeout(offers, 2500); setInterval(offers, 120000); setInterval(window.lldTabIcons, 4000); });
 })();
