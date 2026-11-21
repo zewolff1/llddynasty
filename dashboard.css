@@ -5992,3 +5992,22 @@ body.lld-clr .lld-clr-f.ls .lld-clr-rk { min-width: 0; overflow: hidden; }
 #cm-td{margin:0 0 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;overflow:hidden}
 #cm-td .td-hd{padding:12px 12px 8px}
 #cm-td .td-hd b{font-size:calc(14px * var(--ts,1));color:#fff}
+/* ===== Settings home (beta) ===== */
+body.lld-sh2-on #team-settings-modal .settings-tabs{display:none}
+#lld-sh2{margin:-4px 0 6px}
+.sh2-search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:12px;padding:0 12px;margin:0 0 4px}
+.sh2-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text-main,#fff);font-size:max(16px,calc(14px*var(--ts,1)));padding:11px 0}
+.sh2-gl{margin:18px 4px 8px;font-size:calc(10px*var(--ts,1));font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-blue)}
+.sh2-grp{background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;overflow:hidden}
+.sh2-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--card-border);padding:13px 12px;color:var(--text-main,#fff);cursor:pointer}
+.sh2-row:first-child{border-top:0}
+.sh2-row:active{background:rgba(255,255,255,.06)}
+.sh2-t{flex:1;min-width:0}
+.sh2-t b{display:block;font-size:calc(14px*var(--ts,1));font-weight:700}
+.sh2-t span{display:block;font-size:calc(11px*var(--ts,1));color:var(--text-dim);margin-top:2px}
+.sh2-v{font-size:calc(12px*var(--ts,1));font-weight:700;color:var(--text-dim);white-space:nowrap;max-width:42%;overflow:hidden;text-overflow:ellipsis}
+.sh2-ch{color:var(--text-dim);font-size:18px;line-height:1}
+.sh2-none{text-align:center;color:var(--text-dim);padding:28px 0;font-size:calc(13px*var(--ts,1))}
+#sh2-bar{align-items:center;gap:10px;position:sticky;top:-16px;z-index:5;background:var(--card-bg);margin:-16px -16px 12px;padding:10px 16px;border-bottom:1px solid var(--card-border)}
+#sh2-bar button{width:34px;height:34px;border-radius:50%;border:1px solid var(--card-border);background:rgba(255,255,255,.05);color:var(--text-main,#fff);font-size:18px;line-height:1;cursor:pointer}
+#sh2-bar b{font-size:calc(15px*var(--ts,1));font-weight:800}

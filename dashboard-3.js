@@ -1632,7 +1632,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-21 logofb-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-21 sh2-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -25538,3 +25538,98 @@ function lldMyBlockGo() {
     }, true);
 });
 setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
+
+// ===== SETTINGS HOME (beta, 0000/0001): grouped list, one short page per group, search =====
+(function () {
+    const PG = {
+        theme: 'Theme', text: 'Text & layout', logos: 'Logos', scores: 'Scores & ticker',
+        team: 'Team name style', league: 'MFL setup', sleeper: 'Sleeper', labs: 'Labs'
+    };
+    function split() {
+        const d = document.getElementById('tab-display'); if (!d || d.dataset.sh2) return; d.dataset.sh2 = '1';
+        const pages = {}; const mk = k => pages[k] || (pages[k] = Object.assign(document.createElement('div'), { className: 'lld-sp' }, { }));
+        let cur = 'theme';
+        Array.from(d.children).forEach(el => {
+            const st = el.getAttribute('style') || '', t = (el.textContent || '').trim();
+            if (/accent-blue/.test(st) && /uppercase/.test(st) && /calc\(11px/.test(st) && el.children.length === 0) {
+                if (/^(Season|Theme)$/i.test(t)) cur = 'theme'; else if (/^NFL Logos$/i.test(t)) cur = 'logos';
+                else if (/^Hide scores$/i.test(t)) cur = 'scores'; else if (/^Text Size$/i.test(t) || /^More$/i.test(t)) cur = 'text';
+            } else if (/^Ticker/i.test(t)) cur = 'scores';
+            else if (el.querySelector('.lld-ft') || /Beta features/.test(t)) cur = 'labs';
+            else if (/^Owner name/i.test(t)) cur = 'text';
+            mk(cur).appendChild(el);
+        });
+        ['theme', 'text', 'logos', 'scores', 'labs'].forEach(k => { const p = mk(k); p.dataset.sp = k; p.style.display = 'none'; d.appendChild(p); });
+    }
+    function val(k) {
+        try {
+            if (k === 'theme') { const s = lldGet('lld_style', 'classic'); return (LLD_STYLES[s] && LLD_STYLES[s].name) || (s === 'seasonal' ? 'Seasonal' : s === 'random' ? 'Random' : s); }
+            if (k === 'text') { const n = parseFloat(lldGet('lld_text_scale', '1')); return n < 1 ? 'Small' : n === 1 ? 'Normal' : n < 1.2 ? 'Large' : 'X-Large'; }
+            if (k === 'logo') return String(lldLogoStyle()).replace(/^./, c => c.toUpperCase());
+            if (k === 'wml') return lldBv('wml') === 'logo' ? 'By position' : 'Watermark';
+            if (k === 'rv') return lldBv('rv') === '1' ? 'On' : 'Off';
+            if (k === 'tk') return lldTickOn(lldEffStyle()) ? 'On' : 'Off';
+        } catch (e) { }
+        return '';
+    }
+    function rows() {
+        const sl = typeof lldSltOn === 'function' && lldSltOn();
+        const R = [
+            ['Look and feel', 'Theme', 'Style, season, holiday animation, page width', val('theme'), 'theme'],
+            ['Look and feel', 'Text & layout', 'Text size, owner name in header', val('text'), 'text'],
+            ['Logos', 'NFL team logos', 'Modern, Throwback, Leatherhead, Alternate, Helmet', val('logo'), 'logos'],
+            ['Logos', 'Logo on player rows', 'Watermark or logo by position', val('wml'), 'logos'],
+            ['Scores', 'Hide scores', 'Spoiler protection for live games', val('rv'), 'scores'],
+            ['Scores', 'Ticker', 'The scrolling line under the header', val('tk'), 'scores'],
+            ['My team', 'Team name style', 'Owner, font, glow and outline', '', 'team'],
+            ['League', 'MFL setup', 'Opens on MFL’s own site', '', 'league']
+        ];
+        if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
+        R.push(['Labs', 'Labs & developer tools', 'Early features, row tuner, commissioner links', '', 'labs']);
+        return R;
+    }
+    function homeHtml(f) {
+        f = (f || '').trim().toLowerCase(); let h = '', last = '', n = 0;
+        rows().forEach(r => {
+            if (f && !r.join(' ').toLowerCase().includes(f)) return;
+            if (r[0] !== last) { if (last) h += '</div>'; h += `<div class="sh2-gl">${r[0]}</div><div class="sh2-grp">`; last = r[0]; }
+            h += `<button type="button" class="sh2-row" data-go="${r[4]}"><span class="sh2-t"><b>${r[1]}</b><span>${r[2]}</span></span>${r[3] ? `<span class="sh2-v">${r[3]}</span>` : ''}<span class="sh2-ch">›</span></button>`; n++;
+        });
+        if (last) h += '</div>';
+        return h + (n ? '' : '<div class="sh2-none">Nothing matches that. Try “logo”, “theme” or “scores”.</div>');
+    }
+    function setup() {
+        const area = document.querySelector('#team-settings-modal .settings-content-area'); if (!area || document.getElementById('lld-sh2')) return;
+        split();
+        const w = document.createElement('div'); w.id = 'lld-sh2';
+        w.innerHTML = `<div id="sh2-home"><label class="sh2-search"><span>⌕</span><input id="sh2-q" type="search" placeholder="Search settings" autocomplete="off"></label><div id="sh2-list"></div></div><div id="sh2-bar" style="display:none;"><button type="button" id="sh2-back">‹</button><b id="sh2-title"></b></div>`;
+        area.insertBefore(w, area.firstChild);
+    }
+    function home() {
+        setup(); document.body.classList.add('lld-sh2-on');
+        $('#team-settings-modal .settings-tab-content').hide(); $('#sh2-bar').hide(); $('#sh2-home').show();
+        $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
+    }
+    function page(k) {
+        $('#sh2-home').hide(); $('#team-settings-modal .settings-tab-content').hide();
+        $('#sh2-title').text(PG[k] || ''); $('#sh2-bar').css('display', 'flex');
+        const map = { theme: 'display', text: 'display', logos: 'display', scores: 'display', labs: 'display', team: 'team-set', league: 'mflmenu', sleeper: 'sleeper' };
+        $('#tab-display .lld-sp').hide();
+        if (map[k] === 'display') { $('#tab-display').show(); $(`#tab-display .lld-sp[data-sp="${k}"]`).show(); }
+        else $('#tab-' + map[k]).show();
+        if (k === 'league') { try { renderMflMenu(); } catch (e) { } }
+        if (k === 'sleeper') { try { lldSltSetRender(); } catch (e) { } }
+        if (k === 'team') { try { renderFontGrid(currentFontCategory); setTimeout(applyStylePreview, 100); } catch (e) { } }
+        if (k === 'logos') { try { updateLogoStyleButtons(); } catch (e) { } }
+        if (k === 'labs') setTimeout(lldFtFill, 50);
+        $('.settings-content-area').scrollTop(0);
+    }
+    $(document).on('click touchend', '.open-settings-btn', function () {
+        if (!lldDev()) return; setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
+    });
+    $(document).on('click', '#lld-sh2 .sh2-row', function () { page(this.dataset.go); });
+    $(document).on('click', '#sh2-back', home);
+    $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
+    // keep the row values fresh after a change on a page
+    $(document).on('click', '#tab-display .lld-sp button', function () { setTimeout(() => { if ($('#sh2-home').is(':hidden')) return; $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 60); });
+})();
