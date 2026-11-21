@@ -18363,7 +18363,7 @@ async function lldPoAt(wk) {
 }
 
 // ===== Game by game replay slide (beta, switch gbg): plays that change a starter's fantasy points in your matchup, one NFL game at a time =====
-function lldGbgOn() { try { return lldBv('gbg') === '1'; } catch (e) { return false; } }
+function lldGbgOn() { return false; } // play by play removed from recaps
 function lldGbgCfg() {
     let c = {}; try { c = JSON.parse(lldGet('lld_gbg_cfg', '{}')) || {}; } catch (e) { }
     const o = Object.assign({}, lldGbgDef(), c); o.show = Object.assign({}, lldGbgDef().show, c.show || {});
@@ -18730,7 +18730,13 @@ function lldEmbMusic(kind) {
     const yt = lldYtId(pick);
     if (!yt) { stMusicStart('', kind); return; } // an audio file: the browser may still wait for a tap, the circle button starts it
     window._stPick = pick; window._stYtPrep = yt.id;
-    lldYtPlay(yt, false, true).then(() => { setTimeout(() => { if (window._stYtPrep) $('#lld-yt .yt-pp').addClass('need'); }, 300); }).catch(() => { });
+    lldYtPlay(yt, false, true).then(() => {
+        let n = 0; const tryGo = () => { // browsers that allow it start right away; phones keep waiting for a tap on the circle
+            const y = window._stYt; if (!window._stYtPrep || !$('#lld-story').length) return;
+            if (window._stYtReady && y && y.playVideo) { try { y.unMute(); y.setVolume(55); y.playVideo(); } catch (x) { } setTimeout(() => { try { if (window._stYtPrep && y.getPlayerState() === 1) { window._stYtPrep = null; $('#lld-story .st-mu').show().text('🔊'); } else if (window._stYtPrep) $('#lld-yt .yt-pp').addClass('need'); } catch (x) { } }, 900); }
+            else if (++n < 20) setTimeout(tryGo, 200);
+        }; window._stYtReady = false; tryGo();
+    }).catch(() => { });
     $('#lld-story').off('.embmus').one('pointerdown.embmus touchend.embmus click.embmus', function () { if (window._stYtPrep) { try { localStorage.setItem('lld_st_mute', '0'); } catch (e) { } stMusicStart('', kind); } });
 }
 function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop(); }
