@@ -6150,3 +6150,10 @@ body.lld-hdl #lld-sh .bk[data-b="wk"] .top .m{font-size:calc(12px*var(--ts,1))}
 body.lld-hdl #lld-sh .bk[data-b="wk"] .pv{flex:none;padding:1px 5px;font-size:calc(8px*var(--ts,1))}
 body.lld-hdl #lld-sh .bk[data-b="wk"] .s2{flex:none;white-space:nowrap}
 body.lld-hdl #lld-sh .bk[data-b="wk"] .s2 u{display:none}
+/* compact header, Manage: Expiring + Dead money share the second row */
+body.lld-hdl #lld-sh .blks:has(.bk.left){flex-direction:row !important;flex-wrap:wrap;column-gap:0}
+body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk.left{flex:0 0 100%}
+body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left){flex:1 1 50%;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:5px 0 0}
+body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) + .bk:not(.left){padding-left:10px;border-left:1px solid rgba(255,255,255,.08)}
+body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{grid-row:auto;margin:0 0 1px}
+body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > .s2{margin-top:0}

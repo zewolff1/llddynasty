@@ -7315,7 +7315,7 @@ function schedPillHtml(sec) {
 function rankAvgHtml(pid, pos) {
     const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0';
     const r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
-    return `<span class="lld-rk" style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;"><span class="lld-rk-r" style="font-weight:900; color:var(--accent-blue);">${pos}${r}</span> <span class="lld-rk-a">${avg} AVG</span></span>`;
+    return `<span class="lld-rk" style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;"><span class="lld-rk-r" style="font-weight:900; color:var(--accent-blue);">${r}</span> <span class="lld-rk-a">${avg} AVG</span></span>`;
 }
 function projTopHtml(v) {
     return `<span class="proj-popup-trigger" data-proj="${v}" style="font-size:calc(13px * var(--ts,1)); font-weight:900; color:var(--accent-teal); white-space:nowrap; cursor:pointer;"><span class="lld-pj-n">${v}</span> <span class="lld-pj-l">PROJ</span></span>`;
