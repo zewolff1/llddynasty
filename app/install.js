@@ -52,10 +52,10 @@
 
   var ua = navigator.userAgent || '', q = /[?&]install=1\b/.test(location.search);
   var standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-  if (standalone && !q) return;
+  var noAuto = standalone && !q;   // already installed: no pop-up by itself, but Settings can still open this to change the icon
   var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var android = /Android/i.test(ua);
-  if (!ios && !android && !q) return;                       // desktop browsers: nothing to install
+  if (!ios && !android && !q) noAuto = true;                 // desktop browsers: nothing to install by itself
   var skipped = false; if (!q) { try { skipped = !!sessionStorage.getItem('lld_install_skip'); } catch (e) { } }
   var safari = ios && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
   var deferred = null;
@@ -118,18 +118,20 @@
     };
     var sv = startChoice(); if (sv === 'mfl') bm.onclick(); else if (sv && sv !== 'league') bt.onclick(); else bl.onclick();
   }
-  function show() {
+  function show(change) {
     if (document.getElementById('lld-inst')) return;
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
     var d = document.createElement('div'); d.id = 'lld-inst';
-    d.innerHTML = '<div class="c"><h2>Add LLD to your Home Screen</h2><p>It opens like a real app, loads faster, and is the only way to get alerts on iPhone. Takes about 10 seconds.</p>' + PICK + '<ol>' + steps + '</ol>' +
-      '<button type="button" id="lld-inst-go"' + (deferred ? ' style="display:block"' : '') + '>Install app</button><button type="button" id="lld-inst-skip">Not now, keep using the browser</button></div>';
+    var url = location.href.split('#')[0].split('?')[0];
+    var chg = change === true ? step('A', '', 'Pick the new icon above. Then <b>press and hold</b> the old LLD icon on your Home Screen and tap <b>Remove App</b> (a Home Screen icon cannot be changed in place).') + step('B', '', 'Open this address in <b>' + (ios ? 'Safari' : 'Chrome') + '</b>: <b style="word-break:break-all">' + url.replace(/</g, '&lt;') + '</b>') : '';
+    d.innerHTML = '<div class="c"><h2>' + (change === true ? 'Change your Home Screen icon' : 'Add LLD to your Home Screen') + '</h2><p>' + (change === true ? 'iPhone and Android save the icon when the app is added, so choose the icon you want and add the app again.' : 'It opens like a real app, loads faster, and is the only way to get alerts on iPhone. Takes about 10 seconds.') + '</p>' + PICK + '<ol>' + chg + steps + '</ol>' +
+      '<button type="button" id="lld-inst-go"' + (deferred ? ' style="display:block"' : '') + '>Install app</button><button type="button" id="lld-inst-skip">' + (change === true ? 'Close' : 'Not now, keep using the browser') + '</button></div>';
     document.body.appendChild(d);
     wirePicker();
-    document.getElementById('lld-inst-skip').onclick = function () { try { sessionStorage.setItem('lld_install_skip', '1'); } catch (e) { } d.remove(); };
+    document.getElementById('lld-inst-skip').onclick = function () { if (change !== true) { try { sessionStorage.setItem('lld_install_skip', '1'); } catch (e) { } } d.remove(); };
     document.getElementById('lld-inst-go').onclick = function () { if (deferred) { deferred.prompt(); deferred = null; d.remove(); } };
   }
   // the app calls this right after someone signs in from the browser, so the walkthrough comes back with their team already picked
-  window.lldInstallShow = function () { try { sessionStorage.removeItem('lld_install_skip'); } catch (e) { } show(); };
-  if (!skipped) { if (document.body) show(); else document.addEventListener('DOMContentLoaded', show); }
+  window.lldInstallShow = function (change) { try { sessionStorage.removeItem('lld_install_skip'); } catch (e) { } show(change === true); };
+  if (!skipped && !noAuto) { if (document.body) show(); else document.addEventListener('DOMContentLoaded', show); }
 })();

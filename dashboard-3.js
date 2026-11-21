@@ -25690,6 +25690,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (lldAdmin() || (LLD.adminFids || []).indexOf(String(window._lldMyFid || '')) >= 0) R.push(['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']);
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
         if (window.LLD_STANDALONE && !(window.LLD_APP && window.LLD_APP.other)) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Notifications', 'Pick which alerts this phone gets', '', 'notif']);
+        if (window.LLD_STANDALONE && typeof window.lldInstallShow === 'function') R.push(['My team', 'Home Screen icon', 'Change the app icon, then add the app again', '', 'icon']);
         R.push(['Labs', 'Labs', 'Early features and the row tuner', '', 'labs']);
         return R;
     }
@@ -25803,7 +25804,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('click touchend', '.open-settings-btn', function () {
         let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
-    $(document).on('click', '#lld-sh2 .sh2-row', function () { try { page(this.dataset.go); } catch (e) { fallback(e); } });
+    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
     $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
     // keep the row values fresh after a change on a page
