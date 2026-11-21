@@ -6083,3 +6083,12 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 @keyframes lldNeed{50%{transform:scale(1.18)}}
 
 .apv-wk .pj.est{opacity:.65;font-style:italic}
+
+/* theme buttons with a preview banner under the name */
+.lld-style-btn{display:flex !important;flex-direction:column;align-items:stretch;gap:6px;text-align:center}
+.lld-style-btn .sty-l{font-weight:900}
+.sty-pv{position:relative;overflow:hidden;border-radius:8px;height:44px;padding:6px 8px;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1.1;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.sty-pv b{font-size:12px;letter-spacing:.04em;white-space:nowrap}
+.sty-pv i{font-style:normal;font-size:9px;opacity:.85;white-space:nowrap;font-weight:600}
+.sty-pv .sty-d{position:absolute;left:0;right:0;bottom:0;height:5px;display:flex}.sty-pv .sty-d u{flex:1}
+.sty-pv .sty-g{position:absolute;right:5px;top:3px;font-size:14px}
