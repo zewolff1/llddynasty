@@ -6068,3 +6068,9 @@ body.lld-sh2-on #team-settings-modal .settings-header > div[style*="position:abs
 .sh2-lbd{font-size:calc(10px*var(--ts,1));font-weight:900}
 .sh2-lb.on{border-color:var(--accent-blue);box-shadow:0 0 0 1px var(--accent-blue) inset;background:rgba(255,255,255,.08)}
 .sh2-lb.miss{opacity:.3;cursor:default}
+
+.sh2-seg{display:flex;background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:12px;padding:3px;gap:3px;margin:0 0 14px}
+.sh2-seg button{flex:1;border:0;background:none;border-radius:9px;padding:10px 6px;font-size:calc(12px*var(--ts,1));font-weight:800;color:var(--text-dim);cursor:pointer}
+.sh2-seg button.on{background:var(--accent-blue);color:#04201c}
+.sh2-hint{font-size:calc(10px*var(--ts,1));color:var(--text-dim);line-height:1.4;margin-top:2px}
+#tab-style .ts-style-block, #tab-team-set #tab-style{border-top:0}

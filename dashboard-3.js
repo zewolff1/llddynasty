@@ -4613,7 +4613,7 @@ async function saveAllTeamStylesToHomepage() {
         const params = new URLSearchParams();
         params.set('LEAGUE_ID', lid);
         params.set('NAME', 'message9');
-        params.set('MSG', `<!--TEAMSTYLES:${stylesJson}-->`);
+        params.set('MSG', `<!--TEAMSTYLES:${stylesJson}--><!--TEAMLOCS:${JSON.stringify(window._teamLocs || {})}-->`);
         params.set('LABEL', '');
         params.set('IN_HEADER', 'Yes');
         params.set('IN_FOOTER', 'Yes');
@@ -4628,6 +4628,9 @@ async function saveAllTeamStylesToHomepage() {
     }
 }
 
+window._teamLocs = window._teamLocs || {};
+function lldLocGet(f) { let v = ''; try { v = localStorage.getItem(`franchise_location_${f}`) || ''; } catch (e) { } return v || (window._teamLocs && window._teamLocs[f]) || ''; }
+function lldLocSet(f, v) { try { localStorage.setItem(`franchise_location_${f}`, v); } catch (e) { } window._teamLocs = window._teamLocs || {}; const same = (window._teamLocs[f] || '') === v; if (v) window._teamLocs[f] = v; else delete window._teamLocs[f]; if (!same) { try { saveAllTeamStylesToHomepage(); } catch (e) { } } }
 async function loadAllTeamStylesFromHomepage() {
     window._teamStyles = {};
     try {
@@ -4636,6 +4639,7 @@ async function loadAllTeamStylesFromHomepage() {
         const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         const content = doc.querySelector('textarea[name="MSG"]')?.value || '';
         
+        try { const lm = content.match(/<!--TEAMLOCS:(.*?)-->/s); if (lm) window._teamLocs = JSON.parse(lm[1]) || {}; } catch (e) { }
         const match = content.match(/<!--TEAMSTYLES:(.*?)-->/s);
         if (match) {
             window._teamStyles = JSON.parse(match[1]);
@@ -4649,6 +4653,7 @@ async function loadAllTeamStylesFromHomepage() {
         // Fallback — try reading from the rendered page HTML
         // MFL injects SEQNO messages into the page if IN_HEADER is Yes
         const pageText = document.documentElement.innerHTML;
+        try { const lm2 = pageText.match(/<!--TEAMLOCS:(.*?)-->/s); if (lm2) window._teamLocs = JSON.parse(lm2[1]) || {}; } catch (e) { }
         const pageMatch = pageText.match(/<!--TEAMSTYLES:(.*?)-->/s);
         if (pageMatch) {
             window._teamStyles = JSON.parse(pageMatch[1]);
@@ -7783,7 +7788,7 @@ $(document).on('click', '#edit-team-name-btn', function() {
     const current = ($('#settings-team-name').text() || leagueFranchises[myFid] || '').trim();
     const parts = current.split(' ');
     // Try to split location from team name using saved location
-    const savedLoc = localStorage.getItem(`franchise_location_${myFid}`) || '';
+    const savedLoc = lldLocGet(myFid);
     $('#edit-location').val(savedLoc);
     $('#edit-teamname').val(savedLoc ? current.replace(savedLoc, '').trim() : current);
     $('#edit-team-name-form').css('display', 'flex');
@@ -7799,7 +7804,7 @@ $(document).on('click', '#edit-team-name-save', async function() {
     const location = $('#edit-location').val().trim();
     const teamName = $('#edit-teamname').val().trim();
     const fullName = location ? `${location} ${teamName}` : teamName;
-    localStorage.setItem(`franchise_location_${myFid}`, location);
+    lldLocSet(myFid, location);
 
     $(this).text('Saving...').prop('disabled', true);
     try {
@@ -10869,7 +10874,7 @@ $(document).on('click touchend', '.open-settings-btn', async function() {
         const r1 = await fetch(`${MFL_ORIGIN}/${year}/csetup?L=${lid}&FRANCHISES=${Object.keys(leagueFranchises).join(',') || myFid}&C=FRANCHISE`, { credentials: 'include', cache: 'no-store' });
         const doc1 = new DOMParser().parseFromString(await r1.text(), 'text/html');
 const fullName = doc1.querySelector(`#FRANCHISE_NAME${myFid}`)?.value || leagueFranchises[myFid] || $('#settings-team-name').text().trim() || '';
-const savedLocation = localStorage.getItem(`franchise_location_${myFid}`) || '';
+const savedLocation = lldLocGet(myFid);
 $('#ts-owner-name').val(doc1.querySelector(`#FRANCHISE_OWNER_NAME${myFid}`)?.value || '');
 $('#ts-email').val(doc1.querySelector(`#FRANCHISE_EMAIL${myFid}`)?.value || '');
 $('#edit-location').val(savedLocation);
@@ -10930,10 +10935,10 @@ params.set('L', lid);
         });
 
         // Override just your franchise with the new values
-const location = ($('#ts-location').val() || '').trim() || $('#edit-location').val().trim() || localStorage.getItem(`franchise_location_${myFid}`) || '';
+const location = ($('#ts-location').val() || '').trim() || $('#edit-location').val().trim() || lldLocGet(myFid);
         const teamName = ($('#ts-teamname').val() || '').trim() || $('#edit-teamname').val().trim() || $('#settings-team-name').text().replace(location, '').trim();
         const fullName = location ? `${location} ${teamName}` : teamName;
-        localStorage.setItem(`franchise_location_${myFid}`, location);
+        lldLocSet(myFid, location);
 
         params.set(`FRANCHISE_NAME${myFid}`, fullName);
         params.set(`FRANCHISE_OWNER_NAME${myFid}`, $('#ts-owner-name').val().trim());
@@ -25592,7 +25597,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 (function () {
     const PG = {
         theme: 'Theme', text: 'Text & layout', logos: 'Logos', scores: 'Scores & ticker',
-        team: 'Team name style', notif: 'Notifications', comm: 'Commissioner tools', sleeper: 'Sleeper', labs: 'Labs'
+        team: 'My team', notif: 'Notifications', comm: 'Commissioner tools', sleeper: 'Sleeper', labs: 'Labs'
     };
     function split() {
         const d = document.getElementById('tab-display'); if (!d || d.dataset.sh2) return; d.dataset.sh2 = '1';
@@ -25630,7 +25635,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             ['Logos', 'Logo on player rows', 'Watermark or logo by position', val('wml'), 'logos'],
             ['Scores', 'Hide scores', 'Spoiler protection for live games', val('rv'), 'scores'],
             ['Scores', 'Ticker', 'The scrolling line under the header', val('tk'), 'scores'],
-            ['My team', 'Team name style', 'Owner, font, glow and outline', '', 'team'],
+            ['My team', 'Team info & name style', 'Owner, email, location, team name, font and colors', '', 'team'],
             ['League', 'Commissioner tools', 'MFL setup and admin links (open on MFL’s site)', '', 'comm']
         ];
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
@@ -25690,6 +25695,28 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         $('#team-settings-modal .settings-tab-content').hide(); $('#sh2-bar').hide(); $('#sh2-home').show();
         $('#sh2-q').val(''); $('#sh2-list').html(homeHtml('')); $('.settings-content-area').scrollTop(0);
     }
+    function teamTabs() {
+        const host = document.getElementById('tab-team-set'); if (!host) return;
+        const W = host.querySelector(':scope > div:not(#lld-notif-box)'); if (!W) return;
+        if (!document.getElementById('sh2-tt')) {
+            const t = document.createElement('div'); t.id = 'sh2-tt'; t.className = 'sh2-seg';
+            t.innerHTML = '<button type="button" data-v="info" class="on">Team info</button><button type="button" data-v="style">Name style</button>';
+            host.insertBefore(t, host.firstChild);
+            const tn = document.getElementById('ts-teamname');
+            if (tn && tn.parentElement) { const h = document.createElement('div'); h.id = 'sh2-full'; h.className = 'sh2-hint'; tn.parentElement.appendChild(h); }
+            const lab = document.getElementById('ts-location'); if (lab && lab.parentElement) { const h = document.createElement('div'); h.className = 'sh2-hint'; h.textContent = 'Optional. MFL only stores one name, so this is joined to the team name below and remembered for you.'; lab.parentElement.appendChild(h); }
+        }
+        teamShow('info');
+    }
+    function teamShow(v) {
+        const host = document.getElementById('tab-team-set'), W = host && host.querySelector(':scope > div:not(#lld-notif-box):not(#sh2-tt)'); if (!W) return;
+        $('#sh2-tt button').removeClass('on').filter('[data-v="' + v + '"]').addClass('on');
+        Array.from(W.children).forEach(el => { el.style.display = (v === 'style') === (el.id === 'tab-style') ? '' : 'none'; });
+        fullHint();
+    }
+    function fullHint() { const l = ($('#ts-location').val() || '').trim(), n = ($('#ts-teamname').val() || '').trim(); $('#sh2-full').text(n ? 'Shows in the league as: ' + (l ? l + ' ' : '') + n : ''); }
+    $(document).on('click', '#sh2-tt button', function () { teamShow(this.dataset.v); });
+    $(document).on('input', '#ts-location, #ts-teamname', fullHint);
     function logosExtras() {
         const pg = $('#tab-display .lld-sp[data-sp="logos"]'); if (!pg.length) return;
         const cur = window.lldBv('wml') === 'logo' ? 'logo' : 'wm', row = window.lldPvRow ? window.lldPvRow() : '';
@@ -25715,6 +25742,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (tab === 'tab-display') { $('#tab-display').show(); $(`#tab-display .lld-sp[data-sp="${k}"]`).show(); }
         else $('#' + tab).show();
         if (k === 'comm') $('#tab-dev').show();
+        if (k === 'team') { try { teamTabs(); } catch (e) { console.warn('team tabs', e); } }
         if (k === 'logos') { try { logosExtras(); } catch (e) { console.warn('logos page', e); } }
         $('.settings-content-area').scrollTop(0);
     }
