@@ -81,11 +81,18 @@ const LLD_STYLES = {
     "season_christmas": { name: "Christmas", group: "Seasonal", file: "more", fonts: "family=Cinzel:wght@600;700", scene: {"title": "MERRY CHRISTMAS", "sub": "Gridiron holiday edition", "lights": true, "bg": "linear-gradient(180deg, #14452b 0%, #0d2a1b 100%)", "font": "\"Cinzel\", Georgia, serif", "fw": 700, "g": "❄"} },
 };
 // little preview shown inside each theme button: the theme's own banner colors, font and decoration
+// compact theme chips: [background, border/accent, text]
+const LLD_CHIP = { tundra: ['linear-gradient(180deg,#123049,#07121d)', '#8fdcff', '#e6f6ff'], team_gb: ['#203731', '#ffb612', '#ffb612'], team_dal: ['#041e42', '#869397', '#ffffff'], team_car: ['#101820', '#0085ca', '#4fb3e8'], team_tb: ['#3a1612', '#d50a0a', '#ff7900'], team_nyg: ['#0b2265', '#a71930', '#ffffff'], team_nyj: ['#125740', '#ffffff', '#ffffff'], team_phi: ['#004c54', '#a5acaf', '#ffffff'], col_indigo: ['#1d2050', '#7c83ff', '#c7caff'], col_amber: ['#2a2417', '#f5a524', '#f5b948'], col_forest: ['#16301f', '#4ade80', '#86efac'], col_graphite: ['#2b1417', '#ef4444', '#f87171'], col_ocean: ['#0f3350', '#38bdf8', '#7dd3fc'] };
 function lldStylePv(k, label) {
     const sea = (typeof lldSeasonNow === 'function') ? lldSeasonNow() : '';
     const key = k === 'seasonal' ? (sea || 'classic') : k, v = LLD_STYLES[key];
     const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     let pv = '';
+    const ch = LLD_CHIP[key];
+    if (ch && k !== 'random' && k !== 'seasonal') {
+        try { if (v && v.fonts && !document.getElementById('lld-pvf-' + key)) { const l = document.createElement('link'); l.id = 'lld-pvf-' + key; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?' + v.fonts + '&display=swap'; document.head.appendChild(l); } } catch (e) { }
+        return `<span class="sty-chip" style="background:${ch[0]};color:${ch[2]};border-color:${ch[1]};font-family:${v.scene && v.scene.font ? v.scene.font : 'inherit'}">${label.replace(/^Color: /, '')}</span>`;
+    }
     if (k === 'random') pv = '<div class="sty-pv" style="background:linear-gradient(90deg,#3f77c4,#e31837,#d9b25f,#14452b,#7a2f2f)"><b>?</b><i>Surprise me</i></div>';
     else {
         const sc = (v && v.scene) || null;

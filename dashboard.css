@@ -6168,3 +6168,8 @@ body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{align-self:flex-st
 /* week/year-by-year tables: fantasy team shown as its logo only, saves room for the years */
 .wow span{display:none}
 .wow img{width:16px;height:16px}
+
+/* compact theme chips (Tundra, NFL teams, color options) */
+.lld-style-btn:has(> .sty-chip) { flex: 0 0 auto !important; padding: 0 !important; background: transparent !important; border: 0 !important; }
+.lld-style-btn .sty-chip { display: block; padding: 7px 12px; border-radius: 10px; border: 2px solid; font-size: calc(13px * var(--ts,1)); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.1; }
+.lld-style-btn.on .sty-chip { box-shadow: 0 0 0 2px #fff; }
