@@ -10,5 +10,6 @@
   ],
   "features": {
     "rules": true
-  }
+  },
+  "adpRookies": false
 }

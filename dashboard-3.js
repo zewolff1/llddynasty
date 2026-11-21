@@ -45,6 +45,7 @@ const LLD = Object.assign({
     irSlots: 4,
     taxiSlots: 5,
     usesSalaries: true,
+    adpRookies: true, // false = the draft's ADP list uses every player (startup / redraft drafts), not rookies only
     resignOpen: null, // true / false = set the Player Re-Signing window here in your config (the Open/Locked button is hidden); leave out to use the button
     faMode: null,     // true = Offseason, false = In Season, set in your config (the Free Agency Mode button is hidden); leave out to use the button
     features: { rules: true }
@@ -1631,7 +1632,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-21 leagues-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-21 leagues-2"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -20698,7 +20699,7 @@ localStorage.setItem(onClockKey, onClockPick);
         // Fetch ADP data
         const adpPlayers = [];
         try {
-            const adpRes = await fetch(`${MFL_ORIGIN}/${year}/reports?R=ADP&L=${lid}&POS=*&ROOKIES=1&INJURED=0&CUTOFF=5&FCOUNT=10&IS_PPR=2&IS_KEEPER=R&IS_MOCK=1&PERIOD=RECENT&PAGE=ALL`, { credentials: 'include', cache: 'no-store' });
+            const adpRes = await fetch(`${MFL_ORIGIN}/${year}/reports?R=ADP&L=${lid}&POS=*&ROOKIES=${LLD.adpRookies === false ? 0 : 1}&INJURED=0&CUTOFF=5&FCOUNT=10&IS_PPR=2&IS_KEEPER=R&IS_MOCK=1&PERIOD=RECENT&PAGE=ALL`, { credentials: 'include', cache: 'no-store' });
             const adpDoc = new DOMParser().parseFromString(await adpRes.text(), 'text/html');
             adpDoc.querySelectorAll('table.report tr.oddtablerow, table.report tr.eventablerow').forEach(row => {
                 const pLink = row.querySelector('td.player a');
