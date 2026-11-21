@@ -1631,7 +1631,7 @@ LLD_READY.then(function () { $(document).ready(function() {
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
-const DASHBOARD_BUILD_STAMP = "2026-11-20 tradev2-4"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
+const DASHBOARD_BUILD_STAMP = "2026-11-20 rowlogo-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
 const TEAM_JOIN_YEARS = LLD.joinYears;
@@ -10601,6 +10601,8 @@ $('body').append(`
                         <img id="logo-preview-PHI" style="width:32px; height:32px; object-fit:contain;">
                         <img id="logo-preview-NEP" style="width:32px; height:32px; object-fit:contain;">
                     </div>
+                    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:14px 0 10px;">Team logo on player rows</div>
+                    <div style="display:flex; gap:6px;">${[['wm', 'Watermark'], ['logo', 'Logo by position']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('wml') === v ? 'on' : ''}" data-k="wml" data-v="${v}">${l}</button>`).join('')}</div>
                     <div id="display-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
                 </div>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Hide scores</div>
@@ -14198,7 +14200,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldDev() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // row tuner sliders stay with the commissioner franchises
 function lldBeta() { return true; } // r68: the switches are open to every team
 
@@ -14302,6 +14304,7 @@ function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_)$/.test(k)) return '1'; /* gradu
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
+    c.toggle('lld-wml', lldBv('wml') === 'logo');
     c.toggle('lld-bt', b);
     lldTuneApply();
     c.toggle('lld-posmenu', b && lldBv('pos') !== '0');
@@ -15126,7 +15129,7 @@ function lldTplRow(data, opts) {
     else { left = opts.leftContent || (/<button/.test(rc) ? rc : ''); }
     if (rc && rc !== left && !/<button/.test(rc)) rightExtra = rc;
     // name line
-    const nameLine = `<div class="lld-nm"><span class="full-name">${data.name}</span><span class="short-name" style="display:none;">${data.shortName || data.name}</span><span class="pos-text-${posL}${opts.posOpen ? ' pos-open-menu' : ''} lld-pos">${data.pos || ''}</span>${opts.ownerHtml || ''}${opts.nameChip || ''}${statusBadge}${F.inj === 'on' ? getInjuryHtml(data.pid) : ''}${getRookieHtml(data.pid)}${opts.nameSuffix || ''}</div>`;
+    const nameLine = `<div class="lld-nm"><span class="full-name">${data.name}</span><span class="short-name" style="display:none;">${data.shortName || data.name}</span><span class="pos-text-${posL}${opts.posOpen ? ' pos-open-menu' : ''} lld-pos">${data.pos || ''}</span><img class="lld-pos-logo" src="${getNFLLogoUrl(team)}" alt="" onerror="this.style.display='none'">${opts.ownerHtml || ''}${opts.nameChip || ''}${statusBadge}${F.inj === 'on' ? getInjuryHtml(data.pid) : ''}${getRookieHtml(data.pid)}${opts.nameSuffix || ''}</div>`;
     const bye = window._lldBye && window._lldBye[team];
     let gch = ''; try { if (lldGthOn() && /^(coach|def|dst)/i.test(data.pos || '')) { const cn = lldChClean(lldChCfg(pid, lldChClean(data.name)).name || ''); if (cn && lldChSlug(cn) !== lldChSlug(lldChClean(data.name))) gch = cn; } } catch (e) { }
     const under = F.under === 'team' ? `<div class="lld-undr" data-team="${team}" data-ch="${gch}">${team}${bye ? ' · Bye ' + bye : ''}${gch ? ' · ' + gch : ''}</div>` : '';
