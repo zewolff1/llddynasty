@@ -25782,7 +25782,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         const wmBtns = pg.find('.lld-b-btn[data-k="wml"]').first().parent();
         wmBtns.after(`<div class="sh2-pvs">${pv('wm', 'Watermark')}${pv('logo', 'Logo by position')}</div>`);
         pg.find('.sh2-lgt').remove();
-        pg.append(`<div class="sh2-lgt"><div class="sh2-lgh">Logo by team</div><p>Tap a logo to use that style for one team. Default follows the style chosen above. A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div>`);
+        pg.append(`<div class="sh2-lgt"><button type="button" class="sh2-lgtb" aria-expanded="false"><span>Customize by team</span><i>▾</i></button><div class="sh2-lgb" style="display:none"><p>Tap a logo to use that style for one team. Default follows the style chosen above. A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div></div>`);
     }
     // ---- position colors (Text & layout page) ----
     const PC = [['qb', 'QB'], ['rb', 'RB'], ['wr', 'WR'], ['te', 'TE'], ['pk', 'K'], ['def', 'DEF'], ['dl', 'DL'], ['lb', 'LB'], ['db', 'DB']];
@@ -25802,6 +25802,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     }
     $(document).on('input change', '.sh2-pcr input', function () { const c = pcGet(); c[this.dataset.k] = this.value; try { localStorage.setItem('lld_poscol', JSON.stringify(c)); } catch (e) { } $(this).prev('.sh2-pcc').css('--c', this.value); pcApply(); });
     $(document).on('click', '.sh2-pcreset', function () { try { localStorage.removeItem('lld_poscol'); } catch (e) { } pcApply(); textExtras(); });
+    $(document).on('click', '.sh2-lgtb', function () { const b = $(this).next('.sh2-lgb'), open = !b.is(':visible'); b.toggle(open); $(this).attr('aria-expanded', open).toggleClass('open', open); });
     $(document).on('click', '.sh2-pvb', function () {
         $('.sh2-pvb').removeClass('on'); $(this).addClass('on');
         $('.lld-b-btn[data-k="wml"][data-v="' + this.dataset.v + '"]').first().trigger('click');

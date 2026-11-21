@@ -6117,3 +6117,11 @@ body.lld-hdl #lld-sh .yr{grid-column:2;grid-row:1;justify-self:end}
 body.lld-hdl #lld-sh .blks{grid-column:2;grid-row:2;margin-top:6px;gap:5px}
 body.lld-hdl #lld-sh .bk{padding:4px 6px}
 body.lld-hdl #lld-sh .bk .m{font-size:calc(var(--mn) * .88 * var(--ts,1))}
+
+/* logos page: style buttons in one row, per-team logos behind a button */
+body.lld-sh2-on #tab-display div:has(> div > .logo-style-btn){flex-direction:column !important;align-items:stretch !important;gap:8px}
+body.lld-sh2-on #tab-display div:has(> .logo-style-btn){flex-wrap:nowrap !important;justify-content:stretch !important;gap:4px !important;width:100%}
+body.lld-sh2-on #tab-display .logo-style-btn{flex:1 1 0;min-width:0;padding:9px 0 !important;font-size:calc(9px * var(--ts,1)) !important;white-space:nowrap;text-align:center}
+.sh2-lgtb{width:100%;display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border-radius:12px;border:1px solid var(--card-border);background:rgba(255,255,255,.04);color:var(--text-main,#fff);font-weight:900;font-size:calc(13px * var(--ts,1))}
+.sh2-lgtb i{font-style:normal;transition:transform .2s}.sh2-lgtb.open i{transform:rotate(180deg)}
+.sh2-lgb{margin-top:10px}.sh2-lgb p{font-size:12px;color:var(--text-dim);margin:0 0 8px}
