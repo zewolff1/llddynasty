@@ -19400,7 +19400,7 @@ async function lldEmbedStory(host, kind, wk, idx, mref) {
         if (!slides) { slides = kind === 'mrecap' ? await lldMatchRecapSlides(mref, wk) : await lldStorySlides(kind, wk, idx); slides = slides.filter(x => !/st-cta/.test(x.html)); window._lldEmbCache[key] = slides; }
         if (!$('#lld-story.emb').length) return;
         LLD_ST.slides = slides; LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false; LLD_ST.embed = true; stShow(0);
-        if (kind !== 'mrecap') { try { if (lldMusCfg()) lldEmbMusic(kind); } catch (e) { } } // each game preview plays a preview song (tap the small circle if the browser waits for a tap)
+        try { if (lldMusCfg()) lldEmbMusic(kind); } catch (e) { } // each game preview plays a preview song, each game recap the winner's song (tap the small circle if the browser waits for a tap)
     } catch (e) { console.warn('embed story', e); $('#lld-story .st-stage').html(`<div class="st-in"><div class="st-sub">Could not load this ${kind === 'mrecap' ? 'recap' : 'preview'}</div></div>`); }
 }
 $(document).on('click', '#lld-story .emb-replay', function (e) { e.stopPropagation(); if (LLD_ST.slides.length) stShow(0); });
