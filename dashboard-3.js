@@ -82,7 +82,7 @@ const LLD_STYLES = {
 };
 // little preview shown inside each theme button: the theme's own banner colors, font and decoration
 // compact theme chips: [background, border/accent, text]
-const LLD_CHIP = { tundra: ['linear-gradient(180deg,#123049,#07121d)', '#8fdcff', '#e6f6ff'], team_gb: ['#203731', '#ffb612', '#ffb612'], team_dal: ['#041e42', '#869397', '#ffffff'], team_car: ['#101820', '#0085ca', '#4fb3e8'], team_tb: ['#3a1612', '#d50a0a', '#ff7900'], team_nyg: ['#0b2265', '#a71930', '#ffffff'], team_nyj: ['#125740', '#ffffff', '#ffffff'], team_phi: ['#004c54', '#a5acaf', '#ffffff'], col_indigo: ['#1d2050', '#7c83ff', '#c7caff'], col_amber: ['#2a2417', '#f5a524', '#f5b948'], col_forest: ['#16301f', '#4ade80', '#86efac'], col_graphite: ['#2b1417', '#ef4444', '#f87171'], col_ocean: ['#0f3350', '#38bdf8', '#7dd3fc'] };
+const LLD_CHIP = { sleeper: ['#11161f', '#2f7bf0', '#e6edf7'], season_fall: ['linear-gradient(180deg,#8a4214,#4a230c)', '#e8731c', '#ffd9a8'], season_thanksgiving: ['linear-gradient(180deg,#7a2f2f,#46211f)', '#d9822b', '#ffe2b8'], tundra: ['linear-gradient(180deg,#123049,#07121d)', '#8fdcff', '#e6f6ff'], team_gb: ['#203731', '#ffb612', '#ffb612'], team_dal: ['#041e42', '#869397', '#ffffff'], team_car: ['#101820', '#0085ca', '#4fb3e8'], team_tb: ['#3a1612', '#d50a0a', '#ff7900'], team_nyg: ['#0b2265', '#a71930', '#ffffff'], team_nyj: ['#125740', '#ffffff', '#ffffff'], team_phi: ['#004c54', '#a5acaf', '#ffffff'], col_indigo: ['#1d2050', '#7c83ff', '#c7caff'], col_amber: ['#2a2417', '#f5a524', '#f5b948'], col_forest: ['#16301f', '#4ade80', '#86efac'], col_graphite: ['#2b1417', '#ef4444', '#f87171'], col_ocean: ['#0f3350', '#38bdf8', '#7dd3fc'] };
 function lldStylePv(k, label) {
     const sea = (typeof lldSeasonNow === 'function') ? lldSeasonNow() : '';
     const key = k === 'seasonal' ? (sea || 'classic') : k, v = LLD_STYLES[key];
@@ -25134,15 +25134,10 @@ const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
 function lldQtHtml() {
     const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
     const btn = (k, v) => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, v.name)}</button>`;
-    const ent = Object.entries(LLD_STYLES).filter(([k]) => !/^season_/.test(k));
-    const seaBtn = `<button type="button" class="lld-style-btn ${cur === 'seasonal' ? 'on' : ''}" data-style="seasonal">${lldStylePv('seasonal', 'Seasonal' + (sea ? ' (' + LLD_STYLES[sea].name + ')' : ''))}</button>`;
-    const grp = (title, keys, extra, first) => { const own = keys.some(k => k === cur) || (first && cur === 'seasonal'); return `<details class="sty-sec" ${own ? 'open' : ''}><summary>${title}</summary><div class="qt-row">${(first || '') + keys.map(k => btn(k, LLD_STYLES[k])).join('')}</div></details>`; };
-    const main = ent.filter(([k]) => !LLD_CHIP[k]).map(([k, v]) => btn(k, v)).join('');
-    const styles = main
-        + grp('NFL Teams', ent.filter(([k]) => /^team_/.test(k)).map(x => x[0]))
-        + grp('Colors', ent.filter(([k]) => /^col_/.test(k)).map(x => x[0]))
-        + grp('Seasonal', ['tundra'], '', seaBtn)
-        + `<button type="button" class="lld-style-btn ${cur === 'random' ? 'on' : ''}" data-style="random">${lldStylePv('random', '\uD83C\uDFB2 Random')}</button>`;
+    const grp = (title, keys) => `<details class="sty-sec" ${keys.includes(cur) ? 'open' : ''}><summary>${title}</summary><div class="qt-row">${keys.filter(k => LLD_STYLES[k]).map(k => btn(k, LLD_STYLES[k])).join('')}</div></details>`;
+    const styles = grp('Colors', ['col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean', 'sleeper'])
+        + grp('Seasonal', ['season_thanksgiving', 'season_fall', 'tundra'])
+        + grp('NFL Teams', ['team_gb', 'team_dal', 'team_car', 'team_tb', 'team_nyg', 'team_nyj', 'team_phi']);
     const lab = t => `<div class="qt-l">${t}</div>`;
     const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
