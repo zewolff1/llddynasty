@@ -2676,6 +2676,8 @@ function lldApvNowBuild() {
     Object.keys(g).forEach(k => g[k].sort((a, b) => key(b) - key(a)).forEach((id, i) => { m[id] = i + 1; }));
     window._apvNowMap = Object.keys(m).length ? m : null;
 }
+// average points: the averages report, or the season stats when that report hasn't loaded
+function lldAvgOf(pid) { const a = playerAverages[pid]; if (a) return a; const x = (typeof playerSeason !== 'undefined' && playerSeason[pid]) || null; return (x && x.avg) || 0; }
 function lldApvNow(pid) { if (!window._apvNowMap) lldApvNowBuild(); const m = window._apvNowMap; if (m) return m[pid] || null; return (playerRanks[pid] && playerAverages[pid] > 0) ? playerRanks[pid] : null; }
 function lldApvRanks(players) {
     lldGthNorm();
@@ -6280,7 +6282,7 @@ if (isL) {
         cPA = `<div class="matchup-pts ${cCls} pa-breakdown-trigger" data-team="${opp}" data-pos="${realPos}" style="cursor: pointer; margin: 0; display: inline-block; font-size: calc(9px * var(--ts,1)); padding: 1px 5px; border-radius: 4px; line-height: 1.2;" title="View game log">${Math.round(parseFloat(pointsAllowedMap[opp][realPos]))} PA (#${cRank})</div>`;
     }
     matchupHtml = `<div class="matchup-compact" style="display: flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 6px; background: linear-gradient(135deg, ${c1}35, ${c2}15); border: 1px solid ${c1}50; white-space: nowrap; flex-wrap: nowrap; flex-shrink: 0; box-sizing: border-box;">${opp ? `<span style="font-size: calc(10px * var(--ts,1)); font-weight: 900; color: #fff; letter-spacing: 0.4px; margin-right: 1px;">${/@\s*[A-Z]{2,3}/i.test(secondaryText) ? '@' : ''}${opp}</span><span style="font-size: calc(10px * var(--ts,1)); color: var(--text-dim); margin: 0 1px;">·</span>` : ''}<span style="font-size: calc(10px * var(--ts,1)); font-weight: 800; color: #fff;">${cWhen}</span>${cPA}</div>
-        <span class="lld-rk" style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: calc(9px * var(--ts,1)); white-space: nowrap; flex-shrink: 0;"><span class="lld-rk-r" style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span class="lld-rk-a" style="font-weight: 800; color: var(--text-dim);">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span></span>`;
+        <span class="lld-rk" style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: calc(9px * var(--ts,1)); white-space: nowrap; flex-shrink: 0;"><span class="lld-rk-r" style="font-weight: 900; color: var(--accent-blue);">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span><span class="lld-rk-a" style="font-weight: 800; color: var(--text-dim);">${lldAvgOf(pid) ? lldAvgOf(pid).toFixed(1) : '0.0'} AVG</span></span>`;
 }
 if (isL && lldSlpOn()) {
     try {
@@ -6293,7 +6295,7 @@ if (isL && lldSlpOn()) {
             sCls = (r1 >= 24) ? 'slp-g' : (r1 <= 9) ? 'slp-rd' : 'slp-o';
             if (r1) sRk = ` (${r1}${r1 % 100 >= 11 && r1 % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[r1 % 10] || 'th'})`;
         }
-        const sAvg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0', sR = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
+        const sAvg = lldAvgOf(pid) ? lldAvgOf(pid).toFixed(1) : '0.0', sR = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
         const sInj = (typeof getInjuryHtml === 'function') ? getInjuryHtml(pid) : '', sc = lldSlpCfg();
         return `<div class="player-row lld-slp ${sc.shape === 'sq' ? 'slp-sq' : ''} ${sc.head === 'off' ? 'slp-nohead' : ''} pos-border-${pos.toLowerCase()} ${isChanged ? 'status-changed' : ''}" data-pid="${pid}" data-pname="${name}" data-pteam="${team}" data-ppos="${pos}">
             ${sc.pill === 'none' ? '' : btnHtml}
@@ -6356,7 +6358,7 @@ ${inlinePosBadge}
         <span style="font-size: calc(13px * var(--ts,1)); font-weight: 900; color: var(--accent-teal); letter-spacing: 0.3px; white-space: nowrap;">${projNum.toFixed(1)} PROJ</span>
         <div style="display: flex; gap: 6px; align-items: center;">
             <span style="font-size: calc(9px * var(--ts,1)); font-weight: 900; color: var(--accent-blue); white-space: nowrap;">${pos}${playerRanks[pid] ? '#' + playerRanks[pid] : 'NR'}</span>
-            <span style="font-size: calc(9px * var(--ts,1)); font-weight: 800; color: var(--text-dim); white-space: nowrap;">${playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0'} AVG</span>
+            <span style="font-size: calc(9px * var(--ts,1)); font-weight: 800; color: var(--text-dim); white-space: nowrap;">${lldAvgOf(pid) ? lldAvgOf(pid).toFixed(1) : '0.0'} AVG</span>
         </div>
     </div>` : ''}
 </div>
@@ -7217,7 +7219,7 @@ function buildSwapRow(p) {
             badge = `<div class="matchup-pts ${cls} pa-breakdown-trigger" data-team="${opp}" data-pos="${p.realPos}" style="cursor: pointer; margin-top: 3px; display: inline-block; font-size: calc(9px * var(--ts,1)); padding: 2px 6px; border-radius: 4px;" title="View game log">${displayPts} PA (#${rankNum})</div>`;
         }
         
-        const avgNum = playerAverages[p.pid] ? playerAverages[p.pid].toFixed(1) : "0.0";
+        const avgNum = lldAvgOf(p.pid) ? lldAvgOf(p.pid).toFixed(1) : "0.0";
         const rankStr = playerRanks[p.pid] ? `#${playerRanks[p.pid]}` : "NR";
 
         let rightDataHtml = `
@@ -7357,7 +7359,7 @@ function schedPillHtml(sec) {
     return [opp, when].filter(Boolean).join(' · ') || t0 || '-';
 }
 function rankAvgHtml(pid, pos) {
-    const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0';
+    const avg = lldAvgOf(pid) ? lldAvgOf(pid).toFixed(1) : '0.0';
     const r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
     return `<span class="lld-rk" style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:var(--text-dim); white-space:nowrap;"><span class="lld-rk-r" style="font-weight:900; color:var(--accent-blue);">${r}</span> <span class="lld-rk-a">${avg} AVG</span></span>`;
 }
@@ -14704,7 +14706,7 @@ function lldSgPlayer(data, opts, kind) {
     const sal = rk ? parseFloat(rk.salNum) || 0 : 0, hit = k ? parseFloat(k.hit || 0) : 0, yrs = k ? parseInt(k.yrs, 10) || 0 : 0, guar = k ? String(k.guar || '') : '';
     const base = (typeof selectedYear !== 'undefined' && selectedYear) ? selectedYear : (parseInt(year, 10) || new Date().getFullYear());
     const thru = yrs ? base + yrs - 1 : '';
-    const rkN = (typeof playerRanks !== 'undefined' && playerRanks[pid]) ? '#' + playerRanks[pid] : 'NR', avg = (typeof playerAverages !== 'undefined' && playerAverages[pid]) ? playerAverages[pid].toFixed(1) : '0.0';
+    const rkN = (typeof playerRanks !== 'undefined' && playerRanks[pid]) ? '#' + playerRanks[pid] : 'NR', avg = (typeof playerAverages !== 'undefined' && lldAvgOf(pid)) ? lldAvgOf(pid).toFixed(1) : '0.0';
     const m = v => '$' + (Math.round(v * 10) / 10).toString().replace(/\.0$/, '') + 'm';
     const ct = t => `<span class="sg-ct">${t}</span>`;
     const inj = (typeof getInjuryHtml === 'function') ? getInjuryHtml(pid) : '';
@@ -14751,7 +14753,7 @@ function lldSgPlayer(data, opts, kind) {
 // Match: roster rows in the live matchup screen
 function lldSmRow(p, ctx) {
     const c = lldSgCfg('match'), pid = String(p.pid), team = (p.team || 'NFL').toUpperCase(), pos = p.pos || '', posL = pos.toLowerCase();
-    const rkN = (typeof playerRanks !== 'undefined' && playerRanks[pid]) ? '#' + playerRanks[pid] : 'NR', avg = (typeof playerAverages !== 'undefined' && playerAverages[pid]) ? playerAverages[pid].toFixed(1) : '0.0';
+    const rkN = (typeof playerRanks !== 'undefined' && playerRanks[pid]) ? '#' + playerRanks[pid] : 'NR', avg = (typeof playerAverages !== 'undefined' && lldAvgOf(pid)) ? lldAvgOf(pid).toFixed(1) : '0.0';
     const started = ctx.status.playing || ctx.status.done || p.score !== 0;
     const l2 = c.line2 === 'rost' ? `<b>${pos}</b> · ${team}` : c.line2 === 'contract' ? `<b>${pos}${rkN}</b> <i>|</i> ${avg} <i>avg</i>` : `<b>${pos}${rkN}</b> <i>|</i> ${avg} <i>avg</i>`;
     const l3 = c.line3 === 'none' ? '' : `<div class="slp-l3">${ctx.game || ''}</div>`;
@@ -15206,7 +15208,7 @@ function lldByeHydrate() {
 setTimeout(lldByeLoad, 2500);
 new MutationObserver(() => { try { if (window._lldBye) lldByeHydrate(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true });
 function lldTplRankAvg(pid, pos, two) {
-    const avg = playerAverages[pid] ? playerAverages[pid].toFixed(1) : '0.0', r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
+    const avg = lldAvgOf(pid) ? lldAvgOf(pid).toFixed(1) : '0.0', r = playerRanks[pid] ? '#' + playerRanks[pid] : 'NR';
     const a = `<span class="lld-rk-r">${pos}${r}</span>`, b = `<span class="lld-rk-a">${avg} AVG</span>`;
     return two ? `<div>${a}</div><div>${b}</div>` : `${a} ${b}`;
 }
