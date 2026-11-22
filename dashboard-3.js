@@ -16710,18 +16710,17 @@ setTimeout(lldA2hsPopup, 5000);
 setTimeout(() => { try { lldA2hsPrep(); } catch (e) { } }, 3000);
 // ===== ROW STYLES (beta): logo location, boom / bust display, size, headshot, color, bench cue, score emphasis, live marker, tap action =====
 function lldRowBetaHtml() {
-    const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
-    const grp = (k, opts) => `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const lab = t => `<div class="qt-l">${t}</div>`;
+    const grp = (k, opts) => `<div class="qt-row">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const bb = lldBbs();
-    return `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Player rows</div>`
-        + lab('Logo location') + grp('wml', [['wm', 'Watermark'], ['logo', 'By position'], ['off', 'Off']])
-        + lab('Boom / bust display') + `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${bb === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`
+    return lab('Logo location') + grp('wml', [['wm', 'Watermark'], ['logo', 'By position'], ['off', 'Off']])
+        + lab('Boom / bust display') + `<div class="qt-row">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${bb === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`
         + lab('Row size') + grp('r_sz', [['cmp', 'Compact'], ['std', 'Standard'], ['rm', 'Roomy']])
         + lab('Headshot size') + grp('r_hs', [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']])
         + lab('Headshot shape') + grp('r_sh', [['round', 'Round'], ['sq', 'Square']])
         + lab('Positional color') + grp('r_pc', [['bar', 'Bar'], ['tint', 'Tint'], ['neutral', 'Neutral']])
         + lab('Start / bench cue') + grp('r_bn', [['off', 'Normal'], ['div', 'Divider'], ['dim', 'Dim bench'], ['lbl', 'BENCH label']])
-        + lab('Score emphasis (after a game starts)') + grp('r_em', [['pl', 'Plain'], ['gr', 'Green / red vs projection'], ['ar', 'With arrow']])
+        + lab('Score emphasis (once a game starts)') + grp('r_em', [['pl', 'Plain'], ['gr', 'Green / red vs projection'], ['ar', 'With arrow']])
         + lab('Live game marker') + grp('r_lv', [['off', 'Off'], ['pulse', 'Pulse dot'], ['lbl', 'LIVE label']])
         + lab('Tap action (lineup)') + grp('r_tp', [['detail', 'Open detail'], ['exp', 'Expand in place']]);
 }
@@ -16811,7 +16810,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lldRowBetaHtml()}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -25430,33 +25429,36 @@ function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
 // ===== quick theme sheet: a palette icon beside settings; the page stays visible so changes can be seen live =====
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
 function lldQtHtml() {
-    const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow();
-    const isTeam = /^team_/.test(cur), isCol = cur === 'classic' || /^col_/.test(cur);
-    try { if (isTeam) localStorage.setItem('lld_last_team', cur); if (isCol) localStorage.setItem('lld_last_col', cur); } catch (e) { }
-    const last = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
-    const top = (key, label, on, sub) => `<button type="button" class="lld-style-btn lld-top ${on ? 'on' : ''}" data-style="${key}"><span class="sty-l">${label}</span>${sub ? `<span class="sty-s">${sub}</span>` : ''}</button>`;
-    const chip = k => `<button type="button" class="lld-style-btn ${cur === k ? 'on' : ''}" data-style="${k}">${lldStylePv(k, k === 'classic' ? 'Midnight' : LLD_STYLES[k].name)}</button>`;
-    LLD_CHIP.classic = ['#141a2b', '#3f77c4', '#d8e4ff'];
-    const seaName = sea ? LLD_STYLES[sea].name : 'Off season';
-    const styles = `<div class="sty-top">`
-        + top(last('lld_last_col', 'classic'), 'Default theme', isCol, 'Pick a color')
-        + top('seasonal', 'Seasonal', cur === 'seasonal', seaName)
-        + top('sleeper', 'Sleeper', cur === 'sleeper', 'League hub look')
-        + top(last('lld_last_team', 'team_gb'), 'NFL Theme', isTeam, 'Pick a team')
-        + `</div>`
-        + (isCol ? `<div class="sty-sub"><div class="sty-grp">Color</div>${['classic', 'col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean'].map(chip).join('')}</div>` : '')
-        + (isTeam ? `<div class="sty-sub"><div class="sty-grp">Team</div>${['team_gb', 'team_dal', 'team_car', 'team_tb', 'team_nyg', 'team_nyj', 'team_phi'].map(chip).join('')}</div>` : '');
+    const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow(), tab = window._lldQtTab || 'theme';
     const lab = t => `<div class="qt-l">${t}</div>`;
+    const chip = (k, label, on, pvKey) => `<button type="button" class="lld-style-btn qt-chip ${on ? 'on' : ''}" data-style="${k}">${lldStylePv(pvKey || k, label)}</button>`;
+    LLD_CHIP.classic = ['#141a2b', '#3f77c4', '#d8e4ff'];
+    const isCol = k => (cur === k) || (k === 'classic' && cur === 'classic');
+    const seaName = sea ? LLD_STYLES[sea].name : 'Off season';
+    const themes = chip('seasonal', 'Seasonal · ' + seaName, cur === 'seasonal', sea || 'classic')
+        + chip('sleeper', 'Sleeper', cur === 'sleeper')
+        + chip('tundra', 'Frozen Tundra', cur === 'tundra')
+        + chip('classic', 'Midnight', cur === 'classic')
+        + ['col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean'].map(k => chip(k, LLD_STYLES[k].name.replace(/^Color: /, ''), cur === k)).join('')
+        + Object.keys(LLD_STYLES).filter(k => /^team_/.test(k)).map(k => chip(k, LLD_STYLES[k].name, cur === k)).join('');
     const fxOn = lldGet('lld_fx', '1') !== '0', wide = lldGet('lld_wide', '0') === '1';
+    let body = '';
+    if (tab === 'theme') {
+        body = lab('Theme') + `<div class="qt-row qt-chips">${themes}</div>`
+            + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
+            + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div>`;
+    } else if (tab === 'logos') {
+        body = lab('NFL logo style') + `<div class="qt-row">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join('')}</div>`;
+    } else body = lldRowBetaHtml();
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
-        + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
-        + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
-        + lab('NFL logos') + `<div class="qt-row">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join("")}</div>`
-        + (window.lldBbsQt ? window.lldBbsQt() : '')
-        + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
+        + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows']].map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
+        + `<div class="qt-body">${body}</div>`;
 }
+$(document).on('click', '#lld-qt .qt-tab', function () { window._lldQtTab = this.dataset.t; $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } });
+window.lldQtOpen = function (tab) { if (tab) window._lldQtTab = tab; if (!document.getElementById('lld-qt')) lldQtOpen(); else { $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } } };
 function lldQtOpen() {
     if (document.getElementById('lld-qt')) { $('#lld-qt').remove(); return; }
+    if (!document.getElementById('lld-qt-css')) { const c = document.createElement('style'); c.id = 'lld-qt-css'; c.textContent = '#lld-qt{max-height:64vh !important}#lld-qt .qt-tabs{display:flex;gap:4px;margin:8px 14px 0;padding:4px;border-radius:12px;background:rgba(255,255,255,.06)}#lld-qt .qt-tab{flex:1;border:0;background:none;color:var(--text-dim);border-radius:9px;padding:8px 4px;font-weight:900;font-size:calc(12px * var(--ts,1));cursor:pointer}#lld-qt .qt-tab.on{background:var(--accent-blue,#3b82f6);color:#fff}#lld-qt .qt-chips{gap:8px}'; document.head.appendChild(c); }
     $('body').append(`<div id="lld-qt">${lldQtHtml()}</div>`);
     try { updateLogoStyleButtons(); } catch (e) { }
 }
