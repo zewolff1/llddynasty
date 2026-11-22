@@ -20180,6 +20180,102 @@ function lsSlotLabel(a, b) {
     return 'FLEX';
 }
 
+// ===== SCOREBOARD PLAYER STATS + FIELD STRIP (everyone): a player's stat line from the game, and while it is live, where the ball is =====
+// ESPN game data (same feed as the NFL games tab). Hidden while Hide scores is covering the week.
+const LLDPS = { key: null, t: 0, games: {}, busy: null, box: {} };
+function lldPsCss() {
+    if (document.getElementById('lld-ps-css')) return;
+    const c = document.createElement('style'); c.id = 'lld-ps-css';
+    c.textContent = '.lld-ps{margin-top:3px}.lld-ps:empty{display:none}.lld-ps-s{font-size:calc(10px * var(--ts,1));font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}.lld-ps-s i{font-style:normal;font-size:.8em;color:var(--text-dim);font-weight:700;margin-left:1px}.lld-ps-s em{font-style:normal;color:var(--text-dim);margin-inline:3px}.lld-ps-s .td{color:#f5b324}'
+        + '.lld-ps-f{position:relative;height:4px;border-radius:2px;background:rgba(148,163,184,.3);margin:8px 5px 3px}.lld-ps-f u{position:absolute;top:0;bottom:0;border-radius:2px;background:#ef4444;opacity:.6}.lld-ps-f b{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(15,23,42,.9)}'
+        + '.lld-ps-t{display:flex;justify-content:space-between;gap:6px;font-size:calc(8px * var(--ts,1));font-weight:800;color:var(--text-dim);white-space:nowrap}.lld-ps-t span{overflow:hidden;text-overflow:ellipsis}.lld-ps-t em{font-style:normal;color:#f5b324}';
+    document.head.appendChild(c);
+}
+async function lldPsLoad() {
+    const wk = lldEspnWk();
+    if (LLDPS.key === wk && Date.now() - LLDPS.t < 25000) return LLDPS;
+    if (LLDPS.busy) return LLDPS.busy;
+    LLDPS.busy = (async () => {
+        try {
+            const yr = parseInt((typeof selectedYear !== 'undefined' && selectedYear) || year, 10) || new Date().getFullYear();
+            const d = await lldEspnJson('/scoreboard' + (wk ? '?seasontype=2&week=' + wk + '&dates=' + yr : '')), g = {};
+            (d.events || []).forEach(ev => {
+                const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = cp.find(x => x.homeAway === 'away') || {}, hm = cp.find(x => x.homeAway === 'home') || {};
+                const e = { id: ev.id, state: ((ev.status || {}).type || {}).state || 'pre', away: lldEspnNt((aw.team || {}).abbreviation), home: lldEspnNt((hm.team || {}).abbreviation), awId: (aw.team || {}).id, hmId: (hm.team || {}).id, sit: c.situation || null };
+                if (e.away) g[e.away] = e; if (e.home) g[e.home] = e;
+            });
+            LLDPS.games = g; LLDPS.key = wk; LLDPS.t = Date.now();
+        } catch (e) { LLDPS.t = Date.now() - 15000; } finally { LLDPS.busy = null; }
+        return LLDPS;
+    })();
+    return LLDPS.busy;
+}
+async function lldPsBox(ev) {
+    const c = LLDPS.box[ev.id], ttl = ev.state === 'post' ? 600000 : 25000;
+    if (c && Date.now() - c.t < ttl) return c.m;
+    try {
+        const d = await lldEspnJson('/summary?event=' + encodeURIComponent(ev.id)), m = {};
+        ((d.boxscore && d.boxscore.players) || []).forEach(tm => {
+            const ab = (tm.team || {}).abbreviation || '';
+            (tm.statistics || []).forEach(gr => {
+                const labs = gr.labels || [];
+                (gr.athletes || []).forEach(a => {
+                    const k = lldEspnKey((a.athlete || {}).displayName, ab); if (!k) return;
+                    const o = (m[k] = m[k] || {}), r = (o[gr.name] = {});
+                    labs.forEach((l, i) => { r[l] = (a.stats || [])[i]; });
+                });
+            });
+        });
+        LLDPS.box[ev.id] = { t: Date.now(), m }; return m;
+    } catch (e) { return c ? c.m : {}; }
+}
+function lldPsLine(pos, m) {
+    if (!m) return '';
+    const u = (v, l, td) => `<span${td ? ' class="td"' : ''}>${lldEsc(v)}${l ? `<i>${l}</i>` : ''}</span>`, n = v => parseFloat(v) || 0, out = [];
+    const P = m.passing, R = m.rushing, C = m.receiving, K = m.kicking, D = m.defensive;
+    pos = String(pos || '').toUpperCase();
+    if (pos === 'QB' && P) { out.push(u(P['C/ATT'], ''), u(P.YDS, 'YDS')); if (n(P.TD) > 0) out.push(u(P.TD, 'TD', 1)); else if (n(P.INT) > 0) out.push(u(P.INT, 'INT')); else out.push(u(0, 'TD')); }
+    else if ((pos === 'RB' || pos === 'FB') && (R || C)) { if (R) { out.push(u(R.CAR, 'CAR'), u(R.YDS, 'YDS')); if (n(R.TD) > 0) out.push(u(R.TD, 'TD', 1)); else if (C) out.push(u(C.REC, 'REC')); } else out.push(u(C.REC, 'REC'), u(C.YDS, 'YDS')); }
+    else if ((pos === 'WR' || pos === 'TE') && (C || R)) { if (C) { out.push(u(C.REC, 'REC'), u(C.YDS, 'YDS')); if (n(C.TD) > 0) out.push(u(C.TD, 'TD', 1)); else if (C.TGTS != null) out.push(u(C.TGTS, 'TGT')); } else out.push(u(R.CAR, 'CAR'), u(R.YDS, 'YDS')); }
+    else if ((pos === 'K' || pos === 'PK') && K) out.push(u(K.FG, 'FG'), u(K.XP, 'XP'));
+    else if (D) { out.push(u(D.TOT, 'TKL')); if (n(D.SACKS) > 0) out.push(u(D.SACKS, 'SACK')); if (n(D.PD) > 0) out.push(u(D.PD, 'PD')); }
+    return out.length ? `<div class="lld-ps-s">${out.join('<em>·</em>')}</div>` : '';
+}
+function lldPsField(ev, team) {
+    const sit = ev.sit; if (!sit || ev.state !== 'in') return '';
+    const txt = String(sit.downDistanceText || sit.shortDownDistanceText || ''), mm = txt.match(/^(.*?)\s+(?:at|on)\s+([A-Z]{2,3})\s+(\d+)/i) || String(sit.possessionText || '').match(/^()([A-Z]{2,3})\s+(\d+)/);
+    if (!mm) return '';
+    const spotT = lldEspnNt(mm[2].toUpperCase()), yd = parseInt(mm[3], 10), offAway = String(sit.possession) === String(ev.awId);
+    if (!(yd >= 0)) return '';
+    const off = offAway ? ev.away : ev.home, fromAway = Math.max(3, Math.min(97, spotT === ev.away ? yd : 100 - yd)), rz = !!sit.isRedZone;
+    const down = (mm[1] || '').trim(), arrow = offAway ? '▶ ' : '◀ ', mine = off === team;
+    const rzb = rz ? (offAway ? '<u style="left:80%;right:0"></u>' : '<u style="left:0;width:20%"></u>') : '';
+    return `<div class="lld-ps-f">${rzb}<b style="left:${fromAway}%"></b></div><div class="lld-ps-t"><span>${arrow}${lldEsc(spotT + ' ' + yd)}${down ? ' · ' + lldEsc(down) : ''}</span>${rz && mine ? '<em>RED ZONE</em>' : (mine ? '' : '<span>DEF</span>')}</div>`;
+}
+let lldPsBusyFill = false;
+async function lldPsFill(force) {
+    const els = Array.from(document.querySelectorAll('.lld-ps')).filter(x => force || !x.dataset.f); if (!els.length || lldPsBusyFill) return;
+    lldPsBusyFill = true;
+    try {
+        lldPsCss();
+        if (lldEspnHide()) { els.forEach(x => { x.innerHTML = ''; x.dataset.f = '1'; }); return; }
+        await lldPsLoad();
+        for (const x of els) {
+            const team = lldEspnNt(String(x.dataset.team || '').toUpperCase()), ev = LLDPS.games[team], side = x.dataset.side;
+            if (!ev || ev.state === 'pre') { x.innerHTML = ''; x.dataset.f = '1'; continue; }
+            const m = await lldPsBox(ev), k = lldEspnKey(x.dataset.name, team);
+            let h = lldPsLine(x.dataset.pos, m[k]);
+            if (ev.state === 'in') h += lldPsField(ev, team);
+            x.style.textAlign = side === 'left' ? 'left' : 'right'; x.innerHTML = h; x.dataset.f = '1';
+            const old = x.parentNode && x.parentNode.querySelector('.lld-oldstat'); if (old) old.style.display = h ? 'none' : '';
+        }
+    } catch (e) { console.warn('player stats', e); } finally { lldPsBusyFill = false; }
+}
+(function () {
+    let t = null;
+    try { new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { if (document.querySelector('.lld-ps:not([data-f])')) lldPsFill(); } catch (e) { } }, 150); }).observe(document.body, { childList: true, subtree: true }); } catch (e) { }
+    setInterval(() => { try { if (document.hidden || !document.querySelector('.lld-ps')) return; if (Object.keys(LLDPS.games).some(k => LLDPS.games[k].state === 'in')) lldPsFill(true); } catch (e) { } }, 25000);
+})();
 function lsSideCard(p, projMap, liveDetails, color, side) {
     const left = side === 'left';
     if (!p) return '<div></div>';
@@ -20226,7 +20322,8 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
         <div style="margin-top:6px; text-align:${left ? 'left' : 'right'};">
             <div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1Score ? lldRvG(line1, p.pid) : line1}</div>
             <div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; line-height:1.3;">${line2}</div>
-            ${stat ? `<div style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
+            ${stat ? `<div class="lld-oldstat" style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
+            <div class="lld-ps" data-pid="${p.pid}" data-team="${team}" data-pos="${pos}" data-name="${String(p.name || '').replace(/"/g, '&quot;')}" data-side="${side}"></div>
         </div>
     </div>`;
 }
