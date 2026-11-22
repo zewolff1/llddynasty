@@ -16735,10 +16735,12 @@ function lldRowApply() {
         const c = document.createElement('style'); c.id = 'lld-row-css';
         c.textContent = `
 body:not(.lld-wml) .player-row.lld-tpl .lld-hs-tb,body.lld-wmoff .row-wm,body.lld-wmoff .lld-hs-tb,body.lld-wmoff .lld-pos-logo,body.lld-wmoff .lld-tl-logo{display:none !important}
-body[data-r-sz="cmp"] .player-row.lld-tpl{padding-top:4px !important;padding-bottom:4px !important}
-body[data-r-sz="rm"] .player-row.lld-tpl{padding-top:14px !important;padding-bottom:14px !important}
-body[data-r-hs="sm"] .player-row .player-img-wrapper{width:24px !important;height:24px !important}
-body[data-r-hs="lg"] .player-row .player-img-wrapper{width:44px !important;height:44px !important}
+html body[data-r-sz="cmp"] .player-row.lld-tpl{padding-top:4px !important;padding-bottom:4px !important}
+html body[data-r-sz="rm"] .player-row.lld-tpl{padding-top:14px !important;padding-bottom:14px !important}
+html body[data-r-hs="sm"] .player-row.lld-tpl{--tp-hs:34px !important}
+html body[data-r-hs="sm"] .player-row .player-img-wrapper{width:34px !important;height:34px !important}
+html body[data-r-hs="lg"] .player-row.lld-tpl{--tp-hs:64px !important}
+html body[data-r-hs="lg"] .player-row .player-img-wrapper{width:64px !important;height:64px !important}
 body[data-r-sh="sq"] .player-row .player-img-wrapper,body[data-r-sh="sq"] .player-row .player-circle{border-radius:9px !important}
 body[data-r-pc="neutral"] .player-row[class*="pos-border-"]{border-left-color:transparent !important}
 ${tint}
