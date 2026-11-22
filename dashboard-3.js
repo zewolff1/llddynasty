@@ -22019,14 +22019,20 @@ setTimeout(lldPhoneCheck, 2500); setInterval(lldPhoneCheck, 90000);
             $('#subtabs-league .sub-tab-btn').filter(function() { return $(this).text().trim() === 'Recaps'; }).trigger('click');
         }, 300);
     });
-    $(document).off('touchstart.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
-        window._lsTouchStartX = e.originalEvent.touches[0].clientX;
+    // Swipe left/right switches the matchup, but only for a clearly sideways swipe: a diagonal scroll down the page must never count
+    $(document).off('touchstart.liveswipe touchmove.liveswipe').on('touchstart.liveswipe', '#live-score-card-inner', function(e) {
+        const t = e.originalEvent.touches[0];
+        window._lsTouchStartX = t.clientX; window._lsTouchStartY = t.clientY; window._lsTouchDy = 0;
+    }).on('touchmove.liveswipe', '#live-score-card-inner', function(e) {
+        if (window._lsTouchStartX == null) return;
+        const t = e.originalEvent.touches[0];
+        window._lsTouchDy = Math.max(window._lsTouchDy || 0, Math.abs(t.clientY - window._lsTouchStartY));
     });
     $(document).off('touchend.liveswipe').on('touchend.liveswipe', '#live-score-card-inner', async function(e) {
         if (window._lsTouchStartX == null) return;
-        const dx = e.originalEvent.changedTouches[0].clientX - window._lsTouchStartX;
+        const dx = e.originalEvent.changedTouches[0].clientX - window._lsTouchStartX, dy = Math.max(window._lsTouchDy || 0, Math.abs(e.originalEvent.changedTouches[0].clientY - (window._lsTouchStartY || 0)));
         window._lsTouchStartX = null;
-        if (Math.abs(dx) < 40) return;
+        if (Math.abs(dx) < 70 || dy > 28 || Math.abs(dx) < dy * 3) return;
         window._liveScoreIndex += (dx < 0 ? 1 : -1);
         await renderLiveScoreCard();
     });
