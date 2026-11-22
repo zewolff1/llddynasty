@@ -1603,7 +1603,7 @@ const LLD_READY = (async function lldAutoConfig() {
             }
         }
         const ctl = new AbortController();
-        const to = setTimeout(() => ctl.abort(), 5000);
+        const to = setTimeout(() => ctl.abort(), 3500);
         const r = await fetch(`${MFL_ORIGIN}/${yrA}/export?TYPE=league&L=${lidA}&JSON=1`, { credentials: 'include', signal: ctl.signal });
         clearTimeout(to);
         const L = (await r.json()).league || {};
@@ -15277,7 +15277,7 @@ function lldTplRow(data, opts) {
     return `<div class="${opts.isSwapView ? 'swap-item ' : ''}player-row lld-tpl pos-border-${posL} ${opts.extraClasses || ''}" data-tpl="${kind}" data-pid="${data.pid}" data-pname="${data.name}" data-pteam="${data.team}" data-ppos="${data.pos}" style="${opts.opacityStyle || ''} ${opts.rowStyle || ''}" ${opts.extraAttributes || ''}>
         <div class="row-wm">${opts.wmHtml != null ? opts.wmHtml : `<img src="${opts.wmSrc || getNFLLogoUrl(team)}" onerror="this.style.display='none'">`}</div>
         ${left ? `<div class="lld-tl">${left}</div>` : ''}
-        <div class="player-img-wrapper"${opts.noPhotoTap ? ' style="pointer-events:none;"' : ''}><div class="player-circle">${opts.circleHtml != null ? opts.circleHtml : `<img class="row-tiny lld-tl-logo" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"><img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'">`}</div></div>
+        <div class="player-img-wrapper"${opts.noPhotoTap ? ' style="pointer-events:none;"' : ''}><div class="player-circle">${opts.circleHtml != null ? opts.circleHtml : `<img class="row-tiny lld-tl-logo" src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'"><img class="player-img" src="https://www.mflscripts.com/playerImages_80x107/mfl_${data.pid}.png" onerror="this.style.opacity='0'">`}</div>${opts.circleHtml != null ? '' : `<span class="lld-hs-tb"><img src="${getNFLLogoUrl(team)}" alt="" onerror="this.parentNode.style.display='none'"></span>`}</div>
         <div class="mini-arc-overlay" style="display:none; flex-direction:column; align-items:center; width:72px; margin-top:4px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:800; color:#fff; text-align:center; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">${data.shortName || data.name}</div><div style="display:flex; align-items:center; justify-content:center; margin-top:3px;"><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:18px; height:18px; object-fit:contain;"></div></div>
         <div class="player-info lld-pi">${nameLine}${under}${mid}</div>
         <div class="lld-rt">${right}</div>
@@ -23955,6 +23955,7 @@ const result = await applyAuctionContract(pid, commentText);
 checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
+try { if (window.lldReveal) window.lldReveal(); } catch (e) { }
 lldApplyHdrMode(lldBeta() && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 $(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
