@@ -18802,12 +18802,12 @@ function lldSongsSheet() {
     $('body').append(`<div id="lld-sgs"><div class="sg-sh"><div class="sg-gr"></div><div class="sg-hd"><b>${lldMusEsc(lab)}</b><span>${C.length} songs</span></div><div class="sg-grid">${C.map(c => { const lk = lldSongLook(c); return `<button class="sg-song${String(c.id) === _sgSel ? ' sel' : ''}" data-a="song" data-i="${lldMusEsc(c.id)}"><div class="a" style="background:linear-gradient(135deg,${lk.a},${lk.b})">${lk.e}</div><div class="n">${lldMusEsc(c.name)}</div></button>`; }).join('')}</div><div class="sg-row"><button class="sg-btn" data-a="clear">Use league song</button><button class="sg-btn p" data-a="prev"${_sgSel ? '' : ' disabled'}>▶ Preview</button></div><div class="sg-row" style="margin-top:8px"><button class="sg-btn g" data-a="done">Done</button></div></div></div>`);
 }
 // One player is created when the picker opens (a tap) and kept; choosing a song just loads it into that player inside the tap, which is what lets phones start the sound by themselves.
-// The video is kept invisible, tucked behind the progress bar line at the top of the preview.
+// The player is a normal 200x200 player (tiny or see-through players get ads), sitting underneath the solid picker / preview screens so it is never seen.
 let _sgRdy = false, _sgWant = null;
 function lldSongsEnsure() {
     if (_sgYt || !(window.YT && window.YT.Player)) return;
-    if (!$('#lld-sgp-yt').length) $('body').append('<div id="lld-sgp-yt" style="position:fixed;left:16px;top:calc(14px + env(safe-area-inset-top,0px));width:64px;height:36px;opacity:.02;pointer-events:none;z-index:2147483390;overflow:hidden"><div id="lld-sgp-p"></div></div>');
-    _sgYt = new YT.Player('lld-sgp-p', { width: 64, height: 36, playerVars: { playsinline: 1, controls: 0, rel: 0 }, events: { onReady: () => { _sgRdy = true; if (_sgWant) lldSongsGo(_sgWant); }, onError: () => { lldMusToast('That song can’t play here'); } } });
+    if (!$('#lld-sgp-yt').length) $('body').append('<div id="lld-sgp-yt" style="position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);width:200px;height:200px;pointer-events:none;z-index:2147483150"><div id="lld-sgp-p"></div></div>');
+    _sgYt = new YT.Player('lld-sgp-p', { width: 200, height: 200, playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onReady: () => { _sgRdy = true; if (_sgWant) lldSongsGo(_sgWant); }, onError: () => { lldMusToast('That song can’t play here'); } } });
 }
 function lldSongsGo(y) { try { _sgWant = null; _sgYt.loadVideoById({ videoId: y.id, startSeconds: y.t || 0 }); _sgYt.setVolume(70); _sgYt.unMute(); _sgYt.playVideo(); } catch (e) { console.warn('song go', e); } }
 function lldSongsStop() { clearInterval(_sgTm); _sgWant = null; try { if (_sgYt && _sgRdy) _sgYt.pauseVideo(); } catch (e) { } $('#lld-sgp').remove(); }
