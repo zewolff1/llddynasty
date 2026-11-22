@@ -2729,8 +2729,8 @@ function lldApvSetBtn(p) {
     return `<div class="move-btn-wrapper"><button type="button" class="move-handle-btn apv-set apv-sb${L ? ' has' : ''}" data-apvset="${p.pid}" ${L ? `style="--sc:${L[1]}"` : ''} title="Set trade status">${L ? sh[T.st] : 'SET'}</button></div>`;
 }
 function lldApvRankLine(p) {
-    const O = window._apv.on, cur = lldApvNow(p.pid), lb = r => r ? p.pos + '#' + r : '\u2013', a = [];
-    if (O.now) a.push(`<b>NOW</b> ${cur ? p.pos + '#' + cur : 'NR'}`); if (O.ros) a.push(`<b>ROS</b> ${lb(p._rROS)}`); if (O.dyn) a.push(`<b>DYN</b> ${lb(p._rDYN)}`);
+    const O = window._apv.on, cur = lldApvNow(p.pid), lb = r => r ? '#' + r : '\u2013', a = [];
+    if (O.now) a.push(`<b>NOW</b> ${cur ? '#' + cur : 'NR'}`); if (O.ros) a.push(`<b>ROS</b> ${lb(p._rROS)}`); if (O.dyn) a.push(`<b>DYN</b> ${lb(p._rDYN)}`);
     return a.join(' \u00B7 ');
 }
 function lldApvCtGloss() {
@@ -3070,10 +3070,10 @@ setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).lengt
 function lldClrOn() { return true; } // compact lineup rows are always on
 function lldClrAvg(p) { const O = window._apv.on, a = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1); return O.now ? `<span class="lld-clr-av">${a} avg</span>` : ''; }
 function lldClrFoot(p) {
-    const A = window._apv, O = A.on, x = p._ap, cur = lldApvNow(p.pid), lb = r => r ? p.pos + '#' + r : '\u2013';
+    const A = window._apv, O = A.on, x = p._ap, cur = lldApvNow(p.pid), lb = r => r ? '#' + r : '\u2013';
     const df = r => { if (!cur || !r) return ''; const d = cur - r; return d === 0 ? '<s class="eq">\u2013</s>' : d > 0 ? `<s class="up">\u25B2${d}</s>` : `<s class="dn">\u25BC${-d}</s>`; };
     const rk = [];
-    if (O.now) rk.push(`<span><u>NOW</u><b class="now">${cur ? p.pos + '#' + cur : 'NR'}</b></span>`);
+    if (O.now) rk.push(`<span><u>NOW</u><b class="now">${cur ? '#' + cur : 'NR'}</b></span>`);
     if (O.ros) rk.push(`<span><u>ROS</u><b>${lb(p._rROS)}</b>${df(p._rROS)}</span>`);
     if (O.dyn) rk.push(`<span><u>DYN</u><b>${lb(p._rDYN)}</b>${df(p._rDYN)}</span>`);
     let bb = '';
@@ -3155,6 +3155,9 @@ async function lldApvLuEnhance() {
             await lldApvUni(); lldApvRanks(all);
         } catch (e) { console.warn('apv lu data', e); }
         U.map = map;
+        const ready = Object.keys(playerSeason).length > 0 && players.some(p => p._rROS || p._rDYN || lldApvNow(p.pid));
+        if (!ready) { window._apvLu = null; window._apvLuTry = (window._apvLuTry || 0) + 1; if (window._apvLuTry <= 6) { clearTimeout(window._apvLuRt); window._apvLuRt = setTimeout(() => { try { lldApvLuEnhance(); } catch (e) { } }, 1200); } }
+        else window._apvLuTry = 0;
     }
     if (seq !== window._apvLuSeq) return;
     rows.forEach(r => { const p = U.map[String(r.dataset.pid)]; if (p) lldApvLuRow(r, p); });
