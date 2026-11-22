@@ -18687,12 +18687,12 @@ function stShow(i) {
 // ---- Music rules (beta, 0000/0001): LLD_CONFIG.recapMusic = { preview: [..], generic: [..], win: [..], loss: [..], teams: { "0001": url | [urls] | { generic, win, loss }, "Cape Canaveral": ... } }
 // Links can be YouTube links (shown in a small player) or direct mp3 links. Team keys can be a franchise number or part of the team name.
 // ---- your own songs (beta, Settings > Beta features): link + start time for each of four slots ----
-const LLD_MUS_SLOTS = [['preview', 'Generic preview'], ['recap', 'Generic recap'], ['win', 'Recap after my team wins'], ['oloss', 'Recap after my opponent loses (they hear this when they lose to me)']];
+function lldMusSlots() { return [['preview', 'Generic preview'], ['recap', 'Generic recap'], ['win', 'Recap after my team wins'], ['oloss', 'Recap after my opponent loses (they hear this when they lose to me)']]; }
 window._teamSongs = window._teamSongs || {};
 function lldMusMe() { const m = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return m === '0000' ? String(fid).padStart(4, '0') : m; }
 function lldMusUser() { let L = {}; try { L = JSON.parse(localStorage.getItem('lld_mus_u') || '{}') || {}; } catch (e) { } const S = (window._teamSongs || {})[lldMusMe()]; return (!Object.keys(L).length && S) ? S : L; }
 function lldMusOf(f) { return (window._teamSongs || {})[String(f || '').padStart(4, '0')] || null; }
-let _lldMusT = null;
+var _lldMusT = null;
 function lldMusSaveShared() { clearTimeout(_lldMusT); _lldMusT = setTimeout(async () => { try { window._teamSongs = window._teamSongs || {}; window._teamSongs[lldMusMe()] = lldMusUser(); await saveAllTeamStylesToHomepage(); } catch (e) { console.warn('songs save', e); } }, 1500); }
 function lldMusUserOn() { try { return lldBv('musu') === '1'; } catch (e) { return false; } }
 function lldMusUserUrl(k) { const s = lldMusUser()[k]; if (!s || !s.u) return ''; const y = lldYtId(s.u); if (!y) return ''; const t = lldYtSecs(s.t) || y.t || 0; return 'https://youtu.be/' + y.id + (t ? '?t=' + t : ''); }
@@ -18700,7 +18700,7 @@ function lldMusUserHtml() {
     const U = lldMusUser(), inp = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;';
     return `<div style="margin:6px 0 16px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Your recap songs: use my own (beta)</div>
         <div style="display:flex; gap:6px; margin-bottom:12px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('musu') === v ? 'on' : ''}" data-k="musu" data-v="${v}">${l}</button>`).join('')}</div>
-        ${LLD_MUS_SLOTS.map(([k, l]) => `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr 84px auto; gap:6px;"><input type="url" class="lld-mu-u" data-s="${k}" placeholder="YouTube link" value="${String((U[k] || {}).u || '').replace(/"/g, '&quot;')}" style="${inp}"><input type="text" class="lld-mu-t" data-s="${k}" placeholder="Start 1:05" value="${String((U[k] || {}).t || '').replace(/"/g, '&quot;')}" style="${inp}"><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">Test</button></div></div>`).join('')}
+        ${lldMusSlots().map(([k, l]) => `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr 84px auto; gap:6px;"><input type="url" class="lld-mu-u" data-s="${k}" placeholder="YouTube link" value="${String((U[k] || {}).u || '').replace(/"/g, '&quot;')}" style="${inp}"><input type="text" class="lld-mu-t" data-s="${k}" placeholder="Start 1:05" value="${String((U[k] || {}).t || '').replace(/"/g, '&quot;')}" style="${inp}"><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">Test</button></div></div>`).join('')}
         <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Start time can be 65, 1:05 or 1m5s. Saved on this device. Anything left blank uses the league song.</div></div>`;
 }
 $(document).on('input change', '.lld-mu-u, .lld-mu-t', function () { const U = lldMusUser(), s = this.dataset.s; U[s] = U[s] || {}; U[s][$(this).hasClass('lld-mu-u') ? 'u' : 't'] = this.value.trim(); try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
