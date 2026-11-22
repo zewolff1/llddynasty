@@ -9,7 +9,8 @@
     { "id": "rises", "name": "Sam Spence – Up As She Rises", "url": "https://youtu.be/BpbM8djgzwM" },
     { "id": "lald", "name": "Live and Let Die", "url": "https://youtu.be/y-WSNZNUjrE", "t": "0:30" },
     { "id": "fox", "name": "Fox Sports", "url": "https://youtu.be/7_6HsaNDV7o" },
-    { "id": "cbs", "name": "NFL on CBS", "url": "https://youtu.be/jx69XXobpN8" }
+    { "id": "cbs", "name": "NFL on CBS", "url": "https://youtu.be/jx69XXobpN8" },
+    { "id": "mnf", "name": "Monday Night Football", "url": "https://youtu.be/t9APljSTvj0" }
   ],
   "defendingChampFid": "0001",
   "logoUrl": "https://raw.githubusercontent.com/zewolff1/llddynasty/4f81a6a726ce6e42253b9be29c9c8ab1c3b9e576/content/Dark%20Blue%20and%20Orange%20Illustrative%20Football%20League%20Badge%20Logo%20(1).svg",
