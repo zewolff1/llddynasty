@@ -14301,7 +14301,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', musu: '0', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldAdmin() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // the two testing teams: Gotham test and commissioner tools only
 function lldDev() { return true; } // former beta features are now on for everyone;
 window.lldAdmin = lldAdmin; window.lldDev = lldDev; // row tuner sliders stay with the commissioner franchises
@@ -16663,7 +16663,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lldMusUserHtml() : ''}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -18683,9 +18683,28 @@ function stShow(i) {
 }
 // ---- Music rules (beta, 0000/0001): LLD_CONFIG.recapMusic = { preview: [..], generic: [..], win: [..], loss: [..], teams: { "0001": url | [urls] | { generic, win, loss }, "Cape Canaveral": ... } }
 // Links can be YouTube links (shown in a small player) or direct mp3 links. Team keys can be a franchise number or part of the team name.
+// ---- your own songs (beta, Settings > Beta features): link + start time for each of four slots ----
+const LLD_MUS_SLOTS = [['preview', 'Generic preview'], ['recap', 'Generic recap'], ['win', 'Recap after my team wins'], ['loss', 'Recap after my team loses']];
+function lldMusUser() { try { return JSON.parse(localStorage.getItem('lld_mus_u') || '{}') || {}; } catch (e) { return {}; } }
+function lldMusUserOn() { try { return lldBv('musu') === '1' && LLD_MUS_SLOTS.some(([k]) => (lldMusUser()[k] || {}).u && lldYtId(lldMusUser()[k].u)); } catch (e) { return false; } }
+function lldMusUserUrl(k) { const s = lldMusUser()[k]; if (!s || !s.u) return ''; const y = lldYtId(s.u); if (!y) return ''; const t = lldYtSecs(s.t) || y.t || 0; return 'https://youtu.be/' + y.id + (t ? '?t=' + t : ''); }
+function lldMusUserHtml() {
+    const U = lldMusUser(), inp = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;';
+    return `<div style="margin:6px 0 16px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Your recap songs: use my own (beta)</div>
+        <div style="display:flex; gap:6px; margin-bottom:12px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('musu') === v ? 'on' : ''}" data-k="musu" data-v="${v}">${l}</button>`).join('')}</div>
+        ${LLD_MUS_SLOTS.map(([k, l]) => `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr 84px auto; gap:6px;"><input type="url" class="lld-mu-u" data-s="${k}" placeholder="YouTube link" value="${String((U[k] || {}).u || '').replace(/"/g, '&quot;')}" style="${inp}"><input type="text" class="lld-mu-t" data-s="${k}" placeholder="Start 1:05" value="${String((U[k] || {}).t || '').replace(/"/g, '&quot;')}" style="${inp}"><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">Test</button></div></div>`).join('')}
+        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Start time can be 65, 1:05 or 1m5s. Saved on this device. Anything left blank uses the league song.</div></div>`;
+}
+$(document).on('input change', '.lld-mu-u, .lld-mu-t', function () { const U = lldMusUser(), s = this.dataset.s; U[s] = U[s] || {}; U[s][$(this).hasClass('lld-mu-u') ? 'u' : 't'] = this.value.trim(); try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } });
+$(document).on('click', '.lld-mu-test', function () {
+    const u = lldMusUserUrl(this.dataset.s), v = lldYtId(u);
+    if (!v) { try { lldMusToast('Paste a YouTube link first'); } catch (e) { } return; }
+    window.open('https://www.youtube.com/watch?v=' + v.id + (v.t ? '&t=' + v.t + 's' : ''), '_blank');
+});
 function lldMusCfg() { // beta switch "Recap music" (Settings > Beta features). Songs come from LLD_CONFIG.recapSong (one link or a list) and/or LLD_CONFIG.recapMusic (per team, win/loss, preview)
     try {
         const L = window.LLD_CONFIG || {}; let c = L.recapMusic || null;
+        if (lldMusUserOn()) c = Object.assign({}, c || {});
         if (L.recapSong) { const g = [].concat(L.recapSong).filter(x => typeof x === 'string' && x.trim()); if (g.length) c = Object.assign({}, c || {}, { generic: [].concat((c && c.generic) || [], g) }); }
         return c;
     } catch (e) { return null; }
@@ -18702,6 +18721,11 @@ function lldMusTeam(C, fid) {
     const k = Object.keys(T).find(x => !/^\d+$/.test(x) && nm.indexOf(x.toLowerCase()) >= 0); return k ? T[k] : null;
 }
 function lldMusPick(kind) {
+    if (lldMusUserOn()) {
+        const pv = kind === 'preview' || kind === 'matchup';
+        if (pv) { const u = lldMusUserUrl('preview'); if (u) return u; }
+        else { const res = (LLD_ST && LLD_ST.myRes) || '', u = (res === 'win' || res === 'loss') && lldMusUserUrl(res) || lldMusUserUrl('recap'); if (u) return u; }
+    }
     const C = lldMusCfg(); if (!C) return '';
     if (kind === 'preview' || kind === 'matchup') {
         let v = lldMusChoose(C.preview, 'pv') || lldMusChoose(C.generic) || lldMusChoose(C.win);
