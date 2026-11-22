@@ -3102,6 +3102,8 @@ function lldBbViz(x, st) {
     return '';
 }
 function lldBbsApply() { try { renderActiveTab(); } catch (e) { } }
+window.lldBbsQt = () => { const c = lldBbs(); return `<div class="qt-l">Boom / bust</div><div class="qt-row">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${c === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`; };
+$(document).on('click', '.lld-bbs-btn', function () { try { localStorage.setItem('lld_bbs', this.dataset.v); } catch (e) { } $('.lld-bbs-btn').removeClass('on'); $(this).addClass('on'); lldBbsApply(); });
 window.lldBbsLabel = () => (LLD_BBS.find(o => o[0] === lldBbs()) || LLD_BBS[0])[1];
 window.lldBbsOpen = function () {
     if (!document.getElementById('lld-bb-css')) { const c = document.createElement('style'); c.id = 'lld-bb-css'; c.textContent = `.bbv{display:inline-flex;align-items:center;vertical-align:middle}.bbv-bar{width:84px;height:7px;border-radius:4px;background:rgba(148,163,184,.35);overflow:hidden;display:flex}.bbv-bar b{display:block;height:100%}.bbv .bo,.bbv-bar .bo{background:#22c55e}.bbv .bu,.bbv-bar .bu{background:#ef4444}.bbv-bar .bu{margin-left:auto}
@@ -25353,6 +25355,7 @@ function lldQtHtml() {
         + `<div class="qt-body">${lab('Style')}<div class="qt-row">${styles}</div>`
         + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
         + lab('NFL logos') + `<div class="qt-row">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join("")}</div>`
+        + (window.lldBbsQt ? window.lldBbsQt() : '')
         + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div></div>`;
 }
 function lldQtOpen() {
