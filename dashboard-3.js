@@ -20201,7 +20201,7 @@ async function lldPsLoad() {
             const d = await lldEspnJson('/scoreboard' + (wk ? '?seasontype=2&week=' + wk + '&dates=' + yr : '')), g = {};
             (d.events || []).forEach(ev => {
                 const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = cp.find(x => x.homeAway === 'away') || {}, hm = cp.find(x => x.homeAway === 'home') || {};
-                const e = { id: ev.id, state: ((ev.status || {}).type || {}).state || 'pre', away: lldEspnNt((aw.team || {}).abbreviation), home: lldEspnNt((hm.team || {}).abbreviation), awId: (aw.team || {}).id, hmId: (hm.team || {}).id, sit: c.situation || null, awS: aw.score, hmS: hm.score };
+                const e = { id: ev.id, state: ((ev.status || {}).type || {}).state || 'pre', away: lldEspnNt((aw.team || {}).abbreviation), home: lldEspnNt((hm.team || {}).abbreviation), awId: (aw.team || {}).id, hmId: (hm.team || {}).id, sit: c.situation || null, awS: aw.score, hmS: hm.score, clk: (() => { const st = ev.status || {}, t = st.type || {}; if (/HALFTIME/i.test(t.name || '')) return 'Halftime'; if (/END_PERIOD/i.test(t.name || '')) return 'End Q' + (st.period || ''); if (/OVERTIME|OT/i.test(t.name || '') && st.period > 4) return 'OT ' + (st.displayClock || ''); return 'Q' + (st.period || '') + ' ' + (st.displayClock || ''); })() };
                 if (e.away) g[e.away] = e; if (e.home) g[e.home] = e;
             });
             LLDPS.games = g; LLDPS.key = wk; LLDPS.t = Date.now();
@@ -20269,8 +20269,10 @@ async function lldPsFill(force) {
             const st = x.querySelector('.lld-ps-s'), fl = x.querySelector('.lld-ps-fl'), dn = x.querySelector('.lld-ps-dn'), fb = x.querySelector('.lld-ps-fb');
             if (st) st.innerHTML = lldPsLine(x.dataset.pos, m[k]).replace(/^<div class="lld-ps-s">|<\/div>$/g, '');
             if (ev.state === 'in' && fl) {
-                const f = lldPsField(ev, team); fl.innerHTML = f.strip; if (fb) fb.style.display = 'none';
-                if (dn) dn.innerHTML = f.dn ? ' \u00B7 ' + f.dn : '';
+                const f = lldPsField(ev, team); fl.innerHTML = f.strip;
+                const tx = x.querySelector('.lld-ps-tx'); if (tx) tx.innerHTML = `<span class="lv">\u25CF ${lldEsc(ev.clk.trim())}</span><span class="lld-ps-dn">${f.dn ? ' \u00B7 ' + f.dn : ''}</span>`;
+            } else if (ev.state === 'post') {
+                const tx = x.querySelector('.lld-ps-tx'); if (tx) tx.textContent = `Final \u00B7 ${ev.away} ${ev.awS}-${ev.hmS} ${ev.home}`;
             }
             x.dataset.f = '1';
         }
