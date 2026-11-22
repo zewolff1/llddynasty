@@ -23,8 +23,6 @@ html,body{margin:0;background:#070b14;color:#e5e7eb;font-family:-apple-system,sy
 /* iPhone home-screen app: the status bar overlays the page, so push the sticky header below it (otherwise its buttons sit under the clock and can't be tapped) */
 .app-header{padding-top:env(safe-area-inset-top,0px) !important}
 body{padding-bottom:env(safe-area-inset-bottom,0px)}
-/* keep the unstyled shell hidden until the dashboard has applied its theme (no blank/blue flash while it loads) */
-body.lld-prestart>*:not(#lld-app-boot):not(script):not(link){visibility:hidden}
 </style>
 </head>
 <body>
@@ -40,6 +38,6 @@ body.lld-prestart>*:not(#lld-app-boot):not(script):not(link){visibility:hidden}
 </div>
 <script src="config.js?v=2"></script>
 <script src="install.js?v=6"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

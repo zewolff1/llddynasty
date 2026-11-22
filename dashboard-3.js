@@ -1,5 +1,3 @@
-// Home Screen app: cover the half-built page until the team has loaded (done here so it works even if the phone still has an older app.js)
-try { if (window.LLD_STANDALONE && document.body && !document.getElementById('lld-cover')) { const c = document.createElement('div'); c.id = 'lld-cover'; c.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#0f1626;color:#94a3b8;display:flex;align-items:center;justify-content:center;font:13px -apple-system,system-ui,sans-serif'; c.textContent = 'Loading your league\u2026'; document.body.appendChild(c); window.lldUncover = () => { const e = document.getElementById('lld-cover'); if (e) e.remove(); }; setTimeout(window.lldUncover, 30000); } } catch (e) { }
 try { if (document.body) { document.body.classList.add('lld-sh-pend'); setTimeout(function () { document.body.classList.remove('lld-sh-pend'); }, 9000); } } catch (e) { }
 // ===== LOADING OVERLAY + PULL TO REFRESH (beta switches "ldr" and "ptr", commissioner franchises only, default off) =====
 // The overlay goes up as soon as this file runs and comes down once the header and the first rows are in, so tabs do not pop in one by one.
@@ -1605,7 +1603,7 @@ const LLD_READY = (async function lldAutoConfig() {
             }
         }
         const ctl = new AbortController();
-        const to = setTimeout(() => ctl.abort(), 3500);
+        const to = setTimeout(() => ctl.abort(), 5000);
         const r = await fetch(`${MFL_ORIGIN}/${yrA}/export?TYPE=league&L=${lidA}&JSON=1`, { credentials: 'include', signal: ctl.signal });
         clearTimeout(to);
         const L = (await r.json()).league || {};
@@ -1681,7 +1679,6 @@ const myAppIconUrl = `${MFL_ORIGIN}/fflnetdynamic${yearFromUrl}/${lidFromUrl}_le
 })();
 
 LLD_READY.then(function () { $(document).ready(function() {
-window._lldBoot = true; // from the very start: the empty-roster message must not flash while the team is still loading
 
 // --- BUILD STAMP ---
 // Manually bump this string every time you push new code to GitHub. A small tag in the
@@ -1845,7 +1842,6 @@ let rookiePids = new Set();
                 const hasMedia = !!el.querySelector('img, table, input, canvas, svg');
                 const empty = !text.replace(/loading[^a-z]*/ig, '').trim() && !hasMedia && !el.querySelector('.loader, .spinner, #players-loader');
                 const old = el.querySelector('.lld-empty-state');
-                if (old && window._lldBoot && id === 'player-rows-container') { old.remove(); return; }
                 if (shown && empty && !old && window._lldBoot && id === 'player-rows-container') {
                     if (!el.querySelector('.loading-indicator')) { const l = document.createElement('div'); l.className = 'loading-indicator lld-boot-spin'; l.textContent = 'Loading team…'; el.appendChild(l); }
                 } else if (shown && empty && !old) {
@@ -24023,7 +24019,7 @@ if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-ru
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 const lldPel = true; // faster loading is on for everyone
 window._lldBoot = true; document.body.classList.add('lld-boot'); if (lldPel) document.body.classList.add('lld-pel-on');
-const lldBootDone = () => { try { if (window.lldReveal) window.lldReveal(); } catch (e) { } try { if (window.lldUncover) window.lldUncover(); } catch (e) { } try { lldVerTag(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
+const lldBootDone = () => { try { lldVerTag(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
 setTimeout(lldBootDone, 25000);
 if (lldPel) {
     document.body.classList.add('lld-pel-busy');
