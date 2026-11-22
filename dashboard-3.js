@@ -18720,8 +18720,8 @@ function lldMusSongUrl(v) {
     let u = '', t = 0;
     if (typeof v === 'object') { u = v.u; t = lldYtSecs(v.t); }
     else { const c = lldMusCat().find(x => String(x.id) === String(v)); if (!c) return ''; u = c.url; t = lldYtSecs(c.t); }
-    const y = lldYtId(u); if (!y) return ''; t = t || y.t || 1; // songs with no start time begin at :01 (starting at 0 tends to bring up the YouTube ad)
-    return 'https://youtu.be/' + y.id + '?t=' + t;
+    const y = lldYtId(u); if (!y) return ''; t = t || y.t || 0;
+    return 'https://youtu.be/' + y.id + (t ? '?t=' + t : '');
 }
 // songs can be limited to certain slots ("slots") or certain teams ("teams": part of the team name); songs with no link yet stay hidden
 function lldMusCatFor(slot) {
