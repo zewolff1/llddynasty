@@ -25803,6 +25803,11 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         const f = String(window._lldMyFid || '').padStart(4, '0');
         const appCommish = !!(window.LLD_STANDALONE && typeof window.lldAppBecome === 'function');
         if (window._commishToggleUrl || appCommish) h += `<button type="button" class="am-i" data-a="role">${f === '0000' ? 'Switch to Owner (0001)' : 'Switch to Commish (0000)'}</button>`;
+        if (window._commishToggleUrl || appCommish) {
+            let fr = {}; try { fr = window.lldFr() || {}; } catch (e) { }
+            const ids = Object.keys(fr).filter(k => /^\d{4}$/.test(k) && k !== '0000').sort();
+            if (ids.length) h += `<button type="button" class="am-i" data-a="viewas">View as\u2026 <span class="am-ar">\u25BE</span><small class="am-cur">${f !== '0000' && fr[f] ? 'Now ' + String(fr[f]).replace(/</g, '&lt;') : ''}</small></button><div class="am-yrs" id="am-va" style="display:none;">${ids.map(k => `<button type="button" class="am-i" data-a="va" data-f="${k}">${f === k ? '\u2713 ' : ''}${String(fr[k]).replace(/</g, '&lt;')}</button>`).join('')}</div>`;
+        }
         try { const L = (window.LLD_STANDALONE && window.lldAppLeagues) ? window.lldAppLeagues() : []; if (L.length > 1) { h += '<div class="am-h">League</div>'; L.forEach(l => { h += `<button type="button" class="am-i" data-a="lg" data-id="${l.id}">${l.active ? '\u2713 ' : ''}${String(l.name).replace(/</g, '&lt;')}</button>`; }); } } catch (e) { }
         const m10 = hdr.find('a').filter(function () { return /Msg 10/.test(this.textContent); }); if (m10.length && !window.LLD_STANDALONE) h += `<a class="am-i" href="${m10.attr('href')}">Message 10</a>`;
         try { h += `<button type="button" class="am-i" data-a="seasons">Previous seasons <span class="am-ar">\u25BE</span><small class="am-cur"></small></button><div class="am-yrs" style="display:none;">` + window._lldSeasonChips() + '</div>'; } catch (e) { }
@@ -25814,6 +25819,13 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('click', '#lld-acct-m', function (e) { if (!$(e.target).closest('.lld-yrb').length) return; });
     $(document).on('click', '#lld-acct-m .am-i[data-a]', function () {
         const a = this.dataset.a;
+        if (a === 'viewas') { const y = $('#am-va'); y.toggle(); $(this).find('.am-ar').text(y.is(':visible') ? '\u25B4' : '\u25BE'); return; }
+        if (a === 'va') {
+            const t = this.dataset.f; $('#lld-acct-m').hide();
+            if (window.LLD_STANDALONE && typeof window.lldAppBecome === 'function') { window.lldAppBecome(t); return; }
+            if (window._commishToggleUrl) window.location.href = window._commishToggleUrl.replace(/BECOME=\d+/, 'BECOME=' + t);
+            return;
+        }
         if (a === 'seasons') { const y = $(this).next('.am-yrs'); y.toggle(); $(this).find('.am-ar').text(y.is(':visible') ? '\u25B4' : '\u25BE'); return; }
         $('#lld-acct-m').hide();
         if (a === 'role') $('#settings-commish-toggle').trigger('click');
