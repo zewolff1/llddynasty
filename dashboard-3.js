@@ -20186,9 +20186,9 @@ const LLDPS = { key: null, t: 0, games: {}, busy: null, box: {} };
 function lldPsCss() {
     if (document.getElementById('lld-ps-css')) return;
     const c = document.createElement('style'); c.id = 'lld-ps-css';
-    c.textContent = '.lld-ps{margin-top:3px}.lld-ps:empty{display:none}.lld-ps-s{font-size:calc(10px * var(--ts,1));font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}.lld-ps-s i{font-style:normal;font-size:.8em;color:var(--text-dim);font-weight:700;margin-left:1px}.lld-ps-s em{font-style:normal;color:var(--text-dim);margin-inline:3px}.lld-ps-s .td{color:#f5b324}'
-        + '.lld-ps-f{position:relative;height:4px;border-radius:2px;background:rgba(148,163,184,.3);margin:8px 5px 3px}.lld-ps-f u{position:absolute;top:0;bottom:0;border-radius:2px;background:#ef4444;opacity:.6}.lld-ps-f b{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(15,23,42,.9)}'
-        + '.lld-ps-t{display:flex;justify-content:space-between;gap:6px;font-size:calc(8px * var(--ts,1));font-weight:800;color:var(--text-dim);white-space:nowrap}.lld-ps-t span{overflow:hidden;text-overflow:ellipsis}.lld-ps-t em{font-style:normal;color:#f5b324}';
+    c.textContent = '.lld-ps-m{display:flex;align-items:baseline;gap:7px;min-width:0;margin-top:5px}.lld-ps-m.l{flex-direction:row-reverse}.lld-ps-m .lld-ps-s{flex:1;min-width:0;text-align:inherit}.lld-ps-s{font-size:calc(10px * var(--ts,1));font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}.lld-ps-s i{font-style:normal;font-size:.8em;color:var(--text-dim);font-weight:700;margin-left:1px}.lld-ps-s em{font-style:normal;color:var(--text-dim);margin-inline:3px}.lld-ps-s .td{color:#f5b324}'
+        + '.lld-ps-fl:empty{display:none}.lld-ps-g{display:flex;align-items:center;gap:5px;margin-top:7px}.lld-ps-g img{width:17px;height:17px;object-fit:contain;flex:none}.lld-ps-g b{font-size:calc(11px * var(--ts,1));font-weight:900;color:#fff;font-variant-numeric:tabular-nums;min-width:9px;text-align:center}.lld-ps-f{position:relative;flex:1;min-width:16px;height:4px;border-radius:2px;background:rgba(148,163,184,.3)}.lld-ps-f u{position:absolute;top:0;bottom:0;border-radius:2px;background:#ef4444;opacity:.65}.lld-ps-f i{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(15,23,42,.9)}.lld-ps-f.dim i{background:#94a3b8}'
+        + '.lld-ps-tx{margin-top:5px;text-align:center;font-size:calc(9px * var(--ts,1));font-weight:800;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lld-ps-tx .lv{color:#ef4444}.lld-ps-tx .rz{color:#f5b324}';
     document.head.appendChild(c);
 }
 async function lldPsLoad() {
@@ -20201,7 +20201,7 @@ async function lldPsLoad() {
             const d = await lldEspnJson('/scoreboard' + (wk ? '?seasontype=2&week=' + wk + '&dates=' + yr : '')), g = {};
             (d.events || []).forEach(ev => {
                 const c = (ev.competitions || [])[0] || {}, cp = c.competitors || [], aw = cp.find(x => x.homeAway === 'away') || {}, hm = cp.find(x => x.homeAway === 'home') || {};
-                const e = { id: ev.id, state: ((ev.status || {}).type || {}).state || 'pre', away: lldEspnNt((aw.team || {}).abbreviation), home: lldEspnNt((hm.team || {}).abbreviation), awId: (aw.team || {}).id, hmId: (hm.team || {}).id, sit: c.situation || null };
+                const e = { id: ev.id, state: ((ev.status || {}).type || {}).state || 'pre', away: lldEspnNt((aw.team || {}).abbreviation), home: lldEspnNt((hm.team || {}).abbreviation), awId: (aw.team || {}).id, hmId: (hm.team || {}).id, sit: c.situation || null, awS: aw.score, hmS: hm.score };
                 if (e.away) g[e.away] = e; if (e.home) g[e.home] = e;
             });
             LLDPS.games = g; LLDPS.key = wk; LLDPS.t = Date.now();
@@ -20242,15 +20242,17 @@ function lldPsLine(pos, m) {
     return out.length ? `<div class="lld-ps-s">${out.join('<em>·</em>')}</div>` : '';
 }
 function lldPsField(ev, team) {
-    const sit = ev.sit; if (!sit || ev.state !== 'in') return '';
-    const txt = String(sit.downDistanceText || sit.shortDownDistanceText || ''), mm = txt.match(/^(.*?)\s+(?:at|on)\s+([A-Z]{2,3})\s+(\d+)/i) || String(sit.possessionText || '').match(/^()([A-Z]{2,3})\s+(\d+)/);
-    if (!mm) return '';
-    const spotT = lldEspnNt(mm[2].toUpperCase()), yd = parseInt(mm[3], 10), offAway = String(sit.possession) === String(ev.awId);
-    if (!(yd >= 0)) return '';
-    const off = offAway ? ev.away : ev.home, fromAway = Math.max(3, Math.min(97, spotT === ev.away ? yd : 100 - yd)), rz = !!sit.isRedZone;
-    const down = (mm[1] || '').trim(), arrow = offAway ? '▶ ' : '◀ ', mine = off === team;
-    const rzb = rz ? (offAway ? '<u style="left:80%;right:0"></u>' : '<u style="left:0;width:20%"></u>') : '';
-    return `<div class="lld-ps-f">${rzb}<b style="left:${fromAway}%"></b></div><div class="lld-ps-t"><span>${arrow}${lldEsc(spotT + ' ' + yd)}${down ? ' · ' + lldEsc(down) : ''}</span>${rz && mine ? '<em>RED ZONE</em>' : (mine ? '' : '<span>DEF</span>')}</div>`;
+    const sit = ev.sit, logo = t => `<img src="${lldEsc(getNFLLogoUrl(t))}" onerror="this.style.visibility='hidden'">`;
+    let dot = '', dn = '', cls = '';
+    const txt = sit ? String(sit.downDistanceText || sit.shortDownDistanceText || '') : '', mm = sit ? (txt.match(/^(.*?)\s+(?:at|on)\s+([A-Z]{2,3})\s+(\d+)/i) || String(sit.possessionText || '').match(/^()([A-Z]{2,3})\s+(\d+)/)) : null;
+    if (mm && parseInt(mm[3], 10) >= 0) {
+        const spotT = lldEspnNt(mm[2].toUpperCase()), yd = parseInt(mm[3], 10), offAway = String(sit.possession) === String(ev.awId), off = offAway ? ev.away : ev.home;
+        const pos = Math.max(3, Math.min(97, spotT === ev.away ? yd : 100 - yd)), rz = !!sit.isRedZone;
+        dot = (rz ? (offAway ? '<u style="left:80%;right:0"></u>' : '<u style="left:0;width:20%"></u>') : '') + `<i style="left:${pos}%"></i>`;
+        cls = off === team ? '' : ' dim';
+        dn = rz && off === team ? '<span class="rz">Red zone</span>' : lldEsc((mm[1] || '').trim());
+    }
+    return { strip: `<div class="lld-ps-g">${logo(ev.away)}<b>${lldEsc(ev.awS != null ? ev.awS : '')}</b><div class="lld-ps-f${cls}">${dot}</div><b>${lldEsc(ev.hmS != null ? ev.hmS : '')}</b>${logo(ev.home)}</div>`, dn };
 }
 let lldPsBusyFill = false;
 async function lldPsFill(force) {
@@ -20258,16 +20260,19 @@ async function lldPsFill(force) {
     lldPsBusyFill = true;
     try {
         lldPsCss();
-        if (lldEspnHide()) { els.forEach(x => { x.innerHTML = ''; x.dataset.f = '1'; }); return; }
+        if (lldEspnHide()) { els.forEach(x => { x.dataset.f = '1'; }); return; }
         await lldPsLoad();
         for (const x of els) {
             const team = lldEspnNt(String(x.dataset.team || '').toUpperCase()), ev = LLDPS.games[team], side = x.dataset.side;
-            if (!ev || ev.state === 'pre') { x.innerHTML = ''; x.dataset.f = '1'; continue; }
+            if (!ev || ev.state === 'pre') { x.dataset.f = '1'; continue; }
             const m = await lldPsBox(ev), k = lldEspnKey(x.dataset.name, team);
-            let h = lldPsLine(x.dataset.pos, m[k]);
-            if (ev.state === 'in') h += lldPsField(ev, team);
-            x.style.textAlign = side === 'left' ? 'left' : 'right'; x.innerHTML = h; x.dataset.f = '1';
-            const old = x.parentNode && x.parentNode.querySelector('.lld-oldstat'); if (old) old.style.display = h ? 'none' : '';
+            const st = x.querySelector('.lld-ps-s'), fl = x.querySelector('.lld-ps-fl'), dn = x.querySelector('.lld-ps-dn'), fb = x.querySelector('.lld-ps-fb');
+            if (st) st.innerHTML = lldPsLine(x.dataset.pos, m[k]).replace(/^<div class="lld-ps-s">|<\/div>$/g, '');
+            if (ev.state === 'in' && fl) {
+                const f = lldPsField(ev, team); fl.innerHTML = f.strip; if (fb) fb.style.display = 'none';
+                if (dn) dn.innerHTML = f.dn ? ' \u00B7 ' + f.dn : '';
+            }
+            x.dataset.f = '1';
         }
     } catch (e) { console.warn('player stats', e); } finally { lldPsBusyFill = false; }
 }
@@ -20303,6 +20308,9 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
     else if (sched && g !== null) line2 = g >= 3600 ? 'Yet to play' : (g <= 0 ? 'Final' : (formatGameClock(g) || 'Live'));
     else line2 = status.label === 'Upcoming' ? 'Yet to play' : status.label;
     const bg = status.playing ? `${color}30` : `${color}14`;
+    const isFin = status.done || (sched && g !== null && g <= 0), isLive = status.playing && !isFin;
+    const awT = oppAbbr ? (atVs === '@' ? team : oppAbbr) : '', hmT = oppAbbr ? (atVs === '@' ? oppAbbr : team) : '';
+    const lineTx = isLive ? `${line1Score ? '<span class="lld-ps-fb">' + lldEsc(line1) + ' \u00B7 </span>' : ''}<span class="lv">\u25CF ${lldEsc(line2)}</span>` : (isFin ? `Final${line1Score ? ' \u00B7 ' + lldEsc(line1) : ''}` : (awT ? `${awT} @ ${hmT} \u00B7 ${lldEsc(sched && sched.label ? sched.label : (line2 || ''))}` : lldEsc(line2)));
     return `<div class="player-modal-trigger lld-pc" data-pid="${p.pid}" data-team="${team}" data-name="${p.name}" data-pos="${pos}"
         style="--tc:${color}; min-width:0; cursor:pointer; padding:8px 9px; border-radius:12px; background:${bg}; border:1px solid ${color}40; box-shadow:inset ${left ? '' : '-'}3px 0 0 ${color};">
         <div style="display:flex; align-items:center; gap:6px; flex-direction:${left ? 'row' : 'row-reverse'};">
@@ -20314,16 +20322,14 @@ function lsSideCard(p, projMap, liveDetails, color, side) {
                 <div style="font-size:calc(11px * var(--ts,1)); font-weight:800; color:#fff; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
                 <div style="font-size:calc(9px * var(--ts,1)); font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--pos-${pos.toLowerCase()}, var(--text-dim));">${pos}</span><img src="${getNFLLogoUrl(team)}" onerror="this.style.display='none'" style="width:13px; height:13px; object-fit:contain; vertical-align:middle; margin-left:4px;"></div>
             </div>
-            <div style="flex-shrink:0; text-align:${left ? 'right' : 'left'};">
-                <div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1.1;">${showProj ? val : lldRvWrap(val, 'p' + p.pid)}</div>
-                ${showProj ? '<div style="font-size:calc(7px * var(--ts,1)); font-weight:900; color:#f59e0b; letter-spacing:0.5px;">PROJ</div>' : ''}
-            </div>
         </div>
-        <div style="margin-top:6px; text-align:${left ? 'left' : 'right'};">
-            <div style="font-size:calc(9px * var(--ts,1)); font-weight:700; color:#e2e8f0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${line1Score ? lldRvG(line1, p.pid) : line1}</div>
-            <div style="font-size:calc(8px * var(--ts,1)); font-weight:800; color:${status.color}; text-transform:uppercase; letter-spacing:0.3px; line-height:1.3;">${line2}</div>
-            ${stat ? `<div class="lld-oldstat" style="font-size:calc(8px * var(--ts,1)); color:var(--text-dim); margin-top:2px; line-height:1.35;">${stat}</div>` : ''}
-            <div class="lld-ps" data-pid="${p.pid}" data-team="${team}" data-pos="${pos}" data-name="${String(p.name || '').replace(/"/g, '&quot;')}" data-side="${side}"></div>
+        <div class="lld-ps" data-pid="${p.pid}" data-team="${team}" data-pos="${pos}" data-name="${String(p.name || '').replace(/"/g, '&quot;')}">
+            <div class="lld-ps-m ${left ? 'l' : ''}" style="text-align:${left ? 'right' : 'left'};">
+                <div style="flex-shrink:0;"><div style="font-size:calc(22px * var(--ts,1)); font-weight:900; color:${valColor}; font-variant-numeric:tabular-nums; line-height:1;">${showProj ? val : lldRvWrap(val, 'p' + p.pid)}</div></div>
+                ${showProj ? '<div style="font-size:calc(8px * var(--ts,1)); font-weight:900; color:#f59e0b; letter-spacing:0.5px;">PROJ</div>' : '<div class="lld-ps-s"></div>'}
+            </div>
+            <div class="lld-ps-fl"></div>
+            <div class="lld-ps-tx">${lineTx}<span class="lld-ps-dn"></span></div>
         </div>
     </div>`;
 }
