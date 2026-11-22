@@ -4672,7 +4672,7 @@ async function saveAllTeamStylesToHomepage() {
         const params = new URLSearchParams();
         params.set('LEAGUE_ID', lid);
         params.set('NAME', 'message9');
-        params.set('MSG', `<!--TEAMSTYLES:${stylesJson}--><!--TEAMLOCS:${JSON.stringify(window._teamLocs || {})}-->`);
+        params.set('MSG', `<!--TEAMSTYLES:${stylesJson}--><!--TEAMLOCS:${JSON.stringify(window._teamLocs || {})}--><!--TEAMSONGS:${JSON.stringify(window._teamSongs || {})}-->`);
         params.set('LABEL', '');
         params.set('IN_HEADER', 'Yes');
         params.set('IN_FOOTER', 'Yes');
@@ -4699,6 +4699,7 @@ async function loadAllTeamStylesFromHomepage() {
         const content = doc.querySelector('textarea[name="MSG"]')?.value || '';
         
         try { const lm = content.match(/<!--TEAMLOCS:(.*?)-->/s); if (lm) window._teamLocs = JSON.parse(lm[1]) || {}; } catch (e) { }
+        try { const sm = content.match(/<!--TEAMSONGS:(.*?)-->/s); if (sm) window._teamSongs = JSON.parse(sm[1]) || {}; } catch (e) { }
         const match = content.match(/<!--TEAMSTYLES:(.*?)-->/s);
         if (match) {
             window._teamStyles = JSON.parse(match[1]);
@@ -4713,6 +4714,7 @@ async function loadAllTeamStylesFromHomepage() {
         // MFL injects SEQNO messages into the page if IN_HEADER is Yes
         const pageText = document.documentElement.innerHTML;
         try { const lm2 = pageText.match(/<!--TEAMLOCS:(.*?)-->/s); if (lm2) window._teamLocs = JSON.parse(lm2[1]) || {}; } catch (e) { }
+        try { const sm2 = pageText.match(/<!--TEAMSONGS:(.*?)-->/s); if (sm2) window._teamSongs = JSON.parse(sm2[1]) || {}; } catch (e) { }
         const pageMatch = pageText.match(/<!--TEAMSTYLES:(.*?)-->/s);
         if (pageMatch) {
             window._teamStyles = JSON.parse(pageMatch[1]);
@@ -18521,7 +18523,7 @@ async function lldStorySlides(kind, wk, idx) {
     if (kind === 'mrecap') { // just your own matchup for that week
         const f0 = String(fid).padStart(4, '0'), ms0 = await fetchRecapWeek(wk, wk < (parseInt(window._lldServedWeek, 10) || 99)), m0 = ms0.find(x => x.t1.fid === f0 || x.t2.fid === f0);
         if (!m0) return [stSlide('#334155', '#0b0f19', `<div class="st-k st-a">WEEK ${wk}</div><div class="st-h st-a" style="--d:.2s">No game found</div>`)];
-        LLD_ST.myRes = (m0.t1.fid === f0 ? m0.t1.score >= m0.t2.score : m0.t2.score >= m0.t1.score) ? 'win' : 'loss';
+        LLD_ST.myRes = (m0.t1.fid === f0 ? m0.t1.score >= m0.t2.score : m0.t2.score >= m0.t1.score) ? 'win' : 'loss'; LLD_ST.oppFid = m0.t1.fid === f0 ? m0.t2.fid : m0.t1.fid;
         return lldMatchRecapSlides(m0, wk);
     }
     const me = String((typeof myFid !== 'undefined' && myFid) ? myFid : fid).padStart(4, '0');
@@ -18534,7 +18536,7 @@ async function lldStorySlides(kind, wk, idx) {
         let ms = []; try { ms = await fetchRecapWeek(wk, wk < latest); } catch (e) { }
         out.push(stSlide('#a16207', '#1c1004', `<div class="st-k st-a">LLD DYNASTY</div><div class="st-huge st-a" style="--d:.15s">WEEK ${wk}</div><div class="st-h st-a" style="--d:.4s">Recap</div>`));
         const mg = ms.find(m => m.t1.fid === me || m.t2.fid === me);
-        if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; LLD_ST.myRes = won ? 'win' : 'loss'; out.push(stSlideTm(me, `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
+        if (mg) { const a = mg.t1.fid === me ? mg.t1 : mg.t2, b = a === mg.t1 ? mg.t2 : mg.t1, won = a.score > b.score; LLD_ST.myRes = won ? 'win' : 'loss'; LLD_ST.oppFid = b.fid; out.push(stSlideTm(me, `<div class="st-k st-a">YOUR WEEK</div>${stLogo(me, 84)}${stNum(a.score, 2)}<div class="st-pill st-a" style="--d:.7s;background:${won ? '#22c55e' : '#ef4444'}">${won ? 'WIN' : 'LOSS'} vs ${stName(b.fid)} · ${b.score.toFixed(2)}</div>`)); }
         try {
             const mine = mg && (mg.t1.fid === me ? mg.t1 : mg.t2), sp = mine && lldSpotlight(mine);
             if (sp) out.push(stSlideTm(me, `<div class="st-k st-a">YOUR LINEUP DECISIONS</div>${stNum(sp.left, 1, 'gold')}<div class="st-h st-a" style="--d:.5s">points left on your bench</div><div class="st-row2 st-a" style="--d:.7s"><b>Right calls</b><i>${sp.right} of ${sp.n}</i></div><div class="st-row2 st-a" style="--d:.9s"><b>Best starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.best.p.name)} ${sp.best.v.toFixed(1)}</i></div><div class="st-row2 st-a" style="--d:1.1s"><b>Worst starter</b><i style="font-size:calc(15px * var(--ts,1))">${lldChatEsc(sp.worst.p.name)} ${sp.worst.v.toFixed(1)}</i></div>${sp.miss && sp.swap ? `<div class="st-sub st-a" style="--d:1.4s">${lldChatEsc(sp.miss.p.name)} (${sp.miss.v.toFixed(1)}) on the bench beat ${lldChatEsc(sp.swap.p.name)} (${sp.swap.v.toFixed(1)})</div>` : ''}`));
@@ -18684,9 +18686,14 @@ function stShow(i) {
 // ---- Music rules (beta, 0000/0001): LLD_CONFIG.recapMusic = { preview: [..], generic: [..], win: [..], loss: [..], teams: { "0001": url | [urls] | { generic, win, loss }, "Cape Canaveral": ... } }
 // Links can be YouTube links (shown in a small player) or direct mp3 links. Team keys can be a franchise number or part of the team name.
 // ---- your own songs (beta, Settings > Beta features): link + start time for each of four slots ----
-const LLD_MUS_SLOTS = [['preview', 'Generic preview'], ['recap', 'Generic recap'], ['win', 'Recap after my team wins'], ['loss', 'Recap after my team loses']];
-function lldMusUser() { try { return JSON.parse(localStorage.getItem('lld_mus_u') || '{}') || {}; } catch (e) { return {}; } }
-function lldMusUserOn() { try { return lldBv('musu') === '1' && LLD_MUS_SLOTS.some(([k]) => (lldMusUser()[k] || {}).u && lldYtId(lldMusUser()[k].u)); } catch (e) { return false; } }
+const LLD_MUS_SLOTS = [['preview', 'Generic preview'], ['recap', 'Generic recap'], ['win', 'Recap after my team wins'], ['oloss', 'Recap after my opponent loses (they hear this when they lose to me)']];
+window._teamSongs = window._teamSongs || {};
+function lldMusMe() { const m = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return m === '0000' ? String(fid).padStart(4, '0') : m; }
+function lldMusUser() { let L = {}; try { L = JSON.parse(localStorage.getItem('lld_mus_u') || '{}') || {}; } catch (e) { } const S = (window._teamSongs || {})[lldMusMe()]; return (!Object.keys(L).length && S) ? S : L; }
+function lldMusOf(f) { return (window._teamSongs || {})[String(f || '').padStart(4, '0')] || null; }
+let _lldMusT = null;
+function lldMusSaveShared() { clearTimeout(_lldMusT); _lldMusT = setTimeout(async () => { try { window._teamSongs = window._teamSongs || {}; window._teamSongs[lldMusMe()] = lldMusUser(); await saveAllTeamStylesToHomepage(); } catch (e) { console.warn('songs save', e); } }, 1500); }
+function lldMusUserOn() { try { return lldBv('musu') === '1'; } catch (e) { return false; } }
 function lldMusUserUrl(k) { const s = lldMusUser()[k]; if (!s || !s.u) return ''; const y = lldYtId(s.u); if (!y) return ''; const t = lldYtSecs(s.t) || y.t || 0; return 'https://youtu.be/' + y.id + (t ? '?t=' + t : ''); }
 function lldMusUserHtml() {
     const U = lldMusUser(), inp = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;';
@@ -18695,7 +18702,7 @@ function lldMusUserHtml() {
         ${LLD_MUS_SLOTS.map(([k, l]) => `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr 84px auto; gap:6px;"><input type="url" class="lld-mu-u" data-s="${k}" placeholder="YouTube link" value="${String((U[k] || {}).u || '').replace(/"/g, '&quot;')}" style="${inp}"><input type="text" class="lld-mu-t" data-s="${k}" placeholder="Start 1:05" value="${String((U[k] || {}).t || '').replace(/"/g, '&quot;')}" style="${inp}"><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">Test</button></div></div>`).join('')}
         <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Start time can be 65, 1:05 or 1m5s. Saved on this device. Anything left blank uses the league song.</div></div>`;
 }
-$(document).on('input change', '.lld-mu-u, .lld-mu-t', function () { const U = lldMusUser(), s = this.dataset.s; U[s] = U[s] || {}; U[s][$(this).hasClass('lld-mu-u') ? 'u' : 't'] = this.value.trim(); try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } });
+$(document).on('input change', '.lld-mu-u, .lld-mu-t', function () { const U = lldMusUser(), s = this.dataset.s; U[s] = U[s] || {}; U[s][$(this).hasClass('lld-mu-u') ? 'u' : 't'] = this.value.trim(); try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
 $(document).on('click', '.lld-mu-test', function () {
     const u = lldMusUserUrl(this.dataset.s), v = lldYtId(u);
     if (!v) { try { lldMusToast('Paste a YouTube link first'); } catch (e) { } return; }
@@ -18724,7 +18731,12 @@ function lldMusPick(kind) {
     if (lldMusUserOn()) {
         const pv = kind === 'preview' || kind === 'matchup';
         if (pv) { const u = lldMusUserUrl('preview'); if (u) return u; }
-        else { const res = (LLD_ST && LLD_ST.myRes) || '', u = (res === 'win' || res === 'loss') && lldMusUserUrl(res) || lldMusUserUrl('recap'); if (u) return u; }
+        else {
+            const res = (LLD_ST && LLD_ST.myRes) || '', opp = lldMusOf(LLD_ST && LLD_ST.oppFid), ou = k => { const s = opp && opp[k]; if (!s || !s.u) return ''; const y = lldYtId(s.u); if (!y) return ''; const t = lldYtSecs(s.t) || y.t || 0; return 'https://youtu.be/' + y.id + (t ? '?t=' + t : ''); };
+            // I win: my own win song. I lose: the song the team that beat me chose for their opponent's loss (then their win song). Then my generic recap.
+            const u = (res === 'win' && lldMusUserUrl('win')) || (res === 'loss' && (ou('oloss') || ou('win'))) || lldMusUserUrl('recap');
+            if (u) return u;
+        }
     }
     const C = lldMusCfg(); if (!C) return '';
     if (kind === 'preview' || kind === 'matchup') {
@@ -18805,7 +18817,7 @@ function stClose() { $('#lld-story').remove(); LLD_ST.slides = []; stMusicStop()
 async function lldOpenStory(kind, wk, idx, popup) {
     $('#lld-story').remove(); LLD_ST.popup = !!popup; LLD_ST.embed = false; try { if (lldMusCfg()) lldYtLoad(); } catch (e) { } // load the YouTube player early
     $('body').append(`<div id="lld-story" style="--dur:${(5.4 / LLD_ST.speed).toFixed(2)}s"><div class="st-top"><div class="st-bars"></div><button type="button" class="st-sp">${LLD_ST.speed}×</button><button type="button" class="st-end" aria-label="Skip to the end">⏭</button><button type="button" class="st-mu" aria-label="Mute music" style="display:none">🔊</button><button type="button" class="st-x">✕</button></div><div class="st-stage"><div class="st-in"><div class="st-k">Loading…</div></div></div><div class="st-zl"></div><div class="st-zr"></div></div>`);
-    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.myRes = null; LLD_ST.winFid = ''; LLD_ST.monthStt = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if (kind === 'month') { LLD_ST.stt = LLD_ST.monthStt || ''; $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); } LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false;
+    try { LLD_ST.stt = lldSttKey(); $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); LLD_ST.topFid = ''; LLD_ST.myRes = null; LLD_ST.oppFid = ''; LLD_ST.winFid = ''; LLD_ST.monthStt = ''; LLD_ST.slides = await lldStorySlides(kind, wk, idx); if (kind === 'month') { LLD_ST.stt = LLD_ST.monthStt || ''; $('#lld-story').attr('class', LLD_ST.stt ? 'stt stt-' + LLD_ST.stt : ''); if (LLD_ST.stt) lldSttFonts(); } LLD_ST.kind = kind; LLD_ST.wk = wk; LLD_ST.pause = false;
         const go = withMus => { if (!$('#lld-story').length) return; $('#lld-story .st-mc').remove(); if (!withMus) { window._stPick = null; window._stYtPrep = null; try { stMusicStop(); } catch (e) { } } if (withMus) { try { localStorage.setItem('lld_st_mute', '0'); } catch (e) { } stMusicStart(LLD_ST.topFid, kind); } stShow(0); };
         let hasMus = false; try { hasMus = !!(lldMusPick(kind) || lldMusicUrl(LLD_ST.topFid)); } catch (e) { }
         if (hasMus && $('#lld-story').length) { window._stGo = go; try { window._stPick = lldMusPick(kind); const yt0 = lldYtId(window._stPick || ''); if (yt0) { window._stYtPrep = yt0.id; lldYtPlay(yt0, false, true).catch(() => { }); } } catch (e) { } $('#lld-story').append('<div class="st-mc"><div class="st-mc-t">Play with music?</div><button type="button" class="st-mc-y">🎵 With music</button><button type="button" class="st-mc-n">🔇 Without music</button></div>'); }
