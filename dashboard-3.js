@@ -16684,7 +16684,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lldMusUserHtml() : ''}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -18712,7 +18712,7 @@ function lldMusUser() { let L = {}; try { L = JSON.parse(localStorage.getItem('l
 function lldMusOf(f) { return (window._teamSongs || {})[String(f || '').padStart(4, '0')] || null; }
 var _lldMusT = null;
 function lldMusSaveShared() { clearTimeout(_lldMusT); _lldMusT = setTimeout(async () => { try { window._teamSongs = window._teamSongs || {}; window._teamSongs[lldMusMe()] = lldMusUser(); await saveAllTeamStylesToHomepage(); } catch (e) { console.warn('songs save', e); } }, 1500); }
-function lldMusUserOn() { try { return lldBv('musu') === '1'; } catch (e) { return false; } }
+function lldMusUserOn() { try { return !!lldAdmin(); } catch (e) { return false; } } // own songs: on for 0000 / 0001 (Settings > Recap songs)
 function lldMusCat() { const c = (window.LLD_CONFIG || {}).songs; return Array.isArray(c) ? c.filter(x => x && x.id && x.name && x.url) : []; }
 // a pick is a song id from the commissioner's list (older picks that stored a link still work)
 function lldMusSongUrl(v) {
@@ -18750,6 +18750,79 @@ $(document).on('click', '.lld-mu-test', async function () {
         window._muPvT = setTimeout(stop, 15000); $('#lld-mu-pvx').on('click', () => { clearTimeout(window._muPvT); stop(); });
     } catch (e) { console.warn('preview', e); }
 });
+
+function lldMusCountTxt() { try { const U = lldMusUser(), n = lldMusSlots().filter(x => typeof U[x[0]] === 'string' && U[x[0]]).length; return n ? n + ' of 4 chosen' : ''; } catch (e) { return ''; } }
+function lldSongLook(c) { let h = 0; String(c.id).split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) % 360; }); return { a: `hsl(${h},62%,38%)`, b: `hsl(${(h + 40) % 360},55%,16%)`, e: c.icon || (c.teams ? '🏟️' : (c.slots && c.slots.indexOf('oloss') >= 0 ? '😈' : (c.slots ? '🏆' : '🎵'))) }; }
+const LLD_SG_SLOT = { preview: ['👀', 'Plays before a matchup'], recap: ['🎬', 'Plays on any recap'], win: ['🏆', 'You win, you hear this'], oloss: ['😈', 'They hear this when they lose to you'] };
+function lldSongsCss() {
+    if (document.getElementById('lld-sg-css')) return;
+    const st = document.createElement('style'); st.id = 'lld-sg-css';
+    st.textContent = `#lld-sg{position:fixed;inset:0;z-index:2147483200;background:var(--bg-color,#0b1020);color:#fff;overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+#lld-sg .sg-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}#lld-sg .sg-h b{font-size:18px;flex:1}
+#lld-sg .sg-x{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px}
+#lld-sg .sg-p{font-size:12px;color:#94a3b8;margin:0 0 14px}
+#lld-sg .sg-slot{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:12px;width:100%;color:inherit;text-align:left;margin-bottom:10px}
+#lld-sg .sg-ic{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:rgba(255,255,255,.1)}
+#lld-sg .sg-t{font-weight:800;font-size:14px}#lld-sg .sg-s{font-size:12px;color:#94a3b8}
+#lld-sgs{position:fixed;inset:0;z-index:2147483300;background:rgba(0,0,0,.55);display:flex;align-items:flex-end}
+#lld-sgs .sg-sh{width:100%;max-width:520px;margin:0 auto;background:#131a2e;border:1px solid rgba(255,255,255,.12);border-radius:22px 22px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:84%;overflow:auto;color:#fff}
+#lld-sgs .sg-gr{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto 12px}
+#lld-sgs .sg-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}#lld-sgs .sg-hd span{font-size:12px;color:#94a3b8}
+#lld-sgs .sg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#lld-sgs .sg-song{background:rgba(255,255,255,.06);border:2px solid transparent;border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;position:relative}
+#lld-sgs .sg-song .a{width:100%;aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-size:28px}
+#lld-sgs .sg-song .n{font-size:11.5px;font-weight:700;text-align:center;line-height:1.2;min-height:28px}
+#lld-sgs .sg-song.sel{border-color:#ef4444}#lld-sgs .sg-song.sel::after{content:"\\2713";position:absolute;top:6px;right:6px;background:#ef4444;width:20px;height:20px;border-radius:50%;font-size:12px;display:grid;place-items:center}
+#lld-sgs .sg-row{display:flex;gap:10px;margin-top:14px}#lld-sgs .sg-btn{flex:1;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;color:#fff;background:rgba(255,255,255,.12)}
+#lld-sgs .sg-btn.p{background:#ef4444}#lld-sgs .sg-btn.g{background:#16a34a}#lld-sgs .sg-btn:disabled{opacity:.4}
+#lld-sgp{position:fixed;inset:0;z-index:2147483400;display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));color:#fff;background:linear-gradient(160deg,var(--g1),var(--g2))}
+#lld-sgp .bar{height:3px;background:rgba(255,255,255,.28);border-radius:2px;overflow:hidden}#lld-sgp .bar i{display:block;height:100%;width:0;background:#fff}
+#lld-sgp .tp{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+#lld-sgp .tp button{background:rgba(255,255,255,.18);border:0;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px}
+#lld-sgp .md{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center}
+#lld-sgp .disc{width:min(56vw,220px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:76px;background:rgba(0,0,0,.28);border:6px solid rgba(255,255,255,.2);animation:lldsg 6s linear infinite}@keyframes lldsg{to{transform:rotate(360deg)}}
+#lld-sgp .nm{font-size:24px;font-weight:900}#lld-sgp .sb{font-size:13px;opacity:.8}
+#lld-sgp .eq{display:flex;gap:5px;align-items:flex-end;height:34px}#lld-sgp .eq i{width:6px;background:#fff;border-radius:3px;animation:lldeq 1s ease-in-out infinite}#lld-sgp .eq i:nth-child(2){animation-delay:.15s}#lld-sgp .eq i:nth-child(3){animation-delay:.3s}#lld-sgp .eq i:nth-child(4){animation-delay:.45s}@keyframes lldeq{0%,100%{height:6px}50%{height:32px}}
+#lld-sgp .bt{display:flex;gap:10px}#lld-sgp .bt button{flex:1;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;background:rgba(255,255,255,.2);color:#fff}#lld-sgp .bt .p{background:#fff;color:#111}
+#lld-sgp-yt{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);width:120px;height:68px;border-radius:8px;overflow:hidden;opacity:.9}`;
+    document.head.appendChild(st);
+}
+function lldSongsOpen() {
+    lldSongsCss(); try { lldYtLoad(); } catch (e) { }
+    $('#lld-sg').remove(); const o = $('<div id="lld-sg"></div>').appendTo('body'); lldSongsDraw(); // Settings stays open underneath
+}
+function lldSongsDraw() {
+    const U = lldMusUser(), C = lldMusCat();
+    $('#lld-sg').html(`<div class="sg-h"><button class="sg-x" data-a="close" aria-label="Back">‹</button><b>Recap songs</b></div><p class="sg-p">Tap a slot to choose its song. Anything left on default uses the league song.</p>` + lldMusSlots().map(([k, l]) => { const sel = C.find(c => String(c.id) === U[k]), lk = sel ? lldSongLook(sel) : null; return `<button class="sg-slot" data-a="slot" data-k="${k}"><div class="sg-ic" style="${lk ? `background:linear-gradient(135deg,${lk.a},${lk.b})` : ''}">${lk ? lk.e : LLD_SG_SLOT[k][0]}</div><div><div class="sg-t">${lldMusEsc(l.replace(/ \(.*\)/, ''))}</div><div class="sg-s">${sel ? lldMusEsc(sel.name) : 'League song (default)'}</div></div><span style="color:#94a3b8;font-size:18px">›</span></button>`; }).join('') + (C.length ? '' : '<p class="sg-p">No songs have been added yet.</p>'));
+}
+let _sgSlot = null, _sgSel = null, _sgTm = null, _sgYt = null;
+function lldSongsSheet() {
+    const C = lldMusCatFor(_sgSlot), lab = lldMusSlots().find(x => x[0] === _sgSlot)[1].replace(/ \(.*\)/, '');
+    $('#lld-sgs').remove();
+    $('body').append(`<div id="lld-sgs"><div class="sg-sh"><div class="sg-gr"></div><div class="sg-hd"><b>${lldMusEsc(lab)}</b><span>${C.length} songs</span></div><div class="sg-grid">${C.map(c => { const lk = lldSongLook(c); return `<button class="sg-song${String(c.id) === _sgSel ? ' sel' : ''}" data-a="song" data-i="${lldMusEsc(c.id)}"><div class="a" style="background:linear-gradient(135deg,${lk.a},${lk.b})">${lk.e}</div><div class="n">${lldMusEsc(c.name)}</div></button>`; }).join('')}</div><div class="sg-row"><button class="sg-btn" data-a="clear">Use league song</button><button class="sg-btn p" data-a="prev"${_sgSel ? '' : ' disabled'}>▶ Preview</button></div><div class="sg-row" style="margin-top:8px"><button class="sg-btn g" data-a="done">Done</button></div></div></div>`);
+}
+function lldSongsStop() { clearInterval(_sgTm); try { if (_sgYt) _sgYt.destroy(); } catch (e) { } _sgYt = null; $('#lld-sgp').remove(); }
+async function lldSongsPlay() {
+    const c = lldMusCat().find(x => String(x.id) === _sgSel); if (!c) return; const y = lldYtId(lldMusSongUrl(_sgSel)); if (!y) return;
+    lldSongsStop(); const lk = lldSongLook(c), lab = lldMusSlots().find(x => x[0] === _sgSlot)[1].replace(/ \(.*\)/, '');
+    $('body').append(`<div id="lld-sgp" style="--g1:${lk.a};--g2:${lk.b}"><div class="bar"><i></i></div><div class="tp"><span>Preview · ${lldMusEsc(lab)}</span><button data-a="pstop" aria-label="Close">✕</button></div><div class="md"><div class="disc">${lk.e}</div><div><div class="nm">${lldMusEsc(c.name)}</div><div class="sb">Playing a short preview…</div></div><div class="eq"><i></i><i></i><i></i><i></i></div></div><div id="lld-sgp-yt"><div id="lld-sgp-p"></div></div><div class="bt"><button data-a="pstop">Back</button><button class="p" data-a="puse">Use this song</button></div></div>`);
+    try { await lldYtLoad(); } catch (e) { }
+    if (window.YT && window.YT.Player && $('#lld-sgp').length) _sgYt = new YT.Player('lld-sgp-p', { width: 120, height: 68, videoId: y.id, playerVars: { autoplay: 1, start: y.t || 0, playsinline: 1, controls: 0, rel: 0 }, events: { onReady: e => { try { e.target.setVolume(70); e.target.playVideo(); } catch (x) { } }, onError: () => { lldSongsStop(); lldMusToast('That song can’t play here'); } } });
+    const t0 = Date.now(); _sgTm = setInterval(() => { const p = (Date.now() - t0) / 15000; $('#lld-sgp .bar i').css('width', Math.min(100, p * 100) + '%'); if (p >= 1) { clearInterval(_sgTm); try { if (_sgYt) _sgYt.pauseVideo(); } catch (e) { } $('#lld-sgp .sb').text('Preview finished'); } }, 80);
+}
+function lldSongsSave() { const U = lldMusUser(); if (_sgSel) U[_sgSlot] = _sgSel; else delete U[_sgSlot]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); }
+$(document).on('click', '#lld-sg [data-a], #lld-sgs [data-a], #lld-sgp [data-a]', function (e) {
+    e.stopPropagation(); const a = this.dataset.a;
+    if (a === 'close') { lldSongsStop(); $('#lld-sg, #lld-sgs').remove(); try { $('#sh2-list').html($('#sh2-list').html()); } catch (x) { } return; }
+    if (a === 'slot') { _sgSlot = this.dataset.k; const v = lldMusUser()[_sgSlot]; _sgSel = typeof v === 'string' ? v : null; return lldSongsSheet(); }
+    if (a === 'song') { _sgSel = this.dataset.i; lldSongsSheet(); return lldSongsPlay(); }
+    if (a === 'prev') return lldSongsPlay();
+    if (a === 'clear') { _sgSel = null; return lldSongsSheet(); }
+    if (a === 'done') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
+    if (a === 'pstop') return lldSongsStop();
+    if (a === 'puse') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
+});
+$(document).on('click', '#lld-sgs', function (e) { if (e.target === this) { lldSongsStop(); $(this).remove(); } });
 function lldMusCfg() { // beta switch "Recap music" (Settings > Beta features). Songs come from LLD_CONFIG.recapSong (one link or a list) and/or LLD_CONFIG.recapMusic (per team, win/loss, preview)
     try {
         const L = window.LLD_CONFIG || {}; let c = L.recapMusic || null;
@@ -25848,6 +25921,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
         if (window.LLD_STANDALONE && !(window.LLD_APP && window.LLD_APP.other)) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Notifications', 'Pick which alerts this phone gets', '', 'notif']);
         if (window.LLD_STANDALONE && typeof window.lldInstallShow === 'function') R.push(['My team', 'Home Screen icon', 'Change the app icon, then add the app again', '', 'icon']);
+        try { if (typeof lldMusUserOn === 'function' && lldMusUserOn()) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Recap songs', 'Pick the songs for previews and recaps', lldMusCountTxt(), 'songs']); } catch (e) { }
         R.push(['Labs', 'Labs', 'Early features and the row tuner', '', 'labs']);
         return R;
     }
@@ -25981,7 +26055,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('click touchend', '.open-settings-btn', function () {
         let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
-    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
+    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'songs') { try { lldSongsOpen(); } catch (e) { console.warn('songs', e); } return; } if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
     $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
     // keep the row values fresh after a change on a page
