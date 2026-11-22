@@ -1685,6 +1685,16 @@ window._lldBoot = true; // from the very start: the empty-roster message must no
 // Manually bump this string every time you push new code to GitHub. A small tag in the
 // bottom-right corner shows it, so you can confirm at a glance whether jsDelivr is
 // actually serving your latest push or still serving a cached older version.
+// Tiny version tag in the header, only for 0000 / 0001: shows which dashboard file is live (and "a<n>" = which app.js the Home Screen app is running)
+function lldVerTag() {
+    if (!lldAdmin()) return;
+    let v = window.LLD_VER || '';
+    if (!v) { const sc = Array.from(document.scripts).map(x => x.src || '').find(x => /dashboard-3\.js/.test(x)) || ''; v = (sc.match(/[?&]v=([\w.-]+)/) || sc.match(/@([0-9a-f]{7})/) || [])[1] || ''; }
+    const txt = (v ? 'v' + v : 'v?') + (window.LLD_APPJS ? ' \u00b7 a' + window.LLD_APPJS : '');
+    let el = document.getElementById('lld-ver');
+    if (!el) { el = document.createElement('div'); el.id = 'lld-ver'; el.style.cssText = 'position:absolute;top:2px;left:8px;font-size:8px;line-height:1;letter-spacing:.04em;color:var(--text-dim,#64748b);opacity:.7;pointer-events:none;z-index:5;font-variant-numeric:tabular-nums'; const h = document.querySelector('.app-header'); if (!h) return; if (getComputedStyle(h).position === 'static') h.style.position = 'relative'; h.appendChild(el); }
+    el.textContent = txt;
+}
 const DASHBOARD_BUILD_STAMP = "2026-11-21 tk-1"; window.LLD_BUILD = DASHBOARD_BUILD_STAMP; // type LLD_BUILD in the console to see which version is live
 // (build tag removed from the screen; bump DASHBOARD_BUILD_STAMP above if you want to track pushes in code)
 
@@ -24011,7 +24021,7 @@ if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-ru
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 const lldPel = true; // faster loading is on for everyone
 window._lldBoot = true; document.body.classList.add('lld-boot'); if (lldPel) document.body.classList.add('lld-pel-on');
-const lldBootDone = () => { try { if (window.lldReveal) window.lldReveal(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
+const lldBootDone = () => { try { if (window.lldReveal) window.lldReveal(); } catch (e) { } try { lldVerTag(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
 setTimeout(lldBootDone, 25000);
 if (lldPel) {
     document.body.classList.add('lld-pel-busy');

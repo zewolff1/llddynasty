@@ -243,7 +243,7 @@
         var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = cssUrl; document.head.appendChild(css);
         document.body.classList.add('lld-prestart');
         var _rv = function () { document.body.classList.remove('lld-prestart'); $('#lld-app-boot').style.display = 'none'; };
-        window.lldReveal = _rv; setTimeout(_rv, 30000);
+        window.LLD_VER = v; window.LLD_APPJS = '11'; window.lldReveal = _rv; setTimeout(_rv, 30000);
         document.body.insertAdjacentHTML('afterbegin', res[1]);
         var fa = document.createElement('script'); fa.src = 'https://kit.fontawesome.com/ed60ff3657.js'; fa.crossOrigin = 'anonymous'; document.head.appendChild(fa);
         patchJquery();
