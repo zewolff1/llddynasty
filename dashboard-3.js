@@ -1679,6 +1679,7 @@ const myAppIconUrl = `${MFL_ORIGIN}/fflnetdynamic${yearFromUrl}/${lidFromUrl}_le
 })();
 
 LLD_READY.then(function () { $(document).ready(function() {
+window._lldBoot = true; // from the very start: the empty-roster message must not flash while the team is still loading
 
 // --- BUILD STAMP ---
 // Manually bump this string every time you push new code to GitHub. A small tag in the
@@ -1832,6 +1833,7 @@ let rookiePids = new Set();
                 const hasMedia = !!el.querySelector('img, table, input, canvas, svg');
                 const empty = !text.replace(/loading[^a-z]*/ig, '').trim() && !hasMedia && !el.querySelector('.loader, .spinner, #players-loader');
                 const old = el.querySelector('.lld-empty-state');
+                if (old && window._lldBoot && id === 'player-rows-container') { old.remove(); return; }
                 if (shown && empty && !old && window._lldBoot && id === 'player-rows-container') {
                     if (!el.querySelector('.loading-indicator')) { const l = document.createElement('div'); l.className = 'loading-indicator lld-boot-spin'; l.textContent = 'Loading team…'; el.appendChild(l); }
                 } else if (shown && empty && !old) {
@@ -23977,7 +23979,6 @@ const result = await applyAuctionContract(pid, commentText);
 checkLoginStatus();
     buildAdminTools(); 
 lldApplyStyle(lldGet('lld_style', 'classic'));
-try { if (window.lldReveal) window.lldReveal(); } catch (e) { }
 lldApplyHdrMode(lldBeta() && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 $(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
@@ -24021,6 +24022,7 @@ if (lldPel) {
         .then(() => {
             _try(() => applyTeamTheme(myFid, true), 'theme');
             _try(() => refreshTeamInfoPanel(), 'panel');
+            try { if (window.lldReveal) window.lldReveal(); } catch (e) { }
             const bg = Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()].map(f => Promise.resolve(f).catch(() => null)))
                 .then(() => checkCompletedAuctions()).catch(() => { });
             const first = Promise.resolve().then(() => loadTeamData()).catch(e => console.warn('startup team', e));
