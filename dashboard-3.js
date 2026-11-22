@@ -18729,11 +18729,12 @@ function lldMusCatFor(slot) {
     return lldMusCat().filter(c => (!c.slots || c.slots.indexOf(slot) >= 0) && (!c.teams || c.teams.some(x => nm && nm.indexOf(String(x).toLowerCase()) >= 0)));
 }
 function lldMusUserUrl(k) { return lldMusSongUrl(lldMusUser()[k]); }
+function lldMusEsc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function lldMusUserHtml() {
     const U = lldMusUser(), C0 = lldMusCat(), sel = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;width:100%;';
     return `<div style="margin:6px 0 16px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Your recap songs (beta)</div>
         <div style="display:flex; gap:6px; margin-bottom:12px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('musu') === v ? 'on' : ''}" data-k="musu" data-v="${v}">${l}</button>`).join('')}</div>
-        ${C0.length ? lldMusSlots().map(([k, l]) => { const cur = typeof U[k] === 'string' ? U[k] : ''; const C = lldMusCatFor(k); return `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr auto; gap:6px;"><select class="lld-mu-s" data-s="${k}" style="${sel}"><option value="">League song (default)</option>${C.map(c => `<option value="${lldEsc(c.id)}" ${String(c.id) === cur ? 'selected' : ''}>${lldEsc(c.name)}</option>`).join('')}</select><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">▶ Preview</button></div></div>`; }).join('') : `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">No songs have been added yet. The commissioner adds the song list.</div>`}
+        ${C0.length ? lldMusSlots().map(([k, l]) => { const cur = typeof U[k] === 'string' ? U[k] : ''; const C = lldMusCatFor(k); return `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr auto; gap:6px;"><select class="lld-mu-s" data-s="${k}" style="${sel}"><option value="">League song (default)</option>${C.map(c => `<option value="${lldMusEsc(c.id)}" ${String(c.id) === cur ? 'selected' : ''}>${lldMusEsc(c.name)}</option>`).join('')}</select><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">▶ Preview</button></div></div>`; }).join('') : `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">No songs have been added yet. The commissioner adds the song list.</div>`}
         <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Pick from the commissioner's list. Preview plays about 15 seconds. Anything left on default uses the league song.</div></div>`;
 }
 $(document).on('change', '.lld-mu-s', function () { const U = lldMusUser(), s = this.dataset.s; if (this.value) U[s] = this.value; else delete U[s]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
@@ -25760,7 +25761,7 @@ window.LLD_BOOTED = true; // reached the end of the dashboard's startup without 
 
 /* ===== beta: Team sub-tab "Trade" becomes "My Trade Block" (franchises 0000 / 0001 only) ===== */
 function lldMyBlockTab() {
-    if (lldApv()) {
+    if (window.lldApv ? window.lldApv() : true) {
         $('#subtabs-team .sub-tab-btn').each(function () {
             const t = $(this).text().trim().toLowerCase();
             if (this.dataset.mtb) { delete this.dataset.mtb; this.textContent = 'Trade'; this.setAttribute('onclick', "openSubTab(event,'trade')"); }
