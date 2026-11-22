@@ -2411,11 +2411,12 @@ try { const u = JSON.parse(localStorage.getItem('lld_apv_ui') || 'null'); if (u)
 function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: A.on, wl: A.wl, sort: A.sort, dir: A.dir, sw: A.sw, cg: A.cg })); } catch (e) { } }
 function lldApvCtx() { try { const e = document.getElementById('apv-ct-box'); return !!(e && e.offsetParent !== null); } catch (e) { return false; } }
 function lldApvIsFA() { if (lldApvCtx()) return false; const b = $('#subtabs-players .sub-tab-btn.active'); return !b.length || b.text().trim().toLowerCase().replace(' ', '-') === 'free-agents'; }
+function lldApvLuVis() { try { const e = document.getElementById('apv-lu-bar'); return !!(e && e.getClientRects().length); } catch (e) { return false; } } // the lineup bar can stay in the page, hidden, while another tab is open
 function lldApvLuOn() { try { return !!document.getElementById('apv-lu-bar'); } catch (e) { return false; } }
 function lldGthNorm() { try { if (!lldGthOn()) return false; const O = window._apv.on; O.dyn = O.bb = O.bu = O.co = 0; if (!localStorage.getItem('lld_apv_gth')) { O.ros = 0; localStorage.setItem('lld_apv_gth', '1'); lldApvSave(); } return true; } catch (e) { return false; } }
 function lldApvGroups(isFA, mode) {
     const gth = lldGthNorm();
-    mode = mode || (lldApvLuOn() ? 'lu' : lldApvCtx() ? 'ct' : 'pl');
+    mode = mode || (lldApvLuVis() ? 'lu' : lldApvCtx() ? 'ct' : 'pl');
     const keep = mode === 'lu' ? ['RANKING', 'MATCHUP', 'STATS'] : ['RANKING', 'CONTRACT', 'TRADE', 'STATS'];
     return LLD_APV_GR.filter(g => keep.indexOf(g[0]) >= 0 && !(isFA && g[0] === 'CONTRACT')).filter(g => !(gth && g[0] === 'STATS')).map(g => g[0] === 'RANKING' && gth ? [g[0], g[1].filter(x => x[0] !== 'dyn')] : g).map(g => g[0] !== 'TRADE' ? g : isFA ? [g[0], g[1].filter(x => x[0] === 'yu')] : mode === 'ct' ? [g[0], g[1].filter(x => ['yu', 'tp', 'bk'].indexOf(x[0]) >= 0)] : [g[0], g[1].filter(x => x[0] !== 'tp')]);
 }
@@ -2471,7 +2472,7 @@ function lldApvSort(isFA) { playerSortBy = 'apv'; lldApvKey(isFA == null ? lldAp
 #apv-more-pop .apvm-ob.on{border-color:var(--accent-teal,#2dd4bf);color:#fff;background:rgba(45,212,191,.14)}
 #apv-more-pop .apvm-ob.on b{color:var(--accent-teal,#2dd4bf)}
 `; document.head.appendChild(st); } } catch (e) { } })();
-function lldApvMoreOn() { try { const A = window._apv; if (lldApvLuOn()) return true; const v = lldApvCtx() ? A.ctv : A.view; return v !== 'weekly' && v !== 'year'; } catch (e) { return true; } }
+function lldApvMoreOn() { try { const A = window._apv; if (lldApvLuVis()) return true; const v = lldApvCtx() ? A.ctv : A.view; return v !== 'weekly' && v !== 'year'; } catch (e) { return true; } }
 function lldApvMoreBtn() { return lldApvMoreOn() ? '<button type="button" class="apv-morebtn">⚙<span> More toggles</span></button>' : ''; }
 function lldApvMoreDraw() {
     const A = window._apv, O = A.on, gs = window._apvMoreG || [];
@@ -2529,7 +2530,7 @@ function lldApvBar(isFA) {
     const pn = cx ? '' : `<div class="apv-panel" data-pn="no"${A.no ? '' : ' hidden'}><h3>NFL team</h3><div class="apv-pc nfl"><button type="button" class="apv-pk${A.nt ? '' : ' on'}" data-k="nt" data-v="">All teams</button>${LLD_APV_NFL.map(a => `<button type="button" class="apv-pk${A.nt === a ? ' on' : ''}" data-k="nt" data-v="${a}">${a}</button>`).join('')}</div></div>`;
     return `<div class="apv-bar">${top}${sw}${wk ? `<div class="apv-wn"><button type="button" data-d="-1">◀</button><button type="button" data-d="now">This week</button><button type="button" data-d="1">▶</button></div>` : ''}${row}${r2b}${pf}${ps}${po}${pn}</div>`;
 }
-function lldApvReload() { if (lldApvLuOn()) { lldApvLuEnhance(); return; } if (lldApvCtx()) { lldApvCtRender(); return; } const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
+function lldApvReload() { if (lldApvLuVis()) { lldApvLuEnhance(); return; } if (lldApvCtx()) { lldApvCtRender(); return; } const b = $('#subtabs-players .sub-tab-btn.active'); loadPlayersData(b.length ? b.text().trim().toLowerCase().replace(' ', '-') : 'free-agents'); }
 $(document).on('click', '.apv-v', function () { if (lldApvCtx()) { window._apv.ctv = this.dataset.v; lldApvReload(); return; } window._apv.view = this.dataset.v; lldApvSort(); lldApvReload(); });
 $(document).on('click', '.apv-ob', function () { const A = window._apv, k = this.dataset.o; A.on[k] = A.on[k] ? 0 : 1; lldApvSave(); lldApvReload(); });
 $(document).on('click', '.apv-oall', function () { const A = window._apv, g = lldApvGroups(lldApvIsFA()), on = !g.every(x => x[1].every(y => A.on[y[0]])); g.forEach(x => x[1].forEach(y => { A.on[y[0]] = on ? 1 : 0; })); lldApvSave(); lldApvReload(); });
@@ -3257,7 +3258,7 @@ function lldApvExSample(kind) {
     return { bar: bar.length ? st(bar[0].outerHTML) : '', row: row.length ? st(row.html()) : '' };
 }
 function lldApvExOpen(btn) {
-    const kind = lldApvLuOn() ? 'lu' : lldApvCtx() ? 'ct' : 'pl', E = window._lldEx;
+    const kind = lldApvLuVis() ? 'lu' : lldApvCtx() ? 'ct' : 'pl', E = window._lldEx;
     E.apv = { steps: lldApvExSteps(kind), sample: lldApvExSample(kind) };
     let o = $('#lld-tm-pop'); if (!o.length) { o = $('<div id="lld-tm-pop"><div class="sh"></div></div>'); $('body').append(o); }
     window._lldExOn = true; o.addClass('on'); lldExGo(0);
@@ -25434,12 +25435,17 @@ function lldQtHtml() {
             + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div>`;
     } else if (tab === 'logos') {
         body = lab('NFL logo style') + `<div class="qt-row qt-scroll">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join('')}</div>`;
+    } else if (tab === 'scores') {
+        const sb = lldGet('lld_sb', 'theme'), tint = lldGet('lld_sbtint', '') === '1';
+        body = lab('Scoreboard style') + `<div class="qt-row qt-scroll">${[['theme', 'Match theme'], ['default', 'Default']].concat(LLD_SB_LAYOUTS).map(([v, l]) => `<button type="button" class="lld-hdr-btn lld-sb-btn ${sb === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`
+            + lab('Theme colors on the scoreboard') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? 'on' : ''}" data-v="1">On</button><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? '' : 'on'}" data-v="0">Off</button></div>`;
     } else body = lldRowBetaHtml();
     const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
-        + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows']].map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
+        + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
         + pv + `<div class="qt-body">${body}</div>`;
 }
+$(document).on('click', '#lld-qt .lld-sbt-set', function () { lldApplySbTint(this.dataset.v === '1'); $('#lld-qt .lld-sbt-set').each(function () { $(this).toggleClass('on', this.dataset.v === (lldGet('lld_sbtint', '') === '1' ? '1' : '0')); }); });
 $(document).on('click', '#lld-qt .qt-tab', function () { window._lldQtTab = this.dataset.t; $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } });
 window.lldQtOpen = function (tab) { if (tab) window._lldQtTab = tab; if (!document.getElementById('lld-qt')) lldQtOpen(); else { $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } } };
 function lldQtOpen() {
