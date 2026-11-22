@@ -18823,6 +18823,7 @@ $(document).on('click', '#lld-sg [data-a], #lld-sgs [data-a], #lld-sgp [data-a]'
     if (a === 'puse') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
 });
 $(document).on('click', '#lld-sgs', function (e) { if (e.target === this) { lldSongsStop(); $(this).remove(); } });
+window.lldMusUserOn = lldMusUserOn; window.lldMusCountTxt = lldMusCountTxt; window.lldSongsOpen = lldSongsOpen; // the Settings code lives outside the main closure
 function lldMusCfg() { // beta switch "Recap music" (Settings > Beta features). Songs come from LLD_CONFIG.recapSong (one link or a list) and/or LLD_CONFIG.recapMusic (per team, win/loss, preview)
     try {
         const L = window.LLD_CONFIG || {}; let c = L.recapMusic || null;
@@ -25921,7 +25922,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         if (sl) R.push(['League', 'Sleeper', 'Your Sleeper leagues', '', 'sleeper']);
         if (window.LLD_STANDALONE && !(window.LLD_APP && window.LLD_APP.other)) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Notifications', 'Pick which alerts this phone gets', '', 'notif']);
         if (window.LLD_STANDALONE && typeof window.lldInstallShow === 'function') R.push(['My team', 'Home Screen icon', 'Change the app icon, then add the app again', '', 'icon']);
-        try { if (typeof lldMusUserOn === 'function' && lldMusUserOn()) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Recap songs', 'Pick the songs for previews and recaps', lldMusCountTxt(), 'songs']); } catch (e) { }
+        try { if (window.lldMusUserOn && window.lldMusUserOn()) R.splice(R.findIndex(r => r[4] === 'team') + 1, 0, ['My team', 'Recap songs', 'Pick the songs for previews and recaps', window.lldMusCountTxt ? window.lldMusCountTxt() : '', 'songs']); } catch (e) { console.warn('songs row', e); }
         R.push(['Labs', 'Labs', 'Early features and the row tuner', '', 'labs']);
         return R;
     }
@@ -26055,7 +26056,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('click touchend', '.open-settings-btn', function () {
         let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
-    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'songs') { try { lldSongsOpen(); } catch (e) { console.warn('songs', e); } return; } if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
+    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'songs') { try { window.lldSongsOpen(); } catch (e) { console.warn('songs', e); } return; } if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
     $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
     // keep the row values fresh after a change on a page
