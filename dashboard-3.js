@@ -1,5 +1,6 @@
 // Startup diagnostics: remember script errors so the empty-roster screen can show what went wrong
 try { window.__lldErr = []; const _push = m => { try { window.__lldErr.push(String(m).slice(0, 160)); } catch (e) { } };
+  try { if (window.jQuery) jQuery.readyException = function (e) { _push('ready: ' + ((e && e.message) || e) + ' | ' + String((e && e.stack) || '').split('\n').slice(0, 3).map(x => x.replace(/^.*\//, '')).join(' < ')); setTimeout(function () { throw e; }); }; } catch (x) { }
   window.addEventListener('error', e => _push((e.message || 'error') + (e.lineno ? ' @' + e.lineno : '')));
   window.addEventListener('unhandledrejection', e => _push('promise: ' + ((e.reason && e.reason.message) || e.reason)));
   const _w = console.warn; console.warn = function () { try { if (/^(startup|\[LLD\])/.test(String(arguments[0]))) _push(Array.prototype.slice.call(arguments).map(x => (x && x.message) || x).join(' ')); } catch (e) { } return _w.apply(console, arguments); };
@@ -1854,7 +1855,7 @@ let rookiePids = new Set();
                     const d = document.createElement('div');
                     d.className = 'lld-empty-state';
                     d.style.cssText = 'text-align:center; padding:48px 24px; color:var(--text-dim);';
-                    d.innerHTML = '<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">' + EMPTY[id][0] + '</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:600;">' + EMPTY[id][1] + '</div>' + (id === 'player-rows-container' && window.__lldErr ? '<div style="margin-top:14px;font:10px/1.35 ui-monospace,Menlo,monospace;opacity:.75;word-break:break-word;">' + [ 'team ' + (typeof myFid !== 'undefined' ? myFid : '?') + ' / fid ' + (typeof fid !== 'undefined' ? fid : '?') + ' / franchises ' + (typeof leagueFranchises !== 'undefined' ? Object.keys(leagueFranchises).length : '?') + ' / boot ' + window._lldBoot + ' / standalone ' + !!window.LLD_STANDALONE ].concat(window.__lldErr.filter(x => !/lldLogoRaw|^Script error/.test(x)).slice(0, 4)).map(x => String(x).replace(/</g, '&lt;')).join('<br>') + '</div>' : '');
+                    d.innerHTML = '<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">' + EMPTY[id][0] + '</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:600;">' + EMPTY[id][1] + '</div>' + (id === 'player-rows-container' && window.__lldErr ? '<div style="margin-top:14px;font:10px/1.35 ui-monospace,Menlo,monospace;opacity:.75;word-break:break-word;">' + [ 'team ' + (typeof myFid !== 'undefined' ? myFid : '?') + ' / fid ' + (typeof fid !== 'undefined' ? fid : '?') + ' / franchises ' + (typeof leagueFranchises !== 'undefined' ? Object.keys(leagueFranchises).length : '?') + ' / boot ' + window._lldBoot + ' / standalone ' + !!window.LLD_STANDALONE ].concat(window.__lldErr.filter(x => !/lldLogoRaw|^Script error/.test(x)).slice(0, 5)).map(x => String(x).replace(/</g, '&lt;')).join('<br>') + '</div>' : '');
                     try { lldVerTag(); } catch (e) { }
                     
                     el.appendChild(d);
