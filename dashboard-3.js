@@ -18720,8 +18720,8 @@ function lldMusSongUrl(v) {
     let u = '', t = 0;
     if (typeof v === 'object') { u = v.u; t = lldYtSecs(v.t); }
     else { const c = lldMusCat().find(x => String(x.id) === String(v)); if (!c) return ''; u = c.url; t = lldYtSecs(c.t); }
-    const y = lldYtId(u); if (!y) return ''; t = t || y.t || 0;
-    return 'https://youtu.be/' + y.id + (t ? '?t=' + t : '');
+    const y = lldYtId(u); if (!y) return ''; t = t || y.t || 1; // songs with no start time begin at :01 (starting at 0 tends to bring up the YouTube ad)
+    return 'https://youtu.be/' + y.id + '?t=' + t;
 }
 // songs can be limited to certain slots ("slots") or certain teams ("teams": part of the team name); songs with no link yet stay hidden
 function lldMusCatFor(slot) {
@@ -18826,7 +18826,7 @@ $(document).on('click', '#lld-sg [data-a], #lld-sgs [data-a], #lld-sgp [data-a]'
     e.stopPropagation(); const a = this.dataset.a;
     if (a === 'close') { lldSongsKill(); $('#lld-sg, #lld-sgs').remove(); try { $('#sh2-list').html($('#sh2-list').html()); } catch (x) { } return; }
     if (a === 'slot') { _sgSlot = this.dataset.k; const v = lldMusUser()[_sgSlot]; _sgSel = typeof v === 'string' ? v : null; return lldSongsSheet(); }
-    if (a === 'song') { _sgSel = this.dataset.i; lldSongsSheet(); return lldSongsPlay(); }
+    if (a === 'song') { _sgSel = this.dataset.i; return lldSongsSheet(); } // just selects; Preview plays it
     if (a === 'prev') return lldSongsPlay();
     if (a === 'clear') { _sgSel = null; return lldSongsSheet(); }
     if (a === 'done') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
