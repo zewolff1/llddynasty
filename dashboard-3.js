@@ -3094,6 +3094,7 @@ function lldClrAvg(p) { const O = window._apv.on, a = ((playerSeason[p.pid] || {
 const LLD_BBS = [['text', 'Text', 'Percentages and the Steady / Volatile word'], ['bar', 'Split bar', 'Green share boom weeks, red share bust weeks'], ['dots', 'Weekly dots', 'One dot per game, green boom and red bust'], ['range', 'Floor to ceiling', 'Worst to best game, with the average marked'], ['bars', 'Mini bars', 'Weekly scores as small bars']];
 function lldBbs() { try { const v = localStorage.getItem('lld_bbs'); return LLD_BBS.some(o => o[0] === v) ? v : 'text'; } catch (e) { return 'text'; } }
 function lldBbViz(x, st) {
+    try { window.lldBbCss(); } catch (e) { }
     const g = (x.g || []).filter(v => v != null && v !== 0).slice(-10), T = x.T || {}, hi = T.hi, lo = T.lo, cls = v => (hi != null && v >= hi) ? 'bo' : (lo != null && v <= lo) ? 'bu' : '';
     if (st === 'bar') { const n = x.n || 1, bo = Math.round(x.boom / n * 100), bu = Math.round(x.bust / n * 100); return `<span class="bbv bbv-bar"><b class="bo" style="width:${bo}%"></b><b class="bu" style="width:${bu}%"></b></span>`; }
     if (st === 'dots') return `<span class="bbv bbv-dots">${g.map(v => `<i class="${cls(v)}"></i>`).join('')}</span>`;
@@ -3105,13 +3106,16 @@ function lldBbsApply() { try { renderActiveTab(); } catch (e) { } }
 window.lldBbsQt = () => { const c = lldBbs(); return `<div class="qt-l">Boom / bust</div><div class="qt-row">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${c === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`; };
 $(document).on('click', '.lld-bbs-btn', function () { try { localStorage.setItem('lld_bbs', this.dataset.v); } catch (e) { } $('.lld-bbs-btn').removeClass('on'); $(this).addClass('on'); lldBbsApply(); });
 window.lldBbsLabel = () => (LLD_BBS.find(o => o[0] === lldBbs()) || LLD_BBS[0])[1];
-window.lldBbsOpen = function () {
+window.lldBbCss = function () {
     if (!document.getElementById('lld-bb-css')) { const c = document.createElement('style'); c.id = 'lld-bb-css'; c.textContent = `.bbv{display:inline-flex;align-items:center;vertical-align:middle}.bbv-bar{width:84px;height:7px;border-radius:4px;background:rgba(148,163,184,.35);overflow:hidden;display:flex}.bbv-bar b{display:block;height:100%}.bbv .bo,.bbv-bar .bo{background:#22c55e}.bbv .bu,.bbv-bar .bu{background:#ef4444}.bbv-bar .bu{margin-left:auto}
 .bbv-dots{gap:3px}.bbv-dots i{width:7px;height:7px;border-radius:50%;background:rgba(148,163,184,.45);display:block}.bbv-dots i.bo{background:#22c55e}.bbv-dots i.bu{background:#ef4444}
 .bbv-bars{gap:2px;align-items:flex-end;height:14px}.bbv-bars i{width:5px;border-radius:1px 1px 0 0;background:rgba(148,163,184,.5);display:block}.bbv-bars i.bo{background:#22c55e}.bbv-bars i.bu{background:#ef4444}
 .bbv-rng{position:relative;width:90px;height:12px;display:inline-block}.bbv-rng s{position:absolute;display:block;text-decoration:none}.bbv-rng .tr{left:0;right:0;top:5px;height:2px;background:rgba(148,163,184,.35)}.bbv-rng .sp{top:3px;height:6px;border-radius:3px;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e)}.bbv-rng .md{top:0;width:2px;height:12px;background:#fff;border-radius:1px}
 #lld-bb{position:fixed;inset:0;z-index:2147483200;background:var(--bg-color,#0b1020);color:#fff;overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}#lld-bb .h{display:flex;align-items:center;gap:10px;margin-bottom:14px}#lld-bb .h b{font-size:18px;flex:1}#lld-bb .x{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px}
 #lld-bb .o{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;width:100%;text-align:left;background:rgba(255,255,255,.06);border:2px solid transparent;border-radius:14px;padding:12px;margin-bottom:10px;color:#fff}#lld-bb .o.on{border-color:#ef4444}#lld-bb .o b{font-size:14px}#lld-bb .o span{font-size:12px;color:#94a3b8}#lld-bb .pv{grid-row:1/3;grid-column:2;min-width:96px;display:flex;justify-content:flex-end;font-size:11px;font-weight:800}`; document.head.appendChild(c); }
+};
+window.lldBbsOpen = function () {
+    window.lldBbCss();
     const SAMPLE = { n: 10, boom: 5, bust: 1, m: 26, g: [31, 27, 24, 33, 19, 28, 25, 30, 26, 29], T: { hi: 30, lo: 22 } };
     const draw = () => { const cur = lldBbs(); $('#lld-bb').html(`<div class="h"><button class="x" data-bb="close" aria-label="Back">‹</button><b>Boom / bust display</b></div><p style="font-size:12px;color:#94a3b8;margin:0 0 14px">How consistency shows on your player rows. Weeks a player was on a bye or inactive are not counted.</p>` + LLD_BBS.map(o => `<button class="o${cur === o[0] ? ' on' : ''}" data-bb="${o[0]}"><b>${o[1]}</b><div class="pv">${o[0] === 'text' ? '<span style="color:#22c55e">56%↑</span>&nbsp;<span style="color:#ef4444">0%↓</span>' : lldBbViz(SAMPLE, o[0])}</div><span>${o[2]}</span></button>`).join('')); };
     $('#lld-bb').remove(); $('<div id="lld-bb"></div>').appendTo('body'); draw();
@@ -14353,7 +14357,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', musu: '0', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', musu: '0', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0', wml2: '', r_sz: 'std', r_hs: 'md', r_sh: 'round', r_pc: 'bar', r_bn: 'off', r_em: 'pl', r_lv: 'off', r_tp: 'detail' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldAdmin() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // the two testing teams: Gotham test and commissioner tools only
 function lldDev() { return true; } // former beta features are now on for everyone;
 window.lldAdmin = lldAdmin; window.lldDev = lldDev; // row tuner sliders stay with the commissioner franchises
@@ -14461,6 +14465,7 @@ function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
     c.toggle('lld-wm', b && wm !== '0');
     c.toggle('lld-wml', lldBv('wml') === 'logo');
+    try { lldRowApply(); } catch (e) { console.warn('row opts', e); }
     c.toggle('lld-bt', b);
     lldTuneApply();
     c.toggle('lld-posmenu', b && lldBv('pos') !== '0');
@@ -16703,6 +16708,97 @@ $(document).on('click', '#lld-a2hs-modal .a2-never', function () { lldSet('lld_a
 $(document).on('click', '#lld-a2hs-modal .a2-inst', async function () { try { window._lldBip.prompt(); await window._lldBip.userChoice; } catch (e) { } window._lldBip = null; lldSet('lld_a2hs_x', 'never'); $('#lld-a2hs-modal').remove(); });
 setTimeout(lldA2hsPopup, 5000);
 setTimeout(() => { try { lldA2hsPrep(); } catch (e) { } }, 3000);
+// ===== ROW STYLES (beta): logo location, boom / bust display, size, headshot, color, bench cue, score emphasis, live marker, tap action =====
+function lldRowBetaHtml() {
+    const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
+    const grp = (k, opts) => `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const bb = lldBbs();
+    return `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Player rows</div>`
+        + lab('Logo location') + grp('wml', [['wm', 'Watermark'], ['logo', 'By position'], ['off', 'Off']])
+        + lab('Boom / bust display') + `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${bb === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`
+        + lab('Row size') + grp('r_sz', [['cmp', 'Compact'], ['std', 'Standard'], ['rm', 'Roomy']])
+        + lab('Headshot size') + grp('r_hs', [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']])
+        + lab('Headshot shape') + grp('r_sh', [['round', 'Round'], ['sq', 'Square']])
+        + lab('Positional color') + grp('r_pc', [['bar', 'Bar'], ['tint', 'Tint'], ['neutral', 'Neutral']])
+        + lab('Start / bench cue') + grp('r_bn', [['off', 'Normal'], ['div', 'Divider'], ['dim', 'Dim bench'], ['lbl', 'BENCH label']])
+        + lab('Score emphasis (after a game starts)') + grp('r_em', [['pl', 'Plain'], ['gr', 'Green / red vs projection'], ['ar', 'With arrow']])
+        + lab('Live game marker') + grp('r_lv', [['off', 'Off'], ['pulse', 'Pulse dot'], ['lbl', 'LIVE label']])
+        + lab('Tap action (lineup)') + grp('r_tp', [['detail', 'Open detail'], ['exp', 'Expand in place']]);
+}
+function lldRowApply() {
+    const b = document.body, m = { sz: 'r_sz', hs: 'r_hs', sh: 'r_sh', pc: 'r_pc', bn: 'r_bn', em: 'r_em', lv: 'r_lv', tp: 'r_tp' };
+    Object.keys(m).forEach(a => b.setAttribute('data-r-' + a, lldBv(m[a])));
+    b.classList.toggle('lld-wmoff', lldBv('wml') === 'off');
+    if (!document.getElementById('lld-row-css')) {
+        const PC = { qb: '#f472b6', rb: '#22c55e', wr: '#38bdf8', te: '#f5a524', k: '#a78bfa', pk: '#a78bfa', def: '#94a3b8', dst: '#94a3b8', dl: '#ef4444', de: '#ef4444', dt: '#ef4444', lb: '#f97316', db: '#14b8a6', cb: '#14b8a6', s: '#14b8a6' };
+        const tint = Object.keys(PC).map(k => `body[data-r-pc="tint"] .player-row.pos-border-${k}{background-image:linear-gradient(90deg,color-mix(in srgb,${PC[k]} 24%,transparent),transparent 72%) !important}`).join('\n');
+        const c = document.createElement('style'); c.id = 'lld-row-css';
+        c.textContent = `
+body.lld-wmoff .row-wm,body.lld-wmoff .lld-hs-tb,body.lld-wmoff .lld-pos-logo,body.lld-wmoff .lld-tl-logo{display:none !important}
+body[data-r-sz="cmp"] .player-row.lld-tpl{padding-top:4px !important;padding-bottom:4px !important}
+body[data-r-sz="rm"] .player-row.lld-tpl{padding-top:14px !important;padding-bottom:14px !important}
+body[data-r-hs="sm"] .player-row .player-img-wrapper{width:24px !important;height:24px !important}
+body[data-r-hs="lg"] .player-row .player-img-wrapper{width:44px !important;height:44px !important}
+body[data-r-sh="sq"] .player-row .player-img-wrapper,body[data-r-sh="sq"] .player-row .player-circle{border-radius:9px !important}
+body[data-r-pc="neutral"] .player-row[class*="pos-border-"]{border-left-color:transparent !important}
+${tint}
+body[data-r-bn="div"] #slots-bench{border-top:2px dashed rgba(148,163,184,.45);margin-top:10px;padding-top:8px}
+body[data-r-bn="dim"] #slots-bench .player-row{opacity:.55}
+body[data-r-bn="lbl"] #slots-bench::before{content:'BENCH';grid-column:1/-1;display:block;font-size:10px;font-weight:900;letter-spacing:.14em;color:var(--text-dim);padding:8px 4px 4px}
+@keyframes lldPl{50%{opacity:.25}}
+body[data-r-lv="pulse"] .player-row.lld-live .lld-nm::after{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;animation:lldPl 1.2s infinite}
+body[data-r-lv="lbl"] .player-row.lld-live .lld-nm::after{content:'LIVE';font-size:9px;font-weight:900;line-height:1;background:#ef4444;color:#fff;border-radius:4px;padding:3px 5px}
+body[data-r-em="gr"] .lld-pscore b.lld-up,body[data-r-em="ar"] .lld-pscore b.lld-up{color:#22c55e !important}
+body[data-r-em="gr"] .lld-pscore b.lld-dn,body[data-r-em="ar"] .lld-pscore b.lld-dn{color:#ef4444 !important}
+body[data-r-em="ar"] .lld-pscore b.lld-up::before{content:'\\25B2 ';font-size:.7em}
+body[data-r-em="ar"] .lld-pscore b.lld-dn::before{content:'\\25BC ';font-size:.7em}
+.lld-exp{margin:2px 0 8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--card-border);display:flex;flex-direction:column;gap:8px;font-size:calc(12px * var(--ts,1));font-weight:800}
+.lld-exp .eh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}.lld-exp .bo{color:#22c55e}.lld-exp .bu{color:#ef4444}
+.lld-exp .ev{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:flex-end}
+.lld-exp-full{align-self:flex-start;background:transparent;border:1px solid var(--card-border);color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-weight:900}`;
+        document.head.appendChild(c);
+    }
+    try { lldEmphPass(); } catch (e) { }
+}
+function lldEmphPass() {
+    const on = document.body.getAttribute('data-r-em') !== 'pl';
+    document.querySelectorAll('.player-row.lld-played .lld-pscore b').forEach(b => {
+        b.classList.remove('lld-up', 'lld-dn'); if (!on) return;
+        const row = b.closest('.player-row'), pj = parseFloat((row.querySelector('.lld-pj-n') || {}).textContent), v = parseFloat(b.textContent);
+        if (isFinite(pj) && pj > 0 && isFinite(v)) b.classList.add(v >= pj ? 'lld-up' : 'lld-dn');
+    });
+}
+function lldTapPanel(row) {
+    const pid = String(row.dataset.pid), p = (window._apvSlP || {})[pid] || ((window._apvLu && window._apvLu.map) || {})[pid], x = p && p._ap;
+    let h;
+    if (x && x.n >= 1) {
+        const col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
+        h = `<div class="eh"><span>avg ${(x.m != null ? x.m : 0).toFixed(1)}</span><span>±${(x.sd || 0).toFixed(1)}</span><span class="bo">${x.boom} boom</span><span class="bu">${x.bust} bust</span><em style="color:${col};font-style:normal">${x.lab || ''}</em></div><div class="ev">${lldBbViz(x, 'bars')}${lldBbViz(x, 'dots')}</div>`;
+    } else h = '<div class="eh">No game history yet.</div>';
+    return `<div class="lld-exp" data-pid="${pid}">${h}<button type="button" class="lld-exp-full">Full detail ›</button></div>`;
+}
+(function () {
+    const hit = e => {
+        if (document.body.getAttribute('data-r-tp') !== 'exp') return null;
+        const t = e.target; if (!t || !t.closest) return null;
+        if (t.closest('.lld-exp, button, a, input, .pos-open-menu, .move-handle-btn')) return null;
+        const el = t.closest('.player-row .player-name-slot, .player-row .player-img-wrapper, .player-row .lld-nm');
+        const row = el && el.closest('#slots-starters .player-row, #slots-bench .player-row'); return row || null;
+    };
+    document.addEventListener('touchend', e => { if (hit(e)) e.stopImmediatePropagation(); }, true);
+    document.addEventListener('click', e => {
+        const row = hit(e); if (!row) return;
+        e.stopImmediatePropagation(); e.preventDefault();
+        const nx = row.nextElementSibling;
+        if (nx && nx.classList.contains('lld-exp')) { nx.remove(); return; }
+        row.insertAdjacentHTML('afterend', lldTapPanel(row));
+    }, true);
+    document.addEventListener('click', e => {
+        const b = e.target && e.target.closest && e.target.closest('.lld-exp-full'); if (!b) return;
+        const row = b.closest('.lld-exp').previousElementSibling; if (!row) return;
+        try { $(row).find('.player-img-wrapper').first().trigger('click'); } catch (x) { }
+    });
+})();
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
@@ -16715,7 +16811,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lldRowBetaHtml()}${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -16853,6 +16949,7 @@ async function lldLineupPlayedPass(targetFid) {
         row.append(`<div class="lld-pscore"><b style="color:${live ? '#22c55e' : '#fff'}">${lldRvWrap(pts, 'p' + pid)}</b><i style="color:${col}">${live ? '● ' : ''}${lldChatEsc(g.label)}</i></div>`);
     });
     window._lldPlayedPids = played;
+    try { lldEmphPass(); } catch (e) { }
     try { lldRvLuBar(); } catch (e) { }
     try { lldWeekBar(); } catch (e) { }
 }
@@ -25947,7 +26044,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             if (k === 'theme') { const s = lldGet('lld_style', 'classic'); return (LLD_STYLES[s] && LLD_STYLES[s].name) || (s === 'seasonal' ? 'Seasonal' : s === 'random' ? 'Random' : s); }
             if (k === 'text') { const n = parseFloat(lldGet('lld_text_scale', '1')); return n < 1 ? 'Small' : n === 1 ? 'Normal' : n < 1.2 ? 'Large' : 'X-Large'; }
             if (k === 'logo') return String(lldLogoRaw()).replace(/^./, c => c.toUpperCase());
-            if (k === 'wml') return window.lldBv('wml') === 'logo' ? 'By position' : 'Watermark';
+            if (k === 'wml') return window.lldBv('wml') === 'logo' ? 'By position' : window.lldBv('wml') === 'off' ? 'Off' : 'Watermark';
             if (k === 'rv') return window.lldBv('rv') === '1' ? 'On' : 'Off';
             if (k === 'tk') return lldTickOn(lldEffStyle()) ? 'On' : 'Off';
         } catch (e) { }
