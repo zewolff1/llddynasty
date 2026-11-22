@@ -18863,7 +18863,8 @@ function lldMusPick(kind) {
         else {
             const res = (LLD_ST && LLD_ST.myRes) || '', opp = lldMusOf(LLD_ST && LLD_ST.oppFid), ou = k => lldMusSongUrl(opp && opp[k]);
             // I win: my own win song. I lose: the song the team that beat me chose for their opponent's loss (then their win song). Then my generic recap.
-            const u = (res === 'win' && lldMusUserUrl('win')) || (res === 'loss' && (ou('oloss') || ou('win'))) || lldMusUserUrl('recap');
+            // the win / opponent-loss songs are only for your own matchup recap ('mrecap'); the league-wide recaps play your generic recap song
+            const mine = kind === 'mrecap', u = (mine && ((res === 'win' && lldMusUserUrl('win')) || (res === 'loss' && (ou('oloss') || ou('win'))))) || lldMusUserUrl('recap');
             if (u) return u;
         }
     }
