@@ -24011,7 +24011,7 @@ if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-ru
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 const lldPel = true; // faster loading is on for everyone
 window._lldBoot = true; document.body.classList.add('lld-boot'); if (lldPel) document.body.classList.add('lld-pel-on');
-const lldBootDone = () => { window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
+const lldBootDone = () => { try { if (window.lldReveal) window.lldReveal(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
 setTimeout(lldBootDone, 25000);
 if (lldPel) {
     document.body.classList.add('lld-pel-busy');
@@ -24022,7 +24022,6 @@ if (lldPel) {
         .then(() => {
             _try(() => applyTeamTheme(myFid, true), 'theme');
             _try(() => refreshTeamInfoPanel(), 'panel');
-            try { if (window.lldReveal) window.lldReveal(); } catch (e) { }
             const bg = Promise.all([fetchMasterStatus(), fetchPointsAllowed(), fetchPlayerAverages(), fetchPlayerSeason(), fetchLeagueSalaryData(), loadResignState()].map(f => Promise.resolve(f).catch(() => null)))
                 .then(() => checkCompletedAuctions()).catch(() => { });
             const first = Promise.resolve().then(() => loadTeamData()).catch(e => console.warn('startup team', e));
