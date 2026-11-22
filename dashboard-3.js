@@ -10761,7 +10761,7 @@ $('body').append(`
                         <img id="logo-preview-NEP" style="width:32px; height:32px; object-fit:contain;">
                     </div>
                     <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin:14px 0 10px;">Team logo on player rows</div>
-                    <div style="display:flex; gap:6px;">${[['wm', 'Watermark'], ['logo', 'Logo by position']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('wml') === v ? 'on' : ''}" data-k="wml" data-v="${v}">${l}</button>`).join('')}</div>
+                    <div style="display:flex; gap:6px;">${[['wm', 'Watermark'], ['logo', 'Next to headshot']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('wml') === v ? 'on' : ''}" data-k="wml" data-v="${v}">${l}</button>`).join('')}</div>
                     <div id="display-save-status" style="font-size:calc(10px * var(--ts,1)); font-weight:800; color:var(--accent-teal); text-align:center; min-height:16px; margin-top:10px;"></div>
                 </div>
 <div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; letter-spacing:1px; margin:6px 0 12px; padding-top:12px; border-top:1px solid var(--card-border);">Hide scores</div>
@@ -16713,7 +16713,7 @@ function lldRowBetaHtml() {
     const lab = t => `<div class="qt-l">${t}</div>`;
     const grp = (k, opts) => `<div class="qt-row qt-scroll">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const bb = lldBbs();
-    return lab('Logo location') + grp('wml', [['wm', 'Watermark'], ['logo', 'By position'], ['off', 'Off']])
+    return lab('Logo location') + grp('wml', [['wm', 'Watermark'], ['logo', 'Next to headshot'], ['off', 'Off']])
         + lab('Boom / bust display') + `<div class="qt-row qt-scroll">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${bb === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`
         + lab('Row size') + grp('r_sz', [['cmp', 'Compact'], ['std', 'Standard'], ['rm', 'Roomy']])
         + lab('Headshot size') + grp('r_hs', [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']])
@@ -16722,10 +16722,10 @@ function lldRowBetaHtml() {
         + lab('Start / bench cue') + grp('r_bn', [['off', 'Normal'], ['div', 'Divider'], ['dim', 'Dim bench'], ['lbl', 'BENCH label']])
         + lab('Score emphasis (once a game starts)') + grp('r_em', [['pl', 'Plain'], ['gr', 'Green / red vs projection'], ['ar', 'With arrow']])
         + lab('Live game marker') + grp('r_lv', [['off', 'Off'], ['pulse', 'Pulse dot'], ['lbl', 'LIVE label']])
-        + lab('Tap action (lineup)') + grp('r_tp', [['detail', 'Open detail'], ['exp', 'Expand in place']]);
+        ;
 }
 function lldRowApply() {
-    const b = document.body, m = { sz: 'r_sz', hs: 'r_hs', sh: 'r_sh', pc: 'r_pc', bn: 'r_bn', em: 'r_em', lv: 'r_lv', tp: 'r_tp' };
+    const b = document.body, m = { sz: 'r_sz', hs: 'r_hs', sh: 'r_sh', pc: 'r_pc', bn: 'r_bn', em: 'r_em', lv: 'r_lv' };
     Object.keys(m).forEach(a => b.setAttribute('data-r-' + a, lldBv(m[a])));
     b.classList.toggle('lld-wmoff', lldBv('wml') === 'off');
     if (!document.getElementById('lld-row-css')) {
@@ -16733,7 +16733,7 @@ function lldRowApply() {
         const tint = Object.keys(PC).map(k => `body[data-r-pc="tint"] .player-row.pos-border-${k}{background-image:linear-gradient(90deg,color-mix(in srgb,${PC[k]} 24%,transparent),transparent 72%) !important}`).join('\n');
         const c = document.createElement('style'); c.id = 'lld-row-css';
         c.textContent = `
-body.lld-wmoff .row-wm,body.lld-wmoff .lld-hs-tb,body.lld-wmoff .lld-pos-logo,body.lld-wmoff .lld-tl-logo{display:none !important}
+body:not(.lld-wml) .player-row.lld-tpl .lld-hs-tb,body.lld-wmoff .row-wm,body.lld-wmoff .lld-hs-tb,body.lld-wmoff .lld-pos-logo,body.lld-wmoff .lld-tl-logo{display:none !important}
 body[data-r-sz="cmp"] .player-row.lld-tpl{padding-top:4px !important;padding-bottom:4px !important}
 body[data-r-sz="rm"] .player-row.lld-tpl{padding-top:14px !important;padding-bottom:14px !important}
 body[data-r-hs="sm"] .player-row .player-img-wrapper{width:24px !important;height:24px !important}
@@ -16767,37 +16767,6 @@ function lldEmphPass() {
         if (isFinite(pj) && pj > 0 && isFinite(v)) b.classList.add(v >= pj ? 'lld-up' : 'lld-dn');
     });
 }
-function lldTapPanel(row) {
-    const pid = String(row.dataset.pid), p = (window._apvSlP || {})[pid] || ((window._apvLu && window._apvLu.map) || {})[pid], x = p && p._ap;
-    let h;
-    if (x && x.n >= 1) {
-        const col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542';
-        h = `<div class="eh"><span>avg ${(x.m != null ? x.m : 0).toFixed(1)}</span><span>±${(x.sd || 0).toFixed(1)}</span><span class="bo">${x.boom} boom</span><span class="bu">${x.bust} bust</span><em style="color:${col};font-style:normal">${x.lab || ''}</em></div><div class="ev">${lldBbViz(x, 'bars')}${lldBbViz(x, 'dots')}</div>`;
-    } else h = '<div class="eh">No game history yet.</div>';
-    return `<div class="lld-exp" data-pid="${pid}">${h}<button type="button" class="lld-exp-full">Full detail ›</button></div>`;
-}
-(function () {
-    const hit = e => {
-        if (document.body.getAttribute('data-r-tp') !== 'exp') return null;
-        const t = e.target; if (!t || !t.closest) return null;
-        if (t.closest('.lld-exp, button, a, input, .pos-open-menu, .move-handle-btn')) return null;
-        const el = t.closest('.player-row .player-name-slot, .player-row .player-img-wrapper, .player-row .lld-nm');
-        const row = el && el.closest('#slots-starters .player-row, #slots-bench .player-row'); return row || null;
-    };
-    document.addEventListener('touchend', e => { if (hit(e)) e.stopImmediatePropagation(); }, true);
-    document.addEventListener('click', e => {
-        const row = hit(e); if (!row) return;
-        e.stopImmediatePropagation(); e.preventDefault();
-        const nx = row.nextElementSibling;
-        if (nx && nx.classList.contains('lld-exp')) { nx.remove(); return; }
-        row.insertAdjacentHTML('afterend', lldTapPanel(row));
-    }, true);
-    document.addEventListener('click', e => {
-        const b = e.target && e.target.closest && e.target.closest('.lld-exp-full'); if (!b) return;
-        const row = b.closest('.lld-exp').previousElementSibling; if (!row) return;
-        try { $(row).find('.player-img-wrapper').first().trigger('click'); } catch (x) { }
-    });
-})();
 function lldBetaHtml() {
     if (!lldBeta()) return '';
     const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
@@ -25429,7 +25398,12 @@ function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
 // ===== quick theme sheet: a palette icon beside settings; the page stays visible so changes can be seen live =====
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
 function lldQtPreview() {
-    let row = ''; try { row = window.lldPvRow ? window.lldPvRow() : ''; } catch (e) { }
+    let row = '';
+    try {
+        const src = document.querySelector('#slots-starters .player-row[data-pid]:not(.empty-slot)');
+        const d = src ? { pid: src.dataset.pid, name: (src.querySelector('.full-name') || {}).textContent || src.dataset.pname, shortName: (src.querySelector('.short-name') || {}).textContent || src.dataset.pname, pos: src.dataset.ppos, team: src.dataset.pteam } : { pid: '15268', name: "Ja'Marr Chase", shortName: 'J. Chase', pos: 'WR', team: 'CIN' };
+        row = buildCompactUniversalRow(d, { pill: 'Sun 1 PM', topRight: projTopHtml('16.4'), bottomRight: rankAvgHtml(d.pid, d.pos) });
+    } catch (e) { console.warn('qt preview', e); }
     if (!row) return '';
     const x = { n: 10, boom: 5, bust: 1, m: 26, lab: 'Steady', g: [31, 27, 24, 33, 19, 28, 25, 30, 26, 29], T: { hi: 30, lo: 22 } }, bbs = lldBbs();
     const foot = () => { const f = document.createElement('div'); f.className = 'lld-clr-f ls'; f.innerHTML = `<div class="lld-clr-rk"></div><div class="apv-sl in">${bbs === 'text' ? '<span class="apv-bbc"><b class="apv-bo">50%</b>↑</span><span class="apv-bbc"><b class="apv-bu">10%</b>↓</span>' : `<span class="apv-bbc bbv-w">${lldBbViz(x, bbs)}</span>`}</div>`; return f; };
@@ -26058,7 +26032,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             if (k === 'theme') { const s = lldGet('lld_style', 'classic'); return (LLD_STYLES[s] && LLD_STYLES[s].name) || (s === 'seasonal' ? 'Seasonal' : s === 'random' ? 'Random' : s); }
             if (k === 'text') { const n = parseFloat(lldGet('lld_text_scale', '1')); return n < 1 ? 'Small' : n === 1 ? 'Normal' : n < 1.2 ? 'Large' : 'X-Large'; }
             if (k === 'logo') return String(lldLogoRaw()).replace(/^./, c => c.toUpperCase());
-            if (k === 'wml') return window.lldBv('wml') === 'logo' ? 'By position' : window.lldBv('wml') === 'off' ? 'Off' : 'Watermark';
+            if (k === 'wml') return window.lldBv('wml') === 'logo' ? 'Next to headshot' : window.lldBv('wml') === 'off' ? 'Off' : 'Watermark';
             if (k === 'rv') return window.lldBv('rv') === '1' ? 'On' : 'Off';
             if (k === 'tk') return lldTickOn(lldEffStyle()) ? 'On' : 'Off';
         } catch (e) { }
@@ -26071,7 +26045,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
             ['Look and feel', 'Text & layout', 'Text size, owner name in header', val('text'), 'text'],
             ['Look and feel', 'Boom / bust display', 'How consistency shows on player rows', window.lldBbsLabel ? window.lldBbsLabel() : '', 'bbs'],
             ['Logos', 'NFL team logos', 'Modern, Throwback, Leatherhead, Alternate, Helmet', val('logo'), 'logos'],
-            ['Logos', 'Logo on player rows', 'Watermark or logo by position', val('wml'), 'logos'],
+            ['Logos', 'Logo on player rows', 'Watermark or logo next to headshot', val('wml'), 'logos'],
             ['Scores', 'Hide scores', 'Spoiler protection for live games', val('rv'), 'scores'],
             ['Scores', 'Ticker', 'The scrolling line under the header', val('tk'), 'scores'],
             ['My team', 'Team info & name style', 'Owner, email, location, team name, font and colors', '', 'team'],
@@ -26168,7 +26142,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         pg.find('.sh2-pvs').remove();
         const pv = (v, l) => `<button type="button" class="sh2-pvb ${cur === v ? 'on' : ''}" data-v="${v}"><b>${l}</b><div class="sh2-pv pv-${v}">${row}</div></button>`;
         const wmBtns = pg.find('.lld-b-btn[data-k="wml"]').first().parent();
-        wmBtns.after(`<div class="sh2-pvs">${pv('wm', 'Watermark')}${pv('logo', 'Logo by position')}</div>`);
+        wmBtns.after(`<div class="sh2-pvs">${pv('wm', 'Watermark')}${pv('logo', 'Next to headshot')}</div>`);
         pg.find('.sh2-lgt').remove();
         pg.append(`<div class="sh2-lgt"><div class="sh2-lgb" style="display:${window.lldLogoRaw && window.lldLogoRaw() === 'custom' ? 'block' : 'none'}"><p>Custom: tap a logo to use that style for one team. Teams you skip use Modern. Choosing any other style above applies to every team (your custom picks are kept). A dimmed style has no image for that team.</p><div class="sh2-lgl">${window.lldLogoTeamUi ? window.lldLogoTeamUi() : ''}</div></div></div>`);
     }
