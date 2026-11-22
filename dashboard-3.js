@@ -1839,6 +1839,7 @@ let rookiePids = new Set();
                     d.className = 'lld-empty-state';
                     d.style.cssText = 'text-align:center; padding:48px 24px; color:var(--text-dim);';
                     d.innerHTML = '<div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">' + EMPTY[id][0] + '</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:600;">' + EMPTY[id][1] + '</div>';
+                    try { if (id === 'player-rows-container' && (window._commishToggleUrl || (window.LLD_STANDALONE && typeof window.lldAppBecome === 'function'))) { const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Back to my team (0001)'; b.style.cssText = 'margin-top:16px;padding:12px 18px;border-radius:12px;border:1px solid var(--accent-blue);background:transparent;color:var(--accent-blue);font-weight:900;font-size:14px;'; b.onclick = function () { if (window.LLD_STANDALONE && typeof window.lldAppBecome === 'function') window.lldAppBecome('0001'); else window.location.href = String(window._commishToggleUrl).replace(/BECOME=\d+/, 'BECOME=0001'); }; d.appendChild(b); } } catch (e) { }
                     el.appendChild(d);
                 } else if (old && real.length) {
                     old.remove();
