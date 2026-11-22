@@ -1,3 +1,5 @@
+// Home Screen app: cover the half-built page until the team has loaded (done here so it works even if the phone still has an older app.js)
+try { if (window.LLD_STANDALONE && document.body && !document.getElementById('lld-cover')) { const c = document.createElement('div'); c.id = 'lld-cover'; c.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#0f1626;color:#94a3b8;display:flex;align-items:center;justify-content:center;font:13px -apple-system,system-ui,sans-serif'; c.textContent = 'Loading your league\u2026'; document.body.appendChild(c); window.lldUncover = () => { const e = document.getElementById('lld-cover'); if (e) e.remove(); }; setTimeout(window.lldUncover, 30000); } } catch (e) { }
 try { if (document.body) { document.body.classList.add('lld-sh-pend'); setTimeout(function () { document.body.classList.remove('lld-sh-pend'); }, 9000); } } catch (e) { }
 // ===== LOADING OVERLAY + PULL TO REFRESH (beta switches "ldr" and "ptr", commissioner franchises only, default off) =====
 // The overlay goes up as soon as this file runs and comes down once the header and the first rows are in, so tabs do not pop in one by one.
@@ -24021,7 +24023,7 @@ if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-ru
 if (LLD.usesSalaries === false) { $('.sub-tab-btn[onclick*="contracts"]').hide(); }
 const lldPel = true; // faster loading is on for everyone
 window._lldBoot = true; document.body.classList.add('lld-boot'); if (lldPel) document.body.classList.add('lld-pel-on');
-const lldBootDone = () => { try { if (window.lldReveal) window.lldReveal(); } catch (e) { } try { lldVerTag(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
+const lldBootDone = () => { try { if (window.lldReveal) window.lldReveal(); } catch (e) { } try { if (window.lldUncover) window.lldUncover(); } catch (e) { } try { lldVerTag(); } catch (e) { } window._lldBoot = false; document.body.classList.remove('lld-boot'); try { $('#player-rows-container .lld-boot-spin').remove(); } catch (e) { } };
 setTimeout(lldBootDone, 25000);
 if (lldPel) {
     document.body.classList.add('lld-pel-busy');
