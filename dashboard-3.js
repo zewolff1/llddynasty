@@ -806,7 +806,7 @@ function lldStatsCompute(D) {
             ent.forEach(e => {
                 const pl = getP(e.pid); if (!pl.pos) pl.pos = e.pos;
                 const played = e.score > 0 || e.isStarter || oS.has(e.pid);
-                if (e.score > 0 || e.isStarter) { pl.g[wi] = e.score; if (S.allScores[e.pos]) S.allScores[e.pos].push(e.score); }
+                if (e.score !== 0 && (e.score > 0 || e.isStarter)) { pl.g[wi] = e.score; /* a 0 is a bye / injured / inactive week, not a bust */ if (S.allScores[e.pos]) S.allScores[e.pos].push(e.score); }
                 pl.st[wi] = e.isStarter; pl.op[wi] = oS.has(e.pid); pl.tm[wi] = f;
                 if (e.isStarter) { actP += e.score; S.byPos[i][e.pos] = (S.byPos[i][e.pos] || 0) + e.score; }
                 if (oS.has(e.pid)) optP2 += e.score;
@@ -2598,7 +2598,7 @@ async function lldApvWeekData() {
 async function lldApvCalc(players, d) {
     await lldMflNameDb();
     const P = window._mflPos || {}, N = { QB: 30, RB: 50, WR: 70, TE: 25 };
-    const sc = pid => { const a = []; for (let w = 1; w < d.cw; w++) { const v = d.sc[w] && d.sc[w][pid]; if (v != null) a.push(v); } return a; };
+    const sc = pid => { const a = []; for (let w = 1; w < d.cw; w++) { const v = d.sc[w] && d.sc[w][pid]; if (v != null && v !== 0) a.push(v); } /* 0 = bye / injured / inactive */ return a; };
     const stat = a => { const n = a.length, m = n ? a.reduce((x, y) => x + y, 0) / n : 0, sd = n > 1 ? Math.sqrt(a.reduce((x, y) => x + (y - m) * (y - m), 0) / n) : 0; return { n, m, sd, cv: m > 0 ? sd / m : null }; };
     const q = (a, f) => { const t = a.slice().sort((x, y) => x - y); return t.length ? t[Math.min(t.length - 1, Math.floor(f * t.length))] : 0; };
     const byPos = {}, th = {};
@@ -2610,7 +2610,7 @@ async function lldApvCalc(players, d) {
     });
     const A = window._apv; let SE = null; try { SE = await lldStatsLoad(); } catch (e) { }
     players.forEach(p => {
-        const ps = P[p.pid] || String(p.realPos || '').toUpperCase(), T = th[ps] || { hi: 1e9, lo: -1e9, cvs: [] }, a = sc(p.pid), t = stat(a), g = []; for (let w = 1; w < d.cw; w++) g.push(d.sc[w] && d.sc[w][p.pid] != null ? d.sc[w][p.pid] : null);
+        const ps = P[p.pid] || String(p.realPos || '').toUpperCase(), T = th[ps] || { hi: 1e9, lo: -1e9, cvs: [] }, a = sc(p.pid), t = stat(a), g = []; for (let w = 1; w < d.cw; w++) g.push(d.sc[w] && d.sc[w][p.pid] != null && d.sc[w][p.pid] !== 0 ? d.sc[w][p.pid] : null);
         const boom = a.filter(x => x >= T.hi).length, bust = a.filter(x => x <= T.lo).length;
         const ok = t.n >= 3 && t.cv != null, c = ok ? (T.cvs.length ? T.cvs.filter(x => x > t.cv).length / T.cvs.length : .5) : null, lab = ok ? (c >= .67 ? 'Steady' : c <= .33 ? 'Volatile' : 'Average') : 'N/A';
         let tot = 0, cnt = 0; for (let w = d.cw; w <= 18; w++) { const v = d.pj[w] && d.pj[w][p.pid]; if (v > 0) { tot += v; cnt++; } }
@@ -3090,6 +3090,31 @@ setTimeout(() => { try { lldCondLoadLocks().then(m => { if (Object.keys(m).lengt
 // One slim row per player: ranks + boom / bust (+ Steady / Volatile word) run along the bottom of the row instead of a second box under it.
 function lldClrOn() { return true; } // compact lineup rows are always on
 function lldClrAvg(p) { const O = window._apv.on, a = ((playerSeason[p.pid] || {}).avg || 0).toFixed(1); return O.now ? `<span class="lld-clr-av">${a} avg</span>` : ''; }
+// Boom / bust display style (Settings > Boom / bust display): text (default), bar, dots, range, bars
+const LLD_BBS = [['text', 'Text', 'Percentages and the Steady / Volatile word'], ['bar', 'Split bar', 'Green share boom weeks, red share bust weeks'], ['dots', 'Weekly dots', 'One dot per game, green boom and red bust'], ['range', 'Floor to ceiling', 'Worst to best game, with the average marked'], ['bars', 'Mini bars', 'Weekly scores as small bars']];
+function lldBbs() { try { const v = localStorage.getItem('lld_bbs'); return LLD_BBS.some(o => o[0] === v) ? v : 'text'; } catch (e) { return 'text'; } }
+function lldBbViz(x, st) {
+    const g = (x.g || []).filter(v => v != null && v !== 0).slice(-10), T = x.T || {}, hi = T.hi, lo = T.lo, cls = v => (hi != null && v >= hi) ? 'bo' : (lo != null && v <= lo) ? 'bu' : '';
+    if (st === 'bar') { const n = x.n || 1, bo = Math.round(x.boom / n * 100), bu = Math.round(x.bust / n * 100); return `<span class="bbv bbv-bar"><b class="bo" style="width:${bo}%"></b><b class="bu" style="width:${bu}%"></b></span>`; }
+    if (st === 'dots') return `<span class="bbv bbv-dots">${g.map(v => `<i class="${cls(v)}"></i>`).join('')}</span>`;
+    if (st === 'bars') { const mx = Math.max.apply(0, g.concat([1])); return `<span class="bbv bbv-bars">${g.map(v => `<i class="${cls(v)}" style="height:${Math.max(2, Math.round(Math.max(v, 0) / mx * 14))}px"></i>`).join('')}</span>`; }
+    if (st === 'range') { if (!g.length) return ''; const mn = Math.min.apply(0, g), mxv = Math.max.apply(0, g), top = Math.max(mxv, hi || 0) * 1.1 || 1, W = 90, px = v => Math.max(0, Math.min(W, v / top * W)), m = x.m != null ? x.m : (g.reduce((a, b) => a + b, 0) / g.length); return `<span class="bbv bbv-rng"><s class="tr"></s><s class="sp" style="left:${px(mn)}px;width:${Math.max(3, px(mxv) - px(mn))}px"></s><s class="md" style="left:${px(m)}px"></s></span>`; }
+    return '';
+}
+function lldBbsApply() { try { renderActiveTab(); } catch (e) { } }
+window.lldBbsLabel = () => (LLD_BBS.find(o => o[0] === lldBbs()) || LLD_BBS[0])[1];
+window.lldBbsOpen = function () {
+    if (!document.getElementById('lld-bb-css')) { const c = document.createElement('style'); c.id = 'lld-bb-css'; c.textContent = `.bbv{display:inline-flex;align-items:center;vertical-align:middle}.bbv-bar{width:84px;height:7px;border-radius:4px;background:rgba(148,163,184,.35);overflow:hidden;display:flex}.bbv-bar b{display:block;height:100%}.bbv .bo,.bbv-bar .bo{background:#22c55e}.bbv .bu,.bbv-bar .bu{background:#ef4444}.bbv-bar .bu{margin-left:auto}
+.bbv-dots{gap:3px}.bbv-dots i{width:7px;height:7px;border-radius:50%;background:rgba(148,163,184,.45);display:block}.bbv-dots i.bo{background:#22c55e}.bbv-dots i.bu{background:#ef4444}
+.bbv-bars{gap:2px;align-items:flex-end;height:14px}.bbv-bars i{width:5px;border-radius:1px 1px 0 0;background:rgba(148,163,184,.5);display:block}.bbv-bars i.bo{background:#22c55e}.bbv-bars i.bu{background:#ef4444}
+.bbv-rng{position:relative;width:90px;height:12px;display:inline-block}.bbv-rng s{position:absolute;display:block;text-decoration:none}.bbv-rng .tr{left:0;right:0;top:5px;height:2px;background:rgba(148,163,184,.35)}.bbv-rng .sp{top:3px;height:6px;border-radius:3px;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e)}.bbv-rng .md{top:0;width:2px;height:12px;background:#fff;border-radius:1px}
+#lld-bb{position:fixed;inset:0;z-index:2147483200;background:var(--bg-color,#0b1020);color:#fff;overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}#lld-bb .h{display:flex;align-items:center;gap:10px;margin-bottom:14px}#lld-bb .h b{font-size:18px;flex:1}#lld-bb .x{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px}
+#lld-bb .o{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;width:100%;text-align:left;background:rgba(255,255,255,.06);border:2px solid transparent;border-radius:14px;padding:12px;margin-bottom:10px;color:#fff}#lld-bb .o.on{border-color:#ef4444}#lld-bb .o b{font-size:14px}#lld-bb .o span{font-size:12px;color:#94a3b8}#lld-bb .pv{grid-row:1/3;grid-column:2;min-width:96px;display:flex;justify-content:flex-end;font-size:11px;font-weight:800}`; document.head.appendChild(c); }
+    const SAMPLE = { n: 10, boom: 5, bust: 1, m: 26, g: [31, 27, 24, 33, 19, 28, 25, 30, 26, 29], T: { hi: 30, lo: 22 } };
+    const draw = () => { const cur = lldBbs(); $('#lld-bb').html(`<div class="h"><button class="x" data-bb="close" aria-label="Back">‹</button><b>Boom / bust display</b></div><p style="font-size:12px;color:#94a3b8;margin:0 0 14px">How consistency shows on your player rows. Weeks a player was on a bye or inactive are not counted.</p>` + LLD_BBS.map(o => `<button class="o${cur === o[0] ? ' on' : ''}" data-bb="${o[0]}"><b>${o[1]}</b><div class="pv">${o[0] === 'text' ? '<span style="color:#22c55e">56%↑</span>&nbsp;<span style="color:#ef4444">0%↓</span>' : lldBbViz(SAMPLE, o[0])}</div><span>${o[2]}</span></button>`).join('')); };
+    $('#lld-bb').remove(); $('<div id="lld-bb"></div>').appendTo('body'); draw();
+    $('#lld-bb').off('click').on('click', '[data-bb]', function () { const v = this.dataset.bb; if (v === 'close') { $('#lld-bb').remove(); try { $('#sh2-list').find('.sh2-row[data-go="bbs"] .sh2-v').text(window.lldBbsLabel()); } catch (e) { } return; } try { localStorage.setItem('lld_bbs', v); } catch (e) { } draw(); lldBbsApply(); });
+};
 function lldClrFoot(p) {
     const A = window._apv, O = A.on, x = p._ap, cur = lldApvNow(p.pid), lb = r => r ? '#' + r : '\u2013';
     const df = r => { if (!cur || !r) return ''; const d = cur - r; return d === 0 ? '<s class="eq">\u2013</s>' : d > 0 ? `<s class="up">\u25B2${d}</s>` : `<s class="dn">\u25BC${-d}</s>`; };
@@ -3100,8 +3125,10 @@ function lldClrFoot(p) {
     let bb = '';
     if ((O.bb || O.bu || O.co) && x && x.n >= 3) {
         const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542', a = [];
-        if (O.bb) a.push(`<span class="apv-bbc"><b class="apv-bo">${bo}%</b>\u2191</span>`);
-        if (O.bu) a.push(`<span class="apv-bbc"><b class="apv-bu">${bu}%</b>\u2193</span>`);
+        const bbs = lldBbs();
+        if (bbs !== 'text') a.push(`<span class="apv-bbc bbv-w" title="${bo}% boom \u00B7 ${bu}% bust">${lldBbViz(x, bbs)}</span>`);
+        if (bbs === 'text' && O.bb) a.push(`<span class="apv-bbc"><b class="apv-bo">${bo}%</b>\u2191</span>`);
+        if (bbs === 'text' && O.bu) a.push(`<span class="apv-bbc"><b class="apv-bu">${bu}%</b>\u2193</span>`);
         if (O.co && lldBv('clrv') !== '0') a.push(`<span class="apv-bbc"><em style="color:${col}">${x.lab}</em></span>`);
         (window._apvSlP = window._apvSlP || {})[String(p.pid)] = p;
         bb = `<div class="apv-sl in" data-pid="${p.pid}">${a.join('')}</div>`;
@@ -25928,6 +25955,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
         const R = [
             ['Look and feel', 'Theme', 'Style, holiday animation, page width', val('theme'), 'theme'],
             ['Look and feel', 'Text & layout', 'Text size, owner name in header', val('text'), 'text'],
+            ['Look and feel', 'Boom / bust display', 'How consistency shows on player rows', window.lldBbsLabel ? window.lldBbsLabel() : '', 'bbs'],
             ['Logos', 'NFL team logos', 'Modern, Throwback, Leatherhead, Alternate, Helmet', val('logo'), 'logos'],
             ['Logos', 'Logo on player rows', 'Watermark or logo by position', val('wml'), 'logos'],
             ['Scores', 'Hide scores', 'Spoiler protection for live games', val('rv'), 'scores'],
@@ -26072,7 +26100,7 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
     $(document).on('click touchend', '.open-settings-btn', function () {
         let f = ''; f = String(window._lldMyFid || '').padStart(4, '0'); setTimeout(home, 0); setTimeout(() => { if ($('#sh2-home').is(':visible')) $('#sh2-list').html(homeHtml($('#sh2-q').val())); }, 450);
     });
-    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'songs') { try { window.lldSongsOpen(); } catch (e) { console.warn('songs', e); } return; } if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
+    $(document).on('click', '#lld-sh2 .sh2-row', function () { if (this.dataset.go === 'bbs') { try { window.lldBbsOpen(); } catch (e) { console.warn('bbs', e); } return; } if (this.dataset.go === 'songs') { try { window.lldSongsOpen(); } catch (e) { console.warn('songs', e); } return; } if (this.dataset.go === 'icon') { try { window.lldInstallShow(true); } catch (e) { } return; } try { page(this.dataset.go); } catch (e) { fallback(e); } });
     $(document).on('click', '#sh2-back', home);
     $(document).on('input', '#sh2-q', function () { $('#sh2-list').html(homeHtml(this.value)); });
     // keep the row values fresh after a change on a page
