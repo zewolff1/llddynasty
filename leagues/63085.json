@@ -3,6 +3,7 @@
   "leagueName": "LLD Dynasty",
   "salaryCap": 823,
   "adminFids": ["0000", "0001"],
+  "songs": [],
   "defendingChampFid": "0001",
   "logoUrl": "https://raw.githubusercontent.com/zewolff1/llddynasty/4f81a6a726ce6e42253b9be29c9c8ab1c3b9e576/content/Dark%20Blue%20and%20Orange%20Illustrative%20Football%20League%20Badge%20Logo%20(1).svg",
   "joinYears": {

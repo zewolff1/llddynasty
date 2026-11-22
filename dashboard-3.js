@@ -18695,19 +18695,36 @@ function lldMusOf(f) { return (window._teamSongs || {})[String(f || '').padStart
 var _lldMusT = null;
 function lldMusSaveShared() { clearTimeout(_lldMusT); _lldMusT = setTimeout(async () => { try { window._teamSongs = window._teamSongs || {}; window._teamSongs[lldMusMe()] = lldMusUser(); await saveAllTeamStylesToHomepage(); } catch (e) { console.warn('songs save', e); } }, 1500); }
 function lldMusUserOn() { try { return lldBv('musu') === '1'; } catch (e) { return false; } }
-function lldMusUserUrl(k) { const s = lldMusUser()[k]; if (!s || !s.u) return ''; const y = lldYtId(s.u); if (!y) return ''; const t = lldYtSecs(s.t) || y.t || 0; return 'https://youtu.be/' + y.id + (t ? '?t=' + t : ''); }
-function lldMusUserHtml() {
-    const U = lldMusUser(), inp = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;';
-    return `<div style="margin:6px 0 16px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Your recap songs: use my own (beta)</div>
-        <div style="display:flex; gap:6px; margin-bottom:12px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('musu') === v ? 'on' : ''}" data-k="musu" data-v="${v}">${l}</button>`).join('')}</div>
-        ${lldMusSlots().map(([k, l]) => `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr 84px auto; gap:6px;"><input type="url" class="lld-mu-u" data-s="${k}" placeholder="YouTube link" value="${String((U[k] || {}).u || '').replace(/"/g, '&quot;')}" style="${inp}"><input type="text" class="lld-mu-t" data-s="${k}" placeholder="Start 1:05" value="${String((U[k] || {}).t || '').replace(/"/g, '&quot;')}" style="${inp}"><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">Test</button></div></div>`).join('')}
-        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Start time can be 65, 1:05 or 1m5s. Saved on this device. Anything left blank uses the league song.</div></div>`;
+function lldMusCat() { const c = (window.LLD_CONFIG || {}).songs; return Array.isArray(c) ? c.filter(x => x && x.id && x.name && x.url) : []; }
+// a pick is a song id from the commissioner's list (older picks that stored a link still work)
+function lldMusSongUrl(v) {
+    if (!v) return '';
+    let u = '', t = 0;
+    if (typeof v === 'object') { u = v.u; t = lldYtSecs(v.t); }
+    else { const c = lldMusCat().find(x => String(x.id) === String(v)); if (!c) return ''; u = c.url; t = lldYtSecs(c.t); }
+    const y = lldYtId(u); if (!y) return ''; t = t || y.t || 0;
+    return 'https://youtu.be/' + y.id + (t ? '?t=' + t : '');
 }
-$(document).on('input change', '.lld-mu-u, .lld-mu-t', function () { const U = lldMusUser(), s = this.dataset.s; U[s] = U[s] || {}; U[s][$(this).hasClass('lld-mu-u') ? 'u' : 't'] = this.value.trim(); try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
-$(document).on('click', '.lld-mu-test', function () {
-    const u = lldMusUserUrl(this.dataset.s), v = lldYtId(u);
-    if (!v) { try { lldMusToast('Paste a YouTube link first'); } catch (e) { } return; }
-    window.open('https://www.youtube.com/watch?v=' + v.id + (v.t ? '&t=' + v.t + 's' : ''), '_blank');
+function lldMusUserUrl(k) { return lldMusSongUrl(lldMusUser()[k]); }
+function lldMusUserHtml() {
+    const U = lldMusUser(), C = lldMusCat(), sel = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;width:100%;';
+    return `<div style="margin:6px 0 16px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Your recap songs (beta)</div>
+        <div style="display:flex; gap:6px; margin-bottom:12px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('musu') === v ? 'on' : ''}" data-k="musu" data-v="${v}">${l}</button>`).join('')}</div>
+        ${C.length ? lldMusSlots().map(([k, l]) => { const cur = typeof U[k] === 'string' ? U[k] : ''; return `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr auto; gap:6px;"><select class="lld-mu-s" data-s="${k}" style="${sel}"><option value="">League song (default)</option>${C.map(c => `<option value="${lldEsc(c.id)}" ${String(c.id) === cur ? 'selected' : ''}>${lldEsc(c.name)}</option>`).join('')}</select><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">▶ Preview</button></div></div>`; }).join('') : `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">No songs have been added yet. The commissioner adds the song list.</div>`}
+        <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Pick from the commissioner's list. Preview plays about 15 seconds. Anything left on default uses the league song.</div></div>`;
+}
+$(document).on('change', '.lld-mu-s', function () { const U = lldMusUser(), s = this.dataset.s; if (this.value) U[s] = this.value; else delete U[s]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
+$(document).on('click', '.lld-mu-test', async function () {
+    const sel = $(this).closest('div').find('.lld-mu-s').val(), v = lldYtId(lldMusSongUrl(sel));
+    if (!v) { try { lldMusToast('Pick a song first'); } catch (e) { } return; }
+    try {
+        await lldYtLoad(); if (!(window.YT && window.YT.Player)) { lldMusToast('Player could not load'); return; }
+        try { if (window._muPv) window._muPv.destroy(); } catch (e) { } clearTimeout(window._muPvT); $('#lld-mu-pv').remove();
+        $('body').append('<div id="lld-mu-pv" style="position:fixed;right:12px;bottom:90px;z-index:2147483600;width:150px;border-radius:12px;overflow:hidden;background:#000;border:1px solid var(--card-border)"><div id="lld-mu-pvp"></div><button type="button" id="lld-mu-pvx" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:22px;height:22px;z-index:2">✕</button></div>');
+        const stop = () => { try { window._muPv && window._muPv.destroy(); } catch (e) { } window._muPv = null; $('#lld-mu-pv').remove(); };
+        window._muPv = new YT.Player('lld-mu-pvp', { width: 150, height: 90, videoId: v.id, playerVars: { autoplay: 1, start: v.t || 0, playsinline: 1, controls: 0, rel: 0 }, events: { onReady: e => { try { e.target.setVolume(70); e.target.playVideo(); } catch (x) { } }, onError: () => { stop(); lldMusToast('That song can’t play here'); } } });
+        window._muPvT = setTimeout(stop, 15000); $('#lld-mu-pvx').on('click', () => { clearTimeout(window._muPvT); stop(); });
+    } catch (e) { console.warn('preview', e); }
 });
 function lldMusCfg() { // beta switch "Recap music" (Settings > Beta features). Songs come from LLD_CONFIG.recapSong (one link or a list) and/or LLD_CONFIG.recapMusic (per team, win/loss, preview)
     try {
@@ -18733,7 +18750,7 @@ function lldMusPick(kind) {
         const pv = kind === 'preview' || kind === 'matchup';
         if (pv) { const u = lldMusUserUrl('preview'); if (u) return u; }
         else {
-            const res = (LLD_ST && LLD_ST.myRes) || '', opp = lldMusOf(LLD_ST && LLD_ST.oppFid), ou = k => { const s = opp && opp[k]; if (!s || !s.u) return ''; const y = lldYtId(s.u); if (!y) return ''; const t = lldYtSecs(s.t) || y.t || 0; return 'https://youtu.be/' + y.id + (t ? '?t=' + t : ''); };
+            const res = (LLD_ST && LLD_ST.myRes) || '', opp = lldMusOf(LLD_ST && LLD_ST.oppFid), ou = k => lldMusSongUrl(opp && opp[k]);
             // I win: my own win song. I lose: the song the team that beat me chose for their opponent's loss (then their win song). Then my generic recap.
             const u = (res === 'win' && lldMusUserUrl('win')) || (res === 'loss' && (ou('oloss') || ou('win'))) || lldMusUserUrl('recap');
             if (u) return u;
