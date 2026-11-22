@@ -6197,3 +6197,6 @@ body.lld-hdl #lld-sh .blks:has(.bk.left) > .bk:not(.left) > i{align-self:flex-st
 .player-row.lld-tpl > .row-wm,
 .player-row.lld-tpl .lld-pos-logo,
 .player-row.lld-tpl .lld-tl-logo{display:none !important}
+/* headshot corner logo: no circle behind it, smaller, so it doesn't cover the face */
+.player-row.lld-tpl .lld-hs-tb{background:transparent !important;border:0 !important;width:16px;height:16px;right:-4px;bottom:-2px;overflow:visible;opacity:.9}
+.player-row.lld-tpl .lld-hs-tb img{filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
