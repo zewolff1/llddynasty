@@ -16711,10 +16711,10 @@ setTimeout(() => { try { lldA2hsPrep(); } catch (e) { } }, 3000);
 // ===== ROW STYLES (beta): logo location, boom / bust display, size, headshot, color, bench cue, score emphasis, live marker, tap action =====
 function lldRowBetaHtml() {
     const lab = t => `<div class="qt-l">${t}</div>`;
-    const grp = (k, opts) => `<div class="qt-row">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const grp = (k, opts) => `<div class="qt-row qt-scroll">${opts.map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const bb = lldBbs();
     return lab('Logo location') + grp('wml', [['wm', 'Watermark'], ['logo', 'By position'], ['off', 'Off']])
-        + lab('Boom / bust display') + `<div class="qt-row">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${bb === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`
+        + lab('Boom / bust display') + `<div class="qt-row qt-scroll">${LLD_BBS.map(x => `<button type="button" class="lld-hdr-btn lld-bbs-btn ${bb === x[0] ? 'on' : ''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`
         + lab('Row size') + grp('r_sz', [['cmp', 'Compact'], ['std', 'Standard'], ['rm', 'Roomy']])
         + lab('Headshot size') + grp('r_hs', [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']])
         + lab('Headshot shape') + grp('r_sh', [['round', 'Round'], ['sq', 'Square']])
@@ -16741,9 +16741,9 @@ body[data-r-hs="lg"] .player-row .player-img-wrapper{width:44px !important;heigh
 body[data-r-sh="sq"] .player-row .player-img-wrapper,body[data-r-sh="sq"] .player-row .player-circle{border-radius:9px !important}
 body[data-r-pc="neutral"] .player-row[class*="pos-border-"]{border-left-color:transparent !important}
 ${tint}
-body[data-r-bn="div"] #slots-bench{border-top:2px dashed rgba(148,163,184,.45);margin-top:10px;padding-top:8px}
-body[data-r-bn="dim"] #slots-bench .player-row{opacity:.55}
-body[data-r-bn="lbl"] #slots-bench::before{content:'BENCH';grid-column:1/-1;display:block;font-size:10px;font-weight:900;letter-spacing:.14em;color:var(--text-dim);padding:8px 4px 4px}
+body[data-r-bn="div"] #slots-bench,body[data-r-bn="div"] .lld-pvb{border-top:2px dashed rgba(148,163,184,.45);margin-top:10px;padding-top:8px}
+body[data-r-bn="dim"] #slots-bench .player-row,body[data-r-bn="dim"] .lld-pvb .player-row{opacity:.55}
+body[data-r-bn="lbl"] #slots-bench::before,body[data-r-bn="lbl"] .lld-pvb::before{content:'BENCH';grid-column:1/-1;display:block;font-size:10px;font-weight:900;letter-spacing:.14em;color:var(--text-dim);padding:8px 4px 4px}
 @keyframes lldPl{50%{opacity:.25}}
 body[data-r-lv="pulse"] .player-row.lld-live .lld-nm::after{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;animation:lldPl 1.2s infinite}
 body[data-r-lv="lbl"] .player-row.lld-live .lld-nm::after{content:'LIVE';font-size:9px;font-weight:900;line-height:1;background:#ef4444;color:#fff;border-radius:4px;padding:3px 5px}
@@ -25428,6 +25428,17 @@ function lldEnsureBlockTab() { // Trade Block now lives inside the Trades tab
 
 // ===== quick theme sheet: a palette icon beside settings; the page stays visible so changes can be seen live =====
 const LLD_QT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:20px; width:20px; fill:#f59e0b;"><path d="M12 2a10 10 0 0 0 0 20c1.4 0 2-1 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5C22 6 17.5 2 12 2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>`;
+function lldQtPreview() {
+    let row = ''; try { row = window.lldPvRow ? window.lldPvRow() : ''; } catch (e) { }
+    if (!row) return '';
+    const x = { n: 10, boom: 5, bust: 1, m: 26, lab: 'Steady', g: [31, 27, 24, 33, 19, 28, 25, 30, 26, 29], T: { hi: 30, lo: 22 } }, bbs = lldBbs();
+    const foot = () => { const f = document.createElement('div'); f.className = 'lld-clr-f ls'; f.innerHTML = `<div class="lld-clr-rk"></div><div class="apv-sl in">${bbs === 'text' ? '<span class="apv-bbc"><b class="apv-bo">50%</b>↑</span><span class="apv-bbc"><b class="apv-bu">10%</b>↓</span>' : `<span class="apv-bbc bbv-w">${lldBbViz(x, bbs)}</span>`}</div>`; return f; };
+    const mk = start => { const d = document.createElement('div'); d.innerHTML = row; const r = d.firstElementChild; if (!r) return ''; r.removeAttribute('id'); r.classList.add('apv-lu-c'); r.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); r.appendChild(foot());
+        if (start) { r.classList.add('lld-played', 'lld-live'); r.insertAdjacentHTML('beforeend', '<div class="lld-pscore"><b>21.3</b><i style="color:#ef4444">● Q3 4:12</i></div>'); } return r.outerHTML; };
+    return `<div class="qt-pv"><div class="qt-pvl">Example</div>${mk(true)}<div class="lld-pvb">${mk(false)}</div></div>`;
+}
+window.lldQtPreviewRefresh = function () { const el = document.querySelector('#lld-qt .qt-pv'); if (!el) return; el.outerHTML = lldQtPreview(); try { lldEmphPass(); } catch (e) { } };
+$(document).on('click', '#lld-qt .lld-bbs-btn, #lld-qt .lld-b-btn', function () { setTimeout(window.lldQtPreviewRefresh, 120); });
 function lldQtHtml() {
     const cur = lldGet('lld_style', 'classic'), sea = lldSeasonNow(), tab = window._lldQtTab || 'theme';
     const lab = t => `<div class="qt-l">${t}</div>`;
@@ -25448,17 +25459,18 @@ function lldQtHtml() {
             + (LLD_FX_MAP[lldEffStyle()] ? lab('Seasonal animation') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? 'on' : ''}" data-v="on">On</button><button type="button" class="lld-hdr-btn lld-fx-btn ${fxOn ? '' : 'on'}" data-v="off">Off</button></div>` : '')
             + `<div class="lld-wide-row">${lab('Page width')}<div class="qt-row"><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? '' : 'on'}" data-v="std">Standard</button><button type="button" class="lld-hdr-btn lld-wide-btn ${wide ? 'on' : ''}" data-v="wide">Wide</button></div></div>`;
     } else if (tab === 'logos') {
-        body = lab('NFL logo style') + `<div class="qt-row">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join('')}</div>`;
+        body = lab('NFL logo style') + `<div class="qt-row qt-scroll">${LLD_LOGO_STYLES.concat([['custom', 'Custom']]).map(x => `<button type="button" class="logo-style-btn" data-style="${x[0]}">${x[1]}</button>`).join('')}</div>`;
     } else body = lldRowBetaHtml();
+    const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows']].map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
-        + `<div class="qt-body">${body}</div>`;
+        + pv + `<div class="qt-body">${body}</div>`;
 }
 $(document).on('click', '#lld-qt .qt-tab', function () { window._lldQtTab = this.dataset.t; $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } });
 window.lldQtOpen = function (tab) { if (tab) window._lldQtTab = tab; if (!document.getElementById('lld-qt')) lldQtOpen(); else { $('#lld-qt').html(lldQtHtml()); try { updateLogoStyleButtons(); } catch (e) { } } };
 function lldQtOpen() {
     if (document.getElementById('lld-qt')) { $('#lld-qt').remove(); return; }
-    if (!document.getElementById('lld-qt-css')) { const c = document.createElement('style'); c.id = 'lld-qt-css'; c.textContent = '#lld-qt{max-height:64vh !important}#lld-qt .qt-tabs{display:flex;gap:4px;margin:8px 14px 0;padding:4px;border-radius:12px;background:rgba(255,255,255,.06)}#lld-qt .qt-tab{flex:1;border:0;background:none;color:var(--text-dim);border-radius:9px;padding:8px 4px;font-weight:900;font-size:calc(12px * var(--ts,1));cursor:pointer}#lld-qt .qt-tab.on{background:var(--accent-blue,#3b82f6);color:#fff}#lld-qt .qt-chips{gap:8px}'; document.head.appendChild(c); }
+    if (!document.getElementById('lld-qt-css')) { const c = document.createElement('style'); c.id = 'lld-qt-css'; c.textContent = '#lld-qt{max-height:64vh !important}#lld-qt .qt-tabs{display:flex;gap:4px;margin:8px 14px 0;padding:4px;border-radius:12px;background:rgba(255,255,255,.06)}#lld-qt .qt-tab{flex:1;border:0;background:none;color:var(--text-dim);border-radius:9px;padding:8px 4px;font-weight:900;font-size:calc(12px * var(--ts,1));cursor:pointer}#lld-qt .qt-tab.on{background:var(--accent-blue,#3b82f6);color:#fff}#lld-qt .qt-chips{gap:8px}#lld-qt .qt-scroll{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}#lld-qt .qt-scroll::-webkit-scrollbar{display:none}#lld-qt .qt-scroll .lld-hdr-btn,#lld-qt .qt-scroll .logo-style-btn{flex:0 0 auto !important;white-space:nowrap;padding:8px 14px}#lld-qt .qt-pv{margin:8px 14px 0;padding:8px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--card-border);pointer-events:none;display:flex;flex-direction:column;gap:4px;flex:none}#lld-qt .qt-pv .player-row,#lld-qt .qt-pv .lld-pvb{flex:none !important;min-height:0}#lld-qt .qt-pvl{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)}#lld-qt .qt-pv .player-row{margin:0}'; document.head.appendChild(c); }
     $('body').append(`<div id="lld-qt">${lldQtHtml()}</div>`);
     try { updateLogoStyleButtons(); } catch (e) { }
 }
