@@ -18788,7 +18788,7 @@ function lldSongsCss() {
     document.head.appendChild(st);
 }
 function lldSongsOpen() {
-    lldSongsCss(); try { lldYtLoad().then(lldSongsEnsure); } catch (e) { }
+    lldSongsCss(); try { lldYtLoad(); } catch (e) { }
     $('#lld-sg').remove(); const o = $('<div id="lld-sg"></div>').appendTo('body'); lldSongsDraw(); // Settings stays open underneath
 }
 function lldSongsDraw() {
@@ -18801,25 +18801,23 @@ function lldSongsSheet() {
     $('#lld-sgs').remove();
     $('body').append(`<div id="lld-sgs"><div class="sg-sh"><div class="sg-gr"></div><div class="sg-hd"><b>${lldMusEsc(lab)}</b><span>${C.length} songs</span></div><div class="sg-grid">${C.map(c => { const lk = lldSongLook(c); return `<button class="sg-song${String(c.id) === _sgSel ? ' sel' : ''}" data-a="song" data-i="${lldMusEsc(c.id)}"><div class="a" style="background:linear-gradient(135deg,${lk.a},${lk.b})">${lk.e}</div><div class="n">${lldMusEsc(c.name)}</div></button>`; }).join('')}</div><div class="sg-row"><button class="sg-btn" data-a="clear">Use league song</button><button class="sg-btn p" data-a="prev"${_sgSel ? '' : ' disabled'}>▶ Preview</button></div><div class="sg-row" style="margin-top:8px"><button class="sg-btn g" data-a="done">Done</button></div></div></div>`);
 }
-// One player is created when the picker opens (a tap) and kept; choosing a song just loads it into that player inside the tap, which is what lets phones start the sound by themselves.
-// The player is a normal 200x200 player (tiny or see-through players get ads), sitting underneath the solid picker / preview screens so it is never seen.
+// Same player setup the recap stories use (a fresh 160x160 player per song, shown as a small circle in the corner): other setups got YouTube ads.
 let _sgRdy = false, _sgWant = null;
-function lldSongsEnsure() {
-    if (_sgYt || !(window.YT && window.YT.Player)) return;
-    if (!$('#lld-sgp-yt').length) $('body').append('<div id="lld-sgp-yt" style="position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);width:200px;height:200px;pointer-events:none;z-index:2147483150"><div id="lld-sgp-p"></div></div>');
-    _sgYt = new YT.Player('lld-sgp-p', { width: 200, height: 200, playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onReady: () => { _sgRdy = true; if (_sgWant) lldSongsGo(_sgWant); }, onError: () => { lldMusToast('That song can’t play here'); } } });
+function lldSongsEnsure() { }
+function lldSongsStop() { clearInterval(_sgTm); try { if (_sgYt) _sgYt.destroy(); } catch (e) { } _sgYt = null; $('#lld-sgp').remove(); }
+function lldSongsKill() { lldSongsStop(); }
+function lldSongsMake(y) {
+    if (!(window.YT && window.YT.Player) || !$('#lld-sgy-p').length) return false;
+    _sgYt = new YT.Player('lld-sgy-p', { width: 160, height: 160, videoId: y.id, playerVars: { autoplay: 1, start: y.t || 0, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 }, events: { onReady: e => { try { e.target.setVolume(70); e.target.unMute(); e.target.playVideo(); } catch (x) { } }, onError: () => { lldMusToast('That song can’t play here'); } } });
+    return true;
 }
-function lldSongsGo(y) { try { _sgWant = null; _sgYt.loadVideoById({ videoId: y.id, startSeconds: y.t || 0 }); _sgYt.setVolume(70); _sgYt.unMute(); _sgYt.playVideo(); } catch (e) { console.warn('song go', e); } }
-function lldSongsStop() { clearInterval(_sgTm); _sgWant = null; try { if (_sgYt && _sgRdy) _sgYt.pauseVideo(); } catch (e) { } $('#lld-sgp').remove(); }
-function lldSongsKill() { lldSongsStop(); try { if (_sgYt) _sgYt.destroy(); } catch (e) { } _sgYt = null; _sgRdy = false; $('#lld-sgp-yt').remove(); }
 function lldSongsPlay() {
     const c = lldMusCat().find(x => String(x.id) === _sgSel); if (!c) return; const y = lldYtId(lldMusSongUrl(_sgSel)); if (!y) return;
-    clearInterval(_sgTm); $('#lld-sgp').remove(); const lk = lldSongLook(c), lab = lldMusSlots().find(x => x[0] === _sgSlot)[1].replace(/ \(.*\)/, '');
-    $('body').append(`<div id="lld-sgp" style="--g1:${lk.a};--g2:${lk.b}"><div class="bar"><i></i></div><div class="tp"><span>Preview · ${lldMusEsc(lab)}</span><button data-a="pstop" aria-label="Close">✕</button></div><div class="md"><div class="disc" data-a="pplay">${lk.e}</div><div><div class="nm">${lldMusEsc(c.name)}</div><div class="sb">Playing a short preview…</div></div><div class="eq"><i></i><i></i><i></i><i></i></div></div><div class="bt"><button data-a="pstop">Back</button><button class="p" data-a="puse">Use this song</button></div></div>`);
-    lldSongsEnsure();
-    if (_sgYt && _sgRdy) lldSongsGo(y); else { _sgWant = y; try { lldYtLoad().then(lldSongsEnsure); } catch (e) { } }
-    const t0 = Date.now(); _sgTm = setInterval(() => { const p = (Date.now() - t0) / 15000; $('#lld-sgp .bar i').css('width', Math.min(100, p * 100) + '%'); if (p >= 1) { clearInterval(_sgTm); try { if (_sgYt) _sgYt.pauseVideo(); } catch (e) { } $('#lld-sgp .sb').text('Preview finished. Tap the disc to hear it again.'); } }, 80);
+    lldSongsStop(); const lk = lldSongLook(c), lab = lldMusSlots().find(x => x[0] === _sgSlot)[1].replace(/ \(.*\)/, '');
+    $('body').append(`<div id="lld-sgp" style="--g1:${lk.a};--g2:${lk.b}"><div class="bar"><i></i></div><div class="tp"><span>Preview · ${lldMusEsc(lab)}</span><button data-a="pstop" aria-label="Close">✕</button></div><div class="md"><div class="disc" data-a="pplay">${lk.e}</div><div><div class="nm">${lldMusEsc(c.name)}</div><div class="sb">Playing a short preview…</div></div><div class="eq"><i></i><i></i><i></i><i></i></div></div><div id="lld-sgy" style="position:absolute;left:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));width:44px;height:44px;border-radius:50%;overflow:hidden;background:#000;opacity:.85"><div id="lld-sgy-p"></div></div><div class="bt"><button data-a="pstop">Back</button><button class="p" data-a="puse">Use this song</button></div></div>`);
     window._sgY = y;
+    if (!lldSongsMake(y)) { try { lldYtLoad().then(() => { if ($('#lld-sgp').length && !_sgYt) lldSongsMake(y); }); } catch (e) { } }
+    const t0 = Date.now(); _sgTm = setInterval(() => { const p = (Date.now() - t0) / 15000; $('#lld-sgp .bar i').css('width', Math.min(100, p * 100) + '%'); if (p >= 1) { clearInterval(_sgTm); try { if (_sgYt) _sgYt.pauseVideo(); } catch (e) { } $('#lld-sgp .sb').text('Preview finished. Tap the disc to hear it again.'); } }, 80);
 }
 function lldSongsSave() { const U = lldMusUser(); if (_sgSel) U[_sgSlot] = _sgSel; else delete U[_sgSlot]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); }
 $(document).on('click', '#lld-sg [data-a], #lld-sgs [data-a], #lld-sgp [data-a]', function (e) {
@@ -18831,7 +18829,7 @@ $(document).on('click', '#lld-sg [data-a], #lld-sgs [data-a], #lld-sgp [data-a]'
     if (a === 'clear') { _sgSel = null; return lldSongsSheet(); }
     if (a === 'done') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
     if (a === 'pstop') return lldSongsStop();
-    if (a === 'pplay') { if (window._sgY && _sgYt && _sgRdy) lldSongsGo(window._sgY); return; }
+    if (a === 'pplay') { try { if (_sgYt && _sgYt.playVideo) { _sgYt.seekTo((window._sgY && window._sgY.t) || 0); _sgYt.playVideo(); } } catch (x) { } return; }
     if (a === 'puse') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
 });
 $(document).on('click', '#lld-sgs', function (e) { if (e.target === this) { lldSongsStop(); $(this).remove(); } });
