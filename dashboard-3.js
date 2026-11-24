@@ -5974,16 +5974,6 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
                 } catch (e) { console.warn('Roster fallback failed', e); }
             }
         }
-        // MFL sometimes hands back nothing for a few minutes (early Tuesday while it switches weeks): say so and try again by itself instead of drawing an empty team
-        if (activeSub.includes('lineup') && fid === myFid && !window._lldLineupBlock && !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow')) {
-            window._lldTeamRetry = (window._lldTeamRetry || 0) + 1;
-            if (window._lldTeamRetry <= 4) {
-                $('#player-rows-container').html('<div style="text-align:center; padding:50px 24px; color:var(--text-dim);"><div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">MFL isn\u2019t sending your team right now</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:600; line-height:1.5;">It often does this for a few minutes when it switches weeks. Trying again\u2026 (' + window._lldTeamRetry + ' of 4)</div></div>');
-                window._teamDataDirty = true; window._teamDataCache = null;
-                setTimeout(() => { try { loadTeamData(); } catch (e) { } }, 15000);
-                return;
-            }
-        } else if (activeSub.includes('lineup')) window._lldTeamRetry = 0;
         if (!window._lldLineupBlock && currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
             const bodyText = (currentDoc.body?.innerText || '').replace(/\s+/g, ' ').trim();
             const match = bodyText.match(/You may not[\s\S]*?(?=Go Back|$)/i);
