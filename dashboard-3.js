@@ -5926,12 +5926,6 @@ const picksFutureURL = `${MFL_ORIGIN}/${year}/options?L=${lid}&O=100&SORT=YRF&rn
 const responses = await Promise.all(fetches);
         
         const html = await responses[0].text();
-        // MFL answers with a sign-in page when the saved sign-in has run out: say so (and in the app offer to sign in again) instead of drawing an empty team
-        if (/name=["']USERNAME["']|name=["']PASSWORD["']|must be logged in|please log in|not logged in|session (has )?expired/i.test(html) && !/table class=["']report["']/i.test(html)) {
-            $('#player-rows-container').html('<div style="text-align:center; padding:50px 24px;"><div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">Your MFL sign-in has expired</div><div style="font-size:calc(12px * var(--ts,1)); font-weight:600; line-height:1.5; color:var(--text-dim); margin-bottom:14px;">MFL is not recognizing you, so it sent no lineup.</div>' + (typeof window.lldAppLogout === 'function' ? '<button type="button" onclick="window.lldAppLogout()" style="background:var(--accent-blue); color:#fff; border:0; border-radius:10px; padding:11px 20px; font-weight:800; font-size:calc(13px * var(--ts,1));">Sign in again</button>' : '') + '</div>');
-            window._teamDataDirty = true; window._teamDataCache = null;
-            return;
-        }
 currentDoc = new DOMParser().parseFromString(html, 'text/html');
         window._lldLineupWeek = ''; if (!window._lldWeekPick || parseInt(window._lldWeekPick, 10) >= (parseInt(window._lldServedWeek, 10) || 0)) window._lldViewWeek = '';
         if (activeSub.includes('lineup')) {
