@@ -1806,8 +1806,71 @@ let rookiePids = new Set();
     function lldLeagueLogoPlaceholder() {
         return lldPlaceholderSvg(lldInitials(LLD.leagueName, 'LG'), LLD.leagueId || 'league', true);
     }
+    // ---- DEFAULT HELMET LOGO (teams with no logo get a recolored helmet; owners can pick their own colors) ----
+    const LLD_HELMET_URL = 'https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/helmet.png';
+    const LLD_HELMET_PAL = [['#0b2a5b','#c8102e','#d8dde3'],['#1f4d2b','#f2b705','#efe3c2'],['#4b1d6b','#f2c230','#d9d9d9'],['#a4161a','#ffffff','#222222'],['#0b6e8e','#f58220','#ffffff'],['#222222','#c9a227','#c8ccd1'],['#00338d','#ffffff','#c60c30'],['#f2c230','#111111','#111111'],['#7a0019','#ffc72c','#e6e6e6'],['#0a5c36','#ffffff','#b3b3b3'],['#ff6f1f','#0b2545','#ffffff'],['#13294b','#69be28','#a5acaf']];
+    const LLDH = { st: 0, W: 0, H: 0, reg: null, lum: null, mean: [128, 128, 128, 128], base: null, cache: {} };
+    function lldHexRgb(h) { return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
+    function lldRgbHex(c) { return '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join(''); }
+    function lldHslRgb(h, s, l) { h /= 360; s /= 100; l /= 100; const f = n => { const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0) * 255, f(8) * 255, f(4) * 255]; }
+    function lldHelmetRng(seed) { let h = 1779033703; String(seed).split('').forEach(c => { h = Math.imul(h ^ c.charCodeAt(0), 3432918353); h = (h << 13) | (h >>> 19); }); let a = h >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    function lldHelmetColors(rnd) {   // returns three hex colors: helmet, stripe, facemask
+        const rn = (a, b) => a + rnd() * (b - a), pick = a => a[Math.floor(rnd() * a.length)];
+        if (rnd() < 0.55) return pick(LLD_HELMET_PAL).slice();
+        const h = rn(0, 360), shell = lldHslRgb(h, rn(55, 85), rn(26, 44));
+        const stripe = pick([lldHslRgb((h + 180) % 360, rn(60, 90), rn(48, 60)), lldHslRgb((h + 30) % 360, rn(60, 90), rn(55, 70)), [255, 255, 255], lldHslRgb(rn(40, 52), 90, 55)]);
+        const mask = pick([[236, 230, 214], [255, 255, 255], [200, 204, 210], [30, 30, 30], lldHslRgb(h, 30, 18)]);
+        return [shell, stripe, mask].map(lldRgbHex);
+    }
+    function lldHelmetRegion(r, g, b) {
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (mx < 40 || d < 25) return 0;
+        let h = (mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; if (h < 0) h += 360;
+        const s = d / mx;
+        if (h >= 80 && h <= 190 && s > 0.2) return 1;
+        if (h >= 15 && h <= 70) return s > 0.62 ? 2 : 3;
+        return 0;
+    }
+    function lldHelmetLoad(cb) {
+        if (LLDH.st === 2) { if (cb) cb(true); return; }
+        (LLDH.cbs = LLDH.cbs || []).push(cb || function () { });
+        if (LLDH.st === 1) return;
+        LLDH.st = 1;
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = function () {
+            try {
+                const W = img.naturalWidth, H = img.naturalHeight, c = document.createElement('canvas'); c.width = W; c.height = H;
+                const x = c.getContext('2d'); x.drawImage(img, 0, 0); const base = x.getImageData(0, 0, W, H), d = base.data, n = W * H;
+                const reg = new Uint8Array(n), lum = new Float32Array(n), sum = [0, 0, 0, 0], ct = [0, 0, 0, 0];
+                for (let i = 0; i < n; i++) { const o = i * 4; if (d[o + 3] < 200) continue; const R = lldHelmetRegion(d[o], d[o + 1], d[o + 2]); reg[i] = R; const l = .299 * d[o] + .587 * d[o + 1] + .114 * d[o + 2]; lum[i] = l; sum[R] += l; ct[R]++; }
+                for (let k = 1; k < 4; k++) LLDH.mean[k] = ct[k] ? sum[k] / ct[k] : 128;
+                LLDH.W = W; LLDH.H = H; LLDH.reg = reg; LLDH.lum = lum; LLDH.base = base; LLDH.st = 2;
+            } catch (e) { LLDH.st = 3; }
+            const L = LLDH.cbs || []; LLDH.cbs = []; L.forEach(f => { try { f(LLDH.st === 2); } catch (e) { } });
+            if (LLDH.st === 2) lldHelmetRefresh();
+        };
+        img.onerror = function () { LLDH.st = 3; const L = LLDH.cbs || []; LLDH.cbs = []; L.forEach(f => { try { f(false); } catch (e) { } }); };
+        img.src = LLD_HELMET_URL;
+    }
+    function lldHelmetPaint(cv, hexes) {
+        const W = LLDH.W, H = LLDH.H, o = new ImageData(new Uint8ClampedArray(LLDH.base.data), W, H), d = o.data, cols = hexes.map(lldHexRgb);
+        for (let i = 0, n = W * H; i < n; i++) { const R = LLDH.reg[i]; if (!R) continue; const T = cols[R - 1], dl = (LLDH.lum[i] - LLDH.mean[R]) * 1.15; for (let k = 0; k < 3; k++) d[i * 4 + k] = T[k] + dl; }
+        cv.width = W; cv.height = H; cv.getContext('2d').putImageData(o, 0, 0);
+    }
+    function lldHelmetUrl(fid) {
+        if (LLDH.st !== 2) { if (LLDH.st === 0) lldHelmetLoad(); return null; }
+        if (LLDH.cache[fid]) return LLDH.cache[fid];
+        const big = document.createElement('canvas'); lldHelmetPaint(big, lldHelmetColors(lldHelmetRng(String(lid) + ':' + fid)));
+        const sm = document.createElement('canvas'); sm.width = 200; sm.height = Math.round(200 * LLDH.H / LLDH.W); sm.getContext('2d').drawImage(big, 0, 0, sm.width, sm.height);
+        return (LLDH.cache[fid] = sm.toDataURL('image/png'));
+    }
+    function lldHelmetRefresh() {
+        document.querySelectorAll('img[data-lld-fid]').forEach(function (im) {
+            if (im.dataset.lldHelm) return; const u = lldHelmetUrl(im.dataset.lldFid); if (u) { im.dataset.lldHelm = '1'; im.src = u; im.style.display = ''; }
+        });
+    }
     function lldTeamLogoPlaceholder(fid) {
         const n = String(parseInt(fid, 10) || fid);
+        const hu = lldHelmetUrl(fid); if (hu) return hu;
         return lldPlaceholderSvg(lldInitials(leagueFranchises[fid], n), fid, false);
     }
     document.addEventListener('error', function (e) {
@@ -1816,7 +1879,7 @@ let rookiePids = new Set();
         const src = img.getAttribute('src') || '';
         let ph = null;
         const f = src.match(/_franchise_logo(\d+)\.\w+/);
-        if (f) ph = lldTeamLogoPlaceholder(f[1]);
+        if (f) { ph = lldTeamLogoPlaceholder(f[1]); img.dataset.lldFid = f[1]; if (ph.indexOf('data:image/png') === 0) img.dataset.lldHelm = '1'; }
         else if (/_league_logo\.jpg/.test(src)) {
             if (LLD.logoUrl && !img.dataset.lldTriedCfg) { img.dataset.lldTriedCfg = '1'; img.src = LLD.logoUrl; return; }
             ph = lldLeagueLogoPlaceholder();
@@ -4313,6 +4376,45 @@ $(document).off('click', '.logo-input-tab').on('click', '.logo-input-tab', funct
     $(this).css({ background: 'var(--accent-blue)', color: '#fff', borderColor: 'var(--accent-blue)' });
     $('#logo-tab-url, #logo-tab-file').hide();
     $('#logo-tab-' + $(this).data('tab')).show();
+});
+
+function lldHelmetCols() { return $('.lld-hm-c').map(function () { return this.value; }).get(); }
+function lldHelmetDraw() { if (LLDH.st === 2) lldHelmetPaint($('#lld-hm-cv')[0], lldHelmetCols()); }
+$(document).off('click', '#lld-hm-open').on('click', '#lld-hm-open', function () {
+    $('#lld-hm-panel').toggle();
+    if (!$('#lld-hm-panel').is(':visible')) return;
+    lldHelmetLoad(function (ok) {
+        if (!ok) { alert('Could not load the helmet picture.'); return; }
+        lldHelmetColors(Math.random).forEach(function (c, i) { $('.lld-hm-c').eq(i).val(c); });
+        lldHelmetDraw();
+    });
+});
+$(document).off('click', '#lld-hm-rnd').on('click', '#lld-hm-rnd', function () { lldHelmetColors(Math.random).forEach(function (c, i) { $('.lld-hm-c').eq(i).val(c); }); lldHelmetDraw(); });
+$(document).off('input', '.lld-hm-c').on('input', '.lld-hm-c', lldHelmetDraw);
+$(document).off('click', '#lld-hm-save').on('click', '#lld-hm-save', async function () {
+    const btn = $(this); if (LLDH.st !== 2) return; btn.text('Saving...').prop('disabled', true);
+    try {
+        const cv = document.createElement('canvas'); lldHelmetPaint(cv, lldHelmetCols());
+        let blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+        if (blob && blob.size > 390000) { const sm = document.createElement('canvas'); sm.width = 420; sm.height = Math.round(420 * cv.height / cv.width); sm.getContext('2d').drawImage(cv, 0, 0, sm.width, sm.height); blob = await new Promise(r => sm.toBlob(r, 'image/png')); }
+        if (!blob || blob.size > 400000) throw new Error('Image is over 400kB');
+        const file = new File([blob], 'helmet.png', { type: 'image/png' });
+        const pageRes = await fetch(`${MFL_ORIGIN}/${year}/csetup?L=${lid}&FRANCHISES=${myFid}&C=FCUSTOM`, { credentials: 'include' });
+        const pageDoc = new DOMParser().parseFromString(await pageRes.text(), 'text/html');
+        const fd = new FormData();
+        fd.append('form_name', 'customize'); fd.append('LEAGUE_ID', lid); fd.append('C', 'FCUSTOM'); fd.append('FRANCHISES', myFid);
+        fd.append('input_expires', pageDoc.querySelector('input[name="input_expires"]')?.value || '');
+        fd.append('UPLOAD_KEY', pageDoc.querySelector('#UPLOAD_KEY')?.value || '');
+        ['ABBREV', 'STADIUM', 'ICON', 'LOGO'].forEach(k => fd.append(`FRANCHISE_${k}${myFid}`, pageDoc.querySelector(`#FRANCHISE_${k}${myFid}`)?.value || ''));
+        fd.append(`FRANCHISE_ICON_FILE${myFid}`, file); fd.append(`FRANCHISE_LOGO_FILE${myFid}`, file);
+        fd.append('SUBMIT', 'Save Franchise Customization');
+        const res = await fetch(`${MFL_ORIGIN}/${year}/csetup`, { method: 'POST', credentials: 'include', body: fd });
+        const resDoc = new DOMParser().parseFromString(await res.text(), 'text/html');
+        const u = resDoc.querySelector(`#FRANCHISE_ICON${myFid}`)?.value;
+        if (u) { $('#settings-team-logo').attr('src', u + '?t=' + Date.now()); $('#active-team-switcher-btn img').first().attr('src', u + '?t=' + Date.now()); }
+        $('#logo-url-editor').hide(); alert('Logo saved!');
+    } catch (e) { alert('Save failed: ' + e.message); }
+    btn.text('Use this logo').prop('disabled', false);
 });
 
 $(document).off('click', '#logo-url-save').on('click', '#logo-url-save', async function() {
@@ -10592,6 +10694,19 @@ $('body').append(`
                 <div style="display:flex; gap:6px;">
                     <button id="logo-url-save" style="flex:1; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Save</button>
                     <button onclick="$('#logo-url-editor').hide()" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Cancel</button>
+                </div>
+                <button id="lld-hm-open" type="button" style="width:100%; margin-top:8px; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">No logo? Make a helmet</button>
+                <div id="lld-hm-panel" style="display:none; margin-top:10px;">
+                    <canvas id="lld-hm-cv" style="width:100%; height:auto; display:block; border-radius:8px; background:rgba(255,255,255,0.04);"></canvas>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px;">
+                        <label style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:900; text-transform:uppercase;">Helmet<input type="color" class="lld-hm-c" data-i="0" style="width:100%; height:34px; border:1px solid var(--card-border); border-radius:6px; background:none; padding:1px;"></label>
+                        <label style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:900; text-transform:uppercase;">Stripe<input type="color" class="lld-hm-c" data-i="1" style="width:100%; height:34px; border:1px solid var(--card-border); border-radius:6px; background:none; padding:1px;"></label>
+                        <label style="font-size:calc(9px * var(--ts,1)); color:var(--text-dim); font-weight:900; text-transform:uppercase;">Facemask<input type="color" class="lld-hm-c" data-i="2" style="width:100%; height:34px; border:1px solid var(--card-border); border-radius:6px; background:none; padding:1px;"></label>
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:8px;">
+                        <button id="lld-hm-rnd" type="button" style="flex:1; padding:8px; background:rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid var(--card-border); border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Randomize</button>
+                        <button id="lld-hm-save" type="button" style="flex:1; padding:8px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-size:calc(10px * var(--ts,1)); font-weight:900; cursor:pointer; text-transform:uppercase;">Use this logo</button>
+                    </div>
                 </div>
             </div>
         </div>
