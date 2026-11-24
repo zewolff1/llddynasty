@@ -5962,9 +5962,7 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
                 window._lldLineupBlock = (mm ? mm[0] : 'You may not set your lineup at this time.').trim().slice(0, 240);
             }
         }
-        // Your own lineup page can come back with no players at all (MFL rolling over to the next week, a hiccup): fall back to the roster page, like other owners' teams, instead of an empty team
-        const lldOwnEmpty = activeSub.includes('lineup') && fid === myFid && !window._lldLineupBlock && !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow');
-        if (activeSub.includes('lineup') && (fid !== myFid || window._lldLineupBlock || lldOwnEmpty)) {
+        if (activeSub.includes('lineup') && (fid !== myFid || window._lldLineupBlock)) {
             const lineupBlocked = window._lldLineupBlock || (currentDoc.title && currentDoc.title.toLowerCase().includes('error')) || !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow');
             if (lineupBlocked) {
                 try {
