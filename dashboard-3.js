@@ -1865,7 +1865,7 @@ let rookiePids = new Set();
     }
     function lldHelmetRefresh() {
         document.querySelectorAll('img[data-lld-fid]').forEach(function (im) {
-            if (im.dataset.lldHelm) return; const u = lldHelmetUrl(im.dataset.lldFid); if (u) { im.dataset.lldHelm = '1'; im.src = u; im.style.display = ''; }
+            if (im.dataset.lldHelm) return; const u = lldHelmetUrl(im.dataset.lldFid); if (u) { im.dataset.lldHelm = '1'; im.dataset.lldFallback = u; im.src = u; im.style.display = ''; }
         });
     }
     function lldTeamLogoPlaceholder(fid) {
@@ -1873,24 +1873,37 @@ let rookiePids = new Set();
         const hu = lldHelmetUrl(fid); if (hu) return hu;
         return lldPlaceholderSvg(lldInitials(leagueFranchises[fid], n), fid, false);
     }
-    document.addEventListener('error', function (e) {
-        const img = e.target;
-        if (!img || img.tagName !== 'IMG' || img.dataset.lldFallback) return;
+    function lldFbImg(img) {
+        if (!img || img.tagName !== 'IMG') return;
         const src = img.getAttribute('src') || '';
+        if (img.dataset.lldFallback && src === img.dataset.lldFallback) return;   // already showing our placeholder (a new src gets a fresh try)
+        if (img.dataset.lldHelm && /^data:/.test(src)) return;
         let ph = null;
         const f = src.match(/_franchise_logo(\d+)\.\w+/);
-        if (f) { ph = lldTeamLogoPlaceholder(f[1]); img.dataset.lldFid = f[1]; if (ph.indexOf('data:image/png') === 0) img.dataset.lldHelm = '1'; }
+        if (f) { ph = lldTeamLogoPlaceholder(f[1]); img.dataset.lldFid = f[1]; }
         else if (/_league_logo\.jpg/.test(src)) {
             if (LLD.logoUrl && !img.dataset.lldTriedCfg) { img.dataset.lldTriedCfg = '1'; img.src = LLD.logoUrl; return; }
             ph = lldLeagueLogoPlaceholder();
         }
         else if (img.id === 'auth-logo' || (LLD.logoUrl && src === LLD.logoUrl)) ph = lldLeagueLogoPlaceholder();
         if (!ph) return;
-        img.dataset.lldFallback = '1';
+        img.dataset.lldFallback = ph;
+        if (f) { if (ph.indexOf('data:image/png') === 0) img.dataset.lldHelm = '1'; else delete img.dataset.lldHelm; }
         img.src = ph;
         // some images have an inline onerror that hides them; undo that for the placeholder
-        setTimeout(function () { if (img.getAttribute('src') !== ph) img.src = ph; if (img.style.display === 'none') img.style.display = ''; }, 0);
-    }, true);
+        setTimeout(function () { if (img.getAttribute('src') !== ph && !img.dataset.lldHelm) img.src = ph; if (img.style.display === 'none') img.style.display = ''; }, 0);
+    }
+    document.addEventListener('error', function (e) { lldFbImg(e.target); }, true);
+    // catch franchise logos that failed before this script was listening, or whose error was swallowed by an inline handler
+    function lldLogoSweep() {
+        document.querySelectorAll('img[src*="_franchise_logo"]').forEach(function (im) {
+            if (im.dataset.lldHelm && /^data:/.test(im.getAttribute('src') || '')) return;
+            if (im.complete && im.naturalWidth === 0 && !/^data:/.test(im.getAttribute('src') || '')) lldFbImg(im);
+            else if (im.dataset.lldFallback && !im.dataset.lldHelm && /^data:image\/svg/.test(im.getAttribute('src') || '')) { const u = lldHelmetUrl(im.dataset.lldFid); if (u) { im.dataset.lldHelm = '1'; im.dataset.lldFallback = u; im.src = u; } }
+            if (im.style.display === 'none' && im.dataset.lldFallback) im.style.display = '';
+        });
+    }
+    (function () { let t = 0; const go = function () { clearTimeout(t); t = setTimeout(lldLogoSweep, 250); }; try { new MutationObserver(go).observe(document.documentElement, { childList: true, subtree: true }); } catch (e) { } setInterval(lldLogoSweep, 2500); })();
     // Empty-state messages when a tab has nothing to show yet (before the draft, before rosters exist)
     (function () {
         const EMPTY = {
