@@ -3202,9 +3202,9 @@ function lldClrFoot(p) {
     const A = window._apv, O = A.on, x = p._ap, cur = lldApvNow(p.pid), lb = r => r ? '#' + r : '\u2013';
     const df = r => { if (!cur || !r) return ''; const d = cur - r; return d === 0 ? '<s class="eq">\u2013</s>' : d > 0 ? `<s class="up">\u25B2${d}</s>` : `<s class="dn">\u25BC${-d}</s>`; };
     const rk = [];
-    if (O.now) rk.push(`<span><u>NOW</u><b class="now">${cur ? '#' + cur : 'NR'}</b></span>`);
-    if (O.ros) rk.push(`<span><u>ROS</u><b>${lb(p._rROS)}</b>${df(p._rROS)}</span>`);
-    if (O.dyn) rk.push(`<span><u>DYN</u><b>${lb(p._rDYN)}</b>${df(p._rDYN)}</span>`);
+    if (O.now) rk.push(`<span data-k="now"><u>NOW</u><b class="now">${cur ? '#' + cur : 'NR'}</b></span>`);
+    if (O.ros) rk.push(`<span data-k="ros"><u>ROS</u><b>${lb(p._rROS)}</b>${df(p._rROS)}</span>`);
+    if (O.dyn) rk.push(`<span data-k="dyn"><u>DYN</u><b>${lb(p._rDYN)}</b>${df(p._rDYN)}</span>`);
     let bb = '';
     if ((O.bb || O.bu || O.co) && x && x.n >= 3) {
         const bo = Math.round(x.boom / x.n * 100), bu = Math.round(x.bust / x.n * 100), col = x.lab === 'Steady' ? '#22c55e' : x.lab === 'Volatile' ? '#ef4444' : '#f5c542', a = [];
@@ -3216,7 +3216,7 @@ function lldClrFoot(p) {
         (window._apvSlP = window._apvSlP || {})[String(p.pid)] = p;
         bb = `<div class="apv-sl in" data-pid="${p.pid}">${a.join('')}</div>`;
     }
-    return (rk.length || bb) ? `<div class="lld-clr-f"><div class="lld-clr-rk">${rk.join('')}</div>${bb}</div>` : '';
+    return (rk.length || bb) ? `<div class="lld-clr-f"><div class="lld-clr-rk" data-pid="${p.pid}">${rk.join('')}</div>${bb}</div>` : '';
 }
 // Same compact Sleeper rows for the Manage and Players lists: the boxed boom / bust bar under each row moves into a slim line inside the row.
 function lldClrListPass() {
@@ -16123,6 +16123,56 @@ async function lldWkSheet() {
 $(document).on('click', '#lld-sh-pop .wkr', function (e) {
     const w = parseInt(this.getAttribute('data-w'), 10), rc = $(e.target).closest('[data-rc]').length;
     $('#lld-sh-pop').removeClass('on'); lldWkGo(w, !rc);
+});
+// Tap a player's NOW / ROS / DYN ranks to slide up the players ranked around him at his position
+async function lldRkNames() {
+    if (window._lldPN) return window._lldPN;
+    const m = {};
+    try {
+        const j = await (await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=players&L=${lid}&JSON=1`, { credentials: 'include' })).json();
+        [].concat((j.players && j.players.player) || []).forEach(q => { const n = String(q.name || ''), i = n.indexOf(','); m[String(q.id)] = { n: i > 0 ? n.slice(i + 1).trim() + ' ' + n.slice(0, i).trim() : n, t: String(q.team || '').toUpperCase() }; });
+    } catch (e) { }
+    return (window._lldPN = m);
+}
+async function lldRkSheet(pid, focus) {
+    pid = String(pid);
+    const P = window._mflPos || {}, px = window._apvPosX || {}, grpOf = id => dynGrp(P[id] || px[id] || '');
+    const g = grpOf(pid);
+    lldBsOpen('rk', lldShHd('Rankings', 'Loading…'));
+    const N = await lldRkNames();
+    if (!window._apvNowMap) { try { lldApvNowBuild(); } catch (e) { } }
+    const U = window._apvUR || {}, ps = playerSeason || {};
+    const cats = [
+        ['now', 'Now', 'this season, points per game', window._apvNowMap || {}, id => ((ps[id] || {}).avg || 0).toFixed(1) + ' avg'],
+        ['ros', 'Rest of season', 'projected points left', U.ros || {}, id => (U.tot && U.tot[id] ? Math.round(U.tot[id]) + ' proj' : '')],
+        ['dyn', 'Dynasty', 'long-term value', U.dyn || {}, id => '']
+    ];
+    const lname = id => lldChatEsc((N[id] || {}).n || ('Player ' + id));
+    let body = '';
+    cats.forEach(c => {
+        const map = c[3], me = map[pid];
+        const list = Object.keys(map).filter(id => grpOf(id) === g).sort((a, b) => map[a] - map[b]);
+        const i = list.indexOf(pid);
+        let rows = '';
+        if (i < 0) rows = '<p class="ex dm" style="margin:6px 0 12px">Not ranked in this category.</p>';
+        else {
+            list.slice(Math.max(0, i - 4), i + 5).forEach(id => {
+                const v = c[4](id), t = (N[id] || {}).t || '';
+                rows += `<div class="rkr${id === pid ? ' me' : ''}" data-pid="${id}"><span class="n">#${map[id]}</span><div class="t"><b>${lname(id)}</b><i>${g}${t ? ' \u00B7 ' + lldChatEsc(t) : ''}</i></div><span class="v">${v}</span></div>`;
+            });
+        }
+        body += `<div class="rkc${focus === c[0] ? ' foc' : ''}" data-k="${c[0]}"><div class="rkh"><b>${c[1]}</b><i>${c[2]}${me ? ' \u00B7 #' + me + ' of ' + list.length : ''}</i></div>${rows}</div>`;
+    });
+    const nm = lname(pid);
+    lldBsOpen('rk', lldShHd(nm, 'Ranked around him at ' + (g || 'his position')) + `<div class="bsb">${body}</div>`);
+    setTimeout(() => { const f = document.querySelector('#lld-sh-pop .rkc.foc'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'start' }); }, 60);
+}
+$(document).off('click.lldrk').on('click.lldrk', '.lld-clr-rk span[data-k], .apv-r3:not(.apv-cr)', function (e) {
+    const row = $(this).closest('.lld-clr-rk[data-pid], .player-row[data-pid], [data-pid]').first(), pid = row.attr('data-pid');
+    if (!pid) return;
+    e.preventDefault(); e.stopPropagation();
+    const k = this.getAttribute('data-k') || ($(e.target).closest('.apv-r3').length ? '' : '');
+    lldRkSheet(pid, k || 'now');
 });
 async function lldTmSheet() {
     const me = lldBsF(myFid), cur = lldBsF(fid), cw = (await lldCurWeek()) || 0;
