@@ -5972,6 +5972,13 @@ currentDoc = new DOMParser().parseFromString(html, 'text/html');
                 } catch (e) { console.warn('Roster fallback failed', e); }
             }
         }
+        // Diagnostic only: your own lineup came back with no players and no known reason. Show what MFL actually said (it used to be a blank team), with a way to retry
+        if (activeSub.includes('lineup') && fid === myFid && !window._lldLineupBlock && !currentDoc.querySelector('table.report tr.oddtablerow, table.report tr.eventablerow') && !(currentDoc.title || '').toLowerCase().includes('error')) {
+            const said = ((currentDoc.body && currentDoc.body.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 360) || '(an empty page)';
+            $('#player-rows-container').html('<div style="text-align:center; padding:40px 22px;"><div style="font-size:calc(15px * var(--ts,1)); font-weight:900; color:#fff; margin-bottom:6px;">MFL did not send your lineup</div><div style="font-size:calc(11px * var(--ts,1)); font-weight:600; line-height:1.5; color:var(--text-dim); margin-bottom:14px; word-break:break-word;">MFL said: ' + $('<i>').text(said).html() + '</div><button type="button" onclick="window._teamDataDirty=true; loadTeamData();" style="background:var(--accent-blue); color:#fff; border:0; border-radius:10px; padding:10px 18px; font-weight:800; margin:0 4px;">Try again</button>' + (typeof window.lldAppLogout === 'function' ? '<button type="button" onclick="window.lldAppLogout()" style="background:transparent; color:var(--text-dim); border:1px solid var(--card-border); border-radius:10px; padding:10px 18px; font-weight:800; margin:0 4px;">Sign in again</button>' : '') + '</div>');
+            window._teamDataDirty = true; window._teamDataCache = null;
+            return;
+        }
         if (!window._lldLineupBlock && currentDoc.title && currentDoc.title.toLowerCase().includes('error')) {
             const bodyText = (currentDoc.body?.innerText || '').replace(/\s+/g, ' ').trim();
             const match = bodyText.match(/You may not[\s\S]*?(?=Go Back|$)/i);
