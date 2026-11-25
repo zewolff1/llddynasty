@@ -16723,6 +16723,63 @@ return{me,op,cnt,x,mineTotal,oppTotal,oLines,inst,oc,rs}}
 return { compute, AB, GROUPS, HEN, NSL, NST, SLOTS, T, G, TEAMS, POS, AVG, CAPB, RESB, OPPAB, isOn, getP, SLOTL };
 }
 window.lldGthEngine = lldGthEngine;
+// ---- Gotham: every team shows its leader's name and portrait (display only; MFL itself is not changed) ----
+// The leader is the Coach on a team's roster (players with role "leader" in the league file's characters). Teams with no leader keep their real name and logo.
+const LLDLD = { by: {}, real: {}, t: 0, busy: false };
+function lldLdrChars() { try { return (window.LLD_CONFIG || {}).characters || {}; } catch (e) { return {}; } }
+async function lldLdrLoad() {
+    if (LLDLD.busy || Date.now() - LLDLD.t < 120000) return;
+    LLDLD.busy = true;
+    try {
+        const C = lldLdrChars(), ids = Object.keys(C).filter(k => C[k] && C[k].role === 'leader'); if (!ids.length) return;
+        const r = await fetch(`${MFL_ORIGIN}/${year}/export?TYPE=rosters&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' });
+        const d = JSON.parse(await r.text()), by = {};
+        [].concat((d && d.rosters && d.rosters.franchise) || []).forEach(f => {
+            if (!f || !f.id) return;
+            const hit = [].concat(f.player || []).find(p => p && ids.indexOf(String(p.id)) >= 0);
+            if (hit) by[String(f.id).padStart(4, '0')] = { name: C[String(hit.id)].name, img: C[String(hit.id)].img || '' };
+        });
+        if (Object.keys(by).length) { LLDLD.by = by; LLDLD.t = Date.now(); }
+    } catch (e) { } finally { LLDLD.busy = false; }
+}
+function lldLdrApply() {
+    try {
+        if (!lldGthOn()) return;
+        const by = LLDLD.by, fids = Object.keys(by); if (!fids.length) return;
+        const C = lldLdrChars(), leaderNames = Object.keys(C).filter(k => C[k] && C[k].role === 'leader').map(k => C[k].name);
+        const swaps = [];
+        fids.forEach(fid => {
+            const nm = by[fid].name, cur = leagueFranchises[fid];
+            if (cur && cur !== nm) { if (leaderNames.indexOf(cur) < 0) LLDLD.real[fid] = cur; leagueFranchises[fid] = nm; }
+            const real = LLDLD.real[fid];
+            if (real && real.length >= 3 && real !== nm && nm.indexOf(real) < 0) swaps.push([real, nm]);
+        });
+        if (swaps.length) {
+            swaps.sort((a, b) => b[0].length - a[0].length);
+            const mp = {}; swaps.forEach(s => { mp[s[0]] = s[1]; });
+            const re = new RegExp(swaps.map(s => s[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+            const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => /^(SCRIPT|STYLE|TEXTAREA|NOSCRIPT)$/.test(n.parentNode.nodeName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+            const hits = []; let n;
+            while ((n = w.nextNode())) { re.lastIndex = 0; if (re.test(n.nodeValue)) hits.push(n); }
+            hits.forEach(t => { t.nodeValue = t.nodeValue.replace(re, m => mp[m] || m); });
+        }
+        document.querySelectorAll('img').forEach(im => {
+            let fid = im.dataset.lldFid;
+            if (!fid) { const m = (im.getAttribute('src') || '').match(/_franchise_logo(\d+)\./); if (m) fid = m[1]; }
+            if (!fid) return;
+            fid = String(fid).padStart(4, '0');
+            const L = by[fid]; if (!L || !L.img || im.dataset.lldLdr === L.img) return;
+            im.dataset.lldLdr = L.img; im.dataset.lldFid = fid; im.src = L.img; im.style.display = '';
+        });
+    } catch (e) { }
+}
+(function () {
+    let t = null;
+    const soon = () => { clearTimeout(t); t = setTimeout(() => { if (!lldGthOn()) return; lldLdrLoad().then(lldLdrApply); }, 400); };
+    try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) { }
+    setInterval(() => { try { if (lldGthOn()) { lldLdrApply(); lldLdrLoad().then(lldLdrApply); } } catch (e) { } }, 4000);
+    soon();
+})();
 // ---- Gotham: Captains / Reserves / Bench layout on the Lineup (view only until Gotham exists on MFL; choices saved on this device) ----
 const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'FLEX'], base: 8, dep: 2 };
 const LLD_GTH_ELIG = { QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], FLEX: ['RB', 'WR', 'TE'] };
