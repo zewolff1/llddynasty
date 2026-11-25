@@ -16611,6 +16611,118 @@ function lldPtrOn() { return true; }
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
 function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || !!(LLD.features && LLD.features.gotham); } catch (e) { return false; } } // turn it on in your league config: window.LLD_CONFIG = { features: { gotham: true } }
 const LLD_GTH = { features: {} }; // feature name -> { on: fn, render: fn }. New Gotham features register here.
+// ---- Gotham ability engine (ported from the Gotham Season Sim; the same math, checked against it) ----
+// lldGthEngine(S).compute() scores one team against one opponent. S = { tt, st, wins, slots[], P{}, roster[], opp[], ob[], oa, at, atp, inv, seed, hold, plan }.
+// roster players: { name, pos, team, role: 'C'|'R'|'B', score, last, avg, streak, venom, venomN, laz, benchWk, isNew, waiver, allSeason, formerOpp, slot0 (kickoff slot 0-4, optional) }
+// Returns { mineTotal, oppTotal, me, op, cnt, x (adds, lines, logs, contrib per character slot) }. Nothing here reads the page, so it can run for any team.
+function lldGthEngine(S) {
+const SLOTS=['Thu night','Sun 1 PM','Sun 4 PM','Sun night','Mon night'];
+const GAMES=[['KC','DAL',0],['BUF','MIA',1],['ATL','NO',1],['CIN','BAL',1],['CLE','PIT',1],['IND','HOU',1],['JAX','TEN',1],['CAR','TB',1],['NYG','WAS',1],['DEN','LV',2],['LAR','ARI',2],['MIN','CHI',2],['NYJ','NE',2],['DET','GB',3],['PHI','LAC',4],['SEA','SF',4]];
+const T={},G={};GAMES.forEach((g,i)=>{T[g[0]]=g[2];T[g[1]]=g[2];G[g[0]]=i;G[g[1]]=i});
+const TEAMS=Object.keys(T),POS=['QB','RB','WR','TE','K'],AVG={QB:18,RB:11,WR:10,TE:7,K:8};
+const f3=m=>+m.toFixed(3);
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* shape abilities work on any list of players with ePos, eTeam, eSlot */
+const SH={
+backfield:pl=>({pm:pl.filter(p=>p.ePos==='RB').map(p=>[p,1.04])}),
+airraid:pl=>({pm:pl.filter(p=>p.ePos==='WR'||p.ePos==='TE').map(p=>[p,1.04])}),
+nightowl:pl=>({pm:pl.filter(p=>[0,3,4].includes(p.eSlot)).map(p=>[p,1.05])}),
+stack:pl=>({pm:pl.filter(p=>pl.filter(q=>q.eTeam===p.eTeam).length>1).map(p=>[p,1.05])}),
+rush:pl=>{const c=[0,0,0,0,0];pl.forEach(p=>c[p.eSlot]++);const m=Math.max(...c);return{pm:m<2?[]:pl.filter(p=>c[p.eSlot]===m).map(p=>[p,1.03])}},
+fullcal:pl=>{const n=new Set(pl.map(p=>p.eSlot)).size;return{lm:[[1+0.006*n,n+' slots']]}},
+scatter:pl=>({lm:new Set(pl.map(p=>p.eTeam)).size===pl.length&&pl.length?[[1.03,'all different teams']]:[]}),
+bringback:pl=>({pm:pl.filter(p=>pl.some(q=>G[q.eTeam]===G[p.eTeam]&&q.eTeam!==p.eTeam)).map(p=>[p,1.04])})};
+const OPPAB={none:'None',backfield:'Backfield',airraid:'Air Raid',nightowl:'Night Owl',stack:'Stack',rush:'Rush Hour',fullcal:'Full Calendar',scatter:'Scattershot',bringback:'Bring-Back'};
+function shapeRun(x,id){const r=SH[id](x.cnt);(r.pm||[]).forEach(([p,m])=>x.bump(p,m,x.cur.n));(r.lm||[]).forEach(([m,l])=>x.line(m,x.cur.n+' ('+l+')'))}
+const sh=(id,n,d)=>({n,c:'hench',d,ph:2,pr:[],run(x){shapeRun(x,id)}});
+const mine=(n,d,fn,pr)=>({n,c:'hench',d,ph:2,pr:pr||[],run:fn});
+function forceSpot(list,b){const ok=list.filter(o=>!o.out&&o.role!=='C'&&(o.slot===b.pos||(o.slot==='FLEX'&&b.pos!=='K')));return ok.sort((a,c)=>a.fs-c.fs)[0]||null}
+function slotUp(list){const need={QB:1,RB:1,WR:1,TE:1,K:1,FLEX:5};list.forEach(p=>{if(p.slot&&need[p.slot]>0)need[p.slot]--});list.forEach(p=>{if(p.slot)return;if(need[p.pos]>0){need[p.pos]--;p.slot=p.pos}else if(need.FLEX>0&&p.pos!=='K'){need.FLEX--;p.slot='FLEX'}else p.slot='FLEX'})}
+const VD=0.3;
+const AB={
+freeze:{n:'Freeze',c:'leader',d:'Pick an opposing starter. He scores the lower of this week and last week, then loses another 15%.',ph:1,pr:[{k:'t',t:'opl',l:'Freeze who?'}],run(x,p){const o=x.op[p.t];if(!o)return;const nf=+(Math.min(o.fs,o.last)*0.85).toFixed(1);x.recO(o.fs-nf);x.log(`Freeze: ${o.name} ${o.fs} → ${nf}`);o.fs=nf}},
+mindcontrol:{n:'Mind Control',c:'leader',d:'Pick a player on the opponent\'s bench. He is forced into their lineup and takes the spot of their lowest-scoring starter who is not a captain. Out of position, he scores only half.',ph:1,pr:[{k:'t',t:'obn',l:'Force who to start?'}],run(x,p){const b=x.ob.find((q,k)=>(q.ri!=null?q.ri:k)===+p.t);if(!b){x.log('Mind Control: that player is not on the opponent\'s bench.');return}const d=forceSpot(x.op,b);if(!d){x.log(`Mind Control: ${b.name} cannot take anyone's spot.`);return}d.out=true;const nb={name:b.name,pos:b.pos,team:b.team||'',score:b.score,last:b.score,avg:b.avg,fs:+b.score||0,mult:1,out:false,ePos:b.pos,eTeam:b.team,eSlot:T[b.team],slot:d.slot,forced:true};x.op.push(nb);nb.fs=+(nb.fs*0.5).toFixed(1);x.recO(d.fs-nb.fs);x.log(`Mind Control: ${b.name} (${f3(nb.fs)}) is forced in for ${d.name} (${f3(d.fs)})`)}},
+heist:{n:'Heist',c:'leader',d:'Pick an opposing starter. You gain 30% of his points as a bonus. He keeps his full score.',ph:2,pr:[{k:'t',t:'opl',l:'Heist who?'}],run(x,p){const o=x.op[p.t];if(!o)return;x.add(0.3*o.fs,`Heist: 30% of ${o.name}`)}},
+compound:{n:'Compound Interest',c:'leader',d:'Each starter gets +1.5% for each week in a row he has started, up to 5 weeks (x1.075).',ph:2,pr:[],run(x){x.cnt.forEach(p=>{if(p.streak>0)x.bump(p,1+0.015*Math.min(p.streak,5),'Compound')})}},
+venom:{n:'Venom',c:'leader',d:'Each week pick a player to venom, or nobody. He scores x2.05 that week. Venom stays on him and he drops 0.3 every week after: x1.7, x1.4, x1.1, x0.8 and so on, where it takes points away. If he sits on the bench, or does not count, the venom heals slowly: each week his multiplier moves back toward x1.0 by the same amount it was dropping, so a penalty fades a little at a time. You can venom the same player again. That week he scores x1.5, not x2.05, and then he drops faster, an extra 0.1 each time you do it.',ph:2,pr:[{k:'t',t:'mypl',l:'Venom who this week?',none:true}],run(x,p){const pk=x.me[p.t];if(pk&&!pk.count)x.log('Venom: '+pk.name+' is not in your counting lineup, so the venom does nothing. Pick someone who is.');x.cnt.forEach(q=>{let w=q.venom||0,n=q.venomN||(w>0?1:0),m=null;if(q===pk){n++;w=0}else if(q.venomM!=null&&n>=1)m=q.venomM;if(n<1)return;const st=n>1?1.5:2.05,dr=VD+0.1*(n-1);x.bump(q,Math.max(1e-6,+(m!=null?m:st-dr*w).toFixed(2)),'Venom')})}},
+lazarus:{n:'Lazarus Pit',c:'leader',d:'Your counting player who fell furthest below his season average is raised to 110% of his average. But the pit leaves a mark: that player loses 5% of his score every week for the rest of the season. Each time he is raised again, he loses another 5%.',ph:1,pr:[],run(x){x.cnt.forEach(q=>{if((q.laz||0)>0)x.bump(q,+Math.pow(0.95,q.laz).toFixed(4),'Lazarus scar')});let b=null;x.cnt.forEach(p=>{if(p.avg-p.fs>0&&(!b||p.avg-p.fs>b.avg-b.fs))b=p});if(b){x.rec(b.avg*1.1-b.fs);x.log(`Lazarus Pit: ${b.name} ${b.fs} → ${+(b.avg*1.1).toFixed(1)}`);b.fs=+(b.avg*1.1).toFixed(1);x.lazIdx=x.me.indexOf(b)}else x.log('Lazarus Pit: nobody fell below average, no bonus.')}},
+overgrowth:{n:'Overgrowth',c:'leader',d:'Pick a position. Your lowest counting player there is raised to the position average (QB 18, RB 11, WR 10, TE 7, K 8), and your highest there gets x1.10.',ph:1,pr:[{k:'pos',t:'pos',l:'Position'}],run(x,p){const L=x.cnt.filter(q=>q.ePos===p.pos);if(!L.length)return;const lo=L.reduce((a,b)=>b.fs<a.fs?b:a),hi=L.reduce((a,b)=>b.fs>a.fs?b:a);if(lo.fs<AVG[p.pos]){x.rec(AVG[p.pos]-lo.fs);x.log(`Overgrowth: ${lo.name} ${lo.fs} → ${AVG[p.pos]}`);lo.fs=AVG[p.pos]}else x.log('Overgrowth: lowest player is already at average.');x.bump(hi,1.10,'Overgrowth')}},
+stackbench:{n:'Stacked Bench',c:'leader',d:'Each starter, captain or reserve, who is outscored by a player on your bench scores x1.20. Stash strong players on the bench and your starters get a bonus.',ph:2,pr:[],run(x){const bm=x.bench.length?Math.max(...x.bench.map(p=>+p.score||0)):-1;const L=x.cnt.filter(p=>(+p.score||0)<bm);L.forEach(p=>x.bump(p,1.20,'Stacked Bench'));x.log(x.bench.length?'Stacked Bench: '+L.length+' starter'+(L.length===1?'':'s')+' outscored by a bench player.':'Stacked Bench needs someone on the bench.')}},
+wildcard:{n:'Wild Card',c:'leader',d:'Pick lineup slots to randomize. When your lineup is set, the player in each one moves to the bench and a random player from the rest of your roster takes the slot. Randomized players get a bonus, a little less for each extra: x1.70, 1.60, 1.50, 1.40, then 1.30.',ph:2,pr:[{k:'rs',t:'slots',l:'Slots to randomize'}],run(x,p){const M=[1.7,1.6,1.5,1.4];const n=(p.rs||[]).length;x.cnt.filter(q=>q.rnd).sort((a,b)=>a.rnd-b.rnd).forEach((q,i)=>x.bump(q,M[i]||1.3,'Wild Card'));if(x.S.hold&&n)x.log('Wild Card: '+n+' slot'+(n>1?'s':'')+' will be randomized ('+p.rs.join(', ')+'). The current starters move to the bench when the lineup is set.')}},
+doublehalf:{n:'Two-Face',c:'leader',d:'Pick two starters. Each one flips a coin when your lineup is set: he scores x2.3, or he scores nothing.',ph:2,pr:[{k:'t',t:'mypl',l:'First player'},{k:'t2',t:'mypl',l:'Second player',def:1}],run(x,p){const seen=new Set();[p.t,p.t2].forEach((ti,j)=>{const q=x.me[ti];if(!q||!q.count||seen.has(ti))return;seen.add(ti);if(x.S.hold||x.S.ev){if(x.S.hold)x.log(`Two-Face: ${q.name} flips when the lineup is set.`);return}const r=rng((+x.S.seed||1)*131+(ti+1)*7919+j*17);r();r();const hit=r()<0.5;x.bump(q,hit?2.3:1e-6,'Two-Face');x.log(`Two-Face: ${q.name} ${hit?'doubles':'scores nothing'}`)})}},
+kye:{n:'Know Your Enemy',c:'leader',d:'The opponent\'s ability bonus is 20% weaker for each time Batman has beaten them while they used an ability.',ph:2,pr:[{k:'k',t:'num',l:'Times Batman beat them',min:0,max:5,def:1}],run(x,p){x.kye=Math.max(0,1-0.2*p.k);x.log(`Know Your Enemy: opponent bonuses at ${Math.round(x.kye*100)}% strength`)}},
+taskforce:{n:'Task Force X',c:'leader',d:'Her bonus grows 3% for each week in a row she started a new ability, up to x1.15.',ph:2,pr:[{k:'w',t:'num',l:'Weeks in a row',min:0,max:5,def:2}],run(x,p){if(p.w>0)x.line(1+0.03*Math.min(p.w,5),'Task Force X')}},
+spotlight:{n:'Spotlight',c:'bat',d:'Pick a position. Your starters at that position score x1.10.',ph:2,pr:[{k:'pos',t:'pos',l:'Position'}],run(x,p){x.cnt.filter(q=>q.ePos===p.pos).forEach(q=>x.bump(q,1.10,'Spotlight'))}},
+scouting:{n:'Scouting Report',c:'bat',d:'If you have already beaten this week\'s opponent, you can see their lineup before lock.',ph:2,pr:[],run(x){x.log('Scouting Report: the opponent table below is visible to you.')}},
+arkham:{n:'Arkham Watch',c:'bat',d:'Each character currently in Arkham gives your lineup x1.02.',ph:2,pr:[{k:'n',t:'num',l:'Characters in Arkham',min:0,max:20,def:3}],run(x,p){if(p.n>0)x.line(Math.pow(1.02,p.n),'Arkham Watch')}},
+redhood:{n:'Unfinished Business',c:'bat',d:'Only if Batman lost to one of the invaded teams the last time he faced it (and has not beaten it since). Then your lineup scores x1.04.',ph:2,pr:[{k:'b',t:'bool',l:'Batman lost to them last matchup'}],run(x,p){if(p.b)x.line(1.04,'Unfinished Business')}},
+nightwing:{n:'Declared War',c:'bat',d:'Announce a team you are attacking. Your lineup scores x1.05. If you outscore it, it gets the Arkham result.',ph:2,pr:[],run(x){x.line(1.05,'Declared War');x.dw=true}},
+counterstrike:{n:'Counterstrike',c:'bat',d:'An opposing ability that targets one of your starters has no effect, and he scores x1.10 instead. Set their attack in section 4.',ph:2,pr:[],run(x){x.log('Counterstrike is on.')}},
+backfield:sh('backfield','Backfield','Your RBs score x1.04.'),
+airraid:sh('airraid','Air Raid','Your WRs and TE score x1.04.'),
+nightowl:sh('nightowl','Night Owl','Starters in Thursday, Sunday night or Monday night games score x1.05.'),
+stack:sh('stack','Stack','Starters who share an NFL team each score x1.05.'),
+rush:sh('rush','Rush Hour','The slot with your most starters gives each x1.03. Ties all count.'),
+fullcal:sh('fullcal','Full Calendar','Each different kickoff slot you cover gives your lineup x1.006, up to x1.03.'),
+lonewolf:mine('Lone Wolf','With exactly 1 captain, he scores x1.10.',x=>{if(x.cap.length===1)x.bump(x.cap[0],1.10,'Lone Wolf')}),
+fullstaff:mine('Full Staff','With 3 captains, each scores x1.04.',x=>{if(x.cap.length===3)x.cap.forEach(p=>x.bump(p,1.04,'Full Staff'))}),
+fullres:mine('Full Reserves','Everyone who is not a captain is a reserve, with no bench. Each counting reserve scores x1.02.',x=>{if(!x.bench.length)x.res.forEach(p=>x.bump(p,1.02,'Full Reserves'));else x.log('Full Reserves needs an empty bench.')}),
+deepbench:mine('Deep Bench','With 5 players on the bench, your lowest-scoring counting player scores x1.08.',x=>{if(x.bench.length===5){const lo=x.cnt.reduce((a,b)=>b.fs<a.fs?b:a);x.bump(lo,1.08,'Deep Bench')}else x.log('Deep Bench needs exactly 5 on the bench.')}),
+scatter:sh('scatter','Scattershot','If every counting player is on a different NFL team, your lineup scores x1.03.'),
+captcrew:mine('Captain\'s Crew','Each starter who shares an NFL team with your captain scores x1.05.',x=>{x.cnt.filter(p=>p.role!=='C'&&x.cap.some(c=>c.eTeam===p.eTeam)).forEach(p=>x.bump(p,1.05,'Captain\'s Crew'))}),
+bringback:sh('bringback','Bring-Back','If two of your starters play on opposing teams in the same game, each scores x1.04.'),
+fresh:mine('Fresh Blood','Each starter new to your roster this week scores x1.05.',x=>{x.cnt.filter(p=>p.isNew).forEach(p=>x.bump(p,1.05,'Fresh Blood'))}),
+house:mine('Housecleaning','Each player you cut who started last week gives your lineup x1.02.',x=>{const n=x.pp.n;if(n>0)x.line(Math.pow(1.02,n),'Housecleaning')},[{k:'n',t:'num',l:'Players cut',min:0,max:10,def:2}]),
+olddebts:mine('Old Debts','For each opposing starter who once scored for you, your lineup scores x1.02.',x=>{const n=x.op.filter(o=>!o.out&&o.onceMine).length;if(n)x.line(Math.pow(1.02,n),'Old Debts')}),
+informant:mine('Informant','Each of your starters who once scored for your opponent scores x1.05.',x=>{x.cnt.filter(p=>p.formerOpp).forEach(p=>x.bump(p,1.05,'Informant'))}),
+waiver:mine('Waiver Wire','Each starter you picked up off waivers scores x1.05.',x=>{x.cnt.filter(p=>p.waiver).forEach(p=>x.bump(p,1.05,'Waiver Wire'))}),
+slowrise:mine('Slow Rise','A bench player builds x1.03 per week he sits. The week he starts he gets it, up to x1.15.',x=>{x.cnt.filter(p=>p.benchWk>0).forEach(p=>x.bump(p,Math.min(1.15,1+0.03*p.benchWk),'Slow Rise'))}),
+roundhouse:mine('Roundhouse','Your kicker scores x1.20.',x=>{x.cnt.filter(p=>p.ePos==='K').forEach(p=>x.bump(p,1.20,'Roundhouse'))}),
+loyalty:mine('Loyalty','Each starter on your roster all season scores x1.02.',x=>{x.cnt.filter(p=>p.allSeason).forEach(p=>x.bump(p,1.02,'Loyalty'))}),
+streakguard:mine('Streak Guard','Any starter who would lose a streak or build-up keeps it instead of resetting.',x=>{x.log('Streak Guard: streaks, venom and Slow Rise builds are kept for players who sit or score zero.')}),
+disguise:{n:'Disguise',c:'hench',d:'Change one of your starters\' position, NFL team or time slot for ability bonuses only.',ph:0,pr:[{k:'t',t:'mypl',l:'Which player'},{k:'av',t:'attrval',l:'Change'}],run(x,p){const q=x.me[p.t];if(q)attrSet(q,p.a,p.v,x,'Disguise')}},
+feargas:{n:'Fear Gas',c:'hench',d:'Change an opposing starter\'s position, NFL team or time slot for ability bonuses only.',ph:0,pr:[{k:'t',t:'opl',l:'Which player'},{k:'av',t:'attrval',l:'Change'}],run(x,p){const q=x.op[p.t];if(q)attrSet(q,p.a,p.v,x,'Fear Gas')}},
+copycat:{n:'Copycat',c:'hench',d:'Copy the ability of one of your henchmen or an opposing henchman. He cannot copy leaders.',ph:2,pr:[{k:'copy',t:'ab',l:'Copy which ability'}],run(){}}};
+function attrSet(q,a,v,x,n){if(a==='pos')q.ePos=v;else if(a==='team'){q.eTeam=v;q.eSlot=T[v]}else q.eSlot=+v;x.log(`${n}: ${q.name} ${a} → ${a==='slot'?SLOTS[+v]:v}`)}
+const GROUPS=[['Leaders',['freeze','mindcontrol','heist','compound','venom','lazarus','overgrowth','stackbench','wildcard','doublehalf','kye','taskforce']],['Batfamily',['spotlight','scouting','arkham','redhood','nightwing','counterstrike']],['Henchmen',Object.keys(AB).filter(k=>AB[k].c==='hench')]];
+const HEN=GROUPS[2][1].filter(k=>k!=='copycat');
+const NSL={villain:3,practice:3,batman:3,waller:5,solo:1},NST={villain:2,practice:2,batman:3,waller:5,solo:1};
+const isOn=i=>NSL[S.tt]<=NST[S.tt]||(S.st||[0,1]).slice(0,NST[S.tt]).includes(i);
+function getP(key,id){const o=S.P[key]||(S.P[key]={});AB[id].pr.forEach(s=>{if(s.t==='attrval'){if(o.a==null){o.a='slot';o.v='1'}}else if(o[s.k]==null)o[s.k]=s.t==='pos'?'WR':s.t==='bool'?false:s.t==='ab'?'backfield':s.t==='slots'?[]:s.t==='num'?(s.def==null?0:s.def):(s.def==null?0:s.def)});return o}
+const SLOTL=['QB','RB','WR','TE','K','FLEX','FLEX','FLEX','FLEX','FLEX'];
+function counting(me,rs,seed,hold){const need={QB:1,RB:1,WR:1,TE:1,K:1,FLEX:5};const take=p=>{if(need[p.pos]>0){need[p.pos]--;p.slot=p.pos;return true}if(need.FLEX>0&&p.pos!=='K'){need.FLEX--;p.slot='FLEX';return true}return false};me.forEach(p=>{delete p.jk;delete p.jkOut;delete p.rnd});me.filter(p=>p.role==='C').forEach(p=>{p.count=take(p)});me.filter(p=>p.role==='R').sort((a,b)=>b.score-a.score).forEach(p=>{p.count=take(p)});
+if(rs&&rs.length){const inc=[];rs.forEach(s=>{const c=me.filter(p=>p.count&&p.role==='R'&&p.slot===s&&!p.jk).sort((a,b)=>a.score-b.score)[0];if(c){c.jk=s;inc.push([s,c])}});
+if(!hold){const r=rng(seed||1);let k=0;inc.forEach(([s,c])=>{const el=me.filter(p=>!p.count&&!p.jkOut&&(s==='FLEX'?p.pos!=='K':p.pos===s));if(!el.length)return;c.count=false;c.jkOut=true;const q=el[Math.floor(r()*el.length)];q.count=true;q.slot=s;q.rnd=++k})}}}
+const CAPB=c=>c?1+0.10/c:1,RESB=(c,r)=>1+0.01*Math.max(0,Math.min(5,r-(10-c)));
+function compute(){
+const x={S,log:[],lines:[],adds:0,addL:[],lm:1,oppAdd:0,kye:1,dw:false};
+const me=S.roster.map(p=>Object.assign({},p,{ePos:p.pos,eTeam:p.team,eSlot:p.slot0!=null?p.slot0:T[p.team],mult:1,fs:+p.score||0,chips:[],count:false}));
+const op=S.opp.map(p=>Object.assign({},p,{ePos:p.pos,eTeam:p.team,eSlot:T[p.team],mult:1,fs:+p.score||0,out:false}));
+let rs=[];S.slots.slice(0,NSL[S.tt]).forEach((id,i)=>{if(id==='wildcard'&&isOn(i))rs=getP('s'+i,id).rs||[]});counting(me,rs,S.seed,S.hold);
+slotUp(op);
+Object.assign(x,{me,op,ob:S.ob,cnt:me.filter(p=>p.count),cap:me.filter(p=>p.count&&p.role==='C'),res:me.filter(p=>p.count&&p.role==='R'),bench:me.filter(p=>p.role==='B')});me.forEach(p=>{if(p.jkOut)p.role='B'});
+const inst=[];S.slots.slice(0,NSL[S.tt]).forEach((id,i)=>{if(!id||!AB[id]||!isOn(i))return;inst.push({key:'s'+i,id});if(id==='copycat'){const c=getP('s'+i,id).copy;if(c&&AB[c]&&AB[c].c==='hench'&&c!=='copycat')inst.push({key:'c'+i,id:c})}});
+const BS=1+0.1*Math.min(+S.wins||0,5);
+const fm=m=>(+m.toFixed(3));
+x.contrib={};x.oppC={};x.lineC=[];x.ck=0;
+x.bump=(p,m,l)=>{const bat=x.cur.c==='bat',mm=bat?1+(m-1)*BS:m;p.mult*=mm;p.chips.push({t:l+' x'+fm(mm),k:x.ck,mm})};
+x.line=(m,l)=>{const bat=x.cur.c==='bat',mm=bat?1+(m-1)*BS:m;x.lm*=mm;x.lines.push(l+' x'+fm(mm));x.lineC.push({k:x.ck,mm})};
+x.add=(v,l)=>{x.adds+=v;x.addL.push(l+' +'+fm(v));x.contrib[x.ck]=(x.contrib[x.ck]||0)+v};x.rec=v=>{x.contrib[x.ck]=(x.contrib[x.ck]||0)+v};x.recO=v=>{x.oppC[x.ck]=(x.oppC[x.ck]||0)+v};
+x.log=l=>x.logs.push(l);x.logs=[];
+{const nc=S.roster.filter(p=>p.role==='C').length,nr=S.roster.filter(p=>p.role==='R').length,cm=CAPB(nc),rm=RESB(nc,nr);me.forEach(p=>{if(!p.count)return;const m=p.role==='C'?cm:p.role==='R'?rm:1;if(m>1.0001){p.mult*=m;p.chips.push({t:(p.role==='C'?'Captain bonus':'Reserve pool')+' x'+(+m.toFixed(3)),k:-1,mm:m})}})}
+for(let ph=0;ph<=2;ph++){inst.filter(i=>AB[i.id].ph===ph).forEach(i=>{x.cur=AB[i.id];x.ck=+i.key.slice(1);x.pp=getP(i.key,i.id);AB[i.id].run(x,x.pp)});
+if(ph===1){const tg=me[S.atp];if(S.at==='mind'){if(tg&&!tg.count&&tg.role!=='C'){if(inst.some(i=>i.id==='counterstrike')){x.cur=AB.counterstrike;x.ck=+(inst.find(q=>q.id==='counterstrike').key.slice(1));x.logs.push(`Counterstrike: their Mind Control on ${tg.name} had no effect`)}else{const d=forceSpot(me.filter(p=>p.count),{pos:tg.pos});if(d){d.count=false;tg.count=true;tg.slot=d.slot;x.cnt=me.filter(p=>p.count);x.cap=x.cnt.filter(p=>p.role==='C');x.res=x.cnt.filter(p=>p.role==='R');x.logs.push(`Their Mind Control: ${tg.name} (${tg.score}) is forced in for ${d.name} (${d.score})`)}else x.logs.push(`Their Mind Control on ${tg.name} found no spot to take.`)}}else if(tg&&tg.count)x.logs.push(`Their Mind Control on ${tg.name} did nothing, he was already starting.`)}else if(S.at!=='none'&&tg&&tg.count){if(inst.some(i=>i.id==='counterstrike')){x.cur=AB.counterstrike;x.ck=+(inst.find(q=>q.id==='counterstrike').key.slice(1));x.bump(tg,1.10,'Counterstrike');x.logs.push(`Counterstrike: the ${S.at} on ${tg.name} had no effect`)}else if(S.at==='freeze'){x.logs.push(`Their Freeze: ${tg.name} ${tg.fs} → ${tg.last}`);tg.fs=tg.last}else{x.oppAdd+=0.3*tg.fs;x.logs.push(`Their Heist: they gain ${fm(0.3*tg.fs)} from ${tg.name}`)}}}}
+const cnt=me.filter(p=>p.count);
+const mineTotal=cnt.reduce((s,p)=>s+p.fs*p.mult,0)*x.lm+x.adds;
+cnt.forEach(p=>p.chips.forEach(c=>{x.contrib[c.k]=(x.contrib[c.k]||0)+p.fs*p.mult*x.lm*(1-1/c.mm)}));const sumB=cnt.reduce((s,p)=>s+p.fs*p.mult,0);x.lineC.forEach(c=>{x.contrib[c.k]=(x.contrib[c.k]||0)+sumB*x.lm*(1-1/c.mm)});
+const oc=op.filter(o=>!o.out);let om=1,opm=new Map(),oLines=[];
+if(S.oa!=='none'){const r=SH[S.oa](oc);(r.pm||[]).forEach(([p,m])=>{const mm=1+(m-1)*x.kye;p.mult*=mm});(r.lm||[]).forEach(([m,l])=>{const mm=1+(m-1)*x.kye;om*=mm;oLines.push(OPPAB[S.oa]+' ('+l+') x'+fm(mm))})}
+const oppTotal=oc.reduce((s,p)=>s+p.fs*p.mult,0)*om+x.oppAdd;
+return{me,op,cnt,x,mineTotal,oppTotal,oLines,inst,oc,rs}}
+
+return { compute, AB, GROUPS, HEN, NSL, NST, SLOTS, T, G, TEAMS, POS, AVG, CAPB, RESB, OPPAB, isOn, getP, SLOTL };
+}
+window.lldGthEngine = lldGthEngine;
 // ---- Gotham: Captains / Reserves / Bench layout on the Lineup (view only until Gotham exists on MFL; choices saved on this device) ----
 const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'FLEX'], base: 8, dep: 2 };
 const LLD_GTH_ELIG = { QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], FLEX: ['RB', 'WR', 'TE'] };
