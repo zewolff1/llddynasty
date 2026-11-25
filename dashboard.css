@@ -6226,3 +6226,7 @@ body.lld-clr .lld-clr-rk span[data-k]{cursor:pointer}
 #gth-chars .gth-ch.off:active{opacity:.7}
 #gth-abil .gth-one+.gth-one{margin-top:10px}
 body.lld-gth .standings-seg-btn[data-seg="order"],body.lld-gth .apv-v[data-v="year"]{display:none !important}
+
+.gth-fx.off,.gth-pj.off{opacity:.45;filter:grayscale(1)}
+#gth-abil .gth-one.off{opacity:.6;filter:grayscale(.8)}
+.gth-offnote{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
