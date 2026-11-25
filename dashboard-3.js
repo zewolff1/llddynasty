@@ -17061,13 +17061,14 @@ function lldGthCapRender() {
     const nc = rs.filter(i => fit.slot[i.pid]).length;
     const dp = Math.min(Math.max(0, LLD_GTH_CAP.base - rs.length) * LLD_GTH_CAP.dep, (M - 1) * 50);
     let capPts = 0, bonus = 0, best = 0;
-    caps.forEach(i => { const b = i.v * (M - 1); capPts += i.v; bonus += b; const d = $(i.row).find('.lld-det').first(); d.append(`<div class="gth-bn">★ ×${M} · +${b.toFixed(1)}</div><div class="gx-in y">CAPTAIN</div>`); });
+    caps.forEach(i => { const b = i.v * (M - 1); capPts += i.v; bonus += b; const d = $(i.row).find('.lld-det').first(); d.append(`<div class="gth-bn">★ ×${M} · +${b.toFixed(1)}</div>`); $(i.row).find('.move-handle-btn').first().text('C'); });
     rs.forEach((i, k) => {
         const on = !!fit.slot[i.pid]; if (on) best += i.v; $(i.row).toggleClass('gx-out', !on);
-        $(i.row).find('.lld-det').first().append(`<div class="gx-in ${on ? 'y' : 'n'}">${on ? 'RESERVE · COUNTS' : 'NOT COUNTING'}</div>` + (on && dp ? `<div class="gth-bn">▲ reserve +${dp}% · +${(i.v * dp / 100).toFixed(1)}</div>` : ''));
-        if (k === nc - 1 && rs.length > nc) $(i.row).after('<div class="gx-div">below this line do not count</div>');
+        $(i.row).find('.lld-det').first().append((on && dp ? `<div class="gth-bn">▲ reserve +${dp}% · +${(i.v * dp / 100).toFixed(1)}</div>` : ''));
+        $(i.row).find('.move-handle-btn').first().text('R');
+        if (k === nc - 1 && rs.length > nc) $(i.row).after('<div class="gx-div">Not counting below</div>');
     });
-    bn.forEach(i => $(i.row).removeClass('gx-out'));
+    bn.forEach(i => { $(i.row).removeClass('gx-out').find('.move-handle-btn').first().text('BN'); });
     const openL = []; Object.keys(fit.open).forEach(t => { for (let z = 0; z < fit.open[t]; z++) openL.push(t); });
     const anchor = nc ? rs[nc - 1].row : null;
     openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t === 'ANY' ? 'Reserve' : t}</b><span>Empty${t === 'ANY' ? ' · tap to add' : t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
@@ -17077,7 +17078,7 @@ function lldGthCapRender() {
     const tot = capPts + bonus + best * (1 + dp / 100) + jk, chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t === 'ANY' ? 'Starters' : t} ${f}/${n}</b>`; }).join(' · ');
     $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span>Captains ${caps.length}/${LLD_GTH_CAP.max} max \u00B7 Starters ${caps.length + rs.length}/${LLD_GTH_CAP.slots.length} \u00B7 Bench ${bn.length}</span><span></span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
     $('#gth-cn').text(caps.length + '/' + LLD_GTH_CAP.max); $('#gth-cx').text(caps.length ? '+' + bonus.toFixed(1) + ' bonus' : '×' + M);
-    $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(nc + ' counting · ' + best.toFixed(1));
+    $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(best.toFixed(1));
     let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
     $('#gth-bnn').text(bn.length);
     place('slots-bench', bn);

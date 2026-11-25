@@ -6266,3 +6266,5 @@ body.lld-gth .standings-seg-btn[data-seg="order"],body.lld-gth .apv-v[data-v="ye
 .lld-det .gth-fx>span:not(.gth-ci){display:none}
 .lld-det .gth-ci{width:18px;height:18px;border-width:1.5px}
 .gth-pj{display:inline-block;margin-left:6px;font-size:calc(9px * var(--ts,1))}
+
+#gth-lay .player-row .move-handle-btn,#slots-bench .player-row .move-handle-btn{min-width:34px;text-align:center;padding-left:6px;padding-right:6px}
