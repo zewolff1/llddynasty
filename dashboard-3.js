@@ -26582,6 +26582,7 @@ function lldMyBlockTab() {
             const t = $(this).text().trim().toLowerCase();
             if (this.dataset.mtb) { delete this.dataset.mtb; this.textContent = 'Trade'; this.setAttribute('onclick', "openSubTab(event,'trade')"); }
             if (/contracts/.test(t)) { const w = document.createTreeWalker(this, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (/contracts/i.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(/contracts/i, 'Manage'); } }
+            if (lldGthOn() && /^(contracts|manage)$/.test($(this).text().trim().toLowerCase())) { this.style.display = 'none'; return; } // Gotham has no Manage tab
             $(this).show();
         });
         return;
