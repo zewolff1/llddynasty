@@ -16833,7 +16833,7 @@ function lldGthFit(caps, rs) {
 // Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
 // the characters you can pick are the ones on your roster (Coach + Defense slots), not a fixed list
 function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x));
-        return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
+        return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, on: !!c.on, role: (R.leader && c.pid === R.leader.pid) ? 'leader' : 'sidekick', mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
 const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
 const LLD_GTH_CAL = { pct: 2, slots: ['Thu night', 'Sun 1 PM', 'Sun 4 PM', 'Sun night', 'Mon night'] }; // Calendar Man: % on every counting player for each different slot covered
@@ -16843,13 +16843,17 @@ function lldGthCharKey() { return 'lld_gth_char_' + String(fid).padStart(4, '0')
 function lldGthWildKey() { return 'lld_gth_wild_' + String(fid).padStart(4, '0'); }
 function lldGthChars() {
     const box = document.getElementById('gth-chars'); if (!box) return;
-    const cur = lldGet(lldGthCharKey(), '');
-    const L = lldGthCharList();
-    box.innerHTML = L.length ? L.map(c => `<button type="button" class="gth-ch ${cur === c.id ? 'on' : ''}" data-ch="${c.id}"><span class="m">${c.mark}</span><b>${c.name}</b>${LLD_GTH_ABIL[c.id] ? '' : (lldChCfg(c.pid, c.name).ability ? `<small>${lldChCfg(c.pid, c.name).ability}</small>` : '<small>ability soon</small>')}</button>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
-    const n = document.getElementById('gth-chn'); if (n) { n.textContent = cur ? ((L.find(c => c.id === cur) || {}).name || 'none picked') : 'none picked'; try { if (lldAdmin() && String(fid).padStart(4, '0') !== String(myFid).padStart(4, '0')) n.textContent += ' \u00B7 picking for ' + (leagueFranchises[String(fid).padStart(4, '0')] || fid) + ' (saved on this device)'; } catch (e) { } }
+    const L = lldGthCharList(), act = L.filter(c => c.on);
+    box.innerHTML = L.length ? L.map(c => `<button type="button" class="gth-ch ${c.on ? 'on' : 'off'}" data-ch="${c.id}" data-pid="${c.pid}" data-role="${c.role}"><span class="m">${c.mark}</span><b>${c.name}</b><small>${c.on ? 'STARTING' : 'Bench'}${c.role === 'leader' ? ' \u00B7 Leader' : ''}</small></button>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
+    const n = document.getElementById('gth-chn'); if (n) { n.textContent = act.length ? act.map(c => c.name).join(' + ') : 'none starting'; try { if (lldAdmin() && String(fid).padStart(4, '0') !== String(myFid).padStart(4, '0')) n.textContent += ' \u00B7 ' + (leagueFranchises[String(fid).padStart(4, '0')] || fid); } catch (e) { } }
     if (!document.getElementById('gth-abil')) box.insertAdjacentHTML('afterend', '<div id="gth-abil"></div>');
 }
-$(document).on('click', '#gth-chars .gth-ch[data-ch]', function () { lldSet(lldGthCharKey(), lldGet(lldGthCharKey(), '') === this.dataset.ch ? '' : this.dataset.ch); lldGthCapRender(); });
+// Tap a character to start or bench him in your MFL lineup (1 leader at most, 2 sidekicks at most). Submit the lineup as usual afterwards.
+$(document).on('click', '#gth-chars .gth-ch[data-pid]', function () {
+    const pid = this.dataset.pid, role = this.dataset.role, cb = currentDoc && currentDoc.querySelector(`input[value="${pid}"]`); if (!cb) return;
+    if (!cb.checked) { const L = lldGthCharList(), n = L.filter(c => c.on && c.role === role).length, max = role === 'leader' ? 1 : 2; if (n >= max) { try { lldPlayedToast(role === 'leader' ? 'Bench your leader first.' : 'You can start 2 sidekicks. Bench one first.'); } catch (e) { } return; } }
+    cb.checked = !cb.checked; try { renderActiveTab(); } catch (e) { } lldGthCapRender();
+});
 $(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this.value); lldGthCapRender(); });
 // Joker's Wild Card: works out the change to the total and fills the ability card
 // ability effect on one row: a round icon with the label in the details, and the change in points under the projection box
@@ -16934,9 +16938,13 @@ function lldGthClayface(box, caps, rs, fit, dp, M, bn) { // Copycat: pick one of
     return d;
 }
 $(document).on('change', '#gth-copy', function () { lldSet('lld_gth_copy_' + String(fid).padStart(4, '0'), this.value); lldGthCapRender(); });
-function lldGthJoker(caps, rs, fit, dp, M, bn) {
+function lldGthJoker(caps, rs, fit, dp, M, bn) { // runs the ability of every character you are starting
     const box = document.getElementById('gth-abil'); if (!box) return 0;
-    const cc = lldGet(lldGthCharKey(), '');
+    const act = lldGthCharList().filter(c => c.on); let tot = 0; box.innerHTML = '';
+    act.forEach(c => { const d = document.createElement('div'); d.className = 'gth-one'; box.appendChild(d); tot += lldGthAbil1(d, c.id, caps, rs, fit, dp, M, bn) || 0; });
+    return tot;
+}
+function lldGthAbil1(box, cc, caps, rs, fit, dp, M, bn) {
     try { const ch0 = lldGthCharList().find(c => c.id === cc); window._lldGthFxImg = ch0 ? (lldChCfg(ch0.pid, ch0.name).img || '') : ''; } catch (e) { window._lldGthFxImg = ''; } // the character's portrait replaces the emoji on rows his ability affects
     if (cc === 'robin' || cc === 'nightwing' || cc === 'maxiezeus' || cc === 'batman') { // lineup-only abilities (no opponent or history data needed)
         const nm = { robin: 'Robin', nightwing: 'Nightwing', maxiezeus: 'Maxie Zeus', batman: 'Batman' }[cc], ab = lldGthAbd(nm)[0], ic = { robin: '\uD83D\uDC26', nightwing: '\uD83E\uDD85', maxiezeus: '\u26A1', batman: '\uD83E\uDD87' }[cc];
