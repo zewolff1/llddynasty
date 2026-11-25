@@ -20,11 +20,12 @@
     "0800": {
       "name": "Joker",
       "role": "leader",
-      "img": "https://i.pinimg.com/564x/5e/09/59/5e0959962d4cea2ec5362df6cc3d3c71.jpg"
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0800.jpg"
     },
     "0801": {
       "name": "Riddler",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0801.jpg"
     },
     "0802": {
       "name": "Calendar Man",
@@ -45,31 +46,37 @@
     "0806": {
       "name": "Batman",
       "role": "leader",
-      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/batman.png"
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0806.jpg"
     },
     "0807": {
       "name": "Amanda Waller",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0807.jpg"
     },
     "0808": {
       "name": "Ra's Al Ghul",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0808.jpg"
     },
     "0809": {
       "name": "Bane",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0809.jpg"
     },
     "0810": {
       "name": "Poison Ivy",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0810.jpg"
     },
     "0811": {
       "name": "Two Face",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0811.jpg"
     },
     "0812": {
       "name": "Mr. Freeze",
-      "role": "leader"
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0812.jpg"
     },
     "0813": {
       "name": "Robin",
