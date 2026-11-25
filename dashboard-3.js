@@ -16804,8 +16804,8 @@ function lldLdrApply() {
     soon();
 })();
 // ---- Gotham: Captains / Reserves / Bench layout on the Lineup (view only until Gotham exists on MFL; choices saved on this device) ----
-const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'FLEX'], base: 8, dep: 2 };
-const LLD_GTH_ELIG = { QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], FLEX: ['RB', 'WR', 'TE'] };
+const LLD_GTH_CAP = { mult: 1.5, max: 3, slots: ['ANY','ANY','ANY','ANY','ANY','ANY','ANY','ANY','ANY','ANY'], base: 8, dep: 2 }; // 10 starters in any combination (MFL: 1 Head Coach, 1-2 Def, 10 players); captains are 3 of the 10
+const LLD_GTH_ELIG = { ANY: ['QB', 'RB', 'WR', 'TE'], QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], FLEX: ['RB', 'WR', 'TE'] };
 function lldGthCapKey() { return 'lld_gth_lay_' + String(fid).padStart(4, '0'); }
 function lldGthLay() { try { return JSON.parse(lldGet(lldGthCapKey(), '{}')) || {}; } catch (e) { return {}; } }
 function lldGthLaySave(m) { lldSet(lldGthCapKey(), JSON.stringify(m)); }
@@ -16825,8 +16825,8 @@ function lldGthInfo(row) {
 function lldGthFit(caps, rs) {
     const open = {}; LLD_GTH_CAP.slots.forEach(t => open[t] = (open[t] || 0) + 1); const slot = {};
     const fill = (i, types) => { for (const t of types) { if (open[t] > 0 && LLD_GTH_ELIG[t].indexOf(i.pos) >= 0) { open[t]--; slot[i.pid] = t; return true; } } return false; };
-    caps.forEach(i => { if (!fill(i, ['QB', 'RB', 'WR', 'TE', 'FLEX'])) slot[i.pid] = 'extra'; });
-    [['QB', 'RB', 'WR', 'TE'], ['FLEX']].forEach(tp => rs.forEach(i => { if (slot[i.pid] === undefined) fill(i, tp); }));
+    caps.forEach(i => { if (!fill(i, ['ANY'])) slot[i.pid] = 'extra'; });
+    rs.forEach(i => { if (slot[i.pid] === undefined) fill(i, ['ANY']); });
     return { open, slot };
 }
 // Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
@@ -16948,12 +16948,12 @@ function lldGthCapRender() {
     bn.forEach(i => $(i.row).removeClass('gx-out'));
     const openL = []; Object.keys(fit.open).forEach(t => { for (let z = 0; z < fit.open[t]; z++) openL.push(t); });
     const anchor = nc ? rs[nc - 1].row : null;
-    openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t}</b><span>Empty${t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
+    openL.slice().reverse().forEach(t => { const h = `<div class="gx-ph slot" data-slot="rs" data-pos="${t}"><b>${t === 'ANY' ? 'ANY' : t}</b><span>Empty${t === 'ANY' ? ' · any position' : t === 'FLEX' ? ' · RB / WR / TE' : ''}</span></div>`; if (anchor) $(anchor).after(h); else $('#slots-reserves').prepend(h); });
     if (bn.length) $('#slots-reserves').append('<div class="gx-ph opt" data-slot="rs">Add a reserve (optional)</div>');
     if (caps.length < LLD_GTH_CAP.max && rs.length + bn.length > 0) $('#slots-captain').append(`<div class="gx-ph cap opt" data-slot="cap">${caps.length ? 'Add another captain (optional)' : 'No captain · tap to add one (optional)'}</div>`);
     const jk = lldGthJoker(caps, rs, fit, dp, M, bn);
-    const tot = capPts + bonus + best * (1 + dp / 100) + jk, chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t} ${f}/${n}</b>`; }).join(' · ');
-    $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span>Captains ${caps.length}/${LLD_GTH_CAP.max} max \u00B7 Reserves ${rs.length}/${Math.max(rs.length, rs.length + bn.length - (caps.length ? 0 : 0))} max \u00B7 Bench ${bn.length}/${Math.max(0, caps.length + rs.length + bn.length - LLD_GTH_CAP.slots.length)} max</span><span></span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
+    const tot = capPts + bonus + best * (1 + dp / 100) + jk, chips = [...new Set(LLD_GTH_CAP.slots)].map(t => { const n = LLD_GTH_CAP.slots.filter(x => x === t).length, f = n - fit.open[t]; return `<b style="color:${f === n ? '#4ade80' : '#f87171'}">${t === 'ANY' ? 'Starters' : t} ${f}/${n}</b>`; }).join(' · ');
+    $('#gth-sum').html(`<span class="pc">Captains <u>${(capPts + bonus).toFixed(1)}</u></span><span class="pc">Reserves <u>${best.toFixed(1)}</u></span><div class="tt"><i>Projected total</i><b>${tot.toFixed(1)}</b></div><div class="dp"><span>${chips}</span><span>Scoring ${caps.length + nc} players</span></div><div class="dp"><span>Captains ${caps.length}/${LLD_GTH_CAP.max} max \u00B7 Starters ${caps.length + rs.length}/${LLD_GTH_CAP.slots.length} \u00B7 Bench ${bn.length}</span><span></span></div><div class="dp"><span></span><span>${dp ? `Reserve bonus +${dp}% (${rs.length} reserves) = +${(tot - capPts - bonus - best).toFixed(1)}` : 'No reserve bonus'}</span></div>`);
     $('#gth-cn').text(caps.length + '/' + LLD_GTH_CAP.max); $('#gth-cx').text(caps.length ? '+' + bonus.toFixed(1) + ' bonus' : '×' + M);
     $('#gth-rn').text(rs.length).css('color', openL.length ? '#f87171' : ''); $('#gth-rx').text(nc + ' counting · ' + best.toFixed(1));
     let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
