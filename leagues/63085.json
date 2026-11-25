@@ -1,60 +1,400 @@
 {
   "leagueId": "63085",
-  "leagueName": "LLD Dynasty",
+  "leagueName": "Live and Let Dynasty",
   "salaryCap": 823,
-  "adminFids": ["0000", "0001"],
+  "adminFids": [
+    "0000",
+    "0001"
+  ],
   "songs": [
-    {"id":"roundup","name":"Sam Spence – Round Up","url":"https://youtu.be/W12J7BYlj-E","thumb":"nflfilms.jpg"},
-    {"id":"shiver","name":"Sam Spence – Forearm Shiver","url":"https://youtu.be/yprqSr1-v3o","thumb":"nflfilms.jpg"},
-    {"id":"rises","name":"Sam Spence – Up As She Rises","url":"https://youtu.be/BpbM8djgzwM","thumb":"nflfilms.jpg"},
-    {"id":"lald","name":"Live and Let Die","url":"https://youtu.be/y-WSNZNUjrE","t":"0:30","thumb":"lald.jpg"},
-    {"id":"fox","name":"Fox Sports","url":"https://youtu.be/7_6HsaNDV7o","thumb":"fox.png"},
-    {"id":"cbs","name":"NFL on CBS","url":"https://youtu.be/jx69XXobpN8","thumb":"cbs.jpg"},
-    {"id":"mnf","name":"Monday Night Football","url":"https://youtu.be/t9APljSTvj0","thumb":"mnf.jpg"},
-    {"id":"sweetvictory","name":"Sweet Victory","url":"https://youtu.be/k9iYm9PEAHg","t":"45","slots":["win","recap"],"thumb":"sweetvictory.jpg"},
-    {"id":"eyetiger","name":"Eye of the Tiger","url":"https://youtu.be/BrGh2Wq7_Ro","t":"9","slots":["win","recap"],"thumb":"eyetiger.jpg"},
-    {"id":"celebrate","name":"Celebrate","url":"https://youtu.be/J9rm_yrKHTQ","slots":["win","recap"],"thumb":"celebrate.jpg"},
-    {"id":"anotherone","name":"Another One Bites the Dust","url":"https://youtu.be/zzPtIRSSkbE","t":"5","slots":["oloss"],"thumb":"anotherone.jpg"},
-    {"id":"evenlosers","name":"Even the Losers","url":"https://youtu.be/N8n29a9iW7w","slots":["oloss"],"thumb":"evenlosers.jpg"},
-    {"id":"bornrun","name":"Born to Run","url":"https://youtu.be/-FxhcaG55uI","slots":["win","oloss"],"teams":["New Jersey"],"thumb":"bornrun.jpg"},
-    {"id":"spaceoddity","name":"Space Oddity","url":"https://youtu.be/N8n29a9iW7w","t":"1:23","slots":["win","oloss"],"teams":["Cape Canaveral"],"thumb":"spaceoddity.jpg"},
-    {"id":"starman","name":"Starman","url":"https://youtu.be/wfJ0hKiJeYk","t":"52","slots":["win","oloss"],"teams":["Cape Canaveral"],"thumb":"starman.jpg"},
-    {"id":"rocketman","name":"Rocket Man","url":"https://youtu.be/fOWCoRr-wqc","t":"55","slots":["win","oloss"],"teams":["Cape Canaveral"],"thumb":"rocketman.jpg"},
-    {"id":"rocky","name":"Rocky Theme","url":"https://youtu.be/DhlPAj38rHc","slots":["win","oloss"],"teams":["Pork Rolls"],"thumb":"rocky.jpg"},
-    {"id":"ghostbusters","name":"Ghostbusters","url":"https://youtu.be/TaV1r341wYk","slots":["win","oloss"],"teams":["Ghosts"]},
-    {"id":"surfinusa","name":"Surfin' USA","url":"https://youtu.be/enlOHxQ0tb4","slots":["win","oloss"],"teams":["Pacific Oceans"]},
-    {"id":"bestfriend","name":"You're My Best Friend","url":"https://youtu.be/YSju1JfGf4A","slots":["win","oloss"],"teams":["Best Budz"],"thumb":"bestfriend.jpg"}
+    {
+      "id": "roundup",
+      "name": "Sam Spence – Round Up",
+      "url": "https://youtu.be/W12J7BYlj-E",
+      "thumb": "nflfilms.jpg"
+    },
+    {
+      "id": "shiver",
+      "name": "Sam Spence – Forearm Shiver",
+      "url": "https://youtu.be/yprqSr1-v3o",
+      "thumb": "nflfilms.jpg"
+    },
+    {
+      "id": "rises",
+      "name": "Sam Spence – Up As She Rises",
+      "url": "https://youtu.be/BpbM8djgzwM",
+      "thumb": "nflfilms.jpg"
+    },
+    {
+      "id": "lald",
+      "name": "Live and Let Die",
+      "url": "https://youtu.be/y-WSNZNUjrE",
+      "t": "0:30",
+      "thumb": "lald.jpg"
+    },
+    {
+      "id": "fox",
+      "name": "Fox Sports",
+      "url": "https://youtu.be/7_6HsaNDV7o",
+      "thumb": "fox.png"
+    },
+    {
+      "id": "cbs",
+      "name": "NFL on CBS",
+      "url": "https://youtu.be/jx69XXobpN8",
+      "thumb": "cbs.jpg"
+    },
+    {
+      "id": "mnf",
+      "name": "Monday Night Football",
+      "url": "https://youtu.be/t9APljSTvj0",
+      "thumb": "mnf.jpg"
+    },
+    {
+      "id": "sweetvictory",
+      "name": "Sweet Victory",
+      "url": "https://youtu.be/k9iYm9PEAHg",
+      "t": "45",
+      "slots": [
+        "win",
+        "recap"
+      ],
+      "thumb": "sweetvictory.jpg"
+    },
+    {
+      "id": "eyetiger",
+      "name": "Eye of the Tiger",
+      "url": "https://youtu.be/BrGh2Wq7_Ro",
+      "t": "9",
+      "slots": [
+        "win",
+        "recap"
+      ],
+      "thumb": "eyetiger.jpg"
+    },
+    {
+      "id": "celebrate",
+      "name": "Celebrate",
+      "url": "https://youtu.be/J9rm_yrKHTQ",
+      "slots": [
+        "win",
+        "recap"
+      ],
+      "thumb": "celebrate.jpg"
+    },
+    {
+      "id": "anotherone",
+      "name": "Another One Bites the Dust",
+      "url": "https://youtu.be/zzPtIRSSkbE",
+      "t": "5",
+      "slots": [
+        "oloss"
+      ],
+      "thumb": "anotherone.jpg"
+    },
+    {
+      "id": "evenlosers",
+      "name": "Even the Losers",
+      "url": "https://youtu.be/N8n29a9iW7w",
+      "slots": [
+        "oloss"
+      ],
+      "thumb": "evenlosers.jpg"
+    },
+    {
+      "id": "bornrun",
+      "name": "Born to Run",
+      "url": "https://youtu.be/-FxhcaG55uI",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "New Jersey"
+      ],
+      "thumb": "bornrun.jpg"
+    },
+    {
+      "id": "spaceoddity",
+      "name": "Space Oddity",
+      "url": "https://youtu.be/N8n29a9iW7w",
+      "t": "1:23",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Cape Canaveral"
+      ],
+      "thumb": "spaceoddity.jpg"
+    },
+    {
+      "id": "starman",
+      "name": "Starman",
+      "url": "https://youtu.be/wfJ0hKiJeYk",
+      "t": "52",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Cape Canaveral"
+      ],
+      "thumb": "starman.jpg"
+    },
+    {
+      "id": "rocketman",
+      "name": "Rocket Man",
+      "url": "https://youtu.be/fOWCoRr-wqc",
+      "t": "55",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Cape Canaveral"
+      ],
+      "thumb": "rocketman.jpg"
+    },
+    {
+      "id": "rocky",
+      "name": "Rocky Theme",
+      "url": "https://youtu.be/DhlPAj38rHc",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Pork Rolls"
+      ],
+      "thumb": "rocky.jpg"
+    },
+    {
+      "id": "ghostbusters",
+      "name": "Ghostbusters",
+      "url": "https://youtu.be/TaV1r341wYk",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Ghosts"
+      ]
+    },
+    {
+      "id": "surfinusa",
+      "name": "Surfin' USA",
+      "url": "https://youtu.be/enlOHxQ0tb4",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Pacific Oceans"
+      ]
+    },
+    {
+      "id": "bestfriend",
+      "name": "You're My Best Friend",
+      "url": "https://youtu.be/YSju1JfGf4A",
+      "slots": [
+        "win",
+        "oloss"
+      ],
+      "teams": [
+        "Best Budz"
+      ],
+      "thumb": "bestfriend.jpg"
+    }
   ],
   "defendingChampFid": "0001",
   "logoUrl": "https://raw.githubusercontent.com/zewolff1/llddynasty/4f81a6a726ce6e42253b9be29c9c8ab1c3b9e576/content/Dark%20Blue%20and%20Orange%20Illustrative%20Football%20League%20Badge%20Logo%20(1).svg",
   "joinYears": {
-    "0001": 2017, "0002": 2017, "0003": 2017, "0004": 2017, "0005": 2017,
-    "0006": 2017, "0007": 2017, "0008": 2017, "0009": 2017, "0010": 2017
+    "0001": 2017,
+    "0002": 2017,
+    "0003": 2017,
+    "0004": 2017,
+    "0005": 2017,
+    "0006": 2017,
+    "0007": 2017,
+    "0008": 2017,
+    "0009": 2017,
+    "0010": 2017
   },
   "championships": {
-    "0001": [2017, 2020, 2023, 2025],
-    "0002": [2018, 2021, 2022],
-    "0005": [2024]
+    "0001": [
+      2017,
+      2020,
+      2023,
+      2025
+    ],
+    "0002": [
+      2018,
+      2021,
+      2022
+    ],
+    "0005": [
+      2024
+    ]
   },
   "teamThemes": {},
   "lineupRules": {
-    "total": { "min": 8, "max": 17 },
+    "total": {
+      "min": 8,
+      "max": 17
+    },
     "rosterLimit": 40,
     "positions": {
-      "QB": { "min": 1, "max": 2 }, "RB": { "min": 2, "max": 5 },
-      "WR": { "min": 2, "max": 6 }, "TE": { "min": 1, "max": 3 },
-      "DE": { "group": "DL", "min": 1, "max": 4 }, "DT": { "group": "DL", "min": 1, "max": 4 },
-      "LB": { "min": 1, "max": 4 },
-      "CB": { "group": "DB", "min": 1, "max": 4 }, "S": { "group": "DB", "min": 1, "max": 4 }
+      "QB": {
+        "min": 1,
+        "max": 2
+      },
+      "RB": {
+        "min": 2,
+        "max": 5
+      },
+      "WR": {
+        "min": 2,
+        "max": 6
+      },
+      "TE": {
+        "min": 1,
+        "max": 3
+      },
+      "DE": {
+        "group": "DL",
+        "min": 1,
+        "max": 4
+      },
+      "DT": {
+        "group": "DL",
+        "min": 1,
+        "max": 4
+      },
+      "LB": {
+        "min": 1,
+        "max": 4
+      },
+      "CB": {
+        "group": "DB",
+        "min": 1,
+        "max": 4
+      },
+      "S": {
+        "group": "DB",
+        "min": 1,
+        "max": 4
+      }
     },
     "groups": {
-      "OFFENSE_MAX": { "pos": ["QB", "RB", "WR", "TE"], "max": 10 },
-      "IDP_MAX": { "pos": ["DE", "DT", "LB", "CB", "S"], "max": 6 },
-      "OFFENSE": ["QB", "RB", "WR", "TE"],
-      "IDP": ["DE", "DT", "LB", "CB", "S"],
-      "FLEX": ["RB", "WR", "TE"],
-      "SFLEX": ["QB", "RB", "WR", "TE"]
+      "OFFENSE_MAX": {
+        "pos": [
+          "QB",
+          "RB",
+          "WR",
+          "TE"
+        ],
+        "max": 10
+      },
+      "IDP_MAX": {
+        "pos": [
+          "DE",
+          "DT",
+          "LB",
+          "CB",
+          "S"
+        ],
+        "max": 6
+      },
+      "OFFENSE": [
+        "QB",
+        "RB",
+        "WR",
+        "TE"
+      ],
+      "IDP": [
+        "DE",
+        "DT",
+        "LB",
+        "CB",
+        "S"
+      ],
+      "FLEX": [
+        "RB",
+        "WR",
+        "TE"
+      ],
+      "SFLEX": [
+        "QB",
+        "RB",
+        "WR",
+        "TE"
+      ]
     }
   },
-  "features": { "rules": true }
+  "features": {
+    "rules": true
+  },
+  "recapMusic": {
+    "preview": [
+      "https://www.youtube.com/results?sp=mAEB&search_query=live+and+let+die+instrumental",
+      "https://www.youtube.com/watch?v=W12J7BYlj-E&list=RDW12J7BYlj-E&start_radio=1"
+    ],
+    "win": [
+      "https://youtu.be/k9iYm9PEAHg?si=byoahcB9P8MyDO6e&t=45"
+    ],
+    "months": {
+      "2026-09": [
+        "https://youtu.be/XXXXXXXXXXX"
+      ],
+      "2026-10": [
+        "https://youtu.be/XXXXXXXXXXX"
+      ],
+      "2026-11": [
+        "https://youtu.be/XXXXXXXXXXX"
+      ],
+      "2026-12": [
+        "https://youtu.be/XXXXXXXXXXX"
+      ]
+    },
+    "loss": [
+      "https://www.youtube.com/watch?v=4fWyzwo1xg0&list=RD4fWyzwo1xg0&start_radio=1",
+      "https://youtu.be/wXT7X_bf9lU?si=Zh36yiXxG28-9SGQ&t=44"
+    ],
+    "teams": {
+      "0001": {
+        "win": "https://www.youtube.com/watch?v=Wu4_zVxmufY&list=RDWu4_zVxmufY&start_radio=1",
+        "generic": ""
+      },
+      "0002": {
+        "win": "https://www.youtube.com/watch?v=enlOHxQ0tb4&list=RDenlOHxQ0tb4&start_radio=1",
+        "generic": ""
+      },
+      "0003": {
+        "win": "https://youtu.be/9_M3uw29U1U?si=_U7kUijQOsxs9EOV&t=75",
+        "generic": ""
+      },
+      "0004": {
+        "win": "https://youtu.be/HaZpZQG2z10?si=zc97DdX5l_OUOyqH&t=8",
+        "generic": ""
+      },
+      "0007": {
+        "win": "https://www.youtube.com/watch?v=uu7j_xljCRY&list=RDuu7j_xljCRY&start_radio=1",
+        "generic": ""
+      },
+      "0008": {
+        "win": "https://www.youtube.com/watch?v=TaV1r341wYk&list=RDTaV1r341wYk&start_radio=1",
+        "generic": ""
+      },
+      "0009": {
+        "win": "https://www.youtube.com/watch?v=DhlPAj38rHc&list=RDDhlPAj38rHc&start_radio=1",
+        "generic": "https://youtu.be/8sgycukafqQ?si=pofenSc8r51AKZDB&t=60"
+      },
+      "0010": {
+        "win": "https://www.youtube.com/watch?v=dLl4PZtxia8&list=RDdLl4PZtxia8&start_radio=1",
+        "generic": ""
+      }
+    }
+  },
+  "alertsUrl": "https://zewolff1.github.io/lld-alerts/"
 }
