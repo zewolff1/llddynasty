@@ -31,19 +31,23 @@
     },
     "0802": {
       "name": "Calendar Man",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0802.jpg"
     },
     "0803": {
       "name": "Kite Man",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0803.jpg"
     },
     "0804": {
       "name": "Catwoman",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0804.jpg"
     },
     "0805": {
       "name": "Anarchy",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0805.jpg"
     },
     "0806": {
       "name": "Batman",
@@ -82,27 +86,33 @@
     },
     "0813": {
       "name": "Robin",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0813.jpg"
     },
     "0814": {
       "name": "Batgirl",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0814.jpg"
     },
     "0815": {
       "name": "Nightwing",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0815.jpg"
     },
     "0816": {
       "name": "Commissioner Gordon",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0816.jpg"
     },
     "0817": {
       "name": "Harley Quinn",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0817.jpg"
     },
     "0818": {
       "name": "Mad Hatter",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0818.jpg"
     },
     "0819": {
       "name": "Professor Pyg",
@@ -110,23 +120,28 @@
     },
     "0820": {
       "name": "Condiment King",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0820.jpg"
     },
     "0821": {
       "name": "Cluemaster",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0821.jpg"
     },
     "0822": {
       "name": "Deadshot",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0822.jpg"
     },
     "0823": {
       "name": "Killer Croc",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0823.jpg"
     },
     "0824": {
       "name": "Killer Moth",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0824.jpg"
     },
     "0825": {
       "name": "Phantasm",
@@ -142,7 +157,8 @@
     },
     "0828": {
       "name": "Clayface",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0828.jpg"
     },
     "0829": {
       "name": "Man-Bat",
@@ -150,7 +166,8 @@
     },
     "0830": {
       "name": "Firefly",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0830.jpg"
     },
     "0831": {
       "name": "Solomon Grundy",
@@ -158,7 +175,8 @@
     },
     "0832": {
       "name": "Clock King",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0832.jpg"
     },
     "0833": {
       "name": "Talia Al Ghul",
@@ -170,15 +188,18 @@
     },
     "0835": {
       "name": "Black Mask",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0835.jpg"
     },
     "0836": {
       "name": "Hugo Strange",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0836.jpg"
     },
     "0837": {
       "name": "Carmine Falcone",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0837.jpg"
     },
     "0838": {
       "name": "Sal Maroni",
@@ -190,7 +211,8 @@
     },
     "0840": {
       "name": "Hush",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0840.jpg"
     },
     "0841": {
       "name": "Ventriloquist",
@@ -202,7 +224,8 @@
     },
     "0843": {
       "name": "Deathstroke",
-      "role": "sidekick"
+      "role": "sidekick",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/0843.jpg"
     },
     "0844": {
       "name": "Maxie Zeus",

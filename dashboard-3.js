@@ -16854,7 +16854,7 @@ $(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this
 // Joker's Wild Card: works out the change to the total and fills the ability card
 // ability effect on one row: a round icon with the label in the details, and the change in points under the projection box
 function lldGthFx(row, ico, label, txt, neg) {
-    const r = $(row); r.find('.lld-det').first().append(`<div class="gth-fx"><span class="gth-ci">${ico}</span><span>${label}</span></div>`);
+    const r = $(row), im = window._lldGthFxImg; r.find('.lld-det').first().append(`<div class="gth-fx"><span class="gth-ci${im ? ' pic' : ''}">${im ? `<img src="${im}" alt="" onerror="this.parentNode.classList.remove('pic');this.parentNode.textContent='${ico}'">` : ico}</span><span>${label}</span></div>`);
     const pj = r.find('.proj-popup-trigger').first(); if (pj.length) pj.after(`<div class="gth-pj${neg ? ' dn' : ''}">${txt}</div>`);
 }
 // ---- Gotham: the rest of the character abilities. Every number is in LLD_GTH_X so you can tune it. ----
@@ -16937,6 +16937,7 @@ $(document).on('change', '#gth-copy', function () { lldSet('lld_gth_copy_' + Str
 function lldGthJoker(caps, rs, fit, dp, M, bn) {
     const box = document.getElementById('gth-abil'); if (!box) return 0;
     const cc = lldGet(lldGthCharKey(), '');
+    try { const ch0 = lldGthCharList().find(c => c.id === cc); window._lldGthFxImg = ch0 ? (lldChCfg(ch0.pid, ch0.name).img || '') : ''; } catch (e) { window._lldGthFxImg = ''; } // the character's portrait replaces the emoji on rows his ability affects
     if (cc === 'robin' || cc === 'nightwing' || cc === 'maxiezeus' || cc === 'batman') { // lineup-only abilities (no opponent or history data needed)
         const nm = { robin: 'Robin', nightwing: 'Nightwing', maxiezeus: 'Maxie Zeus', batman: 'Batman' }[cc], ab = lldGthAbd(nm)[0], ic = { robin: '\uD83D\uDC26', nightwing: '\uD83E\uDD85', maxiezeus: '\u26A1', batman: '\uD83E\uDD87' }[cc];
         const cnt3 = caps.concat(rs.filter(i => fit.slot[i.pid])), pts = i => caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), benchBest = bn.slice().sort((a, b) => b.v - a.v)[0];

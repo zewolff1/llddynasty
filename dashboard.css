@@ -6221,3 +6221,4 @@ body.lld-clr .lld-clr-rk span[data-k]{cursor:pointer}
 .gx-ph.cap.slot b{border-color:rgba(245,158,11,.7);color:#f59e0b}
 .gx-ph.cap.slot span{color:#b8893a}
 .gx-ph.slot b{min-width:72px;padding-left:10px;padding-right:10px;text-transform:uppercase;letter-spacing:.04em}
+.gth-ci.pic{background:none;padding:0;overflow:hidden}.gth-ci.pic img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
