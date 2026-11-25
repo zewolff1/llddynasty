@@ -1,0 +1,16 @@
+{
+  "leagueId": "62528",
+  "leagueName": "Fantasy Gotham",
+  "salaryCap": 823,
+  "adminFids": ["0001"],
+  "defendingChampFid": ["0001"],
+  "logoUrl": "https://www45.myfantasyleague.com/fflnetdynamic2026/62528_league_logo.png",
+  "joinYears": {},
+  "championships": {},
+  "teamThemes": {},
+  "features": { "rules": true, "gotham": true },
+  "characters": {
+    "Joker": { "img": "https://i.pinimg.com/564x/5e/09/59/5e0959962d4cea2ec5362df6cc3d3c71.jpg" },
+    "Batman": { "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/batman.png" }
+  }
+}
