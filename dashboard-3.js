@@ -16831,7 +16831,7 @@ function lldGthFit(caps, rs) {
 }
 // Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
 // the characters you can pick are the ones on your roster (Coach + Defense slots), not a fixed list
-function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x)); if (lldAdmin() && lldBv('gtp') === '1') Object.keys(LLD_GTH_ABD).forEach(n => { if (!a.some(c => lldChSlug(c.nm) === lldChSlug(n))) a.push({ nm: n, pid: '', on: false }); }); // test mode: every character can be picked, even if not on your roster
+function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x));
         return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
 const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
@@ -16845,7 +16845,7 @@ function lldGthChars() {
     const cur = lldGet(lldGthCharKey(), '');
     const L = lldGthCharList();
     box.innerHTML = L.length ? L.map(c => `<button type="button" class="gth-ch ${cur === c.id ? 'on' : ''}" data-ch="${c.id}"><span class="m">${c.mark}</span><b>${c.name}</b>${LLD_GTH_ABIL[c.id] ? '' : (lldChCfg(c.pid, c.name).ability ? `<small>${lldChCfg(c.pid, c.name).ability}</small>` : '<small>ability soon</small>')}</button>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
-    const n = document.getElementById('gth-chn'); if (n) n.textContent = cur ? ((L.find(c => c.id === cur) || {}).name || 'none picked') : 'none picked';
+    const n = document.getElementById('gth-chn'); if (n) { n.textContent = cur ? ((L.find(c => c.id === cur) || {}).name || 'none picked') : 'none picked'; try { if (lldAdmin() && String(fid).padStart(4, '0') !== String(myFid).padStart(4, '0')) n.textContent += ' \u00B7 picking for ' + (leagueFranchises[String(fid).padStart(4, '0')] || fid) + ' (saved on this device)'; } catch (e) { } }
     if (!document.getElementById('gth-abil')) box.insertAdjacentHTML('afterend', '<div id="gth-abil"></div>');
 }
 $(document).on('click', '#gth-chars .gth-ch[data-ch]', function () { lldSet(lldGthCharKey(), lldGet(lldGthCharKey(), '') === this.dataset.ch ? '' : this.dataset.ch); lldGthCapRender(); });
