@@ -6258,3 +6258,11 @@ body.lld-gth .standings-seg-btn[data-seg="order"],body.lld-gth .apv-v[data-v="ye
 .gth-crd .gth-ab .h{display:none}
 .gth-crd .gth-ab{padding:0!important;border:0!important;background:none!important}
 .gth-cr.off .gth-crd{opacity:.65;filter:grayscale(.8)}
+
+.gth-crm .n small{text-transform:none;letter-spacing:0;font-size:12px;opacity:.75;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
+.gth-crm .n small i{font-style:normal;font-weight:800;color:#fbbf24}
+/* player rows stay compact: effect icons sit in one line, labels hidden (tap/hold shows the title) */
+.lld-det .gth-fx{display:inline-flex;margin:2px 4px 0 0;gap:0}
+.lld-det .gth-fx>span:not(.gth-ci){display:none}
+.lld-det .gth-ci{width:18px;height:18px;border-width:1.5px}
+.gth-pj{display:inline-block;margin-left:6px;font-size:calc(9px * var(--ts,1))}

@@ -16867,7 +16867,7 @@ function lldGthChars() {
     const box = document.getElementById('gth-chars'); if (!box) return;
     const L = lldGthCharList(), act = L.filter(c => c.on);
     window._gthOpen = window._gthOpen || {};
-    box.innerHTML = L.length ? L.map(c => `<div class="gth-cr ${c.on ? 'on' : 'off'}${window._gthOpen[c.id] ? ' open' : ''}" data-ch="${c.id}"><div class="gth-crm"><span class="m">${c.mark}</span><div class="n"><b>${c.name}</b><small>${c.role === 'leader' ? 'Leader' : 'Sidekick'} \u00B7 ${c.on ? 'Starting' : 'Bench'}</small></div><span class="gth-crb"></span><button type="button" class="gth-crs" data-pid="${c.pid}" data-role="${c.role}">${c.on ? 'Bench' : 'Start'}</button></div><div class="gth-crd"></div></div>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
+    box.innerHTML = L.length ? L.map(c => `<div class="gth-cr ${c.on ? 'on' : 'off'}${window._gthOpen[c.id] ? ' open' : ''}" data-ch="${c.id}"><div class="gth-crm"><span class="m">${c.mark}</span><div class="n"><b>${c.name}</b><small>${(() => { const a = (lldGthAbd(c.name) || [])[0]; return a ? '<i>' + a[0] + '</i> ' + a[1] : ''; })()}</small></div><span class="gth-crb"></span><button type="button" class="gth-crs" data-pid="${c.pid}" data-role="${c.role}">${c.on ? 'Bench' : 'Start'}</button></div><div class="gth-crd"></div></div>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
     const n = document.getElementById('gth-chn'); if (n) { n.textContent = act.length ? act.map(c => c.name).join(' + ') : 'none starting'; try { if (lldAdmin() && String(fid).padStart(4, '0') !== String(myFid).padStart(4, '0')) n.textContent += ' \u00B7 ' + (leagueFranchises[String(fid).padStart(4, '0')] || fid); } catch (e) { } }
     if (!document.getElementById('gth-abil')) box.insertAdjacentHTML('afterend', '<div id="gth-abil"></div>');
 }
@@ -16882,7 +16882,7 @@ $(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this
 // Joker's Wild Card: works out the change to the total and fills the ability card
 // ability effect on one row: a round icon with the label in the details, and the change in points under the projection box
 function lldGthFx(row, ico, label, txt, neg, off) {
-    const r = $(row), im = window._lldGthFxImg; off = off || window._lldGthFxOff; r.find('.lld-det').first().append(`<div class="gth-fx${off ? ' off' : ''}"><span class="gth-ci${im ? ' pic' : ''}">${im ? `<img src="${im}" alt="" onerror="this.parentNode.classList.remove('pic');this.parentNode.textContent='${ico}'">` : ico}</span><span>${label}</span></div>`);
+    const r = $(row), im = window._lldGthFxImg; off = off || window._lldGthFxOff; r.find('.lld-det').first().append(`<div class="gth-fx${off ? ' off' : ''}" title="${String(label).replace(/"/g, '')}"><span class="gth-ci${im ? ' pic' : ''}">${im ? `<img src="${im}" alt="" onerror="this.parentNode.classList.remove('pic');this.parentNode.textContent='${ico}'">` : ico}</span><span>${label}</span></div>`);
     const pj = r.find('.proj-popup-trigger').first(); if (pj.length) pj.after(`<div class="gth-pj${neg ? ' dn' : ''}${off ? ' off' : ''}">${txt}</div>`);
 }
 // ---- Gotham: the rest of the character abilities. Every number is in LLD_GTH_X so you can tune it. ----
