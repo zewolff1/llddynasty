@@ -2484,17 +2484,20 @@ const LLD_APV_LOW = { now: 1, ros: 1, dyn: 1, bu: 1 };
 const LLD_APV_NFL = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GBP', 'HOU', 'IND', 'JAC', 'KCC', 'LAC', 'LAR', 'LVR', 'MIA', 'MIN', 'NEP', 'NOS', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SFO', 'TBB', 'TEN', 'WAS'];
 window._apv = { view: 'all', sort: 'now', dir: -1, on: { now: 1, ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, yu: 1, th: 1, tp: 1, fit: 1, bk: 1, op: 1, df: 1, tm: 1 }, wl: { bb: true, sb: true, fy: true, ft: true }, ft: '', nt: '', st: '', fo: 0, no: 0, so: 0, sm: 0, sub: { contracts: 'salary', rankings: 'season' }, cmode: 'sal', sw: 0, cg: 1, oo: 0, se: 0, ctv: 'all', go: '', cv: 'total' };
 try { const u = JSON.parse(localStorage.getItem('lld_apv_ui') || 'null'); if (u) { if (u.on) Object.assign(window._apv.on, u.on); if (u.wl) Object.assign(window._apv.wl, u.wl); if (u.sort) window._apv.sort = u.sort; if (u.dir) window._apv.dir = u.dir; if (u.sw != null) window._apv.sw = u.sw; if (u.cg != null) window._apv.cg = u.cg; } } catch (e) { }
-function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: A.on, wl: A.wl, sort: A.sort, dir: A.dir, sw: A.sw, cg: A.cg })); } catch (e) { } }
+// Gotham is not a dynasty league: these player-row toggles always read as off there (rest of season, dynasty, contracts, boom/bust, consistency). The saved values are left alone so a dynasty league on this device keeps its own.
+const LLD_GTH_OFFK = { ros: 1, dyn: 1, sal: 1, cap: 1, gu: 1, yr: 1, bb: 1, bu: 1, co: 1, fit: 1, bk: 1 };
+window._apvOnRaw = window._apv.on; window._apv.on = new Proxy(window._apvOnRaw, { get(t, k) { if (LLD_GTH_OFFK[k]) { try { if (lldGthOn()) return 0; } catch (e) { } } return t[k]; } });
+function lldApvSave() { try { const A = window._apv; localStorage.setItem('lld_apv_ui', JSON.stringify({ on: window._apvOnRaw || A.on, wl: A.wl, sort: A.sort, dir: A.dir, sw: A.sw, cg: A.cg })); } catch (e) { } }
 function lldApvCtx() { try { const e = document.getElementById('apv-ct-box'); return !!(e && e.offsetParent !== null); } catch (e) { return false; } }
 function lldApvIsFA() { if (lldApvCtx()) return false; const b = $('#subtabs-players .sub-tab-btn.active'); return !b.length || b.text().trim().toLowerCase().replace(' ', '-') === 'free-agents'; }
 function lldApvLuVis() { try { const e = document.getElementById('apv-lu-bar'); return !!(e && e.getClientRects().length); } catch (e) { return false; } } // the lineup bar can stay in the page, hidden, while another tab is open
 function lldApvLuOn() { try { return !!document.getElementById('apv-lu-bar'); } catch (e) { return false; } }
-function lldGthNorm() { try { if (!lldGthOn()) return false; const O = window._apv.on; O.dyn = O.bb = O.bu = O.co = 0; if (!localStorage.getItem('lld_apv_gth')) { O.ros = 0; localStorage.setItem('lld_apv_gth', '1'); lldApvSave(); } return true; } catch (e) { return false; } }
+function lldGthNorm() { try { return lldGthOn(); } catch (e) { return false; } }
 function lldApvGroups(isFA, mode) {
     const gth = lldGthNorm();
     mode = mode || (lldApvLuVis() ? 'lu' : lldApvCtx() ? 'ct' : 'pl');
     const keep = mode === 'lu' ? ['RANKING', 'MATCHUP', 'STATS'] : ['RANKING', 'CONTRACT', 'TRADE', 'STATS'];
-    return LLD_APV_GR.filter(g => keep.indexOf(g[0]) >= 0 && !(isFA && g[0] === 'CONTRACT')).filter(g => !(gth && g[0] === 'STATS')).map(g => g[0] === 'RANKING' && gth ? [g[0], g[1].filter(x => x[0] !== 'dyn')] : g).map(g => g[0] !== 'TRADE' ? g : isFA ? [g[0], g[1].filter(x => x[0] === 'yu')] : mode === 'ct' ? [g[0], g[1].filter(x => ['yu', 'tp', 'bk'].indexOf(x[0]) >= 0)] : [g[0], g[1].filter(x => x[0] !== 'tp')]);
+    return LLD_APV_GR.filter(g => keep.indexOf(g[0]) >= 0 && !(isFA && g[0] === 'CONTRACT')).filter(g => !(gth && (g[0] === 'STATS' || g[0] === 'CONTRACT'))).map(g => g[0] === 'RANKING' && gth ? [g[0], g[1].filter(x => x[0] === 'now')] : g).map(g => g[0] === 'TRADE' && gth ? [g[0], g[1].filter(x => ['fit', 'bk'].indexOf(x[0]) < 0)] : g).map(g => g[0] !== 'TRADE' ? g : isFA ? [g[0], g[1].filter(x => x[0] === 'yu')] : mode === 'ct' ? [g[0], g[1].filter(x => ['yu', 'tp', 'bk'].indexOf(x[0]) >= 0)] : [g[0], g[1].filter(x => x[0] !== 'tp')]);
 }
 function lldApvAvail(isFA) { const A = window._apv; return lldApvGroups(isFA).flatMap(g => g[1]).filter(x => A.on[x[0]] && ['fit', 'bk', 'op', 'tm', 'df'].indexOf(x[0]) < 0); }
 function lldApvKey(isFA) { const A = window._apv, av = lldApvAvail(isFA); if (!av.length) return null; if (!av.some(x => x[0] === A.sort)) A.sort = av[0][0]; return A.sort; }
@@ -2595,7 +2598,7 @@ function lldApvBar(isFA) {
     } else {
         top = '';
     }
-    const sw = `<div class="apv-views" style="grid-template-columns:repeat(${(cx || !isFA) ? 3 : 2},1fr)">${((cx || !isFA) ? [['all', 'List'], ['weekly', 'Week by week'], ['year', 'Year by year']] : [['all', 'List'], ['weekly', 'Week by week']]).map(([v, l]) => `<button type="button" class="apv-v${vw === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const sw = `<div class="apv-views" style="grid-template-columns:repeat(${((cx || !isFA) && !lldGthOn()) ? 3 : 2},1fr)">${(((cx || !isFA) && !lldGthOn()) ? [['all', 'List'], ['weekly', 'Week by week'], ['year', 'Year by year']] : [['all', 'List'], ['weekly', 'Week by week']]).map(([v, l]) => `<button type="button" class="apv-v${vw === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
     const fN = (A.ft && leagueFranchises[A.ft]) ? leagueFranchises[A.ft] : 'ALL FANTASY', nN = A.nt || 'ALL NFL', sN = A.st ? (A.st === 'X' ? 'NO LABEL' : LLDTB_ST[A.st][2].toUpperCase()) : 'ALL STATUS';
     const menu = `<div class="apv-menu"${A.sm ? '' : ' hidden'}><div class="apv-mh">Sort by (only what is switched on)</div>${avail.map(([k, l, full]) => `<button type="button" class="apv-sk${A.sort === k ? ' on' : ''}" data-k="${k}">${full}${A.sort === k ? ' ✓' : ''}</button>`).join('') || '<div class="apv-mh">Turn something on above.</div>'}<div class="apv-mh" style="margin-top:6px">Order</div><div class="apv-two"><button type="button" class="apv-dir${A.dir === -1 ? ' on' : ''}" data-d="-1">${LLD_APV_LOW[A.sort] ? 'Best first' : 'High to low'}</button><button type="button" class="apv-dir${A.dir === 1 ? ' on' : ''}" data-d="1">${LLD_APV_LOW[A.sort] ? 'Worst first' : 'Low to high'}</button></div></div>`;
     const row = `<div class="apv-r2"><button type="button" class="player-gloss-btn apv-b" data-fa="${isFA ? 1 : 0}">\u24D8<span class="apv-gtx"> Guide</span></button>${(isFA || cx) ? '' : `<button type="button" class="apv-b apv-pb${(A.ft || A.fo) ? ' act' : ''}" data-pn="fo"><span>${esc(fN)}</span> ▾</button>`}${cx ? '' : `<button type="button" class="apv-b apv-pb${(A.nt || A.no) ? ' act' : ''}" data-pn="no"><span>${esc(nN)}</span> \u25BE</button>`}${isFA ? '' : `<button type="button" class="apv-b apv-pb${(A.st || A.so) ? ' act' : ''}" data-pn="so"><span>${sN}</span> \u25BE</button>`}${ownT ? `<button type="button" class="apv-b apv-pb${(A.oo || (window._apvCt && window._apvCt.mode)) ? ' act' : ''}" data-pn="oo"><span>${window._apvCt.mode && LLDTB_MODES[window._apvCt.mode] ? LLDTB_MODES[window._apvCt.mode][0].toUpperCase() : 'OUTLOOK'}</span> \u25BE</button>` : ''}${(wk || yv) ? '' : `<div class="apv-sw"><button type="button" class="apv-b act apv-sm"><span>⇅ ${cur ? cur[2] : 'Nothing on'}</span></button>${menu}</div>`}</div>`;
@@ -15603,7 +15606,7 @@ function lldShBlocks(vf, sub) {
             else if (!window._lldSXkick && typeof window.lldStatsLoad === 'function') { window._lldSXkick = true; window.lldStatsLoad().then(() => { try { lldShRender(); } catch (e) { } }).catch(() => { window._lldSXkick = false; }); }
         } catch (e) { }
         const dyH = lldShStats(vf).dyn;
-        const sm = [s.rank ? `<b>${lldShOrd(s.rank)}</b>` : '', po != null ? `<b>${po}%</b> playoffs` : '', dyH ? `Dyn <b>#${dyH}</b>` : ''].filter(Boolean).join(' · ');
+        const sm = [s.rank ? `<b>${lldShOrd(s.rank)}</b>` : '', po != null ? `<b>${po}%</b> playoffs` : '', (dyH && !lldGthOn()) ? `Dyn <b>#${dyH}</b>` : ''].filter(Boolean).join(' · ');
         A.push(`<div class="bk" data-b="rec"><i>${isOff ? "'" + String(parseInt(year) - 1).slice(-2) : 'Record'}</i><div class="m">${lldShEsc(record || '—')}</div>${sm ? `<div class="s2">${sm}</div>` : ''}</div>`); W.push(LLD_SH.wLineup[0]);
         const nx = window._nextOpp?.[vf], tw = window._tickWeek;
         let opp = null, wk = '';
@@ -16787,6 +16790,21 @@ function lldLdrApply() {
         document.querySelectorAll('img').forEach(lldLdrImg);
     } catch (e) { }
 }
+// Gotham is not a dynasty league: hide the Manage tab, the Dynasty rank line in the team header, Year by year and the next-year order
+(function () {
+    let t = null;
+    function trim() {
+        try {
+            if (!lldGthOn()) return; document.body.classList.add('lld-gth');
+            document.querySelectorAll('#subtabs-team .sub-tab-btn').forEach(b => { if (/^(manage|contracts)$/i.test(b.textContent.trim())) b.style.display = 'none'; });
+            const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.trim() === 'Dyn' ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT }); let n;
+            while ((n = w.nextNode())) { const p = n.parentNode; if (p && /^Dyn\s*#\d+$/.test(p.textContent.trim())) p.style.display = 'none'; }
+        } catch (e) { }
+    }
+    const soon = () => { clearTimeout(t); t = setTimeout(trim, 120); };
+    try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) { }
+    setInterval(trim, 3000); soon();
+})();
 (function () {
     let t = null;
     const soon = () => { clearTimeout(t); t = setTimeout(() => { if (!lldGthOn()) return; lldLdrLoad().then(lldLdrApply); }, 400); };
@@ -21330,7 +21348,7 @@ async function loadLiveScores(weekOverride = null) {    const container = $('#sc
 function standingsSegHtml(active) {
     const nextYear = parseInt(year, 10) + 1;
     const btn = (key, label) => `<button class="standings-seg-btn" data-seg="${key}" style="flex:1; padding:8px 6px; border-radius:8px; font-size:calc(10px * var(--ts,1)); font-weight:900; text-transform:uppercase; cursor:pointer; border:1px solid ${active === key ? 'var(--accent-blue)' : 'var(--card-border)'}; background:${active === key ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)'}; color:${active === key ? '#fff' : 'var(--text-dim)'};">${label}</button>`;
-    return `<div style="display:flex; gap:6px; padding:10px 10px 0;">${btn('table', 'Standings')}${btn('order', nextYear + ' Order')}${btn('bracket', 'Playoffs')}</div>`;
+    return `<div style="display:flex; gap:6px; padding:10px 10px 0;">${btn('table', 'Standings')}${lldGthOn() ? '' : btn('order', nextYear + ' Order')}${btn('bracket', 'Playoffs')}</div>`;
 }
 
 async function loadLeagueStandings() {

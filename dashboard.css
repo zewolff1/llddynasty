@@ -6225,3 +6225,4 @@ body.lld-clr .lld-clr-rk span[data-k]{cursor:pointer}
 #gth-chars .gth-ch.off{opacity:.42;filter:grayscale(1)}
 #gth-chars .gth-ch.off:active{opacity:.7}
 #gth-abil .gth-one+.gth-one{margin-top:10px}
+body.lld-gth .standings-seg-btn[data-seg="order"],body.lld-gth .apv-v[data-v="year"]{display:none !important}
