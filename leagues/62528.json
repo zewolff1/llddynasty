@@ -2,15 +2,202 @@
   "leagueId": "62528",
   "leagueName": "Fantasy Gotham",
   "salaryCap": 823,
-  "adminFids": ["0001"],
-  "defendingChampFid": ["0001"],
+  "adminFids": [
+    "0001"
+  ],
+  "defendingChampFid": [
+    "0001"
+  ],
   "logoUrl": "https://www45.myfantasyleague.com/fflnetdynamic2026/62528_league_logo.png",
   "joinYears": {},
   "championships": {},
   "teamThemes": {},
-  "features": { "rules": true, "gotham": true },
+  "features": {
+    "rules": true,
+    "gotham": true
+  },
   "characters": {
-    "Joker": { "img": "https://i.pinimg.com/564x/5e/09/59/5e0959962d4cea2ec5362df6cc3d3c71.jpg" },
-    "Batman": { "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/batman.png" }
+    "0800": {
+      "name": "Joker",
+      "role": "leader",
+      "img": "https://i.pinimg.com/564x/5e/09/59/5e0959962d4cea2ec5362df6cc3d3c71.jpg"
+    },
+    "0801": {
+      "name": "Riddler",
+      "role": "leader"
+    },
+    "0802": {
+      "name": "Calendar Man",
+      "role": "sidekick"
+    },
+    "0803": {
+      "name": "Kite Man",
+      "role": "sidekick"
+    },
+    "0804": {
+      "name": "Catwoman",
+      "role": "sidekick"
+    },
+    "0805": {
+      "name": "Anarchy",
+      "role": "sidekick"
+    },
+    "0806": {
+      "name": "Batman",
+      "role": "leader",
+      "img": "https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/characters/batman.png"
+    },
+    "0807": {
+      "name": "Amanda Waller",
+      "role": "leader"
+    },
+    "0808": {
+      "name": "Ra's Al Ghul",
+      "role": "leader"
+    },
+    "0809": {
+      "name": "Bane",
+      "role": "leader"
+    },
+    "0810": {
+      "name": "Poison Ivy",
+      "role": "leader"
+    },
+    "0811": {
+      "name": "Two Face",
+      "role": "leader"
+    },
+    "0812": {
+      "name": "Mr. Freeze",
+      "role": "leader"
+    },
+    "0813": {
+      "name": "Robin",
+      "role": "sidekick"
+    },
+    "0814": {
+      "name": "Batgirl",
+      "role": "sidekick"
+    },
+    "0815": {
+      "name": "Nightwing",
+      "role": "sidekick"
+    },
+    "0816": {
+      "name": "Commissioner Gordon",
+      "role": "sidekick"
+    },
+    "0817": {
+      "name": "Harley Quinn",
+      "role": "sidekick"
+    },
+    "0818": {
+      "name": "Mad Hatter",
+      "role": "sidekick"
+    },
+    "0819": {
+      "name": "Professor Pyg",
+      "role": "sidekick"
+    },
+    "0820": {
+      "name": "Condiment King",
+      "role": "sidekick"
+    },
+    "0821": {
+      "name": "Cluemaster",
+      "role": "sidekick"
+    },
+    "0822": {
+      "name": "Deadshot",
+      "role": "sidekick"
+    },
+    "0823": {
+      "name": "Killer Croc",
+      "role": "sidekick"
+    },
+    "0824": {
+      "name": "Killer Moth",
+      "role": "sidekick"
+    },
+    "0825": {
+      "name": "Phantasm",
+      "role": "sidekick"
+    },
+    "0826": {
+      "name": "Penguin",
+      "role": "sidekick"
+    },
+    "0827": {
+      "name": "Scarecrow",
+      "role": "sidekick"
+    },
+    "0828": {
+      "name": "Clayface",
+      "role": "sidekick"
+    },
+    "0829": {
+      "name": "Man-Bat",
+      "role": "sidekick"
+    },
+    "0830": {
+      "name": "Firefly",
+      "role": "sidekick"
+    },
+    "0831": {
+      "name": "Solomon Grundy",
+      "role": "sidekick"
+    },
+    "0832": {
+      "name": "Clock King",
+      "role": "sidekick"
+    },
+    "0833": {
+      "name": "Talia Al Ghul",
+      "role": "sidekick"
+    },
+    "0834": {
+      "name": "Victor Zsasz",
+      "role": "sidekick"
+    },
+    "0835": {
+      "name": "Black Mask",
+      "role": "sidekick"
+    },
+    "0836": {
+      "name": "Hugo Strange",
+      "role": "sidekick"
+    },
+    "0837": {
+      "name": "Carmine Falcone",
+      "role": "sidekick"
+    },
+    "0838": {
+      "name": "Sal Maroni",
+      "role": "sidekick"
+    },
+    "0839": {
+      "name": "Rupert Thorne",
+      "role": "sidekick"
+    },
+    "0840": {
+      "name": "Hush",
+      "role": "sidekick"
+    },
+    "0841": {
+      "name": "Ventriloquist",
+      "role": "sidekick"
+    },
+    "0842": {
+      "name": "Polka-Dot Man",
+      "role": "sidekick"
+    },
+    "0843": {
+      "name": "Deathstroke",
+      "role": "sidekick"
+    },
+    "0844": {
+      "name": "Maxie Zeus",
+      "role": "sidekick"
+    }
   }
 }
