@@ -16866,12 +16866,14 @@ function lldGthWildKey() { return 'lld_gth_wild_' + String(fid).padStart(4, '0')
 function lldGthChars() {
     const box = document.getElementById('gth-chars'); if (!box) return;
     const L = lldGthCharList(), act = L.filter(c => c.on);
-    box.innerHTML = L.length ? L.map(c => `<button type="button" class="gth-ch ${c.on ? 'on' : 'off'}" data-ch="${c.id}" data-pid="${c.pid}" data-role="${c.role}"><span class="m">${c.mark}</span><b>${c.name}</b><small>${c.on ? 'STARTING' : 'Bench'}${c.role === 'leader' ? ' \u00B7 Leader' : ''}</small></button>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
+    window._gthOpen = window._gthOpen || {};
+    box.innerHTML = L.length ? L.map(c => `<div class="gth-cr ${c.on ? 'on' : 'off'}${window._gthOpen[c.id] ? ' open' : ''}" data-ch="${c.id}"><div class="gth-crm"><span class="m">${c.mark}</span><div class="n"><b>${c.name}</b><small>${c.role === 'leader' ? 'Leader' : 'Sidekick'} \u00B7 ${c.on ? 'Starting' : 'Bench'}</small></div><span class="gth-crb"></span><button type="button" class="gth-crs" data-pid="${c.pid}" data-role="${c.role}">${c.on ? 'Bench' : 'Start'}</button></div><div class="gth-crd"></div></div>`).join('') : '<div class="lc-none">No characters on your roster yet</div>';
     const n = document.getElementById('gth-chn'); if (n) { n.textContent = act.length ? act.map(c => c.name).join(' + ') : 'none starting'; try { if (lldAdmin() && String(fid).padStart(4, '0') !== String(myFid).padStart(4, '0')) n.textContent += ' \u00B7 ' + (leagueFranchises[String(fid).padStart(4, '0')] || fid); } catch (e) { } }
     if (!document.getElementById('gth-abil')) box.insertAdjacentHTML('afterend', '<div id="gth-abil"></div>');
 }
 // Tap a character to start or bench him in your MFL lineup (1 leader at most, 2 sidekicks at most). Submit the lineup as usual afterwards.
-$(document).on('click', '#gth-chars .gth-ch[data-pid]', function () {
+$(document).on('click', '#gth-chars .gth-crm', function (e) { if ($(e.target).closest('.gth-crs').length) return; const o = $(this).closest('.gth-cr'); o.toggleClass('open'); window._gthOpen = window._gthOpen || {}; window._gthOpen[o.attr('data-ch')] = o.hasClass('open'); });
+$(document).on('click', '#gth-chars .gth-crs[data-pid]', function (e) { e.stopPropagation();
     const pid = this.dataset.pid, role = this.dataset.role, cb = currentDoc && currentDoc.querySelector(`input[value="${pid}"]`); if (!cb) return;
     if (!cb.checked) { const L = lldGthCharList(), n = L.filter(c => c.on && c.role === role).length, max = role === 'leader' ? 1 : 2; if (n >= max) { try { lldPlayedToast(role === 'leader' ? 'Bench your leader first.' : 'You can start 2 sidekicks. Bench one first.'); } catch (e) { } return; } }
     cb.checked = !cb.checked; try { renderActiveTab(); } catch (e) { } lldGthCapRender();
@@ -16965,13 +16967,13 @@ $(document).on('change', '#gth-copy', function () { lldSet('lld_gth_copy_' + Str
 function lldGthJoker(caps, rs, fit, dp, M, bn) { // runs the ability of every character you are starting
     const box = document.getElementById('gth-abil'); if (!box) return 0;
     const act = lldGthCharList(); let tot = 0; box.innerHTML = '';
-    act.sort((a, b) => (b.on ? 1 : 0) - (a.on ? 1 : 0)).forEach(c => {
-        const d = document.createElement('div'); d.className = 'gth-one' + (c.on ? '' : ' off'); box.appendChild(d);
+    act.forEach(c => {
+        const slot = document.querySelector('#gth-chars .gth-cr[data-ch="' + c.id + '"] .gth-crd'), d = document.createElement('div'); d.className = 'gth-one' + (c.on ? '' : ' off'); (slot || box).appendChild(d);
         window._lldGthPv = window._lldGthFxOff = !c.on;
         let v = 0; try { v = lldGthAbil1(d, c.id, caps, rs, fit, dp, M, bn) || 0; } catch (e) { console.warn('gth ability', c.id, e); }
         window._lldGthPv = window._lldGthFxOff = false;
-        window._gthOpen = window._gthOpen || {}; d.dataset.ch = c.id; if (!window._gthOpen[c.id]) d.classList.add('min'); // collapsed by default, tap the title to open
-        if (c.on) tot += v; else $(d).find('.h').first().append(' <span class="gth-offnote">not starting</span>');
+        if (c.on) tot += v;
+        const bb = document.querySelector('#gth-chars .gth-cr[data-ch="' + c.id + '"] .gth-crb'); if (bb) bb.textContent = c.on ? (v ? '+' + v.toFixed(1) : '0.0') : '';
     });
     return tot;
 }
@@ -26868,4 +26870,3 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 
 window.lldLogoRaw = lldLogoRaw;
 
-$(document).on('click', '#gth-abil .gth-one .h', function (e) { if ($(e.target).closest('select,button,input,a').length) return; const o = $(this).closest('.gth-one'), id = o.attr('data-ch'); window._gthOpen = window._gthOpen || {}; o.toggleClass('min'); window._gthOpen[id] = !o.hasClass('min'); });
