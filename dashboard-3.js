@@ -5437,6 +5437,7 @@ $(document).on('click touchend', '.open-settings-btn', function() {
     $('#league-controls-block').toggle(_isCommish && (lldCfgBool('resignOpen') === null || lldCfgBool('faMode') === null));
     $('#toggle-resign-btn').parent().toggle(lldCfgBool('resignOpen') === null); // set in the config instead of by button
     $('#toggle-fa-mode-btn').parent().toggle(lldCfgBool('faMode') === null);
+    try { const _gt = lldGthOn() && lldAdmin(); $('#gth-test-block').toggle(_gt); if (_gt) { $('#gth-test-block .lld-b-btn').removeClass('on'); $('#gth-test-block .lld-b-btn[data-v="' + lldBv('gtp') + '"]').addClass('on'); } } catch (e) { }
     if (_isCommish) {
         const resignOpen = localStorage.getItem(`resign_open_${lid}`) !== 'false';
         updateResignToggleUI(resignOpen);
@@ -10860,6 +10861,11 @@ $('body').append(`
         </div>
         <button id="toggle-fa-mode-btn" style="padding:8px 16px; border-radius:8px; font-size:calc(11px * var(--ts,1)); font-weight:900; cursor:pointer; border:none; background:#22c55e; color:#000; text-transform:uppercase;">Offseason</button>
     </div>
+</div>
+<div id="gth-test-block" style="display:none; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--card-border);">
+    <div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Gotham test mode</div>
+    <div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">Fills in made-up projections and scores when MFL has none, so you can test the points math. Nothing is saved to MFL.</div>
+    <div style="display:flex; gap:6px;"><button class="lld-hdr-btn lld-b-btn" data-k="gtp" data-v="1">On</button><button class="lld-hdr-btn lld-b-btn" data-k="gtp" data-v="0">Off</button></div>
 </div>
                 <div class="mflm-note">The MFL setup page opens on MFL's own site.</div>
                 <div id="mflm-list"></div>

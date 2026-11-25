@@ -1,6 +1,8 @@
 {
   "leagueId": "62528",
   "leagueName": "Fantasy Gotham",
+  "resignOpen": false,
+  "faMode": false,
   "salaryCap": 823,
   "adminFids": [
     "0001"
