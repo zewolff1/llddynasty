@@ -16748,6 +16748,20 @@ async function lldLdrLoad() {
         if (Object.keys(by).length) { LLDLD.by = by; LLDLD.t = Date.now(); }
     } catch (e) { } finally { LLDLD.busy = false; }
 }
+// puts a leader's portrait on one team-logo <img>; safe to call again and again (only touches it when it differs)
+function lldLdrImg(im) {
+    try {
+        if (!im || im.tagName !== 'IMG') return;
+        const by = LLDLD.by; if (!by || !Object.keys(by).length) return;
+        let fid = im.dataset.lldLdrFid;
+        if (!fid) { const m = (im.getAttribute('src') || '').match(/_franchise_logo(\d+)\./); if (m) fid = m[1]; else if (im.dataset.lldFid) fid = im.dataset.lldFid; }
+        if (!fid) return;
+        const L = by[String(fid).padStart(4, '0')]; if (!L || !L.img) return;
+        im.dataset.lldLdrFid = String(fid).padStart(4, '0');
+        if (im.getAttribute('src') !== L.img) { im.dataset.lldLdr = L.img; im.dataset.lldHelm = '1'; im.dataset.lldFallback = L.img; im.removeAttribute('srcset'); im.src = L.img; }
+        if (im.style.display === 'none') im.style.display = '';
+    } catch (e) { }
+}
 function lldLdrApply() {
     try {
         if (!lldGthOn()) return;
@@ -16769,22 +16783,23 @@ function lldLdrApply() {
             while ((n = w.nextNode())) { re.lastIndex = 0; if (re.test(n.nodeValue)) hits.push(n); }
             hits.forEach(t => { t.nodeValue = t.nodeValue.replace(re, m => mp[m] || m); });
         }
-        document.querySelectorAll('img').forEach(im => {
-            let fid = im.dataset.lldLdrFid;
-            if (!fid) { const m = (im.getAttribute('src') || '').match(/_franchise_logo(\d+)\./); if (m) fid = m[1]; else if (im.dataset.lldFid) fid = im.dataset.lldFid; }
-            if (!fid) return;
-            fid = String(fid).padStart(4, '0');
-            const L = by[fid]; if (!L || !L.img) return;
-            if (im.dataset.lldLdr === L.img && im.getAttribute('src') === L.img) { if (im.style.display === 'none') im.style.display = ''; return; }
-            im.dataset.lldLdr = L.img; im.dataset.lldLdrFid = fid; im.dataset.lldHelm = '1'; im.dataset.lldFallback = L.img; // marks keep the helmet/placeholder code from swapping it back
-            im.removeAttribute('srcset'); im.src = L.img; im.style.display = '';
-        });
+        document.querySelectorAll('img').forEach(lldLdrImg);
     } catch (e) { }
 }
 (function () {
     let t = null;
     const soon = () => { clearTimeout(t); t = setTimeout(() => { if (!lldGthOn()) return; lldLdrLoad().then(lldLdrApply); }, 400); };
     try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) { }
+    // runs the moment the page changes (before it is painted), so logos never flash the old picture or flicker back
+    try {
+        new MutationObserver(ms => {
+            if (!LLDLD.by || !Object.keys(LLDLD.by).length || !lldGthOn()) return;
+            ms.forEach(m => {
+                if (m.type === 'attributes') { if (m.target.tagName === 'IMG') lldLdrImg(m.target); return; }
+                m.addedNodes.forEach(n => { if (n.nodeType !== 1) return; if (n.tagName === 'IMG') lldLdrImg(n); else if (n.querySelectorAll) n.querySelectorAll('img').forEach(lldLdrImg); });
+            });
+        }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'style'] });
+    } catch (e) { }
     setInterval(() => { try { if (lldGthOn()) { lldLdrApply(); lldLdrLoad().then(lldLdrApply); } } catch (e) { } }, 4000);
     soon();
 })();
