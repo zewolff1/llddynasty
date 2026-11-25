@@ -16802,6 +16802,9 @@ function lldLdrApply() {
         } catch (e) { }
     }
     const soon = () => { clearTimeout(t); t = setTimeout(trim, 120); };
+    // hide Manage/Contracts the instant the tab bar is (re)built, before it paints, so it never flashes
+    const hideNow = () => { try { if (!lldGthOn()) return; document.querySelectorAll('#subtabs-team .sub-tab-btn').forEach(b => { if (/^(manage|contracts)$/i.test(b.textContent.trim()) && b.style.display !== 'none') b.style.display = 'none'; }); } catch (e) { } };
+    try { new MutationObserver(hideNow).observe(document.body, { childList: true, subtree: true, characterData: true }); } catch (e) { }
     try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) { }
     setInterval(trim, 3000); soon();
 })();
