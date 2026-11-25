@@ -16970,7 +16970,8 @@ function lldGthJoker(caps, rs, fit, dp, M, bn) { // runs the ability of every ch
         window._lldGthPv = window._lldGthFxOff = !c.on;
         let v = 0; try { v = lldGthAbil1(d, c.id, caps, rs, fit, dp, M, bn) || 0; } catch (e) { console.warn('gth ability', c.id, e); }
         window._lldGthPv = window._lldGthFxOff = false;
-        if (c.on) tot += v; else $(d).prepend('<div class="gth-offnote">Not starting \u00B7 preview only, not counted</div>');
+        window._gthOpen = window._gthOpen || {}; d.dataset.ch = c.id; if (!window._gthOpen[c.id]) d.classList.add('min'); // collapsed by default, tap the title to open
+        if (c.on) tot += v; else $(d).find('.h').first().append(' <span class="gth-offnote">not starting</span>');
     });
     return tot;
 }
@@ -26866,3 +26867,5 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 })();
 
 window.lldLogoRaw = lldLogoRaw;
+
+$(document).on('click', '#gth-abil .gth-one .h', function (e) { if ($(e.target).closest('select,button,input,a').length) return; const o = $(this).closest('.gth-one'), id = o.attr('data-ch'); window._gthOpen = window._gthOpen || {}; o.toggleClass('min'); window._gthOpen[id] = !o.hasClass('min'); });

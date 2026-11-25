@@ -6230,3 +6230,11 @@ body.lld-gth .standings-seg-btn[data-seg="order"],body.lld-gth .apv-v[data-v="ye
 .gth-fx.off,.gth-pj.off{opacity:.45;filter:grayscale(1)}
 #gth-abil .gth-one.off{opacity:.6;filter:grayscale(.8)}
 .gth-offnote{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
+
+#gth-abil .gth-one.min .gth-ab > *:not(.h):not(.st){display:none}
+#gth-abil .gth-one.min .gth-ab{padding-top:8px;padding-bottom:8px}
+#gth-abil .gth-one .h{cursor:pointer}
+#gth-abil .gth-one .h::after{content:"\25BE";float:right;opacity:.6}
+#gth-abil .gth-one:not(.min) .h::after{content:"\25B4"}
+.gth-offnote{display:inline;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.7;margin:0 0 0 6px}
+#gth-abil .gth-one.min .st{font-size:12px;opacity:.85;margin-top:2px}
