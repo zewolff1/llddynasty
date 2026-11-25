@@ -16620,6 +16620,7 @@ function lldPtrOn() { return true; }
 // and in LLD only when you flip the "Gotham mode" beta switch (commissioner franchises), so layouts can be tried here first.
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
 function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || !!(LLD.features && LLD.features.gotham); } catch (e) { return false; } } // turn it on in your league config: window.LLD_CONFIG = { features: { gotham: true } }
+window.lldGthOn = lldGthOn;
 const LLD_GTH = { features: {} }; // feature name -> { on: fn, render: fn }. New Gotham features register here.
 // ---- Gotham ability engine (ported from the Gotham Season Sim; the same math, checked against it) ----
 // lldGthEngine(S).compute() scores one team against one opponent. S = { tt, st, wins, slots[], P{}, roster[], opp[], ob[], oa, at, atp, inv, seed, hold, plan }.
@@ -26582,7 +26583,7 @@ function lldMyBlockTab() {
             const t = $(this).text().trim().toLowerCase();
             if (this.dataset.mtb) { delete this.dataset.mtb; this.textContent = 'Trade'; this.setAttribute('onclick', "openSubTab(event,'trade')"); }
             if (/contracts/.test(t)) { const w = document.createTreeWalker(this, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (/contracts/i.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(/contracts/i, 'Manage'); } }
-            if (lldGthOn() && /^(contracts|manage)$/.test($(this).text().trim().toLowerCase())) { this.style.display = 'none'; return; } // Gotham has no Manage tab
+            if (window.lldGthOn && window.lldGthOn() && /^(contracts|manage)$/.test($(this).text().trim().toLowerCase())) { this.style.display = 'none'; return; } // Gotham has no Manage tab
             $(this).show();
         });
         return;
