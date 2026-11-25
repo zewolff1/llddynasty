@@ -16731,7 +16731,7 @@ return { compute, AB, GROUPS, HEN, NSL, NST, SLOTS, T, G, TEAMS, POS, AVG, CAPB,
 window.lldGthEngine = lldGthEngine;
 // ---- Gotham: every team shows its leader's name and portrait (display only; MFL itself is not changed) ----
 // The leader is the Coach on a team's roster (players with role "leader" in the league file's characters). Teams with no leader keep their real name and logo.
-const LLDLD = { by: {}, real: {}, t: 0, busy: false };
+const LLDLD = { by: {}, real: {}, t: 0, busy: false }; window.lldLdrDebug = LLDLD;
 function lldLdrChars() { try { return (window.LLD_CONFIG || {}).characters || {}; } catch (e) { return {}; } }
 async function lldLdrLoad() {
     if (LLDLD.busy || Date.now() - LLDLD.t < 120000) return;
@@ -16770,12 +16770,14 @@ function lldLdrApply() {
             hits.forEach(t => { t.nodeValue = t.nodeValue.replace(re, m => mp[m] || m); });
         }
         document.querySelectorAll('img').forEach(im => {
-            let fid = im.dataset.lldFid;
-            if (!fid) { const m = (im.getAttribute('src') || '').match(/_franchise_logo(\d+)\./); if (m) fid = m[1]; }
+            let fid = im.dataset.lldLdrFid;
+            if (!fid) { const m = (im.getAttribute('src') || '').match(/_franchise_logo(\d+)\./); if (m) fid = m[1]; else if (im.dataset.lldFid) fid = im.dataset.lldFid; }
             if (!fid) return;
             fid = String(fid).padStart(4, '0');
-            const L = by[fid]; if (!L || !L.img || im.dataset.lldLdr === L.img) return;
-            im.dataset.lldLdr = L.img; im.dataset.lldFid = fid; im.src = L.img; im.style.display = '';
+            const L = by[fid]; if (!L || !L.img) return;
+            if (im.dataset.lldLdr === L.img && im.getAttribute('src') === L.img) { if (im.style.display === 'none') im.style.display = ''; return; }
+            im.dataset.lldLdr = L.img; im.dataset.lldLdrFid = fid; im.dataset.lldHelm = '1'; im.dataset.lldFallback = L.img; // marks keep the helmet/placeholder code from swapping it back
+            im.removeAttribute('srcset'); im.src = L.img; im.style.display = '';
         });
     } catch (e) { }
 }
