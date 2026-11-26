@@ -6279,3 +6279,6 @@ body.lld-gnav .league-tabs .tab-btn.gn-lock,body.lld-gnav .league-tabs .tab-btn.
 body.lld-gnav .league-tabs .tab-btn .gn-t{display:block;line-height:1.1}
 body.lld-gnav .league-tabs .tab-btn .gn-s{display:block;font-size:calc(8.5px * var(--ts,1));font-weight:700;letter-spacing:.04em;text-transform:none;opacity:.75;margin-top:2px}
 body.lld-gnav .league-tabs .tab-btn.gn-lock .gn-s{color:var(--text-dim);font-style:italic}
+
+.gth-tgl{display:block;margin-top:8px;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+.gth-tgl select{display:block;width:100%;margin-top:4px;padding:10px;border-radius:10px;border:1px solid var(--accent-teal);background:rgba(255,255,255,.05);color:#fff;font:inherit;font-size:calc(13px * var(--ts,1));text-transform:none;letter-spacing:0}
