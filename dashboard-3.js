@@ -17158,6 +17158,31 @@ function lldGthPkOpen(cc) {
     const rows = P.rows.map(r => `<button type="button" class="gth-pkr ${r.v === P.cur ? 'on' : ''}" data-v="${String(r.v).replace(/"/g, '&quot;')}">${av(r)}<span class="l"><b>${r.a}</b><small>${r.b || ''}</small></span><span class="s ${r.neg ? 'dn' : 'up'}">${r.s ? (r.s > 0 ? '+' : '') + r.s.toFixed(1) : '0.0'}</span></button>`).join('');
     $('body').append(`<div id="gth-pk" data-cc="${cc}"><div class="gth-pks"><div class="h"><b>${P.title}</b><button type="button" class="x">✕</button></div>${head}<div class="n">${lbl}. The number on the right is what each choice is worth right now. You must choose before you can submit.</div><div class="rl">${rows}</div></div></div>`);
 }
+
+// ---- Opponent squad: a "Mine | Theirs" switch on the Squad tab (setting in Theme > Rows) ----
+function lldGthOppOn() { return lldGet('lld_gth_opp', '1') === '1'; }
+function lldGthOppRender() {
+    const on = lldGthOppOn(), L = window._gthLast;
+    let bar = document.getElementById('gth-ot'), pan = document.getElementById('gth-opp'), lay = document.getElementById('gth-lay');
+    if (!on || !lay || !L) { $('#gth-ot,#gth-opp').remove(); document.body.classList.remove('gth-ov'); return; }
+    const view = window._gthOv === 'theirs' ? 'theirs' : 'mine';
+    if (!bar) { lay.insertAdjacentHTML('beforebegin', '<div id="gth-ot"></div><div id="gth-opp"></div>'); bar = document.getElementById('gth-ot'); pan = document.getElementById('gth-opp'); }
+    bar.innerHTML = `<button type="button" data-v="mine" class="${view === 'mine' ? 'on' : ''}">Mine</button><button type="button" data-v="theirs" class="${view === 'theirs' ? 'on' : ''}">Theirs</button>`;
+    document.body.classList.toggle('gth-ov', view === 'theirs');
+    if (view !== 'theirs') { pan.innerHTML = ''; return; }
+    const cnt = L.caps.concat(L.rs.filter(i => L.fit.slot[i.pid])), ctx = lldGthCtx(cnt, L.bn);
+    if (!ctx) { pan.innerHTML = `<div class="gth-oc"><b>Their squad</b><p>${LLD_GTH_NEEDS}</p></div>`; return; }
+    const W = Object.assign({ squad: ['Tue 00:00', 'Thu 20:00'] }, (LLD.gothamWeek || {})), locked = !lldGthOpenNow(W.squad);
+    const frz = (lldGthCharList().find(c => c.id === 'mrfreeze') || {}).on, tgv = lldGet(lldGthPkKey('mrfreeze'), '');
+    const rows = ctx.opp.map(o => `<div class="gth-or ${tgv === o.name ? 'hit' : ''}"><span class="pa pa-${o.pos}">${o.pos}</span><div class="l"><b>${o.name}</b><small>projected ${o.v.toFixed(1)} · last week ${o.last.toFixed(1)}</small></div>${frz && !locked ? `<button type="button" class="gth-ofz ${tgv === o.name ? 'on' : ''}" data-n="${o.name.replace(/"/g, '&quot;')}">${tgv === o.name ? 'Frozen' : 'Freeze'}</button>` : ''}<span class="s">${o.v.toFixed(1)}</span></div>`).join('');
+    const chs = locked
+        ? [['🧊', 'Mr. Freeze', 'Revealed: started this week'], ['🎯', 'Deadshot', 'Revealed: started this week']].map(c => `<div class="gth-och"><span class="av">${c[0]}</span><div><b>${c[1]}</b><small>${c[2]}</small></div><em class="r">Started</em></div>`).join('')
+        : [['🧊', 'Mr. Freeze', 'Leader'], ['🎎', 'Ventriloquist', 'Sidekick'], ['🎯', 'Deadshot', 'Sidekick']].map(c => `<div class="gth-och"><span class="av">${c[0]}</span><div><b>${c[1]}</b><small>${c[2]}</small></div><em>Owned</em></div>`).join('');
+    pan.innerHTML = `<div class="gth-oc"><div class="h"><b>Their squad</b><small>${locked ? 'Lineup revealed' : 'Roster. Lineup hidden until Thursday'}</small></div>${rows}${frz && !locked ? '<p>Tap Freeze on a player to target him with Mr. Freeze.</p>' : ''}<div class="hd2">${locked ? 'Characters they started' : 'Characters they could use'}</div>${chs}<p class="td">TEST DATA</p></div>`;
+}
+$(document).on('click', '#gth-ot button', function () { window._gthOv = this.dataset.v; lldGthOppRender(); });
+$(document).on('click', '.gth-ofz', function () { lldSet(lldGthPkKey('mrfreeze'), this.dataset.n); lldGthCapRender(); });
+$(document).on('click', '.gth-opp-btn', function () { lldSet('lld_gth_opp', this.dataset.v); $('.gth-opp-btn').removeClass('on'); $(this).addClass('on'); lldGthCapRender(); });
 $(document).on('click', '.gth-tgb', function (e) { e.stopPropagation(); lldGthPkOpen(this.dataset.cc); });
 $(document).on('click', '#gth-pk .x', function () { $('#gth-pk').remove(); });
 $(document).on('click', '#gth-pk', function (e) { if (e.target.id === 'gth-pk') $('#gth-pk').remove(); });
@@ -17288,6 +17313,7 @@ function lldGthCapRender() {
     let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
     $('#gth-bnn').text(bn.length);
     place('slots-bench', bn);
+    window._gthLast = { caps, rs, bn, fit }; try { lldGthOppRender(); } catch (e) { console.warn('gth opp', e); }
     $('#slots-bench .empty-slot').hide();
 }
 function lldGthSheet(pid) {
@@ -26328,7 +26354,7 @@ function lldQtHtml() {
         body = lab('Scoreboard style') + `<div class="qt-row qt-scroll">${[['theme', 'Match theme'], ['default', 'Default']].concat(LLD_SB_LAYOUTS).map(([v, l]) => `<button type="button" class="lld-hdr-btn lld-sb-btn ${sb === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`
             + lab('Theme colors on the scoreboard') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? 'on' : ''}" data-v="1">On</button><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? '' : 'on'}" data-v="0">Off</button></div>`;
     } else if (tab === 'colors' && lldCcOn()) { body = lldCcHtml();
-    } else body = lldRowBetaHtml() + (tab === 'rows' ? (window.lldGthOn && window.lldGthOn() ? `<div class="qt-l" style="margin-top:12px">Tab names</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? 'on' : ''}" data-v="1">Squad · Recruit · Gotham</button><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? '' : 'on'}" data-v="0">Team · Players · League</button></div>` : '') + `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
+    } else body = lldRowBetaHtml() + (tab === 'rows' ? (window.lldGthOn && window.lldGthOn() ? `<div class="qt-l" style="margin-top:12px">Tab names</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? 'on' : ''}" data-v="1">Squad · Recruit · Gotham</button><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? '' : 'on'}" data-v="0">Team · Players · League</button></div><div class="qt-l" style="margin-top:12px">Opponent squad</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-opp-btn ${lldGet('lld_gth_opp', '1') === '1' ? 'on' : ''}" data-v="1">Mine | Theirs</button><button type="button" class="lld-hdr-btn gth-opp-btn ${lldGet('lld_gth_opp', '1') === '1' ? '' : 'on'}" data-v="0">Off</button></div>` : '') + `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
     const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].concat(lldCcOn() ? [['colors', 'Colors']] : []).map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
