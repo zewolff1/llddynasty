@@ -720,7 +720,7 @@ function lldChatDigestHtml(it) {
 }
 function lldChatFeedHtml(items, block, ctx) {
     let out = '';
-    if (block && block.length) {
+    if (false && block && block.length) { // the "On the block now" strip was removed
         out += `<div class="cm-block"><button type="button" class="cm-bh">🏷️ On the block now <b>${block.length}</b><span>▾</span></button><div class="cm-bl">${block.map(b => `<div class="cm-bi"><img class="cm-av" src="${lldChatEsc(ctx.av(b.fid))}" alt=""><div><div class="cm-bn">${lldChatEsc(ctx.nm(b.fid))}</div><div class="cm-bg">${lldChatEsc(b.give || '')}</div>${b.want ? `<div class="cm-bw2">Wants: ${lldChatEsc(b.want)}</div>` : ''}</div></div>`).join('')}</div></div>`;
     }
     if (!items.length) return out + `<div class="cm-empty">No recent activity.</div>`;
