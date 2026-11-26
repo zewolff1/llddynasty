@@ -6273,3 +6273,9 @@ body.lld-trades-closed [data-lldtr]{display:none !important}
 
 #lld-qt.qt-colors{max-height:30vh !important}
 #lld-qt .qt-tabs{overflow-x:auto}
+
+/* Gotham tab bar */
+body.lld-gnav .league-tabs .tab-btn.gn-lock,body.lld-gnav .league-tabs .tab-btn.gn-lock .gn-t{opacity:.55}
+body.lld-gnav .league-tabs .tab-btn .gn-t{display:block;line-height:1.1}
+body.lld-gnav .league-tabs .tab-btn .gn-s{display:block;font-size:calc(8.5px * var(--ts,1));font-weight:700;letter-spacing:.04em;text-transform:none;opacity:.75;margin-top:2px}
+body.lld-gnav .league-tabs .tab-btn.gn-lock .gn-s{color:var(--text-dim);font-style:italic}

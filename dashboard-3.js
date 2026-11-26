@@ -16771,6 +16771,35 @@ function lldPtrOn() { return true; }
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
 function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || !!(LLD.features && LLD.features.gotham); } catch (e) { return false; } } // turn it on in your league config: window.LLD_CONFIG = { features: { gotham: true } }
 window.lldGthOn = lldGthOn;
+
+// ---- Gotham tab bar: Squad / Recruit / Gotham, each with the days it is open (grayed when locked) ----
+// Times are Eastern. Change them in your league config: LLD_CONFIG.gothamWeek = { squad:['Tue 00:00','Thu 20:00'], recruit:['Tue 00:00','Wed 09:00'] }
+function lldGthNavOn() { return lldGet('lld_gth_nav', '1') === '1'; }
+function lldGthEt() { // minutes since Sunday 00:00, Eastern
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()), g = t => (p.find(x => x.type === t) || {}).value;
+    return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday')) * 1440 + (+g('hour')) * 60 + (+g('minute'));
+}
+function lldGthWin(a) { const D = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], f = x => { const m = String(x).split(/[ :]/); return D.indexOf(m[0]) * 1440 + (+m[1]) * 60 + (+m[2] || 0); }; return [f(a[0]), f(a[1])]; }
+function lldGthOpenNow(a) { const w = lldGthWin(a), n = lldGthEt(); return w[0] <= w[1] ? (n >= w[0] && n < w[1]) : (n >= w[0] || n < w[1]); }
+function lldGthNav() {
+    try {
+        if (!lldGthOn()) return;
+        const W = Object.assign({ squad: ['Tue 00:00', 'Thu 20:00'], recruit: ['Tue 00:00', 'Wed 09:00'] }, (LLD.gothamWeek || {}));
+        const on = lldGthNavOn();
+        const M = { 'tab-team': ['Team', 'Squad', 'Tue–Thu', W.squad], 'tab-players': ['Players', 'Recruit', 'Tue–Wed', W.recruit], 'tab-league': ['League', 'Gotham', 'Always', null] };
+        document.body.classList.toggle('lld-gnav', on);
+        document.querySelectorAll('.league-tabs .tab-btn').forEach(b => {
+            const m = /'(tab-[a-z]+)'/.exec(b.getAttribute('onclick') || ''); const d = m && M[m[1]]; if (!d) return;
+            const open = d[3] ? lldGthOpenNow(d[3]) : true, key = on + '|' + open;
+            if (b.dataset.gn === key) return; b.dataset.gn = key;
+            b.innerHTML = on ? '<span class="gn-t">' + d[1] + '</span><span class="gn-s">' + (open ? d[2] : 'Locked') + '</span>' : d[0];
+            b.classList.toggle('gn-lock', on && !open);
+        });
+    } catch (e) { }
+}
+window.lldGthNav = lldGthNav;
+[800, 2500, 6000].forEach(t => setTimeout(lldGthNav, t)); setInterval(lldGthNav, 30000);
+$(document).on('click', '.gth-nav-btn', function () { lldSet('lld_gth_nav', this.dataset.v); $('.gth-nav-btn').removeClass('on'); $(this).addClass('on'); document.querySelectorAll('.league-tabs .tab-btn').forEach(b => delete b.dataset.gn); lldGthNav(); });
 const LLD_GTH = { features: {} }; // feature name -> { on: fn, render: fn }. New Gotham features register here.
 // ---- Gotham ability engine (ported from the Gotham Season Sim; the same math, checked against it) ----
 // lldGthEngine(S).compute() scores one team against one opponent. S = { tt, st, wins, slots[], P{}, roster[], opp[], ob[], oa, at, atp, inv, seed, hold, plan }.
@@ -26272,7 +26301,7 @@ function lldQtHtml() {
         body = lab('Scoreboard style') + `<div class="qt-row qt-scroll">${[['theme', 'Match theme'], ['default', 'Default']].concat(LLD_SB_LAYOUTS).map(([v, l]) => `<button type="button" class="lld-hdr-btn lld-sb-btn ${sb === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`
             + lab('Theme colors on the scoreboard') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? 'on' : ''}" data-v="1">On</button><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? '' : 'on'}" data-v="0">Off</button></div>`;
     } else if (tab === 'colors' && lldCcOn()) { body = lldCcHtml();
-    } else body = lldRowBetaHtml() + (tab === 'rows' ? `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
+    } else body = lldRowBetaHtml() + (tab === 'rows' ? (window.lldGthOn && window.lldGthOn() ? `<div class="qt-l" style="margin-top:12px">Tab names</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? 'on' : ''}" data-v="1">Squad · Recruit · Gotham</button><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? '' : 'on'}" data-v="0">Team · Players · League</button></div>` : '') + `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
     const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].concat(lldCcOn() ? [['colors', 'Colors']] : []).map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
