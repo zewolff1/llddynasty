@@ -17085,13 +17085,14 @@ function lldGthH(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.l
 function lldGthR(seed) { let a = lldGthH(seed); return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const LLD_GTH_OPPN = ['Patrick Mahomes', 'Saquon Barkley', 'Jahmyr Gibbs', 'Ja\'Marr Chase', 'Zay Flowers', 'DK Metcalf', 'Jameson Williams', 'Mark Andrews', 'James Cook', 'Trey McBride', 'Derrick Henry', 'Nico Collins', 'Joe Burrow', 'Tyreek Hill'];
 function lldGthCtx(cnt, bn) { // made-up league data, the same all week (seeded by league, team and week); only when Test mode is on
-    if (!(window._gthTry || (lldAdmin() && lldBv('gtp') === '1'))) return null;
+    if (!(window._gthTry || (lldAdmin() && lldBv('gtp') === '1') || (window._gthRealOpp && window._gthRealOpp.opp))) return null;
     const wk = parseInt(window._lldServedWeek, 10) || 0, R = lldGthR([lid, fid, wk, 'ctx'].join('|')), mp = {};
     cnt.concat(bn).forEach(i => { const r = lldGthR([lid, fid, wk, i.pid].join('|')); mp[i.pid] = { last: Math.round(i.v * (0.6 + r() * 0.8) * 10) / 10, sS: 1 + Math.floor(r() * 6), sC: Math.floor(r() * 6), former: r() < 0.15, benchLast: r() < 0.15, bw: Math.floor(r() * 5), avg: Math.max(6, i.pj || 8), out: r() < 0.08 }; });
-    const pos = ['QB', 'RB', 'RB', 'WR', 'WR', 'WR', 'TE', 'RB', 'WR', 'TE'], base = { QB: 18, RB: 12, WR: 11, TE: 8 }, opp = pos.map((p, k) => { const pj = base[p] + R() * 8, sl = Math.floor(R() * 5); return { name: LLD_GTH_OPPN[k], pos: p, pj, v: Math.round(pj * (0.6 + R() * 0.8) * 10) / 10, last: Math.round(pj * (0.6 + R() * 0.8) * 10) / 10, slot: sl, night: sl === 0 || sl === 3 || sl === 4, sS: 1 + Math.floor(R() * 6), sC: Math.floor(R() * 6), wasBench: R() < 0.15 }; });
-    const ob = [0, 1, 2, 3].map(k => ({ name: LLD_GTH_OPPN[10 + k], v: Math.round((3 + R() * 9) * 10) / 10 }));
+    let pos = ['QB', 'RB', 'RB', 'WR', 'WR', 'WR', 'TE', 'RB', 'WR', 'TE'], base = { QB: 18, RB: 12, WR: 11, TE: 8 }, opp = pos.map((p, k) => { const pj = base[p] + R() * 8, sl = Math.floor(R() * 5); return { name: LLD_GTH_OPPN[k], pos: p, pj, v: Math.round(pj * (0.6 + R() * 0.8) * 10) / 10, last: Math.round(pj * (0.6 + R() * 0.8) * 10) / 10, slot: sl, night: sl === 0 || sl === 3 || sl === 4, sS: 1 + Math.floor(R() * 6), sC: Math.floor(R() * 6), wasBench: R() < 0.15 }; });
+    let ob = [0, 1, 2, 3].map(k => ({ name: LLD_GTH_OPPN[10 + k], v: Math.round((3 + R() * 9) * 10) / 10 }));
+    const RO = window._gthRealOpp; if (RO && RO.opp && RO.opp.length) { opp = RO.opp.map(o => Object.assign({}, o)); ob = RO.ob.length ? RO.ob : ob; cnt.concat(bn).forEach(i => { if (RO.mine && RO.mine[i.pid] !== undefined) mp[i.pid].last = RO.mine[i.pid]; }); }
     const myLast = cnt.reduce((a, i) => a + mp[i.pid].last, 0), oppLast = opp.reduce((a, o) => a + o.last, 0);
-    return { dummy: true, mp, opp, ob, myLast, oppLast, myRank: 1 + Math.floor(R() * 12), oppRank: 1 + Math.floor(R() * 12), myFaab: 50 + Math.floor(R() * 450), oppFaab: 50 + Math.floor(R() * 450), arkham: 1 + Math.floor(R() * 6), used: 1 + Math.floor(R() * 8), cutStarted: Math.floor(R() * 3), oppAdded: Math.floor(R() * 3), oppCut: Math.floor(R() * 3) };
+    return { dummy: true, real: !!(RO && RO.opp && RO.opp.length), mp, opp, ob, myLast, oppLast, myRank: 1 + Math.floor(R() * 12), oppRank: 1 + Math.floor(R() * 12), myFaab: 50 + Math.floor(R() * 450), oppFaab: 50 + Math.floor(R() * 450), arkham: 1 + Math.floor(R() * 6), used: 1 + Math.floor(R() * 8), cutStarted: Math.floor(R() * 3), oppAdded: Math.floor(R() * 3), oppCut: Math.floor(R() * 3) };
 }
 const LLD_GTH_NEEDS = 'Needs league data (your opponent, last week or standings). Turn on Test mode on the Commissioner tools screen to preview it with made-up numbers.';
 // each entry: name, icon, needs league data?, and a function that returns { d: change to your total, st: status text, opp: change to your opponent's total (optional), fx: [row effects] }
@@ -17149,7 +17150,7 @@ function lldGthExtra(cc, caps, rs, fit, dp, M, bn, box, pv) {
     else r = E[3](c);
     if (r.btn) extra = r.btn;
     const oppTxt = r.opp ? `<div class="st">Your opponent's total: <b class="dn">${r.opp.toFixed(1)}</b> (shown separately, not part of your total)</div>` : '';
-    box.innerHTML = `<div class="gth-ab"><div class="h"><b>${E[1]} ${E[0]}</b>${ctx ? '<small style="margin-left:8px;opacity:.7">TEST DATA</small>' : ''}</div><p>${desc}</p><div class="st">${r.st}</div>${oppTxt}${extra}</div>`;
+    box.innerHTML = `<div class="gth-ab"><div class="h"><b>${E[1]} ${E[0]}</b>${ctx ? '<small style="margin-left:8px;opacity:.7">' + (ctx.real ? 'REAL OPPONENT' : 'TEST DATA') + '</small>' : ''}</div><p>${desc}</p><div class="st">${r.st}</div>${oppTxt}${extra}</div>`;
     return r.d || 0;
 }
 function lldGthClayface(box, caps, rs, fit, dp, M, bn) { // Copycat: pick one of the other new abilities and run it as your own
@@ -17173,6 +17174,31 @@ function lldGthPkOpen(cc) {
     $('body').append(`<div id="gth-pk" data-cc="${cc}"><div class="gth-pks"><div class="h"><b>${P.title}</b><button type="button" class="x">✕</button></div>${head}<div class="n">${lbl}. The number on the right is what each choice is worth right now. You must choose before you can submit.</div><div class="rl">${rows}</div></div></div>`);
 }
 
+
+// ---- Real opponent: who you play this week, their likely starters, their projections and last week's scores (from MFL) ----
+async function lldGthOppLoad() {
+    const wk = parseInt(window._lldServedWeek, 10) || 0; if (!wk) return;
+    const R = window._gthRealOpp; if (R && R.wk === wk && Date.now() - R.t < 300000) return;
+    if (window._gthOppBusy) return; window._gthOppBusy = true;
+    const J = async q => { try { const r = await fetch(`${MFL_ORIGIN}/${year}/export?${q}&L=${lid}&JSON=1`, { credentials: 'include', cache: 'no-store' }); return JSON.parse(await r.text()); } catch (e) { return null; } };
+    try {
+        const me = String(fid).padStart(4, '0'), sc = await J(`TYPE=schedule&W=${wk}`);
+        const ms = [].concat((sc && sc.schedule && sc.schedule.weeklySchedule && [].concat(sc.schedule.weeklySchedule).find(x => String(x.week) === String(wk)) || {}).matchup || []);
+        let of = null; ms.forEach(m => { const f = [].concat(m.franchise || []).map(x => String(x.id).padStart(4, '0')); if (f.indexOf(me) >= 0) of = f.find(x => x !== me) || null; });
+        if (!of) { window._gthRealOpp = { wk, t: Date.now(), none: true }; return; }
+        const [ro, pj, ls, lg] = await Promise.all([J(`TYPE=rosters&FRANCHISE=${of}`), J(`TYPE=projectedScores&W=${wk}`), wk > 1 ? J(`TYPE=playerScores&W=${wk - 1}&YEAR=${year}`) : null, J('TYPE=league')]);
+        const ids = [].concat((ro && ro.rosters && [].concat(ro.rosters.franchise || [])[0] && [].concat(ro.rosters.franchise)[0].player) || []).map(x => String(x.id));
+        const pl = {}; for (let i = 0; i < ids.length; i += 50) { const d = await J(`TYPE=players&PLAYERS=${ids.slice(i, i + 50).join(',')}`); [].concat((d && d.players && d.players.player) || []).forEach(x => { pl[String(x.id)] = x; }); }
+        const sm = d => { const o = {}; [].concat((d && ((d.projectedScores && d.projectedScores.playerScore) || (d.playerScores && d.playerScores.playerScore))) || []).forEach(x => { o[String(x.id)] = parseFloat(x.score) || 0; }); return o; };
+        const P = sm(pj), Lw = sm(ls);
+        const nm = x => { const t = String(x || ''), m = t.split(','); return m.length > 1 ? m[1].trim() + ' ' + m[0].trim() : t; };
+        const all = ids.map(id => pl[id]).filter(x => x && /^(QB|RB|WR|TE)$/.test(x.position)).map(x => ({ name: nm(x.name), pos: x.position, pj: P[String(x.id)] || 0, v: P[String(x.id)] || 0, last: Lw[String(x.id)] || 0, slot: 1, night: false, sS: 0, sC: 0, wasBench: false, id: String(x.id) }));
+        all.sort((a, b) => b.v - a.v);
+        const fr = [].concat((lg && lg.league && lg.league.franchises && lg.league.franchises.franchise) || []).find(x => String(x.id).padStart(4, '0') === of);
+        window._gthRealOpp = { wk, t: Date.now(), fid: of, name: fr ? fr.name : 'Your opponent', opp: all.slice(0, 10), ob: all.slice(10, 14).map(x => ({ name: x.name, v: x.v })), mine: Lw };
+        try { lldGthCapRender(); } catch (e) { }
+    } catch (e) { console.warn('gth opp load', e); } finally { window._gthOppBusy = false; }
+}
 // ---- Opponent squad: a "Mine | Theirs" switch on the Squad tab (setting in Theme > Rows) ----
 function lldGthOppOn() { return lldGet('lld_gth_opp', '1') === '1'; }
 function lldGthOppRender() {
@@ -17192,7 +17218,7 @@ function lldGthOppRender() {
     const chs = locked
         ? [['🧊', 'Mr. Freeze', 'Revealed: started this week'], ['🎯', 'Deadshot', 'Revealed: started this week']].map(c => `<div class="gth-och"><span class="av">${c[0]}</span><div><b>${c[1]}</b><small>${c[2]}</small></div><em class="r">Started</em></div>`).join('')
         : [['🧊', 'Mr. Freeze', 'Leader'], ['🎎', 'Ventriloquist', 'Sidekick'], ['🎯', 'Deadshot', 'Sidekick']].map(c => `<div class="gth-och"><span class="av">${c[0]}</span><div><b>${c[1]}</b><small>${c[2]}</small></div><em>Owned</em></div>`).join('');
-    pan.innerHTML = `<div class="gth-oc"><div class="h"><b>Their squad</b><small>${locked ? 'Lineup revealed' : 'Roster. Lineup hidden until Thursday'}</small></div>${rows}${frz && !locked ? '<p>Tap Freeze on a player to target him with Mr. Freeze.</p>' : ''}<div class="hd2">${locked ? 'Characters they started' : 'Characters they could use'}</div>${chs}<p class="td">TEST DATA</p></div>`;
+    pan.innerHTML = `<div class="gth-oc"><div class="h"><b>${(window._gthRealOpp && window._gthRealOpp.name) || 'Their squad'}</b><small>${locked ? 'Lineup revealed' : 'Roster. Lineup hidden until Thursday'}</small></div>${rows}${frz && !locked ? '<p>Tap Freeze on a player to target him with Mr. Freeze.</p>' : ''}<div class="hd2">${locked ? 'Characters they started' : 'Characters they could use'}</div>${chs}${ctx.real ? '' : '<p class="td">TEST DATA</p>'}</div>`;
 }
 $(document).on('click', '#gth-ot button', function () { window._gthOv = this.dataset.v; lldGthOppRender(); });
 $(document).on('click', '.gth-ofz', function () { lldSet(lldGthPkKey('mrfreeze'), this.dataset.n); lldGthCapRender(); });
@@ -17362,7 +17388,7 @@ function lldGthCapRender() {
     let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
     $('#gth-bnn').text(bn.length);
     place('slots-bench', bn);
-    window._gthLast = { caps, rs, bn, fit }; try { lldGthTryBar(); lldGthOppRender(); } catch (e) { console.warn('gth opp', e); }
+    window._gthLast = { caps, rs, bn, fit }; try { lldGthOppLoad(); lldGthTryBar(); lldGthOppRender(); } catch (e) { console.warn('gth opp', e); }
     $('#slots-bench .empty-slot').hide();
 }
 function lldGthSheet(pid) {
