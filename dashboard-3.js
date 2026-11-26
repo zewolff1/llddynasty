@@ -24850,22 +24850,32 @@ function lldCcApply() {
     try {
         const c = lldCcOn() ? lldCcGet() : {}, b = document.body.style, r = document.documentElement.style, keys = LLD_CC.map(x => x[0]).concat(['--card-hover']);
         keys.forEach(k => { b.removeProperty(k); });
-        if (!lldCcOn()) return;
+        if (!lldCcOn()) { const st0 = document.getElementById('lld-cc-css'); if (st0) st0.textContent = ''; return; }
         Object.keys(c).forEach(k => { if (c[k]) { b.setProperty(k, c[k], 'important'); r.setProperty(k, c[k], 'important'); } });
+        let st = document.getElementById('lld-cc-css'); if (!st) { st = document.createElement('style'); st.id = 'lld-cc-css'; document.head.appendChild(st); }
+        let css = ''; if (c['--page-bg']) css += `html, html:has(body), body, body#body_home { background-color: ${c['--page-bg']} !important; background-image: none !important; } .app-header { background-color: ${c['--page-bg']} !important; }`;
+        if (c['--card-bg']) css += `.player-row, .lld-card { background: ${c['--card-bg']} !important; }`;
+        if (c['--card-border']) css += `.player-row { border-color: ${c['--card-border']} !important; }`;
+        st.textContent = css;
+        try { $('#lld-qt').toggleClass('qt-colors', window._lldQtTab === 'colors'); } catch (e) { }
         if (c['--card-bg']) { const h = 'color-mix(in srgb, ' + c['--card-bg'] + ' 82%, white 18%)'; b.setProperty('--card-hover', h, 'important'); }
     } catch (e) { }
+}
+function lldCcHtml() {
+    const cur = lldCcGet();
+    return `<div id="lld-cc"><div class="qt-l">Pick your own colors. The screen above changes as you pick.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${LLD_CC.map(([k, n]) => `<label style="display:flex;align-items:center;gap:8px;font-size:calc(12px * var(--ts,1));font-weight:800;color:#fff"><input type="color" data-cc="${k}" value="${cur[k] || lldCcHex('var(' + k + ')')}" style="width:42px;height:34px;border:none;background:none;padding:0">${n}</label>`).join('')}</div><button type="button" id="lld-cc-reset" class="lld-hdr-btn" style="margin-top:10px">Reset colors</button></div>`;
 }
 function lldCcMount() {
     try {
         if (!lldCcOn()) { $('#lld-cc').remove(); return; }
         if ($('#lld-cc').length) return;
-        const anchor = $('.lld-wide-row').first(); if (!anchor.length) return;
+        const anchor = $('.lld-wide-row').not('#lld-qt .lld-wide-row').first(); if (!anchor.length) return;
         const cur = lldCcGet();
         anchor.after(`<div id="lld-cc" style="margin:12px 0;padding:12px;border:1px dashed var(--accent-teal);border-radius:10px"><div style="font-size:calc(9px * var(--ts,1));font-weight:900;color:var(--accent-teal);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Custom colors (test)</div><div style="font-size:calc(11px * var(--ts,1));color:var(--text-dim);margin-bottom:10px">Pick your own colors on top of the theme. Saved on this device only.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${LLD_CC.map(([k, n]) => `<label style="display:flex;align-items:center;gap:8px;font-size:calc(12px * var(--ts,1));font-weight:800;color:#fff"><input type="color" data-cc="${k}" value="${cur[k] || lldCcHex('var(' + k + ')')}" style="width:38px;height:30px;border:none;background:none;padding:0">${n}</label>`).join('')}</div><button type="button" id="lld-cc-reset" class="lld-hdr-btn" style="margin-top:10px">Reset colors</button></div>`);
     } catch (e) { }
 }
 $(document).on('input change', '#lld-cc [data-cc]', function () { const c = lldCcGet(); c[this.dataset.cc] = this.value; lldSet('lld_cc', JSON.stringify(c)); lldCcApply(); });
-$(document).on('click', '#lld-cc-reset', function () { lldSet('lld_cc', '{}'); $('#lld-cc').remove(); lldCcApply(); lldCcMount(); });
+$(document).on('click', '#lld-cc-reset', function () { lldSet('lld_cc', '{}'); $('#lld-cc').remove(); lldCcApply(); if ($('#lld-qt').length) $('#lld-qt').html(lldQtHtml()); else lldCcMount(); });
 setInterval(() => { lldCcMount(); lldCcApply(); }, 1500);
 $(document).on('click', '.lld-auto-btn', function () { lldSet('lld_auto', this.dataset.v === 'off' ? '0' : '1'); document.querySelectorAll('.lld-auto-btn').forEach(b => b.classList.toggle('on', b.dataset.v === this.dataset.v)); lldApplyStyle(lldGet('lld_style', 'classic')); applyTeamTheme(myFid, true); });
 $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode(this.dataset.mode); });
@@ -26154,10 +26164,11 @@ function lldQtHtml() {
         const sb = lldGet('lld_sb', 'theme'), tint = lldGet('lld_sbtint', '') === '1';
         body = lab('Scoreboard style') + `<div class="qt-row qt-scroll">${[['theme', 'Match theme'], ['default', 'Default']].concat(LLD_SB_LAYOUTS).map(([v, l]) => `<button type="button" class="lld-hdr-btn lld-sb-btn ${sb === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`
             + lab('Theme colors on the scoreboard') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? 'on' : ''}" data-v="1">On</button><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? '' : 'on'}" data-v="0">Off</button></div>`;
+    } else if (tab === 'colors' && lldCcOn()) { body = lldCcHtml();
     } else body = lldRowBetaHtml();
     const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
-        + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
+        + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].concat(lldCcOn() ? [['colors', 'Colors']] : []).map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
         + pv + `<div class="qt-body">${body}</div>`;
 }
 $(document).on('click', '#lld-qt .lld-sbt-set', function () { lldApplySbTint(this.dataset.v === '1'); $('#lld-qt .lld-sbt-set').each(function () { $(this).toggleClass('on', this.dataset.v === (lldGet('lld_sbtint', '') === '1' ? '1' : '0')); }); });
