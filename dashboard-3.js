@@ -24834,11 +24834,11 @@ $(document).on('click', '#lld-hol [data-k]', function () {
 });
 $(document).on('click', '#lld-hol', function (e) { if (e.target.id === 'lld-hol') $(this).remove(); });
 setTimeout(lldHolidayPrompt, 4500);
-// ---- Thanksgiving greeting (once per day during Thanksgiving week) ----
+// ---- Thanksgiving greeting (shown once per person per year, then never again) ----
 function lldThxGreet() {
     try {
         const w = lldThx(); if (!w) return;
-        const key = 'thx' + new Date().getFullYear() + '-' + new Date().getDate(); if (lldGet('lld_thx_seen', '') === key) return;
+        const key = 'thx' + new Date().getFullYear(); if (lldGet('lld_thx_seen', '') === key) return;
         if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
         lldSet('lld_thx_seen', key);
         const nm = /^(LLD Dynasty|Live and Let Dynasty)$/.test(LLD.leagueName || '') ? "Live and Let's Feast" : (LLD.leagueName || 'the league');
