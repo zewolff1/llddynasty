@@ -14637,7 +14637,7 @@ function lldCharsRender() {
         host.insertAdjacentHTML('afterbegin', html);
     } catch (e) { console.warn('chars', e); }
 }
-function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_)$/.test(k)) return '1'; /* graduated: Sleeper tab, new Scores layout, game replay slide */ if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv|clr)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
+function lldBv(k) { if (/^(slt|scn|gbg|espn|rv_|clrv)$/.test(k)) return '1'; /* clrv: compact rows Steady/Volatile word is always on */ /* graduated: Sleeper tab, new Scores layout, game replay slide */ if (/^(slp|sst|hd2|sct|smt|str|nav)$/.test(k)) return '0'; if (/^(anim|ldr|wnw)$/.test(k)) return '0'; /* retired: header shrink animation, loading screen, What's new popup */ if (k === 'wm') return '1'; /* team logo behind photos: always on */ if (/^(lock|pos|tpl|hdm|shb|pmd|ptr|asv|clr)$/.test(k)) return '1'; /* graduated from beta: always on for everyone */ /* Sleeper-style views removed from the beta panel; kept dormant */ const v = lldGet('lld_b_' + k, lldBdef(k)); return (k === 'wm' && v !== '0') ? '1' : v; }
 window.lldBv = lldBv;
 function lldApplyBeta() {
     const b = lldBeta(), c = document.body.classList, wm = lldBv('wm');
@@ -24829,18 +24829,7 @@ lldApplyStyle(lldGet('lld_style', 'classic'));
 lldApplyHdrMode(lldBeta() && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 
-// ---- Style toggles that graduated from beta: on for everyone, switchable here ----
-function lldTogMount() {
-    try {
-        document.querySelectorAll('.lld-wide-row').forEach(w => {
-            if (w.nextElementSibling && w.nextElementSibling.classList.contains('lld-tg')) return;
-            const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
-            const oo = k => `<div style="display:flex; gap:6px; margin-bottom:16px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
-            w.insertAdjacentHTML('afterend', `<div class="lld-tg">${lab('Compact rows: show the Steady / Volatile word')}${oo('clrv')}${lab('Team header: logo on the left, everything else on the right')}${oo('hdl')}</div>`);
-        });
-    } catch (e) { }
-}
-setInterval(lldTogMount, 1500);
+setInterval(() => { try { document.querySelectorAll('.lld-tg').forEach(e => e.remove()); } catch (e) { } }, 1500); // old style-tab toggles (moved to Rows)
 // ---- Custom theme colors (test, franchise 0000 only): pick your own colors on top of whatever theme is on. Saved on this device. ----
 const LLD_CC = [['--page-bg', 'Background'], ['--card-bg', 'Cards'], ['--card-border', 'Borders'], ['--text-dim', 'Soft text'], ['--accent-blue', 'Accent 1'], ['--accent-teal', 'Accent 2']];
 function lldCcOn() { return String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0') === '0000'; }
@@ -26165,7 +26154,7 @@ function lldQtHtml() {
         body = lab('Scoreboard style') + `<div class="qt-row qt-scroll">${[['theme', 'Match theme'], ['default', 'Default']].concat(LLD_SB_LAYOUTS).map(([v, l]) => `<button type="button" class="lld-hdr-btn lld-sb-btn ${sb === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`
             + lab('Theme colors on the scoreboard') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? 'on' : ''}" data-v="1">On</button><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? '' : 'on'}" data-v="0">Off</button></div>`;
     } else if (tab === 'colors' && lldCcOn()) { body = lldCcHtml();
-    } else body = lldRowBetaHtml();
+    } else body = lldRowBetaHtml() + (tab === 'rows' ? `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
     const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].concat(lldCcOn() ? [['colors', 'Colors']] : []).map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
