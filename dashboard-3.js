@@ -3741,8 +3741,8 @@ function lldGthRulesHtml() {
     Object.keys(ch).forEach(k => { const c = ch[k]; if (c && groups[c.role]) groups[c.role].push(c); });
     const list = r => groups[r].slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => { const ab = lldGthAbd(c.name) || []; return `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><div style="font-weight:900;">${c.name}</div>${ab.map(x => `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);"><b style="color:var(--accent-teal)">${x[0]}</b> · ${x[1]}</div>`).join('') || '<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Ability coming soon.</div>'}</div>`; }).join('');
     const ex1 = 55, ex2 = 90, exr = 7, exb = Math.min(Math.max(0, bs - exr) * dp, cap), exT = ex1 * M + ex2 * (1 + exb / 100);
-    const T = {
-        practice: ['Practice', '<div id="gtut"></div>'],
+    const T0 = {}, T = {
+        practice: ['Lineup', '<div id="gtut"></div>'],
         basics: ['Basics', box('Welcome to Fantasy Gotham', 'A one-season league. There are no keepers, contracts or draft picks to manage. You build a team of NFL players, then add Gotham characters whose abilities change how your points are counted each week.')
             + box('How a week works', `You start <b>${n} players</b> and up to three characters. Some players are <b>Captains</b> and count extra. Your characters add bonus points. Your total is your starters plus all of those bonuses.`)
             + walk(['Open the <b>Team</b> tab, then <b>Lineup</b>.', 'Start your characters, then your players.', 'Choose your Captains.', 'Check the Projected Total at the top.', 'Tap <b>Submit Lineup Changes</b>. Do it before kickoff.'])],
@@ -3758,7 +3758,19 @@ function lldGthRulesHtml() {
         sides: ['Sidekicks', box('Sidekicks (Defense)', 'Your two character spots can be a Leader and a Sidekick, or two Sidekicks.') + box('All Sidekicks', list('sidekick') || 'No sidekicks yet.')
             + walk(['Go to Lineup and tap a Sidekick’s row.', 'Read what he needs, such as a certain kind of player or a kickoff time.', 'Tap <b>Start</b> if the bonus is worth a spot.', 'Two characters is the limit, so with two Sidekicks you have no Leader.'])]
     };
-    ['basics', 'lineup', 'capt', 'chars'].forEach(k => delete T[k]); // the interactive Practice teaches these now
+    T0.leaders = T.leaders; T0.sides = T.sides;
+    ['basics', 'lineup', 'capt', 'chars', 'leaders', 'sides'].forEach(k => delete T[k]); // Lineup practice replaces these
+    const lead = T0.leaders[1], side = T0.sides[1];
+    T.characters = ['Characters', box('What characters do', 'Every character has an ability that changes how your points count. You can start 2 characters in total: a Leader and a Sidekick, or two Sidekicks. Characters you own but do not start show their effect grayed out and do not count.') + lead + side];
+    T.arkham = ['Arkham', box('How characters get sent to Arkham', 'On Tuesday, your two Sidekicks are sent to Arkham if your team had the <b>lowest score of the week</b>, or if your team <b>lost to Batman</b>.')
+        + box('Waller', 'Waller can use characters that are in Arkham. Any character Waller does not use <b>breaks out</b> of Arkham and goes back to waivers.')
+        + box('Your week', 'Tuesday: Arkham sentences and break-outs. Wednesday morning: waivers process, including characters that broke out. Thursday night: everything locks at kickoff.')
+        + walk(['On Tuesday, check the Arkham list to see who was sent away and why.', 'If one of your Sidekicks is there, he cannot be started until he is free.', 'If you are Waller, choose which Arkham characters to use before Thursday kickoff.', 'Characters Waller skips break out and can be claimed on waivers Wednesday morning.'])];
+    T.batman = ['Batman', box('Batman invades a matchup', 'Each week Batman invades one matchup and turns it into a <b>3 way matchup</b>: the two teams and Batman. Batman scores against both teams.')
+        + box('If you lose to Batman', 'Your two Sidekicks are sent to Arkham on Tuesday. The lowest score of the week is sent there too.')
+        + box('Thursday night', 'Everything locks at Thursday night kickoff. Every lineup and ability is revealed, and so is the matchup Batman invades.')
+        + walk(['Set your lineup before Thursday kickoff. Everything locks then.', 'On Thursday night, open the Squad tab and use <b>Theirs</b> to see your opponent.', 'Check whether Batman invaded your matchup.', 'If he did, beat his score as well as your opponent to keep your Sidekicks out of Arkham.'])];
+    ['practice', 'characters', 'arkham', 'batman'].forEach(k => { const v = T[k]; delete T[k]; T[k] = v; });
     const cur = T[window._gthRulesTab] ? window._gthRulesTab : 'practice';
     return `<div style="padding:4px 0 80px;"><div style="display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:4px;">${Object.keys(T).map(k => `<button type="button" class="lld-hdr-btn gth-rt ${k === cur ? 'on' : ''}" data-k="${k}" style="flex:none; white-space:nowrap;">${T[k][0]}</button>`).join('')}</div>${T[cur][1]}</div>`;
 }
