@@ -3626,8 +3626,27 @@ function getTradeBlockHtml(pid) {
 
     // --- RULES START ---//
 
+// ---- Gotham rules page (replaces the dynasty rules when Gotham is on) ----
+function lldGthRulesHtml() {
+    const card = (t, body) => `<div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px; margin-bottom:12px;"><div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">${t}</div><div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">${body}</div></div>`;
+    const M = LLD_GTH_CAP.mult, dp = LLD_GTH_CAP.dep, bs = LLD_GTH_CAP.base, mx = LLD_GTH_CAP.max, n = LLD_GTH_CAP.slots.length;
+    const ch = (window.LLD_CONFIG || {}).characters || {}, groups = { leader: [], sidekick: [] };
+    Object.keys(ch).forEach(k => { const c = ch[k]; if (c && groups[c.role]) groups[c.role].push(c); });
+    const list = r => groups[r].sort((a, b) => a.name.localeCompare(b.name)).map(c => { const ab = lldGthAbd(c.name) || []; return `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><div style="font-weight:900;">${c.name}</div>${ab.map(x => `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);"><b style="color:var(--accent-teal)">${x[0]}</b> · ${x[1]}</div>`).join('') || '<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Ability coming soon.</div>'}</div>`; }).join('');
+    return `<div style="padding:4px 0 80px;">`
+        + card('Welcome to Fantasy Gotham', 'A one-season league. There is no keeper, contract or draft-pick side to worry about. You build a team of NFL players, then add Gotham characters whose abilities change how your points are counted each week.')
+        + card('Your lineup', `Start <b>${n} players</b> in any mix of QB, RB, WR and TE. On top of that you can start <b>1 Head Coach</b> (your Leader) and <b>1 or 2 Defense slots</b> (your Sidekicks). Leaders and Sidekicks are Gotham characters, not real NFL players.`)
+        + card('Captains and Reserves', `Every player you start counts. Pick up to <b>${mx} Captains</b> and their points are multiplied by <b>×${M}</b>. Everyone else you start is a <b>Reserve</b>. The more spots you give to Captains, the fewer Reserves you have. Bench players do not score.`)
+        + card('Reserve bonus', `Fewer than ${bs} Reserves earns a bonus: every Reserve under ${bs} adds <b>+${dp}%</b> to the points of each Reserve (capped at +${(M - 1) * 50}%). A thin, strong Reserve group beats a long weak one.`)
+        + card('Characters and abilities', 'Start a Leader and up to two Sidekicks from your roster. Each one has an ability that adds bonus points, usually tied to your players, your opponent or the week. Characters you own but are not starting show their effect grayed out and do not count. Tap a character on the Lineup tab to read the full rule.')
+        + card('Leaders', list('leader') || 'No leaders yet.')
+        + card('Sidekicks', list('sidekick') || 'No sidekicks yet.')
+        + card('Setting your lineup', 'Use the Lineup tab: tap the C / R / BN pill on a player to make him a Captain, Reserve or Bench. Start or bench characters with the Start / Bench button on their row. Submit your lineup as usual.')
+        + `</div>`;
+}
 function loadRulesContent() {
     const container = $('#rules-content-container');
+    if (lldGthOn()) { container.html(lldGthRulesHtml()); return; }
 
     const ruleSections = {
         basics: {
@@ -14515,7 +14534,7 @@ function classifyGameStatusText(text) {
 // note that goes into MFL's lineup submission comment so the history shows where a lineup came from
 function lldSubComment() { return 'Submitted through dashboard' + (window._lldOptFlag ? ' (optimized)' : ''); }
 function lldWithComment(body) { const p = new URLSearchParams(body); p.set('COMMENTS', lldSubComment()); if (window._lldLineupWeek) { const wn = window._lldWkName || 'W'; p.delete('W'); p.delete('WEEK'); p.set(wn, window._lldLineupWeek); } /* one week field only: MFL rejects a repeated one as an invalid WEEK */ return p.toString(); }
-function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', musu: '0', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '0', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0', wml2: '', r_sz: 'std', r_hs: 'md', r_sh: 'round', r_pc: 'bar', r_bn: 'off', r_em: 'pl', r_lv: 'off', r_tp: 'detail' })[k]; } // a function, not a const: the settings panel is built before this point runs
+function lldBdef(k) { return ({ wml: 'wm', wm: '1', lock: '1', pos: '1', anim: '1', tpl: '1', slp: '0', sst: '0', hd2: '0', sct: '0', smt: '0', str: '0', nav: '0', hdm: '0', pmd: '1', rv: '1', musu: '0', shb: '1', slt: '1', scn: '1', gbg: '1', ldr: '0', ptr: '1', gth: '0', asv: '1', wnw: '0', tdo: '0', awd: '0', pel: '0', clr: '0', hdl: '1', clrv: '1', cnd: '1', espn: '0', apv: '0', mus: '0', wml2: '', r_sz: 'std', r_hs: 'md', r_sh: 'round', r_pc: 'bar', r_bn: 'off', r_em: 'pl', r_lv: 'off', r_tp: 'detail' })[k]; } // a function, not a const: the settings panel is built before this point runs
 function lldAdmin() { const f = String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0'); return f === '0000' || f === '0001'; } // the two testing teams: Gotham test and commissioner tools only
 function lldDev() { return true; } // former beta features are now on for everyone;
 window.lldAdmin = lldAdmin; window.lldDev = lldDev; // row tuner sliders stay with the commissioner franchises
@@ -14634,7 +14653,7 @@ function lldApplyBeta() {
     c.toggle('lld-sst', b && lldBv('sst') === '1');
     c.toggle('lld-hd2', b && lldBv('hd2') === '1');
     c.toggle('lld-clr', lldClrOn());
-    c.toggle('lld-hdl', lldAdmin() && lldBv('hdl') === '1');
+    c.toggle('lld-hdl', lldBv('hdl') === '1');
     try { lldNavApply(); } catch (e) { }
     try { if (window.lldTdSync) window.lldTdSync(); } catch (e) { }
     try { if (window.lldAwSync) window.lldAwSync(); } catch (e) { }
@@ -17295,7 +17314,7 @@ function lldBetaHtml() {
         <div class="lld-ft-tabs">${LLD_TUNE.map(([title], i) => `<button type="button" class="lld-ft-tab ${i === ftTab ? 'on' : ''}" data-i="${i}">${title.replace('Team logo watermark', 'Watermark').replace('Right side numbers', 'Numbers').replace('Player row', 'Row')}</button>`).join('')}</div>
         ${LLD_TUNE.map(([title, items], i) => `<div class="lld-ft-p ${i === ftTab ? 'on' : ''}" data-i="${i}">${rows(items)}</div>`).join('')}</div>`;
     return `<div style="margin-top:6px; padding-top:12px; border-top:1px solid var(--card-border);">
-        ${lldDev() ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Compact rows: show the Steady / Volatile word')}${onoff('clrv')}${lldAdmin() ? lab('Team header: logo on the left, everything else on the right (beta)') + onoff('hdl') : ''}${lldGthOn() && lldAdmin() ? lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp') : ''}` : ''}${lldA2hsHtml()}
+        ${(lldGthOn() && lldAdmin()) ? `<div style="font-size:calc(11px * var(--ts,1)); font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin:10px 0 10px;">Beta features</div>${lab('Gotham test: made-up projections and scores when the league has none (only changes the Gotham points math, nothing is saved)') + onoff('gtp')}` : ''}${lldA2hsHtml()}
     </div>`;
 }
 function lldFtFill() {
@@ -24810,6 +24829,18 @@ lldApplyStyle(lldGet('lld_style', 'classic'));
 lldApplyHdrMode(lldBeta() && (lldBv('hdm') === '1' || lldBv('shb') === '1') ? 'middle' : 'auto'); // auto = shrinks as you scroll; slim = beta switch
 $(document).on('click', '.lld-style-btn', function () { try { if (this.dataset.style === 'random') sessionStorage.removeItem('lld_rand'); } catch (e) { } lldApplyStyle(this.dataset.style); applyTeamTheme(myFid, true); $('.lld-auto-row').toggle(this.dataset.style === 'classic'); });
 
+// ---- Style toggles that graduated from beta: on for everyone, switchable here ----
+function lldTogMount() {
+    try {
+        document.querySelectorAll('.lld-wide-row').forEach(w => {
+            if (w.nextElementSibling && w.nextElementSibling.classList.contains('lld-tg')) return;
+            const lab = t => `<div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">${t}</div>`;
+            const oo = k => `<div style="display:flex; gap:6px; margin-bottom:16px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv(k) === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+            w.insertAdjacentHTML('afterend', `<div class="lld-tg">${lab('Compact rows: show the Steady / Volatile word')}${oo('clrv')}${lab('Team header: logo on the left, everything else on the right')}${oo('hdl')}</div>`);
+        });
+    } catch (e) { }
+}
+setInterval(lldTogMount, 1500);
 // ---- Custom theme colors (test, franchise 0000 only): pick your own colors on top of whatever theme is on. Saved on this device. ----
 const LLD_CC = [['--page-bg', 'Background'], ['--card-bg', 'Cards'], ['--card-border', 'Borders'], ['--text-dim', 'Soft text'], ['--accent-blue', 'Accent 1'], ['--accent-teal', 'Accent 2']];
 function lldCcOn() { return String((typeof myFid !== 'undefined' && myFid) ? myFid : '').padStart(4, '0') === '0000'; }
