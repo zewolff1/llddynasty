@@ -3758,6 +3758,7 @@ function lldGthRulesHtml() {
         sides: ['Sidekicks', box('Sidekicks (Defense)', 'Your two character spots can be a Leader and a Sidekick, or two Sidekicks.') + box('All Sidekicks', list('sidekick') || 'No sidekicks yet.')
             + walk(['Go to Lineup and tap a Sidekick’s row.', 'Read what he needs, such as a certain kind of player or a kickoff time.', 'Tap <b>Start</b> if the bonus is worth a spot.', 'Two characters is the limit, so with two Sidekicks you have no Leader.'])]
     };
+    ['basics', 'lineup', 'capt', 'chars'].forEach(k => delete T[k]); // the interactive Practice teaches these now
     const cur = T[window._gthRulesTab] ? window._gthRulesTab : 'practice';
     return `<div style="padding:4px 0 80px;"><div style="display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:4px;">${Object.keys(T).map(k => `<button type="button" class="lld-hdr-btn gth-rt ${k === cur ? 'on' : ''}" data-k="${k}" style="flex:none; white-space:nowrap;">${T[k][0]}</button>`).join('')}</div>${T[cur][1]}</div>`;
 }
