@@ -6268,3 +6268,5 @@ body.lld-gth .standings-seg-btn[data-seg="order"],body.lld-gth .apv-v[data-v="ye
 .gth-pj{display:inline-block;margin-left:6px;font-size:calc(9px * var(--ts,1))}
 
 #gth-lay .player-row .move-handle-btn,#slots-bench .player-row .move-handle-btn{min-width:34px;text-align:center;padding-left:6px;padding-right:6px}
+
+body.lld-trades-closed [data-lldtr]{display:none !important}

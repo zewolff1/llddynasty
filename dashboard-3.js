@@ -24834,6 +24834,39 @@ $(document).on('click', '#lld-hol [data-k]', function () {
 });
 $(document).on('click', '#lld-hol', function (e) { if (e.target.id === 'lld-hol') $(this).remove(); });
 setTimeout(lldHolidayPrompt, 4500);
+// ---- Thanksgiving greeting (once per day during Thanksgiving week) ----
+function lldThxGreet() {
+    try {
+        const w = lldThx(); if (!w) return;
+        const key = 'thx' + new Date().getFullYear() + '-' + new Date().getDate(); if (lldGet('lld_thx_seen', '') === key) return;
+        if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
+        lldSet('lld_thx_seen', key);
+        const nm = /^(LLD Dynasty|Live and Let Dynasty)$/.test(LLD.leagueName || '') ? "Live and Let's Feast" : (LLD.leagueName || 'the league');
+        const msg = w === 'day' ? 'Thankful for good friends, great trash talk and a full plate. Eat well, then go win your matchup.' : 'Thankful for good friends, great trash talk and a full plate. Thanksgiving is this Thursday, so set your lineup before the feast.';
+        $('#lld-hol').remove();
+        $('body').append(`<div id="lld-hol"><div class="hol-card"><div class="hol-t">\uD83E\uDD83 Happy Thanksgiving!</div><p>From all of us at ${nm}. ${msg}</p><button type="button" class="hol-keep" data-k="keep">Let\u2019s feast</button></div></div>`);
+    } catch (e) { console.warn('thx greet', e); }
+}
+[2500, 6000, 11000].forEach(t => setTimeout(lldThxGreet, t));
+
+// ---- Trade tabs: hidden once the trade deadline has passed, until the league year turns over (set "tradesReopen": "2027-01-01" in the config to change when) ----
+function lldTradeClosed() {
+    try {
+        const dl = window._lldTradeDl; if (!dl || dl === 'busy' || !dl.date) return false;
+        const now = new Date(), end = dl.at ? dl.at : new Date(dl.date.getFullYear(), dl.date.getMonth(), dl.date.getDate() + 1);
+        if (now < end) return false;
+        const rc = (window.LLD_CONFIG || {}).tradesReopen, back = rc ? new Date(String(rc).length <= 10 ? String(rc) + 'T00:00:00' : rc) : new Date(dl.date.getFullYear() + 1, 0, 1);
+        return isNaN(back) ? true : now < back;
+    } catch (e) { return false; }
+}
+function lldTradeTabs() {
+    try {
+        document.querySelectorAll('#subtabs-team .sub-tab-btn, #subtabs-league .sub-tab-btn').forEach(b => { if (/^(my )?trade( block)?s?$/i.test(b.textContent.trim().replace(/\s+/g, ' '))) b.setAttribute('data-lldtr', '1'); });
+        document.body.classList.toggle('lld-trades-closed', lldTradeClosed());
+    } catch (e) { }
+}
+(function () { const go = () => { try { lldTbDeadline().then(lldTradeTabs).catch(() => { }); } catch (e) { } }; [1500, 5000, 12000].forEach(t => setTimeout(go, t)); setInterval(lldTradeTabs, 2000); })();
+
 
 loadSavedTheme();
 if (LLD.features && LLD.features.rules === false) { $('.tab-btn[onclick*="tab-rules"]').hide(); }
@@ -26886,17 +26919,3 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 window.lldLogoRaw = lldLogoRaw;
 
 
-// ---- Thanksgiving greeting (once per day during Thanksgiving week) ----
-function lldThxGreet() {
-    try {
-        const w = lldThx(); if (!w) return;
-        const key = 'thx' + new Date().getFullYear() + '-' + new Date().getDate(); if (lldGet('lld_thx_seen', '') === key) return;
-        if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
-        lldSet('lld_thx_seen', key);
-        const nm = /^(LLD Dynasty|Live and Let Dynasty)$/.test(LLD.leagueName || '') ? "Live and Let's Feast" : (LLD.leagueName || 'the league');
-        const msg = w === 'day' ? 'Thankful for good friends, great trash talk and a full plate. Eat well, then go win your matchup.' : 'Thankful for good friends, great trash talk and a full plate. Thanksgiving is this Thursday, so set your lineup before the feast.';
-        $('#lld-hol').remove();
-        $('body').append(`<div id="lld-hol"><div class="hol-card"><div class="hol-t">\uD83E\uDD83 Happy Thanksgiving!</div><p>From all of us at ${nm}. ${msg}</p><button type="button" class="hol-keep" data-k="keep">Let\u2019s feast</button></div></div>`);
-    } catch (e) { console.warn('thx greet', e); }
-}
-[2500, 6000, 11000].forEach(t => setTimeout(lldThxGreet, t));
