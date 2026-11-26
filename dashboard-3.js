@@ -135,7 +135,7 @@ function lldThx(d) {
 }
 function lldLeagueTitle() {
     if (LLD.leagueTitle) return LLD.leagueTitle;
-    if (LLD.leagueName === 'LLD Dynasty') return lldThx() ? "Live and Let's Feast" : 'Live and Let Dynasty';
+    if (/^(LLD Dynasty|Live and Let Dynasty)$/.test(LLD.leagueName || '')) return lldThx() ? "Live and Let's Feast" : 'Live and Let Dynasty';
     return LLD.leagueName || '';
 }
 function lldHolidayNow(d) {
@@ -26893,7 +26893,7 @@ function lldThxGreet() {
         const key = 'thx' + new Date().getFullYear() + '-' + new Date().getDate(); if (lldGet('lld_thx_seen', '') === key) return;
         if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
         lldSet('lld_thx_seen', key);
-        const nm = (LLD.leagueName === 'LLD Dynasty') ? "Live and Let's Feast" : (LLD.leagueName || 'the league');
+        const nm = /^(LLD Dynasty|Live and Let Dynasty)$/.test(LLD.leagueName || '') ? "Live and Let's Feast" : (LLD.leagueName || 'the league');
         const msg = w === 'day' ? 'Thankful for good friends, great trash talk and a full plate. Eat well, then go win your matchup.' : 'Thankful for good friends, great trash talk and a full plate. Thanksgiving is this Thursday, so set your lineup before the feast.';
         $('#lld-hol').remove();
         $('body').append(`<div id="lld-hol"><div class="hol-card"><div class="hol-t">\uD83E\uDD83 Happy Thanksgiving!</div><p>From all of us at ${nm}. ${msg}</p><button type="button" class="hol-keep" data-k="keep">Let\u2019s feast</button></div></div>`);
