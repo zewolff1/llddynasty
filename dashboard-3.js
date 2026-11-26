@@ -3738,10 +3738,10 @@ function lldGthRulesHtml() {
     const box = (t, body) => `<div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px; margin-bottom:12px;"><div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">${t}</div><div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">${body}</div></div>`;
     const walk = steps => `<div style="background:rgba(0,206,184,.07); border:1px solid rgba(0,206,184,.35); border-radius:8px; padding:12px; margin-bottom:12px;"><div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-teal); text-transform:uppercase; margin-bottom:8px;">Walkthrough</div>${steps.map((t, k) => `<div style="display:flex; gap:10px; align-items:flex-start; padding:6px 0;"><span style="flex:none; width:22px; height:22px; border-radius:50%; background:var(--accent-teal); color:#000; font-weight:900; font-size:calc(11px * var(--ts,1)); display:grid; place-items:center;">${k + 1}</span><span style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.5;">${t}</span></div>`).join('')}</div>`;
     const ch = (window.LLD_CONFIG || {}).characters || {}, groups = { leader: [], sidekick: [] };
-    Object.keys(ch).forEach(k => { const c = ch[k]; if (c && groups[c.role]) groups[c.role].push(c); });
-    const list = r => groups[r].slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => { const ab = lldGthAbd(c.name) || []; return `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><div style="font-weight:900;">${c.name}</div>${ab.map(x => `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);"><b style="color:var(--accent-teal)">${x[0]}</b> · ${x[1]}</div>`).join('') || '<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Ability coming soon.</div>'}</div>`; }).join('');
+    Object.keys(ch).forEach(k => { const c = ch[k]; if (c && groups[c.role]) groups[c.role].push(Object.assign({ _k: k }, c)); });
+    const list = r => groups[r].slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => { const ab = lldGthAbd(c.name) || []; return `<div class="gth-rc"><div class="gth-rcav">${lldChAv(c._k, c.name)}</div><div class="gth-rcb"><div style="font-weight:900;">${c.name}</div>${ab.map(x => `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);"><b style="color:var(--accent-teal)">${x[0]}</b> · ${x[1]}</div>`).join('') || '<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Ability coming soon.</div>'}<button type="button" class="gth-try" data-n="${String(c.name).replace(/"/g, '&quot;')}" data-k="${c._k}">Try it on my lineup</button></div></div>`; }).join('');
     const ex1 = 55, ex2 = 90, exr = 7, exb = Math.min(Math.max(0, bs - exr) * dp, cap), exT = ex1 * M + ex2 * (1 + exb / 100);
-    const T0 = {}, T = {
+    const T = {
         practice: ['Lineup', '<div id="gtut"></div>'],
         basics: ['Basics', box('Welcome to Fantasy Gotham', 'A one-season league. There are no keepers, contracts or draft picks to manage. You build a team of NFL players, then add Gotham characters whose abilities change how your points are counted each week.')
             + box('How a week works', `You start <b>${n} players</b> and up to three characters. Some players are <b>Captains</b> and count extra. Your characters add bonus points. Your total is your starters plus all of those bonuses.`)
@@ -3753,14 +3753,13 @@ function lldGthRulesHtml() {
             + walk(['Tap the <b>C / R / BN</b> pill on a player.', 'Choose <b>★ Captain</b>, <b>Reserves</b> or <b>Bench</b>.', `Example: three Captains score ${ex1} points. That counts as ${ex1} × ${M} = <b>${(ex1 * M).toFixed(1)}</b>.`, `Your other ${exr} starters score ${ex2}. With ${exr} Reserves the bonus is +${exb}%, so they count as <b>${(ex2 * (1 + exb / 100)).toFixed(1)}</b>.`, `Total before abilities: <b>${exT.toFixed(1)}</b>.`, 'Players below the “Not counting” line on the Lineup tab do not count.'])],
         chars: ['Characters', box('What characters do', 'Every character has an ability. Abilities add bonus points based on your players, your opponent, the week or the NFL schedule. The Lineup tab shows the bonus each one adds.')
             + walk(['Find the <b>Characters</b> section at the top of the Lineup tab.', 'Tap a character’s row to read his rule and see his status.', 'Look at your player rows: a round character icon means that player is affected, and the points he adds show next to his projection.', 'Gray icons belong to characters you are not starting. They show what you would get and are not counted.', 'Compare the bonus numbers, then start the characters worth the most.'])],
-        leaders: ['Leaders', box('Leaders (Head Coach)', 'You can start one Leader, and a Leader uses one of your two character spots.') + box('All Leaders', list('leader') || 'No leaders yet.')
+        leaders: ['Leaders', box('Leaders', 'You can start one Leader, and a Leader uses one of your two character spots.') + box('All Leaders', list('leader') || 'No leaders yet.')
             + walk(['Go to Lineup and tap a Leader’s row.', 'Read the ability and the status line under it.', 'Tap <b>Start</b>. The bonus appears on the row and in your Projected Total.', 'Change your mind? Tap <b>Bench</b> and start another.'])],
-        sides: ['Sidekicks', box('Sidekicks (Defense)', 'Your two character spots can be a Leader and a Sidekick, or two Sidekicks.') + box('All Sidekicks', list('sidekick') || 'No sidekicks yet.')
+        sides: ['Sidekicks', box('Sidekicks', 'Your two character spots can be a Leader and a Sidekick, or two Sidekicks.') + box('All Sidekicks', list('sidekick') || 'No sidekicks yet.')
             + walk(['Go to Lineup and tap a Sidekick’s row.', 'Read what he needs, such as a certain kind of player or a kickoff time.', 'Tap <b>Start</b> if the bonus is worth a spot.', 'Two characters is the limit, so with two Sidekicks you have no Leader.'])]
     };
-    T0.leaders = T.leaders; T0.sides = T.sides;
     ['basics', 'lineup', 'capt', 'chars', 'leaders', 'sides'].forEach(k => delete T[k]); // Lineup practice replaces these
-    const lead = T0.leaders[1], side = T0.sides[1];
+    const lead = box('Leaders', 'You can start one Leader. He uses one of your two character spots.' + list('leader')), side = box('Sidekicks', 'Your two character spots can be a Leader and a Sidekick, or two Sidekicks.' + list('sidekick'));
     T.characters = ['Characters', box('What characters do', 'Every character has an ability that changes how your points count. You can start 2 characters in total: a Leader and a Sidekick, or two Sidekicks. Characters you own but do not start show their effect grayed out and do not count.') + lead + side];
     T.arkham = ['Arkham', box('How characters get sent to Arkham', 'On Tuesday, your two Sidekicks are sent to Arkham if your team had the <b>lowest score of the week</b>, or if your team <b>lost to Batman</b>.')
         + box('Waller', 'Waller can use characters that are in Arkham. Any character Waller does not use <b>breaks out</b> of Arkham and goes back to waivers.')
@@ -17084,7 +17083,7 @@ function lldGthH(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.l
 function lldGthR(seed) { let a = lldGthH(seed); return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const LLD_GTH_OPPN = ['Patrick Mahomes', 'Saquon Barkley', 'Jahmyr Gibbs', 'Ja\'Marr Chase', 'Zay Flowers', 'DK Metcalf', 'Jameson Williams', 'Mark Andrews', 'James Cook', 'Trey McBride', 'Derrick Henry', 'Nico Collins', 'Joe Burrow', 'Tyreek Hill'];
 function lldGthCtx(cnt, bn) { // made-up league data, the same all week (seeded by league, team and week); only when Test mode is on
-    if (!(lldAdmin() && lldBv('gtp') === '1')) return null;
+    if (!(window._gthTry || (lldAdmin() && lldBv('gtp') === '1'))) return null;
     const wk = parseInt(window._lldServedWeek, 10) || 0, R = lldGthR([lid, fid, wk, 'ctx'].join('|')), mp = {};
     cnt.concat(bn).forEach(i => { const r = lldGthR([lid, fid, wk, i.pid].join('|')); mp[i.pid] = { last: Math.round(i.v * (0.6 + r() * 0.8) * 10) / 10, sS: 1 + Math.floor(r() * 6), sC: Math.floor(r() * 6), former: r() < 0.15, benchLast: r() < 0.15, bw: Math.floor(r() * 5), avg: Math.max(6, i.pj || 8), out: r() < 0.08 }; });
     const pos = ['QB', 'RB', 'RB', 'WR', 'WR', 'WR', 'TE', 'RB', 'WR', 'TE'], base = { QB: 18, RB: 12, WR: 11, TE: 8 }, opp = pos.map((p, k) => { const pj = base[p] + R() * 8, sl = Math.floor(R() * 5); return { name: LLD_GTH_OPPN[k], pos: p, pj, v: Math.round(pj * (0.6 + R() * 0.8) * 10) / 10, last: Math.round(pj * (0.6 + R() * 0.8) * 10) / 10, slot: sl, night: sl === 0 || sl === 3 || sl === 4, sS: 1 + Math.floor(R() * 6), sC: Math.floor(R() * 6), wasBench: R() < 0.15 }; });
@@ -17135,13 +17134,13 @@ $(document).on('click', '.gth-phb', function () { const k = 'lld_gth_phan_' + St
 function lldGthExtra(cc, caps, rs, fit, dp, M, bn, box, pv) {
     let E = LLD_GTH_XA[cc], key = cc;
     const cnt = caps.concat(rs.filter(i => fit.slot[i.pid])), pts = i => caps.indexOf(i) >= 0 ? i.v * M : i.v * (1 + dp / 100), total = cnt.reduce((a, i) => a + pts(i), 0), ctx = lldGthCtx(cnt, bn);
-    const ch = lldGthCharList(), A = lldGthAbd((ch.find(x => x.id === cc) || {}).name || ''), desc = A && A[0] ? A[0][1] : '';
+    const ch = lldGthCharList(), A = lldGthAbd((ch.find(x => x.id === cc) || {}).name || window._gthTryName || ''), desc = A && A[0] ? A[0][1] : '';
     bn.forEach(i => { i._bn = true; }); cnt.forEach(i => { i._bn = false; });
     const c = { cnt, caps, rs, bn, pts, total, ctx, sk: 1, pv: !!pv, list: cnt.concat(bn), d: 0 };
     const tgv = lldGet(lldGthPkKey(cc), '');
-    c.pickOpp = () => c.ctx.opp.find(o => o.name === tgv) || null;
-    c.pickMine = () => c.cnt.find(i => i.name === tgv) || null;
-    c.pk = (title, rows) => { window._gthPk = window._gthPk || {}; window._gthPk[cc] = { title, rows, cur: tgv }; if (!tgv && !c.pv) { window._gthNeed = window._gthNeed || {}; window._gthNeed[cc] = 1; } return `<button type="button" class="gth-tgb ${tgv ? '' : 'need'}" data-cc="${cc}">${tgv ? 'Change: ' + tgv : 'Choose now'}</button>`; };
+    c.pickOpp = () => c.ctx.opp.find(o => o.name === tgv) || (window._gthTry ? c.ctx.opp.slice().sort((a, b) => b.v - a.v)[0] : null);
+    c.pickMine = () => c.cnt.find(i => i.name === tgv) || (window._gthTry ? c.cnt.slice().sort((a, b) => (c.ctx.mp[b.pid].last - b.v) - (c.ctx.mp[a.pid].last - a.v))[0] : null);
+    c.pk = (title, rows) => { window._gthPk = window._gthPk || {}; window._gthPk[cc] = { title, rows, cur: tgv }; if (!tgv && !c.pv && !window._gthTry) { window._gthNeed = window._gthNeed || {}; window._gthNeed[cc] = 1; } return `<button type="button" class="gth-tgb ${tgv ? '' : 'need'}" data-cc="${cc}">${tgv ? 'Change: ' + tgv : 'Choose now'}</button>`; };
     c.each = fn => { c.d = 0; c.list.forEach(i => fn(i, (b, ico, lab, txt) => { if (!b) return; if (!i._bn) c.d += b; lldGthFx(i.row, ico, lab, txt, false, i._bn || c.pv); })); return c.d; };
     let r, extra = '';
     if (E[2] && !ctx) r = { d: 0, st: LLD_GTH_NEEDS };
@@ -17152,10 +17151,11 @@ function lldGthExtra(cc, caps, rs, fit, dp, M, bn, box, pv) {
     return r.d || 0;
 }
 function lldGthClayface(box, caps, rs, fit, dp, M, bn) { // Copycat: pick one of the other new abilities and run it as your own
-    const opts = Object.keys(LLD_GTH_XA).filter(x => x !== 'scarecrow' && x !== 'phantasm'), cur = lldGet(lldGthPkKey('clayface'), '');
+    const opts = Object.keys(LLD_GTH_XA).filter(x => x !== 'scarecrow' && x !== 'phantasm'); let cur = lldGet(lldGthPkKey('clayface'), '');
     const rows = opts.map(o => { let v = 0; try { v = lldGthExtra(o, caps, rs, fit, dp, M, bn, document.createElement('div'), true) || 0; } catch (e) { } return { v: o, ic: LLD_GTH_XA[o][1], a: LLD_GTH_XA[o][0], b: ((lldGthAbd((lldGthCharList().find(x => x.id === o) || {}).name || '') || [[]])[0] || [])[1] || '', s: v }; });
+    if (!cur && window._gthTry) cur = rows.slice().sort((a, b) => b.s - a.s)[0].v;
     window._gthPk = window._gthPk || {}; window._gthPk.clayface = { title: 'Copy whose ability?', rows, cur };
-    const started = !window._lldGthPv; if (!cur && started) { window._gthNeed = window._gthNeed || {}; window._gthNeed.clayface = 1; }
+    const started = !window._lldGthPv && !window._gthTry; if (!cur && started) { window._gthNeed = window._gthNeed || {}; window._gthNeed.clayface = 1; }
     let d = 0, st = 'Choose which ability to copy.';
     if (cur && LLD_GTH_XA[cur]) { const tmp = document.createElement('div'), v = lldGthExtra(cur, caps, rs, fit, dp, M, bn, tmp, window._lldGthPv); d = v || 0; st = `Copying ${LLD_GTH_XA[cur][0]}: ` + ($(tmp).find('.st').first().html() || ''); }
     box.innerHTML = `<div class="gth-ab"><div class="h"><b>📎 Copycat</b></div><p>Copies one ability of another character.</p><div class="st">${st}</div><button type="button" class="gth-tgb ${cur ? '' : 'need'}" data-cc="clayface">${cur ? 'Change: ' + LLD_GTH_XA[cur][0] : 'Choose now'}</button></div>`;
@@ -17195,6 +17195,31 @@ function lldGthOppRender() {
 $(document).on('click', '#gth-ot button', function () { window._gthOv = this.dataset.v; lldGthOppRender(); });
 $(document).on('click', '.gth-ofz', function () { lldSet(lldGthPkKey('mrfreeze'), this.dataset.n); lldGthCapRender(); });
 $(document).on('click', '.gth-opp-btn', function () { lldSet('lld_gth_opp', this.dataset.v); $('.gth-opp-btn').removeClass('on'); $(this).addClass('on'); lldGthCapRender(); });
+
+// ---- Try a character on your lineup (or sample players) from the Rules tab ----
+function lldGthTryOpen(name, key) {
+    const cc = lldChSlug(name), L = window._gthLast, M = LLD_GTH_CAP.mult;
+    const mk = (n, pos, v, pj, slot, night) => ({ pid: 'try_' + n.replace(/\W/g, ''), name: n, pos, v, pj, slot: slot, night: !!night, played: false, ko: '' });
+    let caps, rs, bn, real = false;
+    const cl = (i, k) => { const el = document.createElement('div'); el.innerHTML = '<div class="lld-det"></div><div class="proj-popup-trigger"></div>'; return Object.assign({}, i, { row: el }); };
+    if (L && (L.caps.length + L.rs.length) >= 3) { real = true; caps = L.caps.map(cl); rs = L.rs.map(cl); bn = L.bn.map(cl); }
+    else { caps = [mk('Josh Allen', 'QB', 24.1, 24.1, 2)]; rs = [mk('Bijan Robinson', 'RB', 17, 17, 1), mk('Josh Jacobs', 'RB', 12.4, 12.4, 1), mk('CeeDee Lamb', 'WR', 15.2, 15.2, 2), mk('Puka Nacua', 'WR', 16.8, 16.8, 3, 1), mk('Trey McBride', 'TE', 11.9, 11.9, 1), mk('Amon-Ra St. Brown', 'WR', 14.6, 14.6, 1), mk('Kyren Williams', 'RB', 13.1, 13.1, 2), mk('Sam LaPorta', 'TE', 9.8, 9.8, 4, 1), mk('Garrett Wilson', 'WR', 12.9, 12.9, 0, 1)].map(cl); bn = [mk('Tyler Allgeier', 'RB', 7.4, 7.4, 1), mk('Jaylen Waddle', 'WR', 10.2, 10.2, 2)].map(cl); caps = caps.map(cl); }
+    const fit = lldGthFit(caps, rs), dp = Math.min(Math.max(0, LLD_GTH_CAP.base - rs.length) * LLD_GTH_CAP.dep, (M - 1) * 50);
+    const sv = { n: window._gthNeed, pk: window._gthPk }; window._gthTry = true; window._gthTryName = name; window._lldGthPv = false; window._lldGthFxOff = false;
+    const box = document.createElement('div'); let d = 0;
+    try { const ch = (window.LLD_CONFIG || {}).characters || {}; const c0 = ch[key] || {}; window._lldGthFxImg = c0.img || ''; d = lldGthAbil1(box, cc, caps, rs, fit, dp, M, bn) || 0; } catch (e) { console.warn('gth try', e); box.innerHTML = '<div class="gth-ab"><p>This ability cannot be tried yet.</p></div>'; }
+    window._gthTry = false; window._gthTryName = ''; window._lldGthFxImg = ''; window._gthNeed = sv.n; window._gthPk = sv.pk;
+    const A = lldGthAbd(name) || [], base = caps.reduce((a, i) => a + i.v * M, 0) + rs.filter(i => fit.slot[i.pid]).reduce((a, i) => a + i.v * (1 + dp / 100), 0);
+    const row = (i, tag) => { const r = i.row; return `<div class="gth-tr"><span class="pa pa-${i.pos}">${i.pos}</span><div class="l"><b>${i.name}</b><small>${tag}</small></div><span class="s">${(tag === 'Captain' ? i.v * M : i.v).toFixed(1)}</span><div class="fx">${$(r).find('.lld-det').html() || ''}</div></div>`; };
+    $('#gth-pk').remove();
+    $('body').append(`<div id="gth-pk" class="try"><div class="gth-pks"><div class="h"><b>Try ${name}</b><button type="button" class="x">✕</button></div>
+      <div class="ph">${lldChAv(key, name)}<div><b>${name}</b><small>${A[0] ? A[0][0] : ''}</small><p>${A[0] ? A[0][1] : ''}</p></div></div>
+      <div class="n">${real ? 'Using your current lineup.' : 'You have no lineup yet, so this uses sample players.'} Opponent numbers are made up.</div>
+      <div class="gth-trs"><div><i>Without him</i><b>${base.toFixed(1)}</b></div><div><i>With him</i><b>${(base + d).toFixed(1)}</b></div><div><i>Change</i><b class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}</b></div></div>
+      <div class="gth-trb">${box.innerHTML}</div>
+      <div class="hd2">Your starters</div>${caps.map(i => row(i, 'Captain')).join('')}${rs.map(i => row(i, fit.slot[i.pid] ? 'Reserve' : 'Not counting')).join('')}</div></div>`);
+}
+$(document).on('click', '.gth-try', function () { lldGthTryOpen(this.dataset.n, this.dataset.k); });
 $(document).on('click', '.gth-tgb', function (e) { e.stopPropagation(); lldGthPkOpen(this.dataset.cc); });
 $(document).on('click', '#gth-pk .x', function () { $('#gth-pk').remove(); });
 $(document).on('click', '#gth-pk', function (e) { if (e.target.id === 'gth-pk') $('#gth-pk').remove(); });
