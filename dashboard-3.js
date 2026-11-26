@@ -3627,6 +3627,112 @@ function getTradeBlockHtml(pid) {
     // --- RULES START ---//
 
 // ---- Gotham rules page (replaces the dynasty rules when Gotham is on) ----
+const GTUT_CSS = "#gtut{--card:#241718;--card2:#2d1d1e;--line:#4a2d2e;--fg:#f4e9e3;--mut:#b49c94;--acc:#d9482f;--up:#3fd0b4;--gold:#e8b04a;--grn:#4ade80}\n#gtut *{box-sizing:border-box}\n#gtut .guide{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:#1c1213;border:1px solid var(--up);border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.5)}\n#gtut .guide .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--up);font-weight:700;display:flex;justify-content:space-between}\n#gtut .guide h2{margin:4px 0;font-size:16px}\n#gtut .guide p{margin:0 0 8px;color:var(--fg);font-size:13px}\n#gtut .modes{display:flex;gap:6px;margin-bottom:8px}\n#gtut .modes button{flex:1;background:var(--card2);color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:7px;font-size:12px;font-weight:700}\n#gtut .modes button.on{background:var(--up);color:#000;border-color:var(--up)}\n#gtut .guide details{margin:0 0 6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#241718}\n#gtut .guide summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--gold)}\n#gtut .guide details p{margin:6px 0 2px;font-size:12px;color:var(--fg)}\n#gtut .dots{display:flex;gap:4px;margin:6px 0 8px}\n#gtut .dots i{flex:1;height:4px;border-radius:2px;background:#3a2a2b}\n#gtut .dots i.on{background:var(--up)}\n#gtut .gb{display:flex;gap:8px}\n#gtut button{font:inherit;cursor:pointer}\n#gtut .nx{background:var(--acc);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-weight:700;font-size:13px}\n#gtut .nx:disabled{opacity:.35}\n#gtut .sk{background:none;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:12px}\n#gtut .ok{color:var(--grn);font-size:12px;font-weight:700;align-self:center}\n#gtut .sum{background:var(--card);border:1px solid #1f6f63;border-radius:14px;padding:12px 14px;margin-bottom:12px}\n#gtut .sum .r{display:flex;justify-content:space-between;align-items:flex-end}\n#gtut .sum .pc{font-size:15px}\n#gtut .sum .pc u{text-decoration:none;color:var(--up);font-weight:700}\n#gtut .sum .tt i{display:block;font-style:normal;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8aa;text-align:right}\n#gtut .sum .tt b{font-size:34px;color:var(--up);line-height:1}\n#gtut .sum .dp{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:6px;flex-wrap:wrap;gap:4px}\n#gtut .sh{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:15px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}\n#gtut .sh.cap{color:#f59e0b}\n#gtut .sh em{font-style:normal;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--mut)}\n#gtut .sh .bx{margin-left:auto;font-size:11px;border:1px solid #6b5016;color:var(--gold);border-radius:8px;padding:2px 8px}\n#gtut .sh .bx.gr{border-color:#1f6f63;color:var(--grn)}\n#gtut .cr{border:1px solid rgba(148,163,184,.22);background:rgba(255,255,255,.04);border-radius:14px;margin-bottom:8px;transition:.2s}\n#gtut .cr .m{display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer}\n#gtut .av{width:38px;height:38px;border-radius:50%;border:2px solid var(--gold);display:grid;place-items:center;font-size:18px;background:#000;flex:none}\n#gtut .cr.off .av,#gtut .cr.off .n{opacity:.5;filter:grayscale(1)}\n#gtut .cr.off .av{border-color:#555}\n#gtut .cr .n{flex:1;min-width:0}\n#gtut .cr .n b{display:block;font-size:15px}\n#gtut .cr .n small{display:block;font-size:12px;color:var(--mut);line-height:1.25}\n#gtut .cr .n small i{font-style:normal;color:var(--gold);font-weight:700}\n#gtut .cr .bn{font-weight:800;color:var(--up);font-variant-numeric:tabular-nums}\n#gtut .cr .sb{border:1px solid rgba(148,163,184,.4);background:none;color:var(--fg);border-radius:999px;padding:5px 11px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}\n#gtut .cr.on .sb{border-color:rgba(248,113,113,.6)}\n#gtut .cr .d{display:none;padding:0 12px 10px 58px;font-size:12px;color:var(--mut)}\n#gtut .cr.open .d{display:block}\n#gtut .pr{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:8px 10px;margin-bottom:3px;position:relative}\n#gtut .pr.cp{border-right:3px solid var(--acc)}\n#gtut .pr.out{opacity:.55}\n#gtut .pill{flex:none;min-width:36px;text-align:center;border:1.5px solid #f87171;color:#fca5a5;border-radius:999px;padding:5px 6px;font-weight:800;font-size:11px;background:none}\n#gtut .pill.c{border-color:#f59e0b;color:#fbbf24}\n#gtut .pill.b{border-color:#64748b;color:#94a3b8}\n#gtut .ph{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#5a3a30,#2a1a16);border:2px solid #334155;flex:none;display:grid;place-items:center;font-size:10px;color:#94a3b8}\n#gtut .in{flex:1;min-width:0}\n#gtut .in .nm{font-weight:700;font-size:14px;color:#fff}\n#gtut .in .nm span{font-size:12px;font-weight:700;margin-left:6px}\n#gtut .in .mu{font-size:11px;color:#94a3b8}\n#gtut .fxs{display:flex;gap:3px;margin-top:3px}\n#gtut .fx{width:18px;height:18px;border-radius:50%;border:1.5px solid #a78bfa;background:#3a2f5a;display:grid;place-items:center;font-size:10px}\n#gtut .fx.off{filter:grayscale(1);opacity:.45}\n#gtut .rt{flex:none;text-align:right}\n#gtut .rt .pj{color:var(--gold);font-size:17px;font-weight:700}\n#gtut .rt .pj small{font-size:10px;color:#94a3b8}\n#gtut .rt .ad{color:var(--grn);font-size:10px;font-weight:700;display:block}\n#gtut .QB{color:#ff2a6d}\n#gtut .RB{color:#00ceb8}\n#gtut .WR{color:#58a7ff}\n#gtut .TE{color:#ffae58}\n#gtut .ph2{border:1.5px dashed rgba(245,158,11,.5);border-radius:14px;min-height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;color:var(--mut);font-size:13px;margin-bottom:8px;background:rgba(0,0,0,.15)}\n#gtut .ph2 b{border:1px solid rgba(245,158,11,.6);color:#fbbf24;border-radius:999px;padding:5px 12px;font-size:12px}\n#gtut .ph2.rs{border-color:rgba(248,113,113,.5)}\n#gtut .ph2.rs b{border-color:rgba(248,113,113,.6);color:#fca5a5}\n#gtut .dv{text-align:center;font-size:11px;color:#f87171;letter-spacing:.08em;text-transform:uppercase;border-top:1px dashed #f87171;margin:6px 0;padding-top:3px}\n#gtut .mv{display:flex;gap:6px;padding:8px;background:#0f1520;border:1px solid var(--line);border-radius:10px;margin:2px 0 6px}\n#gtut .mv button{flex:1;background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:9px;padding:9px 4px;font-size:12px;font-weight:700}\n#gtut .mv button small{display:block;color:var(--mut);font-weight:400;font-size:10px}\n#gtut .mv button.cap{border-color:#8a5a10;color:#fbbf24}\n#gtut .hl{animation:gtutpulse 1.2s infinite;position:relative;z-index:3}\n@keyframes gtutpulse{0%,100%{box-shadow:0 0 0 0 rgba(232,176,74,.85)}50%{box-shadow:0 0 0 6px rgba(232,176,74,0)}}\n#gtut{font-family:inherit;color:#f4e9e3;font-size:14px;line-height:1.4}\n#gtut .guide{top:0}\n";
+// ---- Gotham practice lineup (interactive walkthrough in the Rules tab; made-up players, nothing is saved) ----
+window._gtutCss = null;
+function lldGthTutMount(ROOT, startMode) {
+
+const P=[
+ ['allen','Josh Allen','QB','BUF · Sun 1 PM',24.3],['gibbs','Jahmyr Gibbs','RB','DET · Thu 12 PM',22.4],['saq','Saquon Barkley','RB','PHI · Sun 4 PM',22.1],['hill','Tyreek Hill','WR','MIA · Sun 1 PM',18.8],
+ ['bijan','Bijan Robinson','RB','ATL · Sun 1 PM',17.2],['ceedee','CeeDee Lamb','WR','DAL · Thu 4 PM',16.9],['chase',"Ja'Marr Chase",'WR','CIN · Sun night',15.5],['cook','James Cook','RB','BUF · Sun 1 PM',14.8],
+ ['waddle','Jaylen Waddle','WR','MIA · Sun 1 PM',13.1],['bowers','Brock Bowers','TE','LV · Sun 4 PM',12.6],['laporta','Sam LaPorta','TE','DET · Thu 12 PM',11.4],['addison','Jordan Addison','WR','MIN · Mon night',9.7]
+].map(a=>({id:a[0],n:a[1],pos:a[2],g:a[3],pj:a[4],w:['allen','gibbs','saq','hill','bijan','ceedee','chase'].indexOf(a[0])>=0?'rs':'bn'}));
+const C=[
+ {id:'joker',n:'Joker',ic:'🃏',role:'leader',ab:'Wild Card',desc:'Each week one counting player gets a random bonus (this demo gives it to your top scorer).',on:false},
+ {id:'cat',n:'Catwoman',ic:'🐈',role:'sidekick',ab:'Cat Burglar',desc:'Each counting player who used to play for your opponent adds +1.5 points. Here that is Waddle and Chase.',on:false},
+ {id:'cal',n:'Calendar Man',ic:'📅',role:'sidekick',ab:'Full Calendar',desc:'Each different kickoff slot your counting players cover adds +2% to every counting player.',on:false}];
+const MULT=1.5,MAX=3,BASE=8,DEP=2,NEED=10,SLOTS=10; // same as the real league
+let step=0,open=null,sel=null,openC={},toast='';
+const Q=s=>ROOT.querySelector(s);
+const started=()=>P.filter(p=>p.w!=='bn'),caps=()=>P.filter(p=>p.w==='cap'),rs=()=>P.filter(p=>p.w==='rs');
+const rsSorted=()=>rs().slice().sort((a,b)=>b.pj-a.pj),open_=()=>Math.max(0,SLOTS-caps().length),rsCount=()=>rsSorted().slice(0,open_()),rsOut=()=>rsSorted().slice(open_());
+const cnt=()=>caps().concat(rsCount());
+function slot(p){const g=p.g;if(/Thu/.test(g))return/12/.test(g)?'t1':'t4';if(/night/.test(g))return'sn';if(/Mon/.test(g))return'mn';return/4 PM/.test(g)?'s4':'s1'}
+function calc(){
+ const dp=Math.min(Math.max(0,BASE-rs().length)*DEP,(MULT-1)*50),capPts=caps().reduce((a,p)=>a+p.pj,0)*MULT,rsPts=rsCount().reduce((a,p)=>a+p.pj,0)*(1+dp/100);
+ const ab={};let jk=0,ct=0,cl=0;const top=cnt().slice().sort((a,b)=>b.pj-a.pj)[0];
+ if(C[0].on&&top){jk=top.pj*.21;ab[top.id]=(ab[top.id]||0)+jk}
+ if(C[1].on){cnt().filter(p=>p.id==='waddle'||p.id==='chase').forEach(p=>{ab[p.id]=(ab[p.id]||0)+1.5;ct+=1.5})}
+ if(C[2].on){const n=new Set(cnt().map(slot)).size;cl=(capPts+rsPts)*.02*n}
+ return{dp,capPts,rsPts,jk,ct,cl,ab,tot:capPts+rsPts+jk+ct+cl,bn:{joker:jk,cat:ct,cal:cl}}
+}
+const f=n=>n.toFixed(1);
+const STEPS_L=[
+ {t:'Fill your last 3 spots',x:`You start 10 players in any mix of QB, RB, WR and TE. We already set 7 for you. Tap the <b>BN</b> pill on a bench player and choose <b>Reserves</b> to fill the 3 empty spots.`,done:()=>started().length>=NEED,hl:'.pill.b'},
+ {t:'Make a Captain',x:`Tap the <b>R</b> pill on your best player and choose <b>★ Captain</b>. A Captain <b>always starts</b>, counts <b>×${MULT}</b>, and you can have up to ${MAX}.`,
+  why:`Captains reward you for picking the player who will score the most. The trade-off: a Captain uses one of your ${SLOTS} spots, so you have one fewer Reserve.`,
+  strat:`Captain the players you trust most. A Captain always starts, so a Captain who is hurt or on a bye wastes a spot. Mix kickoff times so one bad game cannot sink you. You do not have to use all ${MAX}.`,
+  done:()=>caps().length>=1,hl:'.pill:not(.b):not(.c)'},
+ {t:'Reserves are best-ball',x:`Captains fill spots first. The rest of your ${SLOTS} spots go to Reserves. You can list more Reserves than spots: each week your highest scorers fill the spots and the rest drop below the red <b>Not counting</b> line. Start one more Reserve from the bench to see it.`,
+  why:'Best-ball takes the guessing out. You do not need to pick who scores least. The game picks the best scorers for you after the games.',
+  strat:'Extra Reserves are insurance for byes and injuries. But every Reserve you list counts toward the Reserve bonus, so more depth means a smaller bonus.',
+  done:()=>rsOut().length>=1,hl:'.pill.b'},
+ {t:'Bench is different',x:'A <b>Bench</b> player never counts and never moves in. Bench one Reserve to see it. His points leave your total.',
+  why:'Bench is where players wait. Unlike a Reserve below the line, a Bench player can never jump in, even if everyone else scores less.',
+  strat:'Bench anyone who is out or you just do not want counted. Benching also does not count toward your Reserve bonus, unlike a Reserve who is listed but not counting.',
+  done:()=>window._benched,hl:'.pill:not(.b):not(.c)'},
+ {t:'Fewer Reserves = a bonus',x:`Start fewer than ${BASE} Reserves and every Reserve gets <b>+${DEP}%</b> for each one under ${BASE}. Bench Reserves until you have fewer than ${BASE} and watch the bonus appear.`,
+  why:'It rewards a lean lineup of strong players instead of a long list of filler. Fewer Reserves means less total scoring from depth, so the bonus pays you back for it.',
+  strat:`Do the math. Each Reserve you drop adds about 2% of your Reserve total to the others (around ${f(0.02*90)} points when they score 90). Drop a Reserve only if he projects less than that. Keep anyone worth more.`,
+  done:()=>rs().length<BASE,hl:'.pill:not(.b):not(.c)'},
+ {t:'You are ready',x:'Captains always start, Reserves are best-ball, Bench never counts, and a lean Reserve group earns a bonus. Move anyone around to keep practicing, then try the Characters practice.',done:()=>true,hl:''}
+];
+const STEPS_C=[
+ {t:'Start your Leader',x:'Characters sit at the top of your lineup. You can start <b>2 characters</b> in total. Tap <b>Start</b> on Joker, your Leader.',done:()=>C[0].on,hl:'[data-cs="joker"]'},
+ {t:'Start a Sidekick',x:'Your second spot can be a Sidekick. Tap <b>Start</b> on Catwoman. Watch her icon appear on Waddle and Chase.',done:()=>C[1].on,hl:'[data-cs="cat"]'},
+ {t:'Two is the limit',x:'Try tapping <b>Start</b> on Calendar Man. You will be told to bench one first. Then <b>Bench</b> Catwoman and start Calendar Man instead. You could also start two Sidekicks and no Leader.',done:()=>C[2].on&&!C[1].on,hl:'[data-cs="cal"]'},
+ {t:'Owned but not starting',x:'Characters you own but are not starting still show their effect, grayed out, so you can see who you might want. They do not count. Tap <b>Catwoman</b> to read her rule and see her gray icon on Waddle and Chase.',done:()=>openC.cat,hl:'[data-co="cat"]'},
+ {t:'You are ready',x:'Start the two characters worth the most each week. The numbers on each character row show exactly what he adds.',done:()=>true,hl:''}
+];
+let STEPS=STEPS_L,mode='lineup';
+function setup(m){
+ mode=m;STEPS=m==='lineup'?STEPS_L:STEPS_C;step=0;sel=null;openC={};window._benched=false;C.forEach(x=>x.on=false);
+ const pre=m==='lineup'?{rs:['allen','gibbs','saq','hill','bijan','ceedee','chase']}:{cap:['allen'],rs:['gibbs','saq','hill','bijan','ceedee','chase','cook','waddle','bowers']};
+ P.forEach(p=>{p.w=(pre.cap||[]).indexOf(p.id)>=0?'cap':pre.rs.indexOf(p.id)>=0?'rs':'bn'});
+}
+function render(){
+ const c=calc(),S=STEPS[step];
+ Q('#gt-guide').innerHTML=`<div class="modes"><button data-mode="lineup" class="${mode==='lineup'?'on':''}">Lineup practice</button><button data-mode="chars" class="${mode==='chars'?'on':''}">Characters practice</button></div><div class="k"><span>Step ${step+1} of ${STEPS.length}</span><span>Practice mode · nothing is saved</span></div><div class="dots">${STEPS.map((_,i)=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div><h2>${S.t}</h2><p>${S.x}</p>${S.why?`<details><summary>Why?</summary><p>${S.why}</p></details>`:''}${S.strat?`<details><summary>Strategy</summary><p>${S.strat}</p></details>`:''}<div class="gb"><button class="nx" id="next" ${S.done()?'':'disabled'}>${step===STEPS.length-1?(mode==='lineup'?'Try Characters':'Back to Lineup'):'Next'}</button>${S.done()&&step<STEPS.length-1?'<span class="ok">✓ Done</span>':''}<button class="sk" id="skip">Skip step</button></div>`;
+ const prow=p=>{
+  const w=p.w,isOut=w==='rs'&&rsOut().indexOf(p)>=0,lab=w==='cap'?'C':w==='rs'?'R':'BN',cls=w==='cap'?'c':w==='bn'?'b':'',cn=cnt();
+  const fx=[];if(mode==='chars'&&C[0].id&&calc().ab[p.id]&&C[0].on&&p.id===(cn.slice().sort((a,b)=>b.pj-a.pj)[0]||{}).id)fx.push(['🃏',C[0].on]);
+  if(mode==='chars'&&(p.id==='waddle'||p.id==='chase'))fx.push(['🐈',C[1].on]);
+  const a=w!=='bn'&&!isOut&&c.ab[p.id]?c.ab[p.id]:0;
+  return`<div class="pr ${w==='cap'?'cp':''} ${isOut?'out':''}"><button class="pill ${cls}" data-pill="${p.id}">${lab}</button><div class="ph" style="margin:0 8px">${p.n.split(' ').map(x=>x[0]).join('')}</div><div class="in"><div class="nm">${p.n}<span class="${p.pos}">${p.pos}</span></div><div class="mu">${p.g}</div><div class="fxs">${fx.map(x=>`<span class="fx ${x[1]&&w!=='bn'&&!isOut?'':'off'}">${x[0]}</span>`).join('')}</div></div><div class="rt"><div class="pj">${f(p.pj)} <small>PROJ</small></div>${w==='cap'?`<span class="ad">★ ×${MULT} · +${f(p.pj*(MULT-1))}</span>`:w==='rs'&&!isOut&&c.dp?`<span class="ad">▲ reserve +${c.dp}% · +${f(p.pj*c.dp/100)}</span>`:''}${a?`<span class="ad">+${f(a)} ability</span>`:''}</div>${sel===p.id?`<div class="mv" style="flex-basis:100%"><button class="cap" data-mv="cap:${p.id}">★ Captain<small>Always starts</small></button><button data-mv="rs:${p.id}">Reserves<small>Starts if it fits</small></button><button data-mv="bn:${p.id}">Bench<small>Doesn't start</small></button></div>`:''}</div>`};
+ const crow=x=>`<div class="cr ${x.on?'on':'off'} ${openC[x.id]?'open':''}"><div class="m" data-co="${x.id}"><div class="av">${x.ic}</div><div class="n"><b>${x.n}</b><small><i>${x.ab}</i> ${x.desc.slice(0,60)}…</small></div><span class="bn">${x.on?'+'+f(c.bn[x.id]):''}</span><button class="sb" data-cs="${x.id}">${x.on?'Bench':'Start'}</button></div><div class="d">${x.desc}</div></div>`;
+ const Cp=caps(),B=P.filter(p=>p.w==='bn'),RC=rsCount(),RO=rsOut(),R=RC.concat(RO);
+ Q('#gt-page').innerHTML=`<div class="sum"><div class="r"><div><span class="pc">Captains <u>${f(c.capPts)}</u></span> &nbsp; <span class="pc">Reserves <u>${f(c.rsPts)}</u></span></div><div class="tt"><i>Projected total</i><b>${f(c.tot)}</b></div></div><div class="dp"><span>Captains ${Cp.length}/${MAX} max · Starters ${cnt().length}/${SLOTS}</span><span>Reserve bonus +${c.dp}%</span></div></div>
+ ${mode==='chars'?`<div class="sh">Characters <em>${C.filter(x=>x.on).length} starting</em></div>${C.map(crow).join('')}`:''}
+ <div class="sh cap">Captains <em>${Cp.length}/${MAX}</em><span class="bx">×${MULT}</span></div>${Cp.map(prow).join('')}${Cp.length<MAX?`<div class="ph2"><b>Captain</b>Empty · tap a player's pill to add one (optional)</div>`:''}
+ <div class="sh">Reserves <em>${R.length}</em><span class="bx gr">${f(c.rsPts)}</span></div>${RC.map(prow).join('')}${RO.length?'<div class="dv">Not counting below</div>':''}${RO.map(prow).join('')}${Array.from({length:Math.max(0,SLOTS-cnt().length)}).map(()=>`<div class="ph2 rs"><b>Reserve</b>Empty · tap a bench player's pill</div>`).join('')}
+ <div class="sh">Bench <em>${B.length}</em></div>${B.map(prow).join('')}`;
+ if(S.hl){ROOT.querySelectorAll(S.hl).forEach((e,i)=>{if(i<1)e.classList.add('hl')})}
+ if(toast){try{lldPlayedToast(toast)}catch(e){}toast=''}
+}
+ROOT.addEventListener('click',e=>{
+ const g=(s)=>e.target.closest(s);
+ const md=g('[data-mode]');if(md){setup(md.dataset.mode);render();ROOT.scrollIntoView({block:'start'});return}
+ if(g('#next')){if(step===STEPS.length-1){setup(mode==='lineup'?'chars':'lineup');render();ROOT.scrollIntoView({block:'start'});return}step++;render();ROOT.scrollIntoView({block:'start'});return}
+ if(g('#skip')){step=Math.min(STEPS.length-1,step+1);render();return}
+ const cs=g('[data-cs]');if(cs){const x=C.find(y=>y.id===cs.dataset.cs);
+  if(!x.on){const n=C.filter(y=>y.on&&y.role===x.role).length;if(C.filter(y=>y.on).length>=2){toast='You can start 2 characters. Bench one first.';render();return}if(n>=(x.role==='leader'?1:2)){toast=x.role==='leader'?'Bench your leader first.':'You can start 2 sidekicks. Bench one first.';render();return}}
+  x.on=!x.on;render();return}
+ const co=g('[data-co]');if(co){openC[co.dataset.co]=!openC[co.dataset.co];render();return}
+ const pl=g('[data-pill]');if(pl){sel=sel===pl.dataset.pill?null:pl.dataset.pill;render();return}
+ const mv=g('[data-mv]');if(mv){const[k,id]=mv.dataset.mv.split(':'),p=P.find(x=>x.id===id);
+  if(k==='cap'&&p.w!=='cap'&&caps().length>=MAX){toast='Captains are full (3).';render();return}
+  const was=p.w;p.w=k;if(was==='rs'&&k==='bn')window._benched=true;sel=null;render();return}
+});
+setup(startMode||'lineup');render();
+
+}
+function lldGthTutInit() {
+    try {
+        const R = document.getElementById('gtut'); if (!R || R.dataset.m) return; R.dataset.m = '1';
+        if (!document.getElementById('gtut-css')) { const st = document.createElement('style'); st.id = 'gtut-css'; st.textContent = GTUT_CSS; document.head.appendChild(st); }
+        R.innerHTML = '<div class="guide" id="gt-guide"></div><div id="gt-page"></div>'; lldGthTutMount(R, window._gtutMode || 'lineup');
+    } catch (e) { console.warn('practice', e); }
+}
 function lldGthRulesHtml() {
     const M = LLD_GTH_CAP.mult, dp = LLD_GTH_CAP.dep, bs = LLD_GTH_CAP.base, mx = LLD_GTH_CAP.max, n = LLD_GTH_CAP.slots.length, cap = (M - 1) * 50;
     const box = (t, body) => `<div style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; padding:12px; margin-bottom:12px;"><div style="font-size:calc(10px * var(--ts,1)); font-weight:900; color:var(--accent-blue); text-transform:uppercase; margin-bottom:8px;">${t}</div><div style="font-size:calc(12px * var(--ts,1)); color:#fff; line-height:1.6;">${body}</div></div>`;
@@ -3636,6 +3742,7 @@ function lldGthRulesHtml() {
     const list = r => groups[r].slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => { const ab = lldGthAbd(c.name) || []; return `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><div style="font-weight:900;">${c.name}</div>${ab.map(x => `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);"><b style="color:var(--accent-teal)">${x[0]}</b> · ${x[1]}</div>`).join('') || '<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim);">Ability coming soon.</div>'}</div>`; }).join('');
     const ex1 = 55, ex2 = 90, exr = 7, exb = Math.min(Math.max(0, bs - exr) * dp, cap), exT = ex1 * M + ex2 * (1 + exb / 100);
     const T = {
+        practice: ['Practice', '<div id="gtut"></div>'],
         basics: ['Basics', box('Welcome to Fantasy Gotham', 'A one-season league. There are no keepers, contracts or draft picks to manage. You build a team of NFL players, then add Gotham characters whose abilities change how your points are counted each week.')
             + box('How a week works', `You start <b>${n} players</b> and up to three characters. Some players are <b>Captains</b> and count extra. Your characters add bonus points. Your total is your starters plus all of those bonuses.`)
             + walk(['Open the <b>Team</b> tab, then <b>Lineup</b>.', 'Start your characters, then your players.', 'Choose your Captains.', 'Check the Projected Total at the top.', 'Tap <b>Submit Lineup Changes</b>. Do it before kickoff.'])],
@@ -3651,13 +3758,13 @@ function lldGthRulesHtml() {
         sides: ['Sidekicks', box('Sidekicks (Defense)', 'Your two character spots can be a Leader and a Sidekick, or two Sidekicks.') + box('All Sidekicks', list('sidekick') || 'No sidekicks yet.')
             + walk(['Go to Lineup and tap a Sidekick’s row.', 'Read what he needs, such as a certain kind of player or a kickoff time.', 'Tap <b>Start</b> if the bonus is worth a spot.', 'Two characters is the limit, so with two Sidekicks you have no Leader.'])]
     };
-    const cur = T[window._gthRulesTab] ? window._gthRulesTab : 'basics';
+    const cur = T[window._gthRulesTab] ? window._gthRulesTab : 'practice';
     return `<div style="padding:4px 0 80px;"><div style="display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:4px;">${Object.keys(T).map(k => `<button type="button" class="lld-hdr-btn gth-rt ${k === cur ? 'on' : ''}" data-k="${k}" style="flex:none; white-space:nowrap;">${T[k][0]}</button>`).join('')}</div>${T[cur][1]}</div>`;
 }
-$(document).on('click', '.gth-rt', function () { window._gthRulesTab = this.dataset.k; $('#rules-content-container').html(lldGthRulesHtml()); });
+$(document).on('click', '.gth-rt', function () { window._gthRulesTab = this.dataset.k; $('#rules-content-container').html(lldGthRulesHtml()); lldGthTutInit(); });
 function loadRulesContent() {
     const container = $('#rules-content-container');
-    if (lldGthOn()) { container.html(lldGthRulesHtml()); return; }
+    if (lldGthOn()) { container.html(lldGthRulesHtml()); lldGthTutInit(); return; }
 
     const ruleSections = {
         basics: {
