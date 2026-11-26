@@ -126,9 +126,22 @@ function lldSeasonNow(d) {
     return null;
 }
 // Default theme only: Halloween week and the Christmas / New Year's stretch switch the look automatically (can be turned off)
+// Thanksgiving = 4th Thursday of November. 'week' covers the Sunday before through the Sunday after.
+function lldThx(d) {
+    d = d || new Date(); if (d.getMonth() !== 10 && d.getMonth() !== 11 && d.getMonth() !== 9) return '';
+    const t = new Date(d.getFullYear(), 10, 1); t.setDate(1 + ((4 - t.getDay() + 7) % 7) + 21);
+    const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()), diff = Math.round((a - t) / 864e5);
+    return diff === 0 ? 'day' : (diff >= -4 && diff <= 3) ? 'week' : '';
+}
+function lldLeagueTitle() {
+    if (LLD.leagueTitle) return LLD.leagueTitle;
+    if (LLD.leagueName === 'LLD Dynasty') return lldThx() ? "Live and Let's Feast" : 'Live and Let Dynasty';
+    return LLD.leagueName || '';
+}
 function lldHolidayNow(d) {
     d = d || new Date();
     const md = (d.getMonth() + 1) * 100 + d.getDate();
+    if (lldThx(d)) return 'season_thanksgiving';
     if (md >= 1025 && md <= 1101) return 'season_halloween';
     if (md >= 1220 || md <= 102) return 'season_christmas';
     return null;
@@ -173,7 +186,7 @@ function lldBuildScene(name) {
     if (sc.scan) el.setAttribute('data-scan', '1');
     const t = document.createElement('div'); t.className = 't';
     // the league's own name leads; the theme's phrase becomes the small line under it
-    const leagueTitle = LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || sc.title;
+    const leagueTitle = lldLeagueTitle() || sc.title;
     el.setAttribute('data-title', leagueTitle);
     const b = document.createElement('b'); b.textContent = leagueTitle;
     b.style.fontFamily = sc.font || ''; b.style.fontWeight = sc.fw || '';
@@ -1406,7 +1419,7 @@ function lldFxApply(name) {
 $(document).on('click', '.lld-fx-btn', function () { lldSet('lld_fx', this.dataset.v === 'on' ? '1' : '0'); lldFxApply(lldEffStyle()); });
 // league name as header text (replaces the logo image)
 function lldHeaderName() {
-    const t = LLD.leagueTitle || (LLD.leagueName === 'LLD Dynasty' ? 'Live and Let Dynasty' : LLD.leagueName) || '';
+    const t = lldLeagueTitle();
     const img = document.getElementById('custom-header-logo');
     if (img) { const d = document.createElement('div'); d.id = 'lld-league-name'; d.textContent = t; img.replaceWith(d); }
     else { const d = document.getElementById('lld-league-name'); if (d && t) d.textContent = t; }
@@ -24802,6 +24815,7 @@ $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode
 function lldHolidayPrompt() {
     try {
         const h = lldHolidayNow(); if (!h || lldGet('lld_style', 'classic') !== 'classic') return;
+        if (h === 'season_thanksgiving') return; // the Thanksgiving greeting covers it
         const key = h + new Date().getFullYear(); if (lldGet('lld_hol_seen', '') === key) return;
         if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
         lldSet('lld_hol_seen', key);
@@ -26871,3 +26885,18 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 
 window.lldLogoRaw = lldLogoRaw;
 
+
+// ---- Thanksgiving greeting (once per day during Thanksgiving week) ----
+function lldThxGreet() {
+    try {
+        const w = lldThx(); if (!w) return;
+        const key = 'thx' + new Date().getFullYear() + '-' + new Date().getDate(); if (lldGet('lld_thx_seen', '') === key) return;
+        if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
+        lldSet('lld_thx_seen', key);
+        const nm = (LLD.leagueName === 'LLD Dynasty') ? "Live and Let's Feast" : (LLD.leagueName || 'the league');
+        const msg = w === 'day' ? 'Thankful for good friends, great trash talk and a full plate. Eat well, then go win your matchup.' : 'Thankful for good friends, great trash talk and a full plate. Thanksgiving is this Thursday, so set your lineup before the feast.';
+        $('#lld-hol').remove();
+        $('body').append(`<div id="lld-hol"><div class="hol-card"><div class="hol-t">\uD83E\uDD83 Happy Thanksgiving!</div><p>From all of us at ${nm}. ${msg}</p><button type="button" class="hol-keep" data-k="keep">Let\u2019s feast</button></div></div>`);
+    } catch (e) { console.warn('thx greet', e); }
+}
+[2500, 6000, 11000].forEach(t => setTimeout(lldThxGreet, t));
