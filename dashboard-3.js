@@ -17046,7 +17046,9 @@ function lldGthFit(caps, rs) {
 // Characters. Joker's ability is built; Batman and Catwoman are placeholders until their abilities are decided. The pick is saved on this device.
 // the characters you can pick are the ones on your roster (Coach + Defense slots), not a fixed list
 function lldGthCharList() { try { const R = lldChRoster(), a = []; if (R.leader) a.push(R.leader); R.sk.forEach(x => a.push(x));
-        let k = 0; return a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, on: !!c.on && (++k <= 2), role: (R.leader && c.pid === R.leader.pid) ? 'leader' : 'sidekick', mark: lldChAv(c.pid, c.nm) })); } catch (e) { return []; } }
+        let k = 0; const out = a.map(c => ({ id: lldChSlug(c.nm), name: c.nm, pid: c.pid, on: !!c.on && (++k <= 2), role: (R.leader && c.pid === R.leader.pid) ? 'leader' : 'sidekick', mark: lldChAv(c.pid, c.nm) }));
+        const T = window._gthTryChar; if (T) { out.forEach(x => { x.on = x.id === T.id; }); if (!out.some(x => x.id === T.id)) out.push({ id: T.id, name: T.name, pid: T.key, on: true, role: T.role || 'sidekick', mark: lldChAv(T.key, T.name) }); }
+        return out; } catch (e) { return []; } }
 const LLD_GTH_JOKER = { win: 2, lose: 0.5 }; // Wild Card: multiplier when the pick beats his projection / falls short
 const LLD_GTH_ABIL = { joker: { name: 'Wild Card', desc: 'Each week the dashboard picks one of your counting players at random and gives him a random bonus. You cannot plan for it, and neither can your opponent.' }, twoface: { name: 'Double or Half', desc: 'Pick one player who counts for you. If he beats his projection his points are doubled. If he falls short they are cut in half.' } };
 const LLD_GTH_CAL = { pct: 2, slots: ['Thu night', 'Sun 1 PM', 'Sun 4 PM', 'Sun night', 'Mon night'] }; // Calendar Man: % on every counting player for each different slot covered
@@ -17219,7 +17221,17 @@ function lldGthTryOpen(name, key) {
       <div class="gth-trb">${box.innerHTML}</div>
       <div class="hd2">Your starters</div>${caps.map(i => row(i, 'Captain')).join('')}${rs.map(i => row(i, fit.slot[i.pid] ? 'Reserve' : 'Not counting')).join('')}</div></div>`);
 }
-$(document).on('click', '.gth-try', function () { lldGthTryOpen(this.dataset.n, this.dataset.k); });
+
+function lldGthTryExit() { window._gthTryChar = null; window._gthTry = false; document.body.classList.remove('gth-trying'); $('#gth-trybar').remove(); try { lldGthCapRender(); } catch (e) { } }
+function lldGthTryBar() { const T = window._gthTryChar; if (!T) { $('#gth-trybar').remove(); return; } const lay = document.getElementById('gth-lay'); if (!lay) return; if (!document.getElementById('gth-trybar')) lay.insertAdjacentHTML('beforebegin', `<div id="gth-trybar"><span>Testing <b>${T.name}</b> on your lineup. Nothing is saved.</span><button type="button">Exit test</button></div>`); }
+$(document).on('click', '#gth-trybar button', lldGthTryExit);
+function lldGthTryReal(name, key, role) {
+    window._gthTryChar = { id: lldChSlug(name), name, key, role }; window._gthTry = true; document.body.classList.add('gth-trying');
+    try { const b = document.querySelector('.tab-btn[onclick*="tab-team"]'); if (b) b.click(); setTimeout(() => { const l = Array.from(document.querySelectorAll('#subtabs-team .sub-tab-btn')).find(x => /lineup/i.test(x.textContent)); if (l) l.click(); }, 150); } catch (e) { }
+    [600, 1500].forEach(t => setTimeout(() => { try { lldGthCapRender(); lldGthTryBar(); } catch (e) { } }, t));
+    setTimeout(() => { const L = window._gthLast; if (!(L && (L.caps.length + L.rs.length) >= 3)) { lldGthTryExit(); const b = document.querySelector('.tab-btn[onclick*="tab-rules"]'); if (b) b.click(); setTimeout(() => lldGthTryOpen(name, key), 300); } }, 2600);
+}
+$(document).on('click', '.gth-try', function () { const ch = ((window.LLD_CONFIG || {}).characters || {})[this.dataset.k] || {}; lldGthTryReal(this.dataset.n, this.dataset.k, ch.role); });
 $(document).on('click', '.gth-tgb', function (e) { e.stopPropagation(); lldGthPkOpen(this.dataset.cc); });
 $(document).on('click', '#gth-pk .x', function () { $('#gth-pk').remove(); });
 $(document).on('click', '#gth-pk', function (e) { if (e.target.id === 'gth-pk') $('#gth-pk').remove(); });
@@ -17350,7 +17362,7 @@ function lldGthCapRender() {
     let bh = document.getElementById('gth-bnh'); if (!bh) { $('#slots-bench').before('<div class="gx-sh" id="gth-bnh"><span>Bench</span><em id="gth-bnn"></em></div>'); }
     $('#gth-bnn').text(bn.length);
     place('slots-bench', bn);
-    window._gthLast = { caps, rs, bn, fit }; try { lldGthOppRender(); } catch (e) { console.warn('gth opp', e); }
+    window._gthLast = { caps, rs, bn, fit }; try { lldGthTryBar(); lldGthOppRender(); } catch (e) { console.warn('gth opp', e); }
     $('#slots-bench .empty-slot').hide();
 }
 function lldGthSheet(pid) {

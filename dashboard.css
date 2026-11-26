@@ -6345,3 +6345,7 @@ body.gth-ov #gth-lay,body.gth-ov .sticky-block{display:none !important}
 #gth-pk.try .gth-ab{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:10px}
 #gth-pk.try .gth-pj{display:none}
 #gth-pk.try .gth-tgb{display:none}
+
+#gth-trybar{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--accent-blue);color:#fff;border-radius:12px;padding:8px 12px;margin:8px 0;font-size:calc(12px * var(--ts,1))}
+#gth-trybar button{background:rgba(0,0,0,.35);border:0;color:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+body.gth-trying #gth-chars .gth-crs{display:none}
