@@ -17135,14 +17135,14 @@ $(document).on('click', '.gx-ph[data-slot]', function (e) {
     if (!players.length) list.html('<div style="padding:16px;text-align:center;color:var(--text-dim)">No eligible player.</div>');
     $('#player-context-menu').addClass('active');
 });
-document.addEventListener('click', function (e) {
+['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) { // the normal swap menu listens to touchend on phones, so this has to as well
     const it = e.target.closest && e.target.closest('.swap-item:not(.active-player-preview)');
     if (!it || !window._gthPick || !document.querySelector('#menu-player-info-container .gth-pick-h') || !$('#player-context-menu').hasClass('active')) return;
     if (e.target.closest('.proj-popup-trigger, .pa-breakdown-trigger')) return;
     e.stopImmediatePropagation(); e.preventDefault();
     const lay = lldGthLay(); lay[String($(it).data('pid'))] = window._gthPick.cap ? 'cap' : 'rs'; lldGthLaySave(lay); window._gthPick = null;
     try { hideMenu(); } catch (x) { $('#player-context-menu').removeClass('active'); } lldGthCapRender();
-}, true);
+}, true));
 // Position buttons open the Captain / Reserves / Bench bar instead of the normal slot menu while Gotham layout is showing.
 ['click', 'touchend'].forEach(ev => document.addEventListener(ev, function (e) {
     if (!document.body.classList.contains('lld-gth-lay')) return;
