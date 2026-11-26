@@ -17088,7 +17088,7 @@ const LLD_GTH_XA = {
     penguin: ['Compound Interest', '\uD83D\uDC27', 1, c => { const d = c.each((i, add) => { const s = Math.min(5, c.ctx.mp[i.pid].sS), b = c.pts(i) * s * LLD_GTH_X.pengPct / 100; add(b, '\uD83D\uDC27', `${s} weeks in a row`, `+${b.toFixed(1)} ability`); }); return { d, st: `+${LLD_GTH_X.pengPct}% for each week in a row a player has started (up to 5): <b class="up">+${d.toFixed(1)}</b>` }; }],
     poisonivy: ['Poison Kiss', '🌹', 1, c => { const w = c.ctx.opp.reduce((a, o) => a + Math.min(5, o.sC), 0), d = w * LLD_GTH_X.kiss; return { d, st: `${w} total weeks in a row of scoring across their starters: <b class="up">+${d.toFixed(1)}</b>` }; }],
     riddler: ['Mind Control', '❓', 1, c => { const t = c.ctx.opp.slice().sort((a, b) => b.v - a.v)[0], cut = t.v * LLD_GTH_X.mindCap; return { d: 0, opp: -cut, st: `${t.name} (their best, ${t.v.toFixed(1)}) is forced to reserve and loses his bonus: <b class="dn">their total ${(-cut).toFixed(1)}</b>` }; }],
-    mrfreeze: ['Freeze', '❄️', 1, c => { const t = c.pickOpp(), nv = Math.min(t.v, t.last), cut = t.v - nv; return { d: 0, opp: -cut, st: `${t.name} scores what he scored last week (${t.last.toFixed(1)}): <b class="dn">their total ${(-cut).toFixed(1)}</b>`, btn: c.sel('Freeze who?', c.ctx.opp.map(o => o.name)) }; }],
+    mrfreeze: ['Freeze', '❄️', 1, c => { const btn = c.pk('Freeze who?', c.ctx.opp.map(o => ({ v: o.name, a: o.name, b: `${o.pos} · projected ${o.v.toFixed(1)} · last week ${o.last.toFixed(1)}`, s: -(o.v - Math.min(o.v, o.last)), neg: 1 }))), t = c.pickOpp(); if (!t) return { d: 0, st: 'Choose which opposing starter to freeze.', btn }; const nv = Math.min(t.v, t.last), cut = t.v - nv; return { d: 0, opp: -cut, st: `${t.name} scores what he scored last week (${t.last.toFixed(1)}): <b class="dn">their total ${(-cut).toFixed(1)}</b>`, btn }; }],
     bane: ['Venom', '\uD83D\uDCAA', 1, c => { const d = c.each((i, add) => { const s = Math.min(5, c.ctx.mp[i.pid].sC), b = c.pts(i) * s * LLD_GTH_X.venomPct / 100; add(b, '\uD83D\uDCAA', `${s} weeks scoring`, `+${b.toFixed(1)} ability`); }); return { d, st: `+${LLD_GTH_X.venomPct}% for each week in a row a player has scored (up to 5): <b class="up">+${d.toFixed(1)}</b>` }; }],
     scarecrow: ['Fear Gas', '🎃', 0, c => ({ d: 0, st: 'With 10 starters in any position there are no position requirements to change. Tell me what Fear Gas should do now and I will build it.' })],
     solomongrundy: ['Slow Rise', '\uD83E\uDDDF', 1, c => { const d = c.each((i, add) => { const w = c.ctx.mp[i.pid].bw, b = c.pts(i) * Math.min(LLD_GTH_X.slowMax, w * LLD_GTH_X.slowPct) / 100; add(b, '\uD83E\uDDDF', `Sat ${w} weeks`, `+${b.toFixed(1)} ability`); }); return { d, st: `+${LLD_GTH_X.slowPct}% per week a player sat, up to ${LLD_GTH_X.slowMax}%, paid the week he starts: <b class="up">+${d.toFixed(1)}</b>` }; }],
@@ -17098,7 +17098,7 @@ const LLD_GTH_XA = {
     clockking: ['Time Trap', '⏰', 1, c => { const n = new Set(c.ctx.opp.map(o => o.slot)).size, d = c.total * n * LLD_GTH_X.clockPct / 100; return { d, st: `Their starters cover ${n} of 5 kickoff slots, +${LLD_GTH_X.clockPct}% each: <b class="up">+${d.toFixed(1)}</b>` }; }],
     professorpyg: ['Lights Out', '🐷', 1, c => { const n = c.ctx.opp.filter(o => o.night).length, d = n * LLD_GTH_X.pyg; return { d, st: `${n} of their starters play at night, +${LLD_GTH_X.pyg} each: <b class="up">+${d.toFixed(1)}</b>` }; }],
     firefly: ['Afterburn', '\uD83D\uDD25', 1, c => { const d = c.each((i, add) => { const b = c.ctx.mp[i.pid].last * LLD_GTH_X.firefly / 100; add(b, '\uD83D\uDD25', `${LLD_GTH_X.firefly}% of last week (${c.ctx.mp[i.pid].last.toFixed(1)})`, `+${b.toFixed(1)} ability`); }); return { d, st: `${LLD_GTH_X.firefly}% of each starter's points from last week: <b class="up">+${d.toFixed(1)}</b>` }; }],
-    madhatter: ['Tea Party', '\uD83C\uDFA9', 1, c => { const g = i => c.ctx.mp[i.pid].last - i.v, best = c.pickMine(c.cnt.slice().sort((a, z) => g(z) - g(a))[0]); const sl = c.sel('Whose score counts higher?', c.cnt.map(i => i.name)); c.list.forEach(i => { if (g(i) > 0) lldGthFx(i.row, '\uD83C\uDFA9', 'Counts last week\'s score', `+${g(i).toFixed(1)} ability`, false, i._bn || c.pv || i !== best); }); if (!best || g(best) <= 0) return { d: 0, btn: sl, st: 'Every starter scored more this week than last: no bonus.' }; return { d: g(best), btn: sl, st: `${best.name} counts last week's ${c.ctx.mp[best.pid].last.toFixed(1)} instead of ${best.v.toFixed(1)}: <b class="up">+${g(best).toFixed(1)}</b>` }; }],
+    madhatter: ['Tea Party', '\uD83C\uDFA9', 1, c => { const g = i => c.ctx.mp[i.pid].last - i.v; const sl = c.pk('Whose score counts higher?', c.cnt.map(i => ({ v: i.name, a: i.name, b: `${i.pos} · this week ${i.v.toFixed(1)} · last week ${c.ctx.mp[i.pid].last.toFixed(1)}`, s: Math.max(0, g(i)) }))), best = c.pickMine(); if (!best) return { d: 0, st: 'Choose which starter counts the higher of this week and last week.', btn: sl }; c.list.forEach(i => { if (g(i) > 0) lldGthFx(i.row, '\uD83C\uDFA9', 'Counts last week\'s score', `+${g(i).toFixed(1)} ability`, false, i._bn || c.pv || i !== best); }); if (!best || g(best) <= 0) return { d: 0, btn: sl, st: 'Every starter scored more this week than last: no bonus.' }; return { d: g(best), btn: sl, st: `${best.name} counts last week's ${c.ctx.mp[best.pid].last.toFixed(1)} instead of ${best.v.toFixed(1)}: <b class="up">+${g(best).toFixed(1)}</b>` }; }],
     hugostrange: ['Failed Evaluation', '🧪', 1, c => { const t = c.ctx.opp.slice().sort((a, b) => b.v - a.v).slice(0, 2), ok = t.length === 2 && t.every(o => o.v < o.pj), d = ok ? c.total * LLD_GTH_X.hugoPct / 100 : 0; return { d, st: ok ? `Their top two (${t.map(o => o.name).join(', ')}) both missed their projections: <b class="up">+${d.toFixed(1)}</b>` : 'Their top two starters did not both miss: no bonus.' }; }],
     killercroc: ['Cold-Blooded', '🐊', 1, c => { const n = c.ctx.opp.filter(o => o.v < o.last).length, d = n * LLD_GTH_X.croc; return { d, st: `${n} of their starters scored less than last week, +${LLD_GTH_X.croc} each: <b class="up">+${d.toFixed(1)}</b>` }; }],
     deadshot: ['Empty Chamber', '🎯', 0, c => { const e = Math.max(0, 2 - lldGthCharList().filter(x => x.on).length), d = c.total * e * LLD_GTH_X.deadPct / 100; return { d, st: `${e} empty ability slot${e === 1 ? '' : 's'} (you can start 2 characters), +${LLD_GTH_X.deadPct}% each: <b class="up">+${d.toFixed(1)}</b>` }; }],
@@ -17125,10 +17125,10 @@ function lldGthExtra(cc, caps, rs, fit, dp, M, bn, box, pv) {
     const ch = lldGthCharList(), A = lldGthAbd((ch.find(x => x.id === cc) || {}).name || ''), desc = A && A[0] ? A[0][1] : '';
     bn.forEach(i => { i._bn = true; }); cnt.forEach(i => { i._bn = false; });
     const c = { cnt, caps, rs, bn, pts, total, ctx, sk: 1, pv: !!pv, list: cnt.concat(bn), d: 0 };
-    const tgk = 'lld_gth_tg_' + String(fid).padStart(4, '0') + '_' + cc, tgv = lldGet(tgk, '');
-    c.pickOpp = () => c.ctx.opp.find(o => o.name === tgv) || c.ctx.opp.slice().sort((a, b) => b.v - a.v)[0];
-    c.pickMine = (dflt) => c.cnt.find(i => i.name === tgv) || dflt;
-    c.sel = (label, names, cur) => `<label class="gth-tgl">${label}<select class="gth-tg" data-cc="${cc}"><option value="">Best choice (automatic)</option>${names.map(n => `<option value="${String(n).replace(/"/g, '&quot;')}" ${n === tgv ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`;
+    const tgv = lldGet(lldGthPkKey(cc), '');
+    c.pickOpp = () => c.ctx.opp.find(o => o.name === tgv) || null;
+    c.pickMine = () => c.cnt.find(i => i.name === tgv) || null;
+    c.pk = (title, rows) => { window._gthPk = window._gthPk || {}; window._gthPk[cc] = { title, rows, cur: tgv }; if (!tgv && !c.pv) { window._gthNeed = window._gthNeed || {}; window._gthNeed[cc] = 1; } return `<button type="button" class="gth-tgb ${tgv ? '' : 'need'}" data-cc="${cc}">${tgv ? 'Change: ' + tgv : 'Choose now'}</button>`; };
     c.each = fn => { c.d = 0; c.list.forEach(i => fn(i, (b, ico, lab, txt) => { if (!b) return; if (!i._bn) c.d += b; lldGthFx(i.row, ico, lab, txt, false, i._bn || c.pv); })); return c.d; };
     let r, extra = '';
     if (E[2] && !ctx) r = { d: 0, st: LLD_GTH_NEEDS };
@@ -17139,18 +17139,35 @@ function lldGthExtra(cc, caps, rs, fit, dp, M, bn, box, pv) {
     return r.d || 0;
 }
 function lldGthClayface(box, caps, rs, fit, dp, M, bn) { // Copycat: pick one of the other new abilities and run it as your own
-    const k = 'lld_gth_copy_' + String(fid).padStart(4, '0'), opts = Object.keys(LLD_GTH_XA).filter(x => x !== 'scarecrow' && x !== 'phantasm'), cur = lldGet(k, '');
-    const sel = `<label class="gth-tgl">Copy whose ability?<select id="gth-copy" class="gth-tg2"><option value="">Choose an ability to copy</option>${opts.map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${LLD_GTH_XA[o][0]}</option>`).join('')}</select></label>`;
-    let d = 0, st = 'Pick an ability above.';
+    const opts = Object.keys(LLD_GTH_XA).filter(x => x !== 'scarecrow' && x !== 'phantasm'), cur = lldGet(lldGthPkKey('clayface'), '');
+    const rows = opts.map(o => { let v = 0; try { v = lldGthExtra(o, caps, rs, fit, dp, M, bn, document.createElement('div'), true) || 0; } catch (e) { } return { v: o, a: LLD_GTH_XA[o][0], b: ((lldGthAbd((lldGthCharList().find(x => x.id === o) || {}).name || '') || [[]])[0] || [])[1] || '', s: v }; });
+    window._gthPk = window._gthPk || {}; window._gthPk.clayface = { title: 'Copy whose ability?', rows, cur };
+    const started = !window._lldGthPv; if (!cur && started) { window._gthNeed = window._gthNeed || {}; window._gthNeed.clayface = 1; }
+    let d = 0, st = 'Choose which ability to copy.';
     if (cur && LLD_GTH_XA[cur]) { const tmp = document.createElement('div'), v = lldGthExtra(cur, caps, rs, fit, dp, M, bn, tmp, window._lldGthPv); d = v || 0; st = `Copying ${LLD_GTH_XA[cur][0]}: ` + ($(tmp).find('.st').first().html() || ''); }
-    box.innerHTML = `<div class="gth-ab"><div class="h"><b>📎 Copycat</b></div><p>Copies one ability of another character.</p>${sel}<div class="st">${st}</div></div>`;
+    box.innerHTML = `<div class="gth-ab"><div class="h"><b>📎 Copycat</b></div><p>Copies one ability of another character.</p><div class="st">${st}</div><button type="button" class="gth-tgb ${cur ? '' : 'need'}" data-cc="clayface">${cur ? 'Change: ' + LLD_GTH_XA[cur][0] : 'Choose now'}</button></div>`;
     return d;
 }
+function lldGthPkKey(cc) { return 'lld_gth_tg_' + String(fid).padStart(4, '0') + '_' + cc + '_' + (parseInt(window._lldServedWeek, 10) || 0); }
+function lldGthPkOpen(cc) {
+    const P = (window._gthPk || {})[cc]; if (!P) return; $('#gth-pk').remove();
+    const rows = P.rows.map(r => `<button type="button" class="gth-pkr ${r.v === P.cur ? 'on' : ''}" data-v="${String(r.v).replace(/"/g, '&quot;')}"><span class="l"><b>${r.a}</b><small>${r.b || ''}</small></span><span class="s ${r.neg ? 'dn' : 'up'}">${r.s ? (r.s > 0 ? '+' : '') + r.s.toFixed(1) : '0.0'}</span></button>`).join('');
+    $('body').append(`<div id="gth-pk" data-cc="${cc}"><div class="gth-pks"><div class="h"><b>${P.title}</b><button type="button" class="x">✕</button></div><div class="n">The number on the right is what each choice is worth right now. You must choose before you can submit.</div><div class="rl">${rows}</div></div></div>`);
+}
+$(document).on('click', '.gth-tgb', function (e) { e.stopPropagation(); lldGthPkOpen(this.dataset.cc); });
+$(document).on('click', '#gth-pk .x', function () { $('#gth-pk').remove(); });
+$(document).on('click', '#gth-pk', function (e) { if (e.target.id === 'gth-pk') $('#gth-pk').remove(); });
+$(document).on('click', '#gth-pk .gth-pkr', function () { const cc = $('#gth-pk').data('cc'); lldSet(lldGthPkKey(cc), this.dataset.v); $('#gth-pk').remove(); lldGthCapRender(); });
+document.addEventListener('click', function (e) { // no submitting until every pick is made
+    const b = e.target.closest && e.target.closest('#lineup-submit-float'); if (!b) return;
+    const n = Object.keys(window._gthNeed || {}); if (!n.length || !(window.lldGthOn && window.lldGthOn())) return;
+    e.stopPropagation(); e.preventDefault(); lldPlayedToast('Make your character pick first.'); lldGthPkOpen(n[0]);
+}, true);
 $(document).on('change', '.gth-tg', function () { lldSet('lld_gth_tg_' + String(fid).padStart(4, '0') + '_' + this.dataset.cc, this.value); lldGthCapRender(); });
 $(document).on('change', '#gth-copy', function () { lldSet('lld_gth_copy_' + String(fid).padStart(4, '0'), this.value); lldGthCapRender(); });
 function lldGthJoker(caps, rs, fit, dp, M, bn) { // runs the ability of every character you are starting
     const box = document.getElementById('gth-abil'); if (!box) return 0;
-    const act = lldGthCharList(); let tot = 0; box.innerHTML = '';
+    const act = lldGthCharList(); let tot = 0; box.innerHTML = ''; window._gthNeed = {};
     act.forEach(c => {
         const slot = document.querySelector('#gth-chars .gth-cr[data-ch="' + c.id + '"] .gth-crd'), d = document.createElement('div'); d.className = 'gth-one' + (c.on ? '' : ' off'); (slot || box).appendChild(d);
         window._lldGthPv = window._lldGthFxOff = !c.on;
@@ -17159,6 +17176,7 @@ function lldGthJoker(caps, rs, fit, dp, M, bn) { // runs the ability of every ch
         if (c.on) tot += v;
         const bb = document.querySelector('#gth-chars .gth-cr[data-ch="' + c.id + '"] .gth-crb'); if (bb) bb.textContent = c.on ? (v ? '+' + v.toFixed(1) : '0.0') : '';
     });
+    try { const n = Object.keys(window._gthNeed || {}); window._gthAuto = window._gthAuto || {}; const k = n.find(x => !window._gthAuto[x + (window._lldServedWeek || '')]); if (k && !document.getElementById('gth-pk')) { window._gthAuto[k + (window._lldServedWeek || '')] = 1; setTimeout(() => lldGthPkOpen(k), 400); } } catch (e) { }
     return tot;
 }
 function lldGthAbil1(box, cc, caps, rs, fit, dp, M, bn) {

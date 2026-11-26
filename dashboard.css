@@ -6282,3 +6282,17 @@ body.lld-gnav .league-tabs .tab-btn.gn-lock .gn-s{color:var(--text-dim);font-sty
 
 .gth-tgl{display:block;margin-top:8px;font-size:calc(10px * var(--ts,1));font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
 .gth-tgl select{display:block;width:100%;margin-top:4px;padding:10px;border-radius:10px;border:1px solid var(--accent-teal);background:rgba(255,255,255,.05);color:#fff;font:inherit;font-size:calc(13px * var(--ts,1));text-transform:none;letter-spacing:0}
+
+.gth-tgb{display:block;width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid var(--accent-teal);background:rgba(255,255,255,.05);color:#fff;font:inherit;font-weight:800;font-size:calc(12px * var(--ts,1));text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
+.gth-tgb.need{background:var(--accent-blue);border-color:var(--accent-blue)}
+#gth-pk{position:fixed;inset:0;z-index:2147482000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end}
+#gth-pk .gth-pks{width:100%;max-height:78vh;overflow:auto;background:var(--page-bg,#111);border:1px solid var(--card-border);border-radius:18px 18px 0 0;padding:14px 14px 28px}
+#gth-pk .h{display:flex;justify-content:space-between;align-items:center;font-size:calc(17px * var(--ts,1))}
+#gth-pk .x{background:none;border:0;color:#fff;font-size:20px;cursor:pointer}
+#gth-pk .n{font-size:calc(11px * var(--ts,1));color:var(--text-dim);margin:4px 0 10px}
+#gth-pk .gth-pkr{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:10px 12px;margin-bottom:6px;color:#fff;font:inherit;cursor:pointer}
+#gth-pk .gth-pkr.on{border-color:var(--accent-teal)}
+#gth-pk .gth-pkr .l{min-width:0}#gth-pk .gth-pkr b{display:block;font-size:calc(14px * var(--ts,1))}
+#gth-pk .gth-pkr small{display:block;color:var(--text-dim);font-size:calc(11px * var(--ts,1))}
+#gth-pk .gth-pkr .s{font-weight:800;font-size:calc(16px * var(--ts,1));flex:none}
+#gth-pk .up{color:#4ade80}#gth-pk .dn{color:#ff6b5b}
