@@ -19643,7 +19643,10 @@ function lldMusCatFor(slot) {
     const nm = String((typeof leagueFranchises !== 'undefined' && (leagueFranchises[lldMusMe()] || leagueFranchises[+lldMusMe()])) || '').toLowerCase();
     return lldMusCat().filter(c => (!c.slots || c.slots.indexOf(slot) >= 0) && (!c.teams || c.teams.some(x => nm && nm.indexOf(String(x).toLowerCase()) >= 0)));
 }
-function lldMusUserUrl(k) { return lldMusSongUrl(lldMusUser()[k], 'u' + k); }
+function lldMusUserUrl(k) { // saved picks that no longer fit this slot (a song limited to other slots) are skipped
+    const ok = lldMusIds(lldMusUser()[k]).filter(i => { const c = lldMusCat().find(x => String(x.id) === i); return c && (!c.slots || c.slots.indexOf(k) >= 0); });
+    return lldMusSongUrl(ok.length > 1 ? ok : ok[0], 'u' + k);
+}
 function lldMusEsc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function lldMusUserHtml() {
     const U = lldMusUser(), C0 = lldMusCat(), sel = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;width:100%;';

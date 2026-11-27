@@ -56,8 +56,7 @@
       "url": "https://youtu.be/k9iYm9PEAHg",
       "t": "45",
       "slots": [
-        "win",
-        "recap"
+        "win"
       ],
       "thumb": "sweetvictory.jpg"
     },
@@ -77,8 +76,7 @@
       "name": "Celebrate",
       "url": "https://youtu.be/J9rm_yrKHTQ",
       "slots": [
-        "win",
-        "recap"
+        "win"
       ],
       "thumb": "celebrate.jpg"
     },
