@@ -6358,3 +6358,9 @@ body.gth-trying #gth-chars .gth-crs{display:none}
 #stt table.ax td.tm,#stt table.ax th.tm{position:sticky;left:0;z-index:2;background:var(--card-bg);min-width:130px;text-align:left}
 #stt table.ax tr.me td.tm{box-shadow:inset 3px 0 0 var(--accent-blue)}
 #stt .axf{display:flex;gap:6px;margin:0 0 8px}#stt .axf button{flex:1;padding:8px 6px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:11px;font-weight:800;cursor:pointer}#stt .axf button.on{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
+
+/* Gotham rows: effect icons in the footer line, the change in points sits under the projection */
+.gth-pj{display:block;margin-left:0;text-align:right}
+.lld-clr-f .gth-fxs{display:inline-flex;gap:4px;margin-left:auto;flex:none;align-items:center}
+.lld-clr-f .gth-fxs .gth-fx{margin:0}
+.lld-clr-f .gth-fxs .gth-ci{width:20px;height:20px}

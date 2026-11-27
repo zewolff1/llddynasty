@@ -17088,7 +17088,10 @@ $(document).on('change', '#gth-wild', function () { lldSet(lldGthWildKey(), this
 // Joker's Wild Card: works out the change to the total and fills the ability card
 // ability effect on one row: a round icon with the label in the details, and the change in points under the projection box
 function lldGthFx(row, ico, label, txt, neg, off) {
-    const r = $(row), im = window._lldGthFxImg; off = off || window._lldGthFxOff; r.find('.lld-det').first().append(`<div class="gth-fx${off ? ' off' : ''}" title="${String(label).replace(/"/g, '')}"><span class="gth-ci${im ? ' pic' : ''}">${im ? `<img src="${im}" alt="" onerror="this.parentNode.classList.remove('pic');this.parentNode.textContent='${ico}'">` : ico}</span><span>${label}</span></div>`);
+    const r = $(row), im = window._lldGthFxImg; off = off || window._lldGthFxOff; txt = String(txt).replace(/\s*ability\s*$/i, '');
+    const fx = `<div class="gth-fx${off ? ' off' : ''}" title="${String(label).replace(/"/g, '')}"><span class="gth-ci${im ? ' pic' : ''}">${im ? `<img src="${im}" alt="" onerror="this.parentNode.classList.remove('pic');this.parentNode.textContent='${ico}'">` : ico}</span><span>${label}</span></div>`;
+    const ft = r.find('.lld-clr-f').first(); // the footer line (NOW / boom-bust): the character icons sit at its right end
+    if (ft.length) { let g = ft.children('.gth-fxs'); if (!g.length) g = $('<span class="gth-fxs"></span>').appendTo(ft); g.append(fx); } else r.find('.lld-det').first().append(fx);
     const pj = r.find('.proj-popup-trigger').first(); if (pj.length) pj.after(`<div class="gth-pj${neg ? ' dn' : ''}${off ? ' off' : ''}">${txt}</div>`);
 }
 // ---- Gotham: the rest of the character abilities. Every number is in LLD_GTH_X so you can tune it. ----
@@ -17374,7 +17377,7 @@ function lldGthCapRender() {
     caps.sort((a, b) => b.v - a.v);
     const fit = lldGthFit(caps, rs);
     rs.sort((a, b) => ((fit.slot[b.pid] ? 1 : 0) - (fit.slot[a.pid] ? 1 : 0)) || b.v - a.v);
-    $('.gth-bn,.gth-fx,.gth-pj,.gx-in,.gx-div,.gx-ph,.gx-mvbar').remove();
+    $('.gth-bn,.gth-fxs,.gth-fx,.gth-pj,.gx-in,.gx-div,.gx-ph,.gx-mvbar').remove();
     const place = (cont, list) => { const el = document.getElementById(cont); list.forEach((i, k) => { if (el.children[k] !== i.row) el.insertBefore(i.row, el.children[k] || null); }); };
     place('slots-captain', caps); place('slots-reserves', rs);
     const nc = rs.filter(i => fit.slot[i.pid]).length;
