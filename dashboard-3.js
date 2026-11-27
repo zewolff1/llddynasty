@@ -82,6 +82,11 @@ const LLD_STYLES = {
     "col_forest": { name: "Color: Forest", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "FOREST", "sub": "Color option", "bg": "linear-gradient(180deg,#16301f,#0a110e)", "font": "\"Inter\", sans-serif", "fw": 800} },
     "col_graphite": { name: "Color: Graphite", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "GRAPHITE", "sub": "Color option", "bg": "linear-gradient(180deg,#2b1417,#0e0e10)", "font": "\"Inter\", sans-serif", "fw": 800} },
     "col_ocean": { name: "Color: Ocean", group: "Colors", file: "teams", fonts: "", scene: {"none": true, "title": "OCEAN", "sub": "Color option", "bg": "linear-gradient(180deg,#0f3350,#08111a)", "font": "\"Inter\", sans-serif", "fw": 800} },
+    "gth_city": { name: "Gotham City", group: "Gotham", file: "gotham", fonts: "", scene: {"title": "GOTHAM CITY", "sub": "Dark and rainy", "bg": "linear-gradient(180deg,#0a0b0d,#15171b)", "font": "Georgia, serif", "fw": 700, "none": true} },
+    "gth_btas": { name: "Animated Series", group: "Gotham", file: "gotham", fonts: "family=Poiret+One&family=Oswald:wght@500;700", scene: {"title": "THE ANIMATED SERIES", "sub": "Storm sky", "bg": "linear-gradient(180deg,#07071a,#3c4496)", "font": "\"Poiret One\", sans-serif", "fw": 400, "none": true} },
+    "gth_golden": { name: "Golden Age", group: "Gotham", file: "gotham", fonts: "family=Bangers&family=Roboto+Slab:wght@500;700", scene: {"title": "GOLDEN AGE", "sub": "Comic page", "bg": "#f3cf3c", "font": "\"Bangers\", sans-serif", "fw": 400, "none": true} },
+    "gth_b66": { name: "Batman 66", group: "Gotham", file: "gotham", fonts: "family=Bangers", scene: {"title": "BATMAN 66", "sub": "Pop art", "bg": "linear-gradient(180deg,#2d8a45 0,#2d8a45 30%,#3a1f7a 30%)", "font": "\"Bangers\", sans-serif", "fw": 400, "none": true} },
+    "gth_lego": { name: "Lego Batman", group: "Gotham", file: "gotham", fonts: "family=Lilita+One&family=Fredoka:wght@500;700", scene: {"title": "LEGO BATMAN", "sub": "Neon night", "bg": "linear-gradient(180deg,#060b38,#3a0f72)", "font": "\"Lilita One\", sans-serif", "fw": 400, "none": true} },
     "season_fall": { name: "Fall", group: "Seasonal", file: "more", fonts: "family=Bitter:wght@600;800", scene: {"title": "FALL FOOTBALL", "sub": "Sweater weather", "bg": "linear-gradient(180deg, #8a4214 0%, #4a230c 100%)", "font": "\"Bitter\", Georgia, serif", "fw": 800, "g": "🍁"} },
     "season_halloween": { name: "Halloween", group: "Seasonal", file: "more", fonts: "family=Metamorphous", scene: {"title": "HAPPY HALLOWEEN", "sub": "Spooky season", "moon": true, "bg": "linear-gradient(180deg, #3a1d5e 0%, #1a0f2b 100%)", "font": "\"Metamorphous\", Georgia, serif", "fw": 400, "g": "👻"} },
     "season_thanksgiving": { name: "Thanksgiving", group: "Seasonal", file: "more", fonts: "family=Libre+Baskerville:wght@700", scene: {"title": "THANKSGIVING WEEK", "sub": "Football, family, leftovers", "bg": "linear-gradient(180deg, #7a2f2f 0%, #46211f 100%)", "font": "\"Libre Baskerville\", Georgia, serif", "fw": 700, "g": "🍂"} },
@@ -89,7 +94,7 @@ const LLD_STYLES = {
 };
 // little preview shown inside each theme button: the theme's own banner colors, font and decoration
 // compact theme chips: [background, border/accent, text]
-const LLD_CHIP = { sleeper: ['#11161f', '#2f7bf0', '#e6edf7'], season_fall: ['linear-gradient(180deg,#8a4214,#4a230c)', '#e8731c', '#ffd9a8'], season_thanksgiving: ['linear-gradient(180deg,#7a2f2f,#46211f)', '#d9822b', '#ffe2b8'], tundra: ['linear-gradient(180deg,#123049,#07121d)', '#8fdcff', '#e6f6ff'], team_gb: ['#203731', '#ffb612', '#ffb612'], team_dal: ['#041e42', '#869397', '#ffffff'], team_car: ['#101820', '#0085ca', '#4fb3e8'], team_tb: ['#3a1612', '#d50a0a', '#ff7900'], team_nyg: ['#0b2265', '#a71930', '#ffffff'], team_nyj: ['#125740', '#ffffff', '#ffffff'], team_phi: ['#004c54', '#a5acaf', '#ffffff'], col_indigo: ['#1d2050', '#7c83ff', '#c7caff'], col_amber: ['#2a2417', '#f5a524', '#f5b948'], col_forest: ['#16301f', '#4ade80', '#86efac'], col_graphite: ['#2b1417', '#ef4444', '#f87171'], col_ocean: ['#0f3350', '#38bdf8', '#7dd3fc'] };
+const LLD_CHIP = { gth_city: ['#0a0b0d', '#f5c518', '#f1f1f1'], gth_btas: ['linear-gradient(180deg,#07071a,#3c4496)', '#f2c14e', '#f2f4ff'], gth_golden: ['#f3cf3c', '#d8302a', '#1c1416'], gth_b66: ['linear-gradient(180deg,#2d8a45 0,#2d8a45 30%,#3a1f7a 30%)', '#ffd90f', '#ffffff'], gth_lego: ['linear-gradient(180deg,#060b38,#3a0f72)', '#35d8ff', '#ffffff'], sleeper: ['#11161f', '#2f7bf0', '#e6edf7'], season_fall: ['linear-gradient(180deg,#8a4214,#4a230c)', '#e8731c', '#ffd9a8'], season_thanksgiving: ['linear-gradient(180deg,#7a2f2f,#46211f)', '#d9822b', '#ffe2b8'], tundra: ['linear-gradient(180deg,#123049,#07121d)', '#8fdcff', '#e6f6ff'], team_gb: ['#203731', '#ffb612', '#ffb612'], team_dal: ['#041e42', '#869397', '#ffffff'], team_car: ['#101820', '#0085ca', '#4fb3e8'], team_tb: ['#3a1612', '#d50a0a', '#ff7900'], team_nyg: ['#0b2265', '#a71930', '#ffffff'], team_nyj: ['#125740', '#ffffff', '#ffffff'], team_phi: ['#004c54', '#a5acaf', '#ffffff'], col_indigo: ['#1d2050', '#7c83ff', '#c7caff'], col_amber: ['#2a2417', '#f5a524', '#f5b948'], col_forest: ['#16301f', '#4ade80', '#86efac'], col_graphite: ['#2b1417', '#ef4444', '#f87171'], col_ocean: ['#0f3350', '#38bdf8', '#7dd3fc'] };
 function lldStylePv(k, label) {
     const sea = (typeof lldSeasonNow === 'function') ? lldSeasonNow() : '';
     const key = k === 'seasonal' ? (sea || 'classic') : k, v = LLD_STYLES[key];
@@ -149,14 +154,16 @@ function lldHolidayNow(d) {
 function lldAutoOn() { return true; } // holiday looks are always automatic now (a popup offers a different theme when one switches on)
 function lldRandomStyle() {
     try { const v = sessionStorage.getItem('lld_rand'); if (v && LLD_STYLES[v]) return v; } catch (e) { }
-    const pool = Object.keys(LLD_STYLES).filter(k => !/^season_/.test(k)), pick = pool[Math.floor(Math.random() * pool.length)];
+    const gth = !!(window.lldGthOn && window.lldGthOn()), pool = Object.keys(LLD_STYLES).filter(k => !/^season_/.test(k) && (gth ? /^gth_|^col_|^classic$/.test(k) : !/^gth_/.test(k))), pick = pool[Math.floor(Math.random() * pool.length)];
     try { sessionStorage.setItem('lld_rand', pick); } catch (e) { }
     return pick;
 }
 function lldEffStyle() {
     const raw = lldGet('lld_style', 'classic');
     if (raw === 'random') return lldRandomStyle();
-    if (raw === 'classic') { const h = lldHolidayNow(); if (h && lldGet('lld_hol_skip', '') !== h + new Date().getFullYear()) return h; }
+    const gth = !!(window.lldGthOn && window.lldGthOn()); // Gotham has no seasonal or holiday looks
+    if (gth && (raw === 'seasonal' || /^season_/.test(raw))) return 'classic';
+    if (raw === 'classic' && !gth) { const h = lldHolidayNow(); if (h && lldGet('lld_hol_skip', '') !== h + new Date().getFullYear()) return h; }
     if (raw !== 'seasonal') return LLD_STYLES[raw] ? raw : 'classic';
     const s = lldSeasonNow();
     if (s) return s;
@@ -25174,7 +25181,7 @@ $(document).on('click', '.lld-hdr-btn[data-mode]', function () { lldApplyHdrMode
 // When a holiday look switches on by itself, ask once whether to keep it or pick another theme
 function lldHolidayPrompt() {
     try {
-        const h = lldHolidayNow(); if (!h || lldGet('lld_style', 'classic') !== 'classic') return;
+        const h = lldHolidayNow(); if (!h || (window.lldGthOn && window.lldGthOn()) || lldGet('lld_style', 'classic') !== 'classic') return;
         if (h === 'season_thanksgiving') return; // the Thanksgiving greeting covers it
         const key = h + new Date().getFullYear(); if (lldGet('lld_hol_seen', '') === key) return;
         if ($('#auth-overlay:visible, .auth2:visible').length || !$('#tab-header-area').length) return;
@@ -26438,7 +26445,11 @@ function lldThemeRailsHtml(cur, more) { // the compact Featured / Colors / NFL t
     const sea = lldSeasonNow(); LLD_CHIP.classic = ['#141a2b', '#3f77c4', '#d8e4ff']; LLD_CHIP.random = ['linear-gradient(90deg,#3f77c4,#e31837,#d9b25f,#14452b)', '#d9b25f', '#fff'];
     const sw = (k, label, on, ck) => { const c = LLD_CHIP[ck || k] || ['#1a2230', '#94a3b8', '#fff']; return `<button type="button" class="lld-style-btn qt-sw ${on ? 'on' : ''}" data-style="${k}"><i style="background:${c[0]};--a:${c[1]}"></i><span>${label}</span></button>`; };
     const rail = (t, items) => `<div class="qt-g">${t}</div><div class="qt-rail">${items}</div>`;
-    const used = new Set(['seasonal', 'sleeper', 'tundra', 'classic', 'random', 'col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean', 'team_gb', 'team_phi', 'team_dal', 'team_nyj', 'team_nyg', 'team_tb', 'team_car']);
+    if (window.lldGthOn && window.lldGthOn()) { // Gotham: the five Batman looks and the plain colors, no seasonal or team themes
+        const GK = ['gth_city', 'gth_btas', 'gth_golden', 'gth_b66', 'gth_lego'];
+        return rail('Gotham', GK.map(k => sw(k, LLD_STYLES[k].name, cur === k)).join('')) + rail('Colors', sw('classic', 'Midnight', cur === 'classic') + ['col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean'].map(k => sw(k, LLD_STYLES[k].name.replace(/^Color: /, ''), cur === k)).join('')) + (more ? rail('Surprise', sw('random', 'Random', cur === 'random')) : '');
+    }
+    const used = new Set(['seasonal', 'sleeper', 'tundra', 'classic', 'random', 'col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean', 'gth_city', 'gth_btas', 'gth_golden', 'gth_b66', 'gth_lego', 'team_gb', 'team_phi', 'team_dal', 'team_nyj', 'team_nyg', 'team_tb', 'team_car']);
     const rest = more ? Object.keys(LLD_STYLES).filter(k => !used.has(k) && !/^season_/.test(k)) : [];
     return rail('Featured', sw('seasonal', 'Seasonal', cur === 'seasonal', sea || 'classic') + sw('sleeper', 'Sleeper', cur === 'sleeper') + sw('tundra', 'Frozen Tundra', cur === 'tundra') + (more ? sw('random', 'Random', cur === 'random') : ''))
         + rail('Colors', sw('classic', 'Midnight', cur === 'classic') + ['col_indigo', 'col_amber', 'col_forest', 'col_graphite', 'col_ocean'].map(k => sw(k, LLD_STYLES[k].name.replace(/^Color: /, ''), cur === k)).join(''))
