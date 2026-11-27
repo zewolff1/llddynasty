@@ -19621,7 +19621,16 @@ function lldMusSaveShared() { clearTimeout(_lldMusT); _lldMusT = setTimeout(asyn
 function lldMusUserOn() { try { return !!lldAdmin(); } catch (e) { return false; } } // own songs: on for 0000 / 0001 (Settings > Recap songs)
 function lldMusCat() { const c = (window.LLD_CONFIG || {}).songs; return Array.isArray(c) ? c.filter(x => x && x.id && x.name && x.url) : []; }
 // a pick is a song id from the commissioner's list (older picks that stored a link still work)
-function lldMusSongUrl(v) {
+// a slot can hold one song or several (an array of ids); with several, one is picked at random each time, never the same one twice in a row
+function lldMusIds(v) { return (Array.isArray(v) ? v : [v]).filter(x => x && typeof x !== 'object').map(String); }
+var _lldMusLast = {};
+function lldMusRand(v, key) {
+    const ok = lldMusIds(v).filter(i => lldMusCat().some(c => String(c.id) === i)); if (!ok.length) return '';
+    if (ok.length === 1) return ok[0];
+    const pool = ok.filter(i => i !== _lldMusLast[key]), r = pool[Math.floor(Math.random() * pool.length)]; _lldMusLast[key] = r; return r;
+}
+function lldMusSongUrl(v, key) {
+    if (Array.isArray(v)) v = lldMusRand(v, key || 'x');
     if (!v) return '';
     let u = '', t = 0;
     if (typeof v === 'object') { u = v.u; t = lldYtSecs(v.t); }
@@ -19634,18 +19643,18 @@ function lldMusCatFor(slot) {
     const nm = String((typeof leagueFranchises !== 'undefined' && (leagueFranchises[lldMusMe()] || leagueFranchises[+lldMusMe()])) || '').toLowerCase();
     return lldMusCat().filter(c => (!c.slots || c.slots.indexOf(slot) >= 0) && (!c.teams || c.teams.some(x => nm && nm.indexOf(String(x).toLowerCase()) >= 0)));
 }
-function lldMusUserUrl(k) { return lldMusSongUrl(lldMusUser()[k]); }
+function lldMusUserUrl(k) { return lldMusSongUrl(lldMusUser()[k], 'u' + k); }
 function lldMusEsc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function lldMusUserHtml() {
     const U = lldMusUser(), C0 = lldMusCat(), sel = 'background:#111826;border:1px solid var(--card-border);color:var(--text-main);border-radius:8px;padding:8px;font-size:16px;min-width:0;width:100%;';
     return `<div style="margin:6px 0 16px;"><div style="font-size:calc(9px * var(--ts,1)); font-weight:900; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Your recap songs (beta)</div>
         <div style="display:flex; gap:6px; margin-bottom:12px;">${[['1', 'On'], ['0', 'Off']].map(([v, l]) => `<button class="lld-hdr-btn lld-b-btn ${lldBv('musu') === v ? 'on' : ''}" data-k="musu" data-v="${v}">${l}</button>`).join('')}</div>
-        ${C0.length ? lldMusSlots().map(([k, l]) => { const cur = typeof U[k] === 'string' ? U[k] : ''; const C = lldMusCatFor(k); return `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr auto; gap:6px;"><select class="lld-mu-s" data-s="${k}" style="${sel}"><option value="">Nothing chosen yet</option>${C.map(c => `<option value="${lldMusEsc(c.id)}" ${String(c.id) === cur ? 'selected' : ''}>${lldMusEsc(c.name)}</option>`).join('')}</select><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">▶ Preview</button></div></div>`; }).join('') : `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">No songs have been added yet. The commissioner adds the song list.</div>`}
+        ${C0.length ? lldMusSlots().map(([k, l]) => { const ids = lldMusIds(U[k]), cur = ids.length === 1 ? ids[0] : ''; const C = lldMusCatFor(k); return `<div style="margin-bottom:12px;"><div style="font-size:calc(11px * var(--ts,1)); font-weight:800; margin-bottom:5px;">${l}</div><div style="display:grid; grid-template-columns:1fr auto; gap:6px;"><select class="lld-mu-s" data-s="${k}" style="${sel}"><option value="">Nothing chosen yet</option>${ids.length > 1 ? `<option value="__multi" selected>${ids.length} songs (random)</option>` : ''}${C.map(c => `<option value="${lldMusEsc(c.id)}" ${String(c.id) === cur ? 'selected' : ''}>${lldMusEsc(c.name)}</option>`).join('')}</select><button type="button" class="lld-hdr-btn lld-mu-test" data-s="${k}">▶ Preview</button></div></div>`; }).join('') : `<div style="font-size:calc(11px * var(--ts,1)); color:var(--text-dim); margin-bottom:10px;">No songs have been added yet. The commissioner adds the song list.</div>`}
         <div style="font-size:calc(10px * var(--ts,1)); color:var(--text-dim);">Pick from the commissioner's list. Preview plays about 15 seconds. Anything left on default uses the league song.</div></div>`;
 }
-$(document).on('change', '.lld-mu-s', function () { const U = lldMusUser(), s = this.dataset.s; if (this.value) U[s] = this.value; else delete U[s]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
+$(document).on('change', '.lld-mu-s', function () { const U = lldMusUser(), s = this.dataset.s; if (this.value === '__multi') return; if (this.value) U[s] = this.value; else delete U[s]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); });
 $(document).on('click', '.lld-mu-test', async function () {
-    const sel = $(this).closest('div').find('.lld-mu-s').val(), v = lldYtId(lldMusSongUrl(sel));
+    let sel = $(this).closest('div').find('.lld-mu-s').val(); if (sel === '__multi') sel = lldMusUser()[this.dataset.s]; const v = lldYtId(lldMusSongUrl(sel, 'test'));
     if (!v) { try { lldMusToast('Pick a song first'); } catch (e) { } return; }
     try {
         await lldYtLoad(); if (!(window.YT && window.YT.Player)) { lldMusToast('Player could not load'); return; }
@@ -19657,7 +19666,7 @@ $(document).on('click', '.lld-mu-test', async function () {
     } catch (e) { console.warn('preview', e); }
 });
 
-function lldMusCountTxt() { try { const U = lldMusUser(), n = lldMusSlots().filter(x => typeof U[x[0]] === 'string' && U[x[0]]).length; return n ? n + ' of 4 chosen' : ''; } catch (e) { return ''; } }
+function lldMusCountTxt() { try { const U = lldMusUser(), n = lldMusSlots().filter(x => lldMusIds(U[x[0]]).length).length; return n ? n + ' of 4 chosen' : ''; } catch (e) { return ''; } }
 function lldSongLook(c) { let h = 0; String(c.id).split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) % 360; }); return { a: `hsl(${h},62%,38%)`, b: `hsl(${(h + 40) % 360},55%,16%)`, e: c.icon || (c.teams ? '🏟️' : (c.slots && c.slots.indexOf('oloss') >= 0 ? '😈' : (c.slots ? '🏆' : '🎵'))) }; }
 // A song can have its own picture: "thumb": "roundup.jpg" in the song list (file goes in content/songs/) or a full image link
 function lldSongThumb(c) { const t = c && c.thumb; if (!t) return ''; return /^https?:/i.test(t) ? t : 'https://raw.githubusercontent.com/zewolff1/llddynasty/main/content/songs/' + encodeURIComponent(t); }
@@ -19702,13 +19711,13 @@ function lldSongsOpen() {
 }
 function lldSongsDraw() {
     const U = lldMusUser(), C = lldMusCat();
-    $('#lld-sg').html(`<div class="sg-h"><button class="sg-x" data-a="close" aria-label="Back">‹</button><b>Recap songs</b></div><p class="sg-p">Tap a slot to choose its song. A slot with nothing chosen plays the dashboard's built-in music, if any.</p>` + lldMusSlots().map(([k, l]) => { const sel = C.find(c => String(c.id) === U[k]), lk = sel ? lldSongLook(sel) : null; return `<button class="sg-slot" data-a="slot" data-k="${k}"><div class="sg-ic" style="${lk ? lldSongArtStyle(sel, lk) : ''}">${lk && !lldSongThumb(sel) ? lk.e : (lk ? '' : LLD_SG_SLOT[k][0])}</div><div><div class="sg-t">${lldMusEsc(l.replace(/ \(.*\)/, ''))}</div><div class="sg-s">${sel ? lldMusEsc(sel.name) : 'Nothing chosen yet'}</div></div><span style="color:#94a3b8;font-size:18px">›</span></button>`; }).join('') + (C.length ? '' : '<p class="sg-p">No songs have been added yet.</p>'));
+    $('#lld-sg').html(`<div class="sg-h"><button class="sg-x" data-a="close" aria-label="Back">‹</button><b>Recap songs</b></div><p class="sg-p">Tap a slot to choose its songs. Pick more than one and a random one plays each time. A slot with nothing chosen plays the dashboard's built-in music, if any.</p>` + lldMusSlots().map(([k, l]) => { const ids = lldMusIds(U[k]).filter(i => C.some(c => String(c.id) === i)), sel = ids.length ? C.find(c => String(c.id) === ids[0]) : null, lk = sel ? lldSongLook(sel) : null; return `<button class="sg-slot" data-a="slot" data-k="${k}"><div class="sg-ic" style="${lk ? lldSongArtStyle(sel, lk) : ''}">${lk && !lldSongThumb(sel) ? lk.e : (lk ? '' : LLD_SG_SLOT[k][0])}</div><div><div class="sg-t">${lldMusEsc(l.replace(/ \(.*\)/, ''))}</div><div class="sg-s">${sel ? lldMusEsc(sel.name) + (ids.length > 1 ? ' + ' + (ids.length - 1) + ' more · random' : '') : 'Nothing chosen yet'}</div></div><span style="color:#94a3b8;font-size:18px">›</span></button>`; }).join('') + (C.length ? '' : '<p class="sg-p">No songs have been added yet.</p>'));
 }
-let _sgSlot = null, _sgSel = null, _sgTm = null, _sgYt = null;
+let _sgSlot = null, _sgSel = [], _sgPv = null, _sgTm = null, _sgYt = null;
 function lldSongsSheet() {
     const C = lldMusCatFor(_sgSlot), lab = lldMusSlots().find(x => x[0] === _sgSlot)[1].replace(/ \(.*\)/, '');
     $('#lld-sgs').remove();
-    $('body').append(`<div id="lld-sgs"><div class="sg-sh"><div class="sg-gr"></div><div class="sg-hd"><b>${lldMusEsc(lab)}</b><span>${C.length} songs</span></div><div class="sg-grid">${C.map(c => { const lk = lldSongLook(c); return `<button class="sg-song${String(c.id) === _sgSel ? ' sel' : ''}" data-a="song" data-i="${lldMusEsc(c.id)}"><div class="a" style="${lldSongArtStyle(c, lk)}">${lldSongThumb(c) ? '' : lk.e}</div>${c.teams ? '<span class="tg">TEAM SONG</span>' : ''}<div class="n">${lldMusEsc(c.name)}</div></button>`; }).join('')}</div><div class="sg-row"><button class="sg-btn" data-a="clear">Clear my pick</button><button class="sg-btn p" data-a="prev"${_sgSel ? '' : ' disabled'}>▶ Preview</button></div><div class="sg-row" style="margin-top:8px"><button class="sg-btn g" data-a="done">Done</button></div></div></div>`);
+    $('body').append(`<div id="lld-sgs"><div class="sg-sh"><div class="sg-gr"></div><div class="sg-hd"><b>${lldMusEsc(lab)}</b><span>${_sgSel.length ? _sgSel.length + ' picked' + (_sgSel.length > 1 ? ' · random each time' : '') : C.length + ' songs'}</span></div><div class="sg-grid">${C.map(c => { const lk = lldSongLook(c); return `<button class="sg-song${_sgSel.indexOf(String(c.id)) >= 0 ? ' sel' : ''}" data-a="song" data-i="${lldMusEsc(c.id)}"><div class="a" style="${lldSongArtStyle(c, lk)}">${lldSongThumb(c) ? '' : lk.e}</div>${c.teams ? '<span class="tg">TEAM SONG</span>' : ''}<div class="n">${lldMusEsc(c.name)}</div></button>`; }).join('')}</div><div class="sg-row"><button class="sg-btn" data-a="clear">Clear my picks</button><button class="sg-btn p" data-a="prev"${_sgSel.length ? '' : ' disabled'}>▶ Preview</button></div><div class="sg-row" style="margin-top:8px"><button class="sg-btn g" data-a="done">Done</button></div></div></div>`);
 }
 // Same player setup the recap stories use (a fresh 160x160 player per song, shown as a small circle in the corner): other setups got YouTube ads.
 let _sgRdy = false, _sgWant = null;
@@ -19721,21 +19730,21 @@ function lldSongsMake(y) {
     return true;
 }
 function lldSongsPlay() {
-    const c = lldMusCat().find(x => String(x.id) === _sgSel); if (!c) return; const y = lldYtId(lldMusSongUrl(_sgSel)); if (!y) return;
+    const pid = (_sgPv && _sgSel.indexOf(_sgPv) >= 0) ? _sgPv : _sgSel[_sgSel.length - 1]; const c = lldMusCat().find(x => String(x.id) === pid); if (!c) return; const y = lldYtId(lldMusSongUrl(pid)); if (!y) return;
     lldSongsStop(); const lk = lldSongLook(c), lab = lldMusSlots().find(x => x[0] === _sgSlot)[1].replace(/ \(.*\)/, '');
     $('body').append(`<div id="lld-sgp" style="--g1:${lk.a};--g2:${lk.b}"><div class="bar"><i></i></div><div class="tp"><span>Preview · ${lldMusEsc(lab)}</span><button data-a="pstop" aria-label="Close">✕</button></div><div class="md"><div class="disc wait" data-a="pplay" style="${lldSongThumb(c) ? `background:#000 url('${lldSongThumb(c)}') center/cover no-repeat` : ''}">${lldSongThumb(c) ? '' : lk.e}</div><div><div class="nm">${lldMusEsc(c.name)}</div><div class="sb">Tap to hear it</div></div><div class="eq"><i></i><i></i><i></i><i></i></div></div><div id="lld-sgy" style="position:absolute;left:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));width:44px;height:44px;border-radius:50%;overflow:hidden;background:#000;opacity:.85"><div id="lld-sgy-p"></div></div><div class="bt"><button data-a="pstop">Back</button><button class="p" data-a="puse">Use this song</button></div></div>`);
     window._sgY = y;
     if (!lldSongsMake(y)) { try { lldYtLoad().then(() => { if ($('#lld-sgp').length && !_sgYt) lldSongsMake(y); }); } catch (e) { } }
     const t0 = Date.now(); _sgTm = setInterval(() => { const p = (Date.now() - t0) / 15000; $('#lld-sgp .bar i').css('width', Math.min(100, p * 100) + '%'); if (p >= 1) { clearInterval(_sgTm); try { if (_sgYt) _sgYt.pauseVideo(); } catch (e) { } $('#lld-sgp .sb').text('Preview finished. Tap the disc to hear it again.'); } }, 80);
 }
-function lldSongsSave() { const U = lldMusUser(); if (_sgSel) U[_sgSlot] = _sgSel; else delete U[_sgSlot]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); }
+function lldSongsSave() { const U = lldMusUser(); if (_sgSel.length > 1) U[_sgSlot] = _sgSel.slice(); else if (_sgSel.length) U[_sgSlot] = _sgSel[0]; else delete U[_sgSlot]; try { localStorage.setItem('lld_mus_u', JSON.stringify(U)); } catch (e) { } lldMusSaveShared(); }
 $(document).on('click', '#lld-sg [data-a], #lld-sgs [data-a], #lld-sgp [data-a]', function (e) {
     e.stopPropagation(); const a = this.dataset.a;
     if (a === 'close') { lldSongsKill(); $('#lld-sg, #lld-sgs').remove(); try { $('#sh2-list').html($('#sh2-list').html()); } catch (x) { } return; }
-    if (a === 'slot') { _sgSlot = this.dataset.k; const v = lldMusUser()[_sgSlot]; _sgSel = typeof v === 'string' ? v : null; return lldSongsSheet(); }
-    if (a === 'song') { _sgSel = this.dataset.i; return lldSongsSheet(); } // just selects; Preview plays it
+    if (a === 'slot') { _sgSlot = this.dataset.k; _sgSel = lldMusIds(lldMusUser()[_sgSlot]); _sgPv = null; return lldSongsSheet(); }
+    if (a === 'song') { const i = String(this.dataset.i), at = _sgSel.indexOf(i); if (at >= 0) { _sgSel.splice(at, 1); if (_sgPv === i) _sgPv = null; } else { _sgSel.push(i); _sgPv = i; } return lldSongsSheet(); } // tap to add or remove; Preview plays the last one tapped // just selects; Preview plays it
     if (a === 'prev') return lldSongsPlay();
-    if (a === 'clear') { _sgSel = null; return lldSongsSheet(); }
+    if (a === 'clear') { _sgSel = []; _sgPv = null; return lldSongsSheet(); }
     if (a === 'done') { lldSongsSave(); lldSongsStop(); $('#lld-sgs').remove(); return lldSongsDraw(); }
     if (a === 'pstop') return lldSongsStop();
     if (a === 'pplay') { try { if (_sgYt && _sgYt.playVideo) { _sgYt.seekTo((window._sgY && window._sgY.t) || 0); _sgYt.playVideo(); } } catch (x) { } return; }
@@ -19767,7 +19776,7 @@ function lldMusPick(kind) {
         const pv = kind === 'preview' || kind === 'matchup';
         if (pv) { const u = lldMusUserUrl('preview'); if (u) return u; }
         else {
-            const res = (LLD_ST && LLD_ST.myRes) || '', opp = lldMusOf(LLD_ST && LLD_ST.oppFid), ou = k => lldMusSongUrl(opp && opp[k]);
+            const res = (LLD_ST && LLD_ST.myRes) || '', opp = lldMusOf(LLD_ST && LLD_ST.oppFid), ou = k => lldMusSongUrl(opp && opp[k], 'o' + k);
             // I win: my own win song. I lose: the song the team that beat me chose for their opponent's loss (then their win song). Then my generic recap.
             // the win / opponent-loss songs are only for your own matchup recap ('mrecap'); the league-wide recaps play your generic recap song
             const mine = kind === 'mrecap', u = (mine && ((res === 'win' && lldMusUserUrl('win')) || (res === 'loss' && (ou('oloss') || ou('win'))))) || lldMusUserUrl('recap');
