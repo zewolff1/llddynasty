@@ -15961,6 +15961,7 @@ async function lldStDynLoad(S) {
     [false, true].forEach(wp => { S.F.slice().sort((a, b) => calc(a, wp).score - calc(b, wp).score).forEach((f, i) => { out.rk[wp ? 'yes' : 'no'][f] = i + 1; }); });
     return X.dyn = out;
 }
+function lldStNeedsExtras(cols) { const X = window._lldSt.X; return (cols.some(k => /^(cap|cl|cu)$/.test(k)) && !X.cap) || (cols.includes('dyn') && !X.dyn) || (cols.some(k => /^a_/.test(k)) && !X.ev); }
 async function lldStLoadExtras(S, cols) {
     const X = window._lldSt.X;
     const tasks = [];
@@ -16198,10 +16199,11 @@ function lldStApGrid(S) {
 }
 function lldStDraw() {
     const body = $('#stt'); if (!body.length || !window._lldSt.S) return;
-    const st = window._lldSt, S = st.S, C = lldStDefs(S), P = LLD_ST_PRE[st.V] || LLD_ST_PRE.ov;
+    const st = window._lldSt, S = st.S, P = LLD_ST_PRE[st.V] || LLD_ST_PRE.ov;
+    if (P.grid) { body.html(`<div class="views">${Object.keys(LLD_ST_PRE).filter(k => !LLD_ST_PRE[k].beta || lldDev()).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('')}<button type="button" class="cols" data-sv="cols">⚙ Columns</button></div><div class="ttl"><h2>${P.t}</h2></div>${lldStApGrid(S)}<p class="note">${P.note}</p>`); return; }
+    const C = lldStDefs(S);
     if (P.beta && lldDev()) { lldPgDraw(body, P); return; }
     if (P.beta) { st.V = 'ov'; lldStDraw(); return; }
-    if (P.grid) { body.html(`<div class="views">${Object.keys(LLD_ST_PRE).filter(k => !LLD_ST_PRE[k].beta || lldDev()).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('')}<button type="button" class="cols" data-sv="cols">⚙ Columns</button></div><div class="ttl"><h2>${P.t}</h2></div>${lldStApGrid(S)}<p class="note">${P.note}</p>`); try { reapplyAllTeamStyles(); } catch (e) { } return; }
     const cols = (st.V === 'cu' ? (st.cols || P.cols) : P.cols).filter(k => C[k]);
     if (st.V !== 'cu') st._shown = cols; else st._shown = cols;
     const rows = lldStSorted(lldStRows(S), C), arrow = k => st.sk === k ? (st.sd === -1 ? ' ▾' : ' ▴') : '';
@@ -16241,7 +16243,7 @@ function lldStExplain(f, k) {
 $(document).on('click', '#stt [data-sv]', async function () {
     const st = window._lldSt, v = this.dataset.sv;
     if (v === 'cols') { lldStColSheet(); return; }
-    st.V = v; st.sk = null; lldSet('lld_st_v', v); lldStDraw(); const P = LLD_ST_PRE[v], cols = v === 'cu' ? (st.cols || P.cols) : P.cols; await lldStLoadExtras(st.S, cols); lldStDraw();
+    st.V = v; st.sk = null; lldSet('lld_st_v', v); lldStDraw(); const P = LLD_ST_PRE[v], cols = v === 'cu' ? (st.cols || P.cols) : P.cols; if (!lldStNeedsExtras(cols)) return; await lldStLoadExtras(st.S, cols); if (st.V === v) lldStDraw();
 });
 $(document).on('click', '#stt th[data-sk]', function () { const st = window._lldSt, k = this.dataset.sk; if (st.sk === k) st.sd = -st.sd; else { st.sk = k; st.sd = k === '_n' ? 1 : -1; } lldStDraw(); });
 $(document).on('click', '#stt td.cl', function () { lldStExplain(this.dataset.t, this.dataset.c); });
