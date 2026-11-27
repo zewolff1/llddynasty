@@ -17218,7 +17218,7 @@ async function lldGthOppLoad() {
         const all = ids.map(id => pl[id]).filter(x => x && /^(QB|RB|WR|TE)$/.test(x.position)).map(x => ({ name: nm(x.name), pos: x.position, pj: P[String(x.id)] || 0, v: P[String(x.id)] || 0, last: Lw[String(x.id)] || 0, slot: 1, night: false, sS: 0, sC: 0, wasBench: false, id: String(x.id) }));
         all.sort((a, b) => b.v - a.v);
         const fr = [].concat((lg && lg.league && lg.league.franchises && lg.league.franchises.franchise) || []).find(x => String(x.id).padStart(4, '0') === of);
-        window._gthRealOpp = { wk, t: Date.now(), fid: of, name: fr ? fr.name : 'Your opponent', opp: all.slice(0, 10), ob: all.slice(10, 14).map(x => ({ name: x.name, v: x.v })), mine: Lw };
+        window._gthRealOpp = { wk, t: Date.now(), fid: of, name: fr ? fr.name : 'Your opponent', all: all, opp: all.slice(0, 10), ob: all.slice(10, 14).map(x => ({ name: x.name, v: x.v })), mine: Lw };
         try { lldGthCapRender(); } catch (e) { }
     } catch (e) { console.warn('gth opp load', e); } finally { window._gthOppBusy = false; }
 }
@@ -17237,14 +17237,26 @@ function lldGthOppRender() {
     if (!ctx) { pan.innerHTML = `<div class="gth-oc"><b>Their squad</b><p>${LLD_GTH_NEEDS}</p></div>`; return; }
     const W = Object.assign({ squad: ['Tue 00:00', 'Thu 20:00'] }, (LLD.gothamWeek || {})), locked = !lldGthOpenNow(W.squad);
     const frz = (lldGthCharList().find(c => c.id === 'mrfreeze') || {}).on, tgv = lldGet(lldGthPkKey('mrfreeze'), '');
-    const rows = ctx.opp.map(o => `<div class="gth-or ${tgv === o.name ? 'hit' : ''}"><span class="pa pa-${o.pos}">${o.pos}</span><div class="l"><b>${o.name}</b><small>projected ${o.v.toFixed(1)} · last week ${o.last.toFixed(1)}</small></div>${frz && !locked ? `<button type="button" class="gth-ofz ${tgv === o.name ? 'on' : ''}" data-n="${o.name.replace(/"/g, '&quot;')}">${tgv === o.name ? 'Frozen' : 'Freeze'}</button>` : ''}<span class="s">${o.v.toFixed(1)}</span></div>`).join('');
+    // their best projected lineup (read only); tap a starter to make him a captain and see what changes
+    const RO = window._gthRealOpp, M = LLD_GTH_CAP.mult, pool = ((RO && RO.all && RO.all.length) ? RO.all : ctx.opp).slice().sort((a, b) => (b.v - a.v) || ((b.last || 0) - (a.last || 0)));
+    const st = pool.slice(0, LLD_GTH_CAP.slots.length), ck = (RO && RO.fid || 'x') + ':' + (RO && RO.wk || 0);
+    if (window._gthOppCk !== ck) { window._gthOppCk = ck; window._gthOppCaps = []; }
+    const sel = (window._gthOppCaps || []).filter(n => st.some(o => o.name === n)).slice(0, LLD_GTH_CAP.max);
+    const caps = st.filter(o => sel.indexOf(o.name) >= 0), rs = st.filter(o => sel.indexOf(o.name) < 0);
+    const dp = Math.min(Math.max(0, LLD_GTH_CAP.base - rs.length) * LLD_GTH_CAP.dep, (M - 1) * 50);
+    const plain = st.reduce((a, o) => a + o.v, 0), capV = caps.reduce((a, o) => a + o.v * M, 0), rsV = rs.reduce((a, o) => a + o.v * (1 + dp / 100), 0), total = capV + rsV, bonus = total - plain;
+    const row = (o, isCap) => `<div class="gth-or gth-rc2${isCap ? ' cap' : ''}${tgv === o.name ? ' hit' : ''}" data-n="${o.name.replace(/"/g, '&quot;')}"><span class="pa pa-${o.pos}">${isCap ? 'C' : o.pos}</span><div class="l"><b>${o.name}</b><small>${o.pos} · last week ${(o.last || 0).toFixed(1)}</small></div>${frz && !locked ? `<button type="button" class="gth-ofz ${tgv === o.name ? 'on' : ''}" data-n="${o.name.replace(/"/g, '&quot;')}">${tgv === o.name ? 'Frozen' : 'Freeze'}</button>` : ''}<div class="pv"><span class="s">${(isCap ? o.v * M : o.v * (1 + dp / 100)).toFixed(1)}</span><small>${isCap ? '\u00D7' + M + ' captain' : o.v.toFixed(1) + ' proj'}</small></div></div>`;
+    const empty = st.length && !st.some(o => o.v > 0) ? '<p class="td">Projections for this week are not out yet, so the order is a guess.</p>' : '';
+    const rows = `<div class="gth-tot"><div><i>Their best projected lineup</i><small>Tap a starter to make him a captain (up to ${LLD_GTH_CAP.max}). It is only for you to see.</small></div><b>${total.toFixed(1)}</b></div>${empty}<div class="gth-sec"><b>Captains</b><span>${caps.length}/${LLD_GTH_CAP.max}</span><em>${bonus >= 0.05 ? '+' + bonus.toFixed(1) + ' bonus' : ''}</em>${caps.length ? '<button type="button" class="gth-occ">Clear</button>' : ''}</div>${caps.map(o => row(o, true)).join('') || '<div class="gth-emp">No captains picked. Tap a player below.</div>'}<div class="gth-sec"><b>Reserves</b><span>${rs.length}</span><em>${rsV.toFixed(1)}</em></div>${rs.map(o => row(o, false)).join('')}`;
     const chs = locked
         ? [['🧊', 'Mr. Freeze', 'Revealed: started this week'], ['🎯', 'Deadshot', 'Revealed: started this week']].map(c => `<div class="gth-och"><span class="av">${c[0]}</span><div><b>${c[1]}</b><small>${c[2]}</small></div><em class="r">Started</em></div>`).join('')
         : [['🧊', 'Mr. Freeze', 'Leader'], ['🎎', 'Ventriloquist', 'Sidekick'], ['🎯', 'Deadshot', 'Sidekick']].map(c => `<div class="gth-och"><span class="av">${c[0]}</span><div><b>${c[1]}</b><small>${c[2]}</small></div><em>Owned</em></div>`).join('');
     pan.innerHTML = `<div class="gth-oc"><div class="h"><b>${(window._gthRealOpp && window._gthRealOpp.name) || 'Their squad'}</b><small>${locked ? 'Lineup revealed' : 'Roster. Lineup hidden until Thursday'}</small></div>${rows}${frz && !locked ? '<p>Tap Freeze on a player to target him with Mr. Freeze.</p>' : ''}<div class="hd2">${locked ? 'Characters they started' : 'Characters they could use'}</div>${chs}${ctx.real ? '' : '<p class="td">TEST DATA</p>'}</div>`;
 }
 $(document).on('click', '#gth-ot button', function () { window._gthOv = this.dataset.v; lldGthOppRender(); });
-$(document).on('click', '.gth-ofz', function () { lldSet(lldGthPkKey('mrfreeze'), this.dataset.n); lldGthCapRender(); });
+$(document).on('click', '#gth-opp .gth-rc2', function (e) { if ($(e.target).closest('.gth-ofz').length) return; const n = this.dataset.n, a = (window._gthOppCaps || []).slice(), at = a.indexOf(n); if (at >= 0) a.splice(at, 1); else { if (a.length >= LLD_GTH_CAP.max) a.shift(); a.push(n); } window._gthOppCaps = a; lldGthOppRender(); });
+$(document).on('click', '#gth-opp .gth-occ', function (e) { e.stopPropagation(); window._gthOppCaps = []; lldGthOppRender(); });
+$(document).on('click', '.gth-ofz', function (e) { e.stopPropagation(); lldSet(lldGthPkKey('mrfreeze'), this.dataset.n); lldGthCapRender(); });
 $(document).on('click', '.gth-opp-btn', function () { lldSet('lld_gth_opp', this.dataset.v); $('.gth-opp-btn').removeClass('on'); $(this).addClass('on'); lldGthCapRender(); });
 
 // ---- Try a character on your lineup (or sample players) from the Rules tab ----
