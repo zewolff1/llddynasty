@@ -6364,3 +6364,13 @@ body.gth-trying #gth-chars .gth-crs{display:none}
 .lld-clr-f .gth-fxs{display:inline-flex;gap:4px;margin-left:auto;flex:none;align-items:center}
 .lld-clr-f .gth-fxs .gth-fx{margin:0}
 .lld-clr-f .gth-fxs .gth-ci{width:20px;height:20px}
+
+/* Settings > Theme uses the same compact rails as the quick Theme sheet */
+.lld-thm .qt-g{font-size:calc(11px * var(--ts,1));font-weight:600;color:var(--text-dim);margin:10px 0 8px}
+.lld-thm .qt-rail{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.lld-thm .qt-rail::-webkit-scrollbar{display:none}
+.lld-thm .qt-sw{flex:0 0 84px !important;display:flex !important;flex-direction:column;gap:6px;padding:0 !important;border:0 !important;background:none !important;background-color:transparent !important;text-align:left;color:#fff}
+.lld-thm .qt-sw i{display:block;height:54px;border-radius:12px;position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.lld-thm .qt-sw i::after{content:'';position:absolute;left:8px;right:8px;bottom:8px;height:5px;border-radius:3px;background:var(--a)}
+.lld-thm .qt-sw span{font-size:calc(12px * var(--ts,1));font-weight:600;white-space:nowrap}
+.lld-thm .qt-sw.on i{box-shadow:0 0 0 2px #0f1520,0 0 0 4px #fff}
