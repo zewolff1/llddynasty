@@ -6349,3 +6349,11 @@ body.gth-ov #gth-lay,body.gth-ov .sticky-block{display:none !important}
 #gth-trybar{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--accent-blue);color:#fff;border-radius:12px;padding:8px 12px;margin:8px 0;font-size:calc(12px * var(--ts,1))}
 #gth-trybar button{background:rgba(0,0,0,.35);border:0;color:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
 body.gth-trying #gth-chars .gth-crs{display:none}
+
+/* all-play grid */
+#stt table.ax{width:auto;min-width:100%}
+#stt table.ax td.axc,#stt table.ax td.axd{min-width:84px;height:40px;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--card-border)}
+#stt table.ax td.axd{color:var(--text-dim);background:rgba(255,255,255,.04)}
+#stt table.ax td.axt{background:rgba(59,130,246,.14);border-left:1px solid var(--card-border)}
+#stt table.ax td.tm,#stt table.ax th.tm{position:sticky;left:0;z-index:2;background:var(--card-bg);min-width:130px;text-align:left}
+#stt table.ax tr.me td.tm{box-shadow:inset 3px 0 0 var(--accent-blue)}

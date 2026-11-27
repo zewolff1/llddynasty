@@ -15920,6 +15920,7 @@ const LLD_ST_PRE = {
     po: { n: 'Positions', t: 'Position Strength', cols: ['pQB', 'pRB', 'pWR', 'pTE', 'pDL', 'pLB', 'pDB'], note: 'Rank among all teams by points scored by starters at each position. 1 is best. Tap a cell to see the players.' },
     aw: { n: 'Awards', t: 'Weekly Awards', cols: ['a_tot', 'a_high', 'a_potw', 'a_blowout', 'a_close', 'a_upset', 'a_gutsy', 'a_overthink', 'a_sunday'], note: 'Weekly recap awards, counted per week. Tap a count to see which weeks and what happened.' },
     mo: { n: 'Money', t: 'Money & Cap', cols: ['cap', 'cl', 'cu', 'dyn'], note: 'Salary spent against the cap for the selected season, with dynasty value rank.' },
+    ax: { n: 'All-play grid', t: 'All-Play Matchups', grid: 1, cols: [], note: 'Each box is the share of weeks the team on the left outscored the team across the top. Green is above 50%, red is below. The last column is against everyone.' },
     cu: { n: 'Custom', t: 'Your Columns', cols: ['rec', 'pfw', 'cap', 'ef'], note: 'Pick any columns with the Columns button. Your choice is remembered.' }
 };
 const LLD_ST_POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'];
@@ -16186,11 +16187,21 @@ $(document).on('click', '#stt td.cl[data-p], #stt .seg[data-p]', function (e) { 
 $(document).on('click', '#stt .pgc[data-s]', function (e) { e.stopImmediatePropagation(); lldPgGridSheet(this.getAttribute('data-t'), this.getAttribute('data-s')); });
 $(document).on('click', '#stt th[data-ct]', function (e) { e.stopImmediatePropagation(); const g = window._lldPg, i = +this.getAttribute('data-ct'); if (g.cs.t === i) g.cs.d = -g.cs.d; else g.cs = { t: i, d: 1 }; lldStDraw(); });
 $(document).on('click', '#stt [data-rg]', function (e) { e.stopImmediatePropagation(); const g = window._lldPg, k = this.getAttribute('data-rg'); if (!k) { g.rs = { k: null, d: 1 }; g.cs = { t: null, d: 1 }; } else if (g.rs.k === k) g.rs.d = -g.rs.d; else g.rs = { k, d: 1 }; lldStDraw(); });
+function lldStApGrid(S) {
+    const N = S.N, W = S.W, ord = S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]), D = S.D;
+    const pc = (i, j) => { let w = 0; for (let k = 0; k < W; k++) { const x = S.sc[i][k], y = S.sc[j][k]; if (x > y) w++; else if (x === y) w += .5; } return W ? w / W : 0; };
+    const col = v => { const d = Math.max(-1, Math.min(1, (v - .5) / .4)); return d >= 0 ? `rgba(34,197,94,${(.12 + d * .5).toFixed(2)})` : `rgba(239,68,68,${(.12 - d * .5).toFixed(2)})`; };
+    const nmOf = i => lldChatEsc(D.names[S.F[i]] || S.F[i]);
+    const head = '<tr><th class="tm"></th>' + ord.map(j => `<th class="ct ${S.F[j] === S.me ? 's' : ''}"><span class="lg"><img src="${getFranchiseLogoUrl(S.F[j])}" onerror="this.style.display='none'"></span><span class="tnm">${nmOf(j)}</span></th>`).join('') + '<th class="ct"><span class="tnm">All</span></th></tr>';
+    const body = ord.map(i => `<tr class="${S.F[i] === S.me ? 'me' : ''}"><td class="tm"><div class="tc"><span class="lg"><img src="${getFranchiseLogoUrl(S.F[i])}" onerror="this.style.display='none'"></span><span class="nm">${nmOf(i)}</span></div></td>` + ord.map(j => { if (i === j) return '<td class="axd">–</td>'; const v = pc(i, j); return `<td class="axc" style="background:${col(v)}">${Math.round(v * 100)}%</td>`; }).join('') + `<td class="axc axt">${Math.round(S.ap[i] / (W * (N - 1)) * 100)}%</td></tr>`).join('');
+    return `<div class="tb"><table class="ax"><thead>${head}</thead><tbody>${body}</tbody></table></div><div class="hint">Swipe sideways for more teams · ${W} week${W === 1 ? '' : 's'} played</div>`;
+}
 function lldStDraw() {
     const body = $('#stt'); if (!body.length || !window._lldSt.S) return;
     const st = window._lldSt, S = st.S, C = lldStDefs(S), P = LLD_ST_PRE[st.V] || LLD_ST_PRE.ov;
     if (P.beta && lldDev()) { lldPgDraw(body, P); return; }
     if (P.beta) { st.V = 'ov'; lldStDraw(); return; }
+    if (P.grid) { body.html(`<div class="views">${Object.keys(LLD_ST_PRE).filter(k => !LLD_ST_PRE[k].beta || lldDev()).map(k => `<button type="button" data-sv="${k}" class="${st.V === k ? 'on' : ''}">${LLD_ST_PRE[k].n}</button>`).join('')}<button type="button" class="cols" data-sv="cols">⚙ Columns</button></div><div class="ttl"><h2>${P.t}</h2></div>${lldStApGrid(S)}<p class="note">${P.note}</p>`); try { reapplyAllTeamStyles(); } catch (e) { } return; }
     const cols = (st.V === 'cu' ? (st.cols || P.cols) : P.cols).filter(k => C[k]);
     if (st.V !== 'cu') st._shown = cols; else st._shown = cols;
     const rows = lldStSorted(lldStRows(S), C), arrow = k => st.sk === k ? (st.sd === -1 ? ' ▾' : ' ▴') : '';
