@@ -6357,3 +6357,4 @@ body.gth-trying #gth-chars .gth-crs{display:none}
 #stt table.ax td.axt{background:rgba(59,130,246,.14);border-left:1px solid var(--card-border)}
 #stt table.ax td.tm,#stt table.ax th.tm{position:sticky;left:0;z-index:2;background:var(--card-bg);min-width:130px;text-align:left}
 #stt table.ax tr.me td.tm{box-shadow:inset 3px 0 0 var(--accent-blue)}
+#stt .axf{display:flex;gap:6px;margin:0 0 8px}#stt .axf button{flex:1;padding:8px 6px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:11px;font-weight:800;cursor:pointer}#stt .axf button.on{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}

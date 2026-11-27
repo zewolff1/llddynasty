@@ -15908,7 +15908,7 @@ setInterval(() => { if (lldShOn() && $('#tab-team').is(':visible')) { const el =
 function lldStOn() { try { return !window._lldStOld; } catch (e) { return false; } }
 const LLD_ST_PICK = [18, 48, 80, 110]; // estimated dynasty rank of a draft pick by round (1st, 2nd, 3rd, later). Edit these to change how picks count.
 const LLD_ST_BW = [.5, .4, .3, .22, .16, .12, .08, .05];
-window._lldSt = window._lldSt || { V: lldGet('lld_st_v', 'ov'), cols: null, sk: null, sd: -1, picks: false, logos: false, X: {} };
+window._lldSt = window._lldSt || { V: lldGet('lld_st_v', 'ov'), cols: null, sk: null, sd: -1, picks: false, axf: lldGet('lld_st_axf', '0') === '1', logos: false, X: {} };
 try { window._lldSt.cols = JSON.parse(lldGet('lld_st_cols', 'null')); } catch (e) { }
 const LLD_ST_PRE = {
     ov: { n: 'Overview', t: 'Standings', cols: ['rec', 'pfw', 'paw', 'st'], note: 'Points are averages per week, not per game, so double-header weeks do not inflate them. Tap any cell for the details.' },
@@ -15920,7 +15920,7 @@ const LLD_ST_PRE = {
     po: { n: 'Positions', t: 'Position Strength', cols: ['pQB', 'pRB', 'pWR', 'pTE', 'pDL', 'pLB', 'pDB'], note: 'Rank among all teams by points scored by starters at each position. 1 is best. Tap a cell to see the players.' },
     aw: { n: 'Awards', t: 'Weekly Awards', cols: ['a_tot', 'a_high', 'a_potw', 'a_blowout', 'a_close', 'a_upset', 'a_gutsy', 'a_overthink', 'a_sunday'], note: 'Weekly recap awards, counted per week. Tap a count to see which weeks and what happened.' },
     mo: { n: 'Money', t: 'Money & Cap', cols: ['cap', 'cl', 'cu', 'dyn'], note: 'Salary spent against the cap for the selected season, with dynasty value rank.' },
-    ax: { n: 'All-play grid', t: 'All-Play Matchups', grid: 1, cols: [], note: 'Each box is the share of weeks the team on the left outscored the team across the top. Green is above 50%, red is below. The last column is against everyone.' },
+    ax: { n: 'All-play grid', t: 'All-Play Matchups', grid: 1, cols: [], note: 'Each box is the share of weeks one team outscored the other. Use the switch above the grid to read it as the team on the left beating the team across the top, or the other way around. Green is above 50%, red is below. The last column is against everyone.' },
     cu: { n: 'Custom', t: 'Your Columns', cols: ['rec', 'pfw', 'cap', 'ef'], note: 'Pick any columns with the Columns button. Your choice is remembered.' }
 };
 const LLD_ST_POS = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB'];
@@ -16188,13 +16188,13 @@ $(document).on('click', '#stt .pgc[data-s]', function (e) { e.stopImmediatePropa
 $(document).on('click', '#stt th[data-ct]', function (e) { e.stopImmediatePropagation(); const g = window._lldPg, i = +this.getAttribute('data-ct'); if (g.cs.t === i) g.cs.d = -g.cs.d; else g.cs = { t: i, d: 1 }; lldStDraw(); });
 $(document).on('click', '#stt [data-rg]', function (e) { e.stopImmediatePropagation(); const g = window._lldPg, k = this.getAttribute('data-rg'); if (!k) { g.rs = { k: null, d: 1 }; g.cs = { t: null, d: 1 }; } else if (g.rs.k === k) g.rs.d = -g.rs.d; else g.rs = { k, d: 1 }; lldStDraw(); });
 function lldStApGrid(S) {
-    const N = S.N, W = S.W, ord = S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]), D = S.D;
+    const fl = !!window._lldSt.axf, N = S.N, W = S.W, ord = S.order((a, b) => S.ap[b] - S.ap[a] || S.pf[b] - S.pf[a]), D = S.D;
     const pc = (i, j) => { let w = 0; for (let k = 0; k < W; k++) { const x = S.sc[i][k], y = S.sc[j][k]; if (x > y) w++; else if (x === y) w += .5; } return W ? w / W : 0; };
     const col = v => { const d = Math.max(-1, Math.min(1, (v - .5) / .4)); return d >= 0 ? `rgba(34,197,94,${(.12 + d * .5).toFixed(2)})` : `rgba(239,68,68,${(.12 - d * .5).toFixed(2)})`; };
     const nmOf = i => lldChatEsc(D.names[S.F[i]] || S.F[i]);
     const head = '<tr><th class="tm"></th>' + ord.map(j => `<th class="ct ${S.F[j] === S.me ? 's' : ''}"><span class="lg"><img src="${getFranchiseLogoUrl(S.F[j])}" onerror="this.style.display='none'"></span><span class="tnm">${nmOf(j)}</span></th>`).join('') + '<th class="ct"><span class="tnm">All</span></th></tr>';
-    const body = ord.map(i => `<tr class="${S.F[i] === S.me ? 'me' : ''}"><td class="tm"><div class="tc"><span class="lg"><img src="${getFranchiseLogoUrl(S.F[i])}" onerror="this.style.display='none'"></span><span class="nm">${nmOf(i)}</span></div></td>` + ord.map(j => { if (i === j) return '<td class="axd">–</td>'; const v = pc(i, j); return `<td class="axc" style="background:${col(v)}">${Math.round(v * 100)}%</td>`; }).join('') + `<td class="axc axt">${Math.round(S.ap[i] / (W * (N - 1)) * 100)}%</td></tr>`).join('');
-    return `<div class="tb"><table class="ax"><thead>${head}</thead><tbody>${body}</tbody></table></div><div class="hint">Swipe sideways for more teams · ${W} week${W === 1 ? '' : 's'} played</div>`;
+    const body = ord.map(i => `<tr class="${S.F[i] === S.me ? 'me' : ''}"><td class="tm"><div class="tc"><span class="lg"><img src="${getFranchiseLogoUrl(S.F[i])}" onerror="this.style.display='none'"></span><span class="nm">${nmOf(i)}</span></div></td>` + ord.map(j => { if (i === j) return '<td class="axd">–</td>'; const v = fl ? pc(j, i) : pc(i, j); return `<td class="axc" style="background:${col(v)}">${Math.round(v * 100)}%</td>`; }).join('') + `<td class="axc axt">${Math.round((fl ? 1 - S.ap[i] / (W * (N - 1)) : S.ap[i] / (W * (N - 1))) * 100)}%</td></tr>`).join('');
+    return `<div class="axf"><button type="button" data-axf="0" class="${fl ? '' : 'on'}">Left team outscored top team</button><button type="button" data-axf="1" class="${fl ? 'on' : ''}">Top team outscored left team</button></div><div class="tb"><table class="ax"><thead>${head}</thead><tbody>${body}</tbody></table></div><div class="hint">Swipe sideways for more teams · ${W} week${W === 1 ? '' : 's'} played</div>`;
 }
 function lldStDraw() {
     const body = $('#stt'); if (!body.length || !window._lldSt.S) return;
@@ -27275,3 +27275,5 @@ setInterval(lldMyBlockTab, 1000); $(lldMyBlockTab);
 window.lldLogoRaw = lldLogoRaw;
 
 
+
+$(document).on('click', '#stt [data-axf]', function () { const st = window._lldSt; st.axf = this.dataset.axf === '1'; lldSet('lld_st_axf', st.axf ? '1' : '0'); lldStDraw(); });
