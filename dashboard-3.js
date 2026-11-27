@@ -14717,9 +14717,9 @@ const LLD_GTH_ABD = {
     "Deadshot": [["Empty Chamber", "A bonus for each empty ability slot."]],
     "Amanda Waller": [["Black Files", "A bonus for each unique ability used this season."]],
     "Victor Zsasz": [["Tally Marks", "A bonus for each player you started last week who was cut."]],
-    "Anarky": [["Redistribution", "You have less FAAB than your opponent: a bonus."]],
-    "Anarchy": [["Redistribution", "You have less FAAB than your opponent: a bonus."]],
-    "Tony Zucco": [["Black Market", "You have more FAAB than your opponent: a bonus."]],
+    "Anarky": [["Redistribution", "You are lower in the waiver order than your opponent: a bonus."]],
+    "Anarchy": [["Redistribution", "You are lower in the waiver order than your opponent: a bonus."]],
+    "Tony Zucco": [["Black Market", "You are higher in the waiver order than your opponent: a bonus."]],
     "Rupert Thorne": [["Backroom Deal", "You outscored the team you are playing this week, last week: a bonus for every point of the gap."]],
     "Killer Moth": [["Moth to a Flame", "The team you are playing this week outscored you last week: a bonus for every point of the gap."]],
     "Black Mask": [["Faceless Rule", "You are ranked above the team you are playing this week: a bonus for every spot of the gap."]],
@@ -17102,8 +17102,8 @@ function lldGthFx(row, ico, label, txt, neg, off) {
     const pj = r.find('.proj-popup-trigger').first(); if (pj.length) pj.after(`<div class="gth-pj${neg ? ' dn' : ''}${off ? ' off' : ''}">${txt}</div>`);
 }
 // ---- Gotham: the rest of the character abilities. Every number is in LLD_GTH_X so you can tune it. ----
-// Abilities that need league data (the opponent's lineup, last week, standings, streaks, FAAB...) use made-up numbers while Test mode is on, and say "needs league data" when it is off.
-const LLD_GTH_X = { oracle: 25, mallet: 25, arkhamPct: 2, kiss: 0.25, venomPct: 1, defectPct: 10, burglar: 2, clockPct: 2, pyg: 1, firefly: 10, hugoPct: 5, croc: 1, deadPct: 3, wallerPct: 0.5, zsasz: 2, faabPct: 3, thorne: 10, moth: 10, mask: 1, cond: 1.5, vent: 1, clue: 0.25, polkaPct: 10, hush: 2, stroke: 2, slowPct: 3, slowMax: 15, pengPct: 1.5, mindCap: 0.5, freezeRate: 1 };
+// Abilities that need league data (the opponent's lineup, last week, standings, streaks, waiver order...) use made-up numbers while Test mode is on, and say "needs league data" when it is off.
+const LLD_GTH_X = { oracle: 25, mallet: 25, arkhamPct: 2, kiss: 0.25, venomPct: 1, defectPct: 10, burglar: 2, clockPct: 2, pyg: 1, firefly: 10, hugoPct: 5, croc: 1, deadPct: 3, wallerPct: 0.5, zsasz: 2, wvPct: 3, thorne: 10, moth: 10, mask: 1, cond: 1.5, vent: 1, clue: 0.25, polkaPct: 10, hush: 2, stroke: 2, slowPct: 3, slowMax: 15, pengPct: 1.5, mindCap: 0.5, freezeRate: 1 };
 function lldGthH(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
 function lldGthR(seed) { let a = lldGthH(seed); return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const LLD_GTH_OPPN = ['Patrick Mahomes', 'Saquon Barkley', 'Jahmyr Gibbs', 'Ja\'Marr Chase', 'Zay Flowers', 'DK Metcalf', 'Jameson Williams', 'Mark Andrews', 'James Cook', 'Trey McBride', 'Derrick Henry', 'Nico Collins', 'Joe Burrow', 'Tyreek Hill'];
@@ -17115,7 +17115,7 @@ function lldGthCtx(cnt, bn) { // made-up league data, the same all week (seeded 
     let ob = [0, 1, 2, 3].map(k => ({ name: LLD_GTH_OPPN[10 + k], v: Math.round((3 + R() * 9) * 10) / 10 }));
     const RO = window._gthRealOpp; if (RO && RO.opp && RO.opp.length) { opp = RO.opp.map(o => Object.assign({}, o)); ob = RO.ob.length ? RO.ob : ob; cnt.concat(bn).forEach(i => { if (RO.mine && RO.mine[i.pid] !== undefined) mp[i.pid].last = RO.mine[i.pid]; }); }
     const myLast = cnt.reduce((a, i) => a + mp[i.pid].last, 0), oppLast = opp.reduce((a, o) => a + o.last, 0);
-    return { dummy: true, real: !!(RO && RO.opp && RO.opp.length), mp, opp, ob, myLast, oppLast, myRank: 1 + Math.floor(R() * 12), oppRank: 1 + Math.floor(R() * 12), myFaab: 50 + Math.floor(R() * 450), oppFaab: 50 + Math.floor(R() * 450), arkham: 1 + Math.floor(R() * 6), used: 1 + Math.floor(R() * 8), cutStarted: Math.floor(R() * 3), oppAdded: Math.floor(R() * 3), oppCut: Math.floor(R() * 3) };
+    return { dummy: true, real: !!(RO && RO.opp && RO.opp.length), mp, opp, ob, myLast, oppLast, myRank: 1 + Math.floor(R() * 12), oppRank: 1 + Math.floor(R() * 12), myWv: 1 + Math.floor(R() * 12), oppWv: 1 + Math.floor(R() * 12), arkham: 1 + Math.floor(R() * 6), used: 1 + Math.floor(R() * 8), cutStarted: Math.floor(R() * 3), oppAdded: Math.floor(R() * 3), oppCut: Math.floor(R() * 3) };
 }
 const LLD_GTH_NEEDS = 'Needs league data (your opponent, last week or standings). Turn on Test mode on the Commissioner tools screen to preview it with made-up numbers.';
 // each entry: name, icon, needs league data?, and a function that returns { d: change to your total, st: status text, opp: change to your opponent's total (optional), fx: [row effects] }
@@ -17142,8 +17142,8 @@ const LLD_GTH_XA = {
     deadshot: ['Empty Chamber', '🎯', 0, c => { const e = Math.max(0, 2 - lldGthCharList().filter(x => x.on).length), d = c.total * e * LLD_GTH_X.deadPct / 100; return { d, st: `${e} empty ability slot${e === 1 ? '' : 's'} (you can start 2 characters), +${LLD_GTH_X.deadPct}% each: <b class="up">+${d.toFixed(1)}</b>` }; }],
     amandawaller: ['Black Files', '📁', 1, c => { const d = c.total * c.ctx.used * LLD_GTH_X.wallerPct / 100; return { d, st: `${c.ctx.used} different abilities used this season, +${LLD_GTH_X.wallerPct}% each: <b class="up">+${d.toFixed(1)}</b>` }; }],
     victorzsasz: ['Tally Marks', '📊', 1, c => { const d = c.ctx.cutStarted * LLD_GTH_X.zsasz; return { d, st: `${c.ctx.cutStarted} player${c.ctx.cutStarted === 1 ? '' : 's'} you started last week were cut, +${LLD_GTH_X.zsasz} each: <b class="up">+${d.toFixed(1)}</b>` }; }],
-    anarchy: ['Redistribution', '🅰️', 1, c => { const ok = c.ctx.myFaab < c.ctx.oppFaab, d = ok ? c.total * LLD_GTH_X.faabPct / 100 : 0; return { d, st: ok ? `You have $${c.ctx.myFaab} FAAB, they have $${c.ctx.oppFaab}: <b class="up">+${d.toFixed(1)}</b>` : `You have more FAAB ($${c.ctx.myFaab} vs $${c.ctx.oppFaab}): no bonus.` }; }],
-    tonyzucco: ['Black Market', '💰', 1, c => { const ok = c.ctx.myFaab > c.ctx.oppFaab, d = ok ? c.total * LLD_GTH_X.faabPct / 100 : 0; return { d, st: ok ? `You have $${c.ctx.myFaab} FAAB, they have $${c.ctx.oppFaab}: <b class="up">+${d.toFixed(1)}</b>` : `You have less FAAB ($${c.ctx.myFaab} vs $${c.ctx.oppFaab}): no bonus.` }; }],
+    anarchy: ['Redistribution', '🅰️', 1, c => { const ok = c.ctx.myWv > c.ctx.oppWv, d = ok ? c.total * LLD_GTH_X.wvPct / 100 : 0; return { d, st: ok ? `You are #${c.ctx.myWv} in the waiver order, they are #${c.ctx.oppWv}: <b class="up">+${d.toFixed(1)}</b>` : `You are higher in the waiver order (#${c.ctx.myWv} vs #${c.ctx.oppWv}): no bonus.` }; }],
+    tonyzucco: ['Black Market', '💰', 1, c => { const ok = c.ctx.myWv < c.ctx.oppWv, d = ok ? c.total * LLD_GTH_X.wvPct / 100 : 0; return { d, st: ok ? `You are #${c.ctx.myWv} in the waiver order, they are #${c.ctx.oppWv}: <b class="up">+${d.toFixed(1)}</b>` : `You are lower in the waiver order (#${c.ctx.myWv} vs #${c.ctx.oppWv}): no bonus.` }; }],
     ruperthorne: ['Backroom Deal', '🤝', 1, c => { const g = c.ctx.myLast - c.ctx.oppLast, d = g > 0 ? g * LLD_GTH_X.thorne / 100 : 0; return { d, st: g > 0 ? `You outscored them by ${g.toFixed(1)} last week, ${LLD_GTH_X.thorne}% of the gap: <b class="up">+${d.toFixed(1)}</b>` : 'They outscored you last week: no bonus.' }; }],
     killermoth: ['Moth to a Flame', '🦋', 1, c => { const g = c.ctx.oppLast - c.ctx.myLast, d = g > 0 ? g * LLD_GTH_X.moth / 100 : 0; return { d, st: g > 0 ? `They outscored you by ${g.toFixed(1)} last week, ${LLD_GTH_X.moth}% of the gap: <b class="up">+${d.toFixed(1)}</b>` : 'You outscored them last week: no bonus.' }; }],
     blackmask: ['Faceless Rule', '🎭', 1, c => { const g = c.ctx.oppRank - c.ctx.myRank, d = g > 0 ? g * LLD_GTH_X.mask : 0; return { d, st: g > 0 ? `You are #${c.ctx.myRank}, they are #${c.ctx.oppRank}: ${g} spot${g === 1 ? '' : 's'}, +${LLD_GTH_X.mask} each: <b class="up">+${d.toFixed(1)}</b>` : `You are #${c.ctx.myRank}, they are #${c.ctx.oppRank}: you are not ranked above them.` }; }],
