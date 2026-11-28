@@ -6388,8 +6388,3 @@ body.gth-trying #gth-chars .gth-crs{display:none}
 #gth-opp .gth-rc2.cap{border-color:var(--accent-blue);background:rgba(255,255,255,.03)}
 #gth-opp .gth-rc2.cap .pa{background:var(--accent-blue);color:#000;border-color:var(--accent-blue)}
 #gth-opp .gth-rc2 .pv{text-align:right;flex:none}#gth-opp .gth-rc2 .pv .s{display:block;font-size:calc(20px * var(--ts,1));line-height:1.1}#gth-opp .gth-rc2 .pv small{font-size:calc(10px * var(--ts,1))}
-
-/* Gotham demo clock */
-#gth-demo{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 84px);z-index:99998;display:flex;align-items:center;gap:6px;background:#e8b04a;color:#000;border-radius:999px;padding:5px 6px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
-#gth-demo div{text-align:center;padding:0 6px;line-height:1.15;min-width:120px}#gth-demo b{display:block;font-size:12px;letter-spacing:.04em}#gth-demo small{font-size:10px;opacity:.8}
-#gth-demo button{border:0;border-radius:999px;background:rgba(0,0,0,.15);color:#000;font:inherit;font-weight:800;min-width:32px;height:32px;cursor:pointer;font-size:16px}#gth-demo button.x{font-size:11px;padding:0 10px;background:#000;color:#e8b04a}

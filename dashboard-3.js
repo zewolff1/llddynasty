@@ -16803,32 +16803,11 @@ function lldPtrOn() { return true; }
 const LLD_GTH_LEAGUES = []; // add the Gotham league's MFL ID here once it exists, e.g. ['12345']
 function lldGthOn() { try { return LLD_GTH_LEAGUES.indexOf(String(lid)) >= 0 || !!(LLD.features && LLD.features.gotham); } catch (e) { return false; } } // turn it on in your league config: window.LLD_CONFIG = { features: { gotham: true } }
 window.lldGthOn = lldGthOn;
-setTimeout(() => { try { lldGthDemoBar(); } catch (e) { } }, 1200);
 
 // ---- Gotham tab bar: Squad / Recruit / Gotham, each with the days it is open (grayed when locked) ----
 // Times are Eastern. Change them in your league config: LLD_CONFIG.gothamWeek = { squad:['Tue 00:00','Thu 20:00'], recruit:['Tue 00:00','Wed 09:00'] }
 function lldGthNavOn() { return lldGet('lld_gth_nav', '1') === '1'; }
-// Demo clock: pretend it is a given day and time so every stage of the Gotham week can be tested (kept for this browser session only, never saved)
-const LLD_GTH_STAGES = [[1 * 1440 + 12 * 60, 'Mon 12:00', 'Games done'], [2 * 1440, 'Tue 00:00', 'Week opens'], [3 * 1440 + 8 * 60, 'Wed 08:00', 'Recruit closing'], [3 * 1440 + 12 * 60, 'Wed 12:00', 'Recruit closed'], [4 * 1440 + 12 * 60, 'Thu 12:00', 'Before kickoff'], [4 * 1440 + 21 * 60, 'Thu 21:00', 'Squad locked'], [0 * 1440 + 14 * 60, 'Sun 14:00', 'Games live']];
-function lldGthDemo() { try { const v = sessionStorage.getItem('lld_gth_demo'); return v === null || v === '' ? null : parseInt(v, 10); } catch (e) { return null; } }
-function lldGthDemoSet(v) {
-    try { if (v === null) sessionStorage.removeItem('lld_gth_demo'); else sessionStorage.setItem('lld_gth_demo', String(v)); } catch (e) { }
-    document.querySelectorAll('.league-tabs .tab-btn').forEach(b => delete b.dataset.gn);
-    lldGthDemoBar();
-    try { lldGthNav(); } catch (e) { } try { lldGthCapRender(); } catch (e) { }
-    $('.gth-demo-chip').each(function () { $(this).toggleClass('on', v !== null && +this.dataset.m === v); });
-}
-function lldGthDemoBar() {
-    const v = lldGthDemo(); let el = document.getElementById('gth-demo');
-    if (v === null || !lldGthOn()) { if (el) el.remove(); return; }
-    const i = LLD_GTH_STAGES.findIndex(x => x[0] === v), st = LLD_GTH_STAGES[i] || [v, 'Custom', ''];
-    if (!el) { el = document.createElement('div'); el.id = 'gth-demo'; document.body.appendChild(el); }
-    el.innerHTML = `<button type="button" data-d="-1">‹</button><div><b>DEMO · ${st[1]} ET</b><small>${st[2]}</small></div><button type="button" data-d="1">›</button><button type="button" class="x" data-d="0">Exit</button>`;
-}
-$(document).on('click', '#gth-demo button', function () { const d = +this.dataset.d, v = lldGthDemo(); if (!d) return lldGthDemoSet(null); let i = LLD_GTH_STAGES.findIndex(x => x[0] === v); i = i < 0 ? 0 : (i + d + LLD_GTH_STAGES.length) % LLD_GTH_STAGES.length; lldGthDemoSet(LLD_GTH_STAGES[i][0]); });
-$(document).on('click', '.gth-demo-chip', function () { const m = +this.dataset.m; lldGthDemoSet(this.classList.contains('on') ? null : m); });
 function lldGthEt() { // minutes since Sunday 00:00, Eastern
-    const dm = lldGthDemo(); if (dm !== null) return dm;
     const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()), g = t => (p.find(x => x.type === t) || {}).value;
     return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday')) * 1440 + (+g('hour')) * 60 + (+g('minute'));
 }
@@ -17320,7 +17299,6 @@ $(document).on('click', '#gth-pk', function (e) { if (e.target.id === 'gth-pk') 
 $(document).on('click', '#gth-pk .gth-pkr', function () { const cc = $('#gth-pk').data('cc'); lldSet(lldGthPkKey(cc), this.dataset.v); $('#gth-pk').remove(); lldGthCapRender(); });
 document.addEventListener('click', function (e) { // no submitting until every pick is made
     const b = e.target.closest && e.target.closest('#lineup-submit-float'); if (!b) return;
-    if (lldGthDemo() !== null && window.lldGthOn && window.lldGthOn() && !lldGthOpenNow(Object.assign({ squad: ['Tue 00:00', 'Thu 20:00'] }, (LLD.gothamWeek || {})).squad)) { e.stopPropagation(); e.preventDefault(); lldPlayedToast('Squad is locked right now (demo clock).'); return; } // the demo clock behaves like the real lock
     const n = Object.keys(window._gthNeed || {}); if (!n.length || !(window.lldGthOn && window.lldGthOn())) return;
     e.stopPropagation(); e.preventDefault(); lldPlayedToast('Make your character pick first.'); lldGthPkOpen(n[0]);
 }, true);
@@ -26510,7 +26488,7 @@ function lldQtHtml() {
         body = lab('Scoreboard style') + `<div class="qt-row qt-scroll">${[['theme', 'Match theme'], ['default', 'Default']].concat(LLD_SB_LAYOUTS).map(([v, l]) => `<button type="button" class="lld-hdr-btn lld-sb-btn ${sb === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`
             + lab('Theme colors on the scoreboard') + `<div class="qt-row"><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? 'on' : ''}" data-v="1">On</button><button type="button" class="lld-hdr-btn lld-sbt-set ${tint ? '' : 'on'}" data-v="0">Off</button></div>`;
     } else if (tab === 'colors' && lldCcOn()) { body = lldCcHtml();
-    } else body = lldRowBetaHtml() + (tab === 'rows' ? (window.lldGthOn && window.lldGthOn() ? `<div class="qt-l" style="margin-top:12px">Tab names</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? 'on' : ''}" data-v="1">Squad · Recruit · Gotham</button><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? '' : 'on'}" data-v="0">Team · Players · League</button></div>${true ? `<div class="qt-l" style="margin-top:12px">Demo clock (test any day)</div><div class="qt-row" style="flex-wrap:wrap">${LLD_GTH_STAGES.map(x => `<button type="button" class="lld-hdr-btn gth-demo-chip ${lldGthDemo() === x[0] ? 'on' : ''}" data-m="${x[0]}">${x[1]} · ${x[2]}</button>`).join('')}</div>` : ''}<div class="qt-l" style="margin-top:12px">Opponent squad</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-opp-btn ${lldGet('lld_gth_opp', '1') === '1' ? 'on' : ''}" data-v="1">Mine | Theirs</button><button type="button" class="lld-hdr-btn gth-opp-btn ${lldGet('lld_gth_opp', '1') === '1' ? '' : 'on'}" data-v="0">Off</button></div>` : '') + `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
+    } else body = lldRowBetaHtml() + (tab === 'rows' ? (window.lldGthOn && window.lldGthOn() ? `<div class="qt-l" style="margin-top:12px">Tab names</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? 'on' : ''}" data-v="1">Squad · Recruit · Gotham</button><button type="button" class="lld-hdr-btn gth-nav-btn ${lldGet('lld_gth_nav', '1') === '1' ? '' : 'on'}" data-v="0">Team · Players · League</button></div><div class="qt-l" style="margin-top:12px">Opponent squad</div><div class="qt-row"><button type="button" class="lld-hdr-btn gth-opp-btn ${lldGet('lld_gth_opp', '1') === '1' ? 'on' : ''}" data-v="1">Mine | Theirs</button><button type="button" class="lld-hdr-btn gth-opp-btn ${lldGet('lld_gth_opp', '1') === '1' ? '' : 'on'}" data-v="0">Off</button></div>` : '') + `<div class="qt-l" style="margin-top:12px">Team header</div><div class="qt-row"><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? 'on' : ''}" data-k="hdl" data-v="1">Logo on the left</button><button type="button" class="lld-hdr-btn lld-b-btn ${lldBv('hdl') === '1' ? '' : 'on'}" data-k="hdl" data-v="0">Logo on top</button></div>` : '');
     const pv = tab === 'rows' ? lldQtPreview() : '';
     return `<div class="qt-top"><b>Theme</b><button type="button" class="qt-done">Done</button></div>`
         + `<div class="qt-tabs">${[['theme', 'Theme'], ['logos', 'Logos'], ['rows', 'Rows'], ['scores', 'Scores']].concat(lldCcOn() ? [['colors', 'Colors']] : []).map(([k, l]) => `<button type="button" class="qt-tab ${tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>`
